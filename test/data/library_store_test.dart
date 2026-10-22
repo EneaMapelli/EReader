@@ -7,6 +7,7 @@ import 'package:ereader/domain/reading_anchor.dart';
 import 'package:ereader/domain/pronunciation_rule.dart';
 import 'package:ereader/domain/speech_preferences.dart';
 import 'package:ereader/domain/book_bookmark.dart';
+import 'package:ereader/domain/cloud_speech_consent.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -333,6 +334,83 @@ void main() {
     await store.initialize();
     expect(store.getBook(book.id)!.progressOffset, 4);
     expect(store.listBookmarks(book.id), isEmpty);
+  });
+
+
+  test('cloud is denied by default and reservations stay below hard quota',
+      () async {
+    final input = File(p.join(root.path, 'secure-cloud.txt'));
+    await input.writeAsString('External excerpts');
+    final book = await store.importFile(input.path);
+    expect(store.getConsent(book.id, 'openai-speech').allowed, isFalse);
+    await expectLater(
+      store.reserveCharacters(book.id, 'openai-speech', 5),
+      throwsA(isA<CloudSpeechBlocked>()),
+    );
+    await store.configureCloudConsent(book.id, 'openai-speech',
+        allowed: true, maxCharacters: 10);
+    await store.reserveCharacters(book.id, 'openai-speech', 7);
+    await expectLater(
+      store.reserveCharacters(book.id, 'openai-speech', 4),
+      throwsA(isA<CloudSpeechBlocked>()),
+    );
+    final consent = store.getConsent(book.id, 'openai-speech');
+    expect(consent.usedCharacters, 7);
+    expect(consent.remainingCharacters, 3);
+
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getConsent(book.id, 'openai-speech').usedCharacters, 7);
+    await store.configureCloudConsent(book.id, 'openai-speech',
+        allowed: false, maxCharacters: 10);
+    await expectLater(
+      store.reserveCharacters(book.id, 'openai-speech', 1),
+      throwsA(isA<CloudSpeechBlocked>()),
+    );
+  });
+
+  test('raising limit retains consumed quota and reducing below used fails',
+      () async {
+    final input = File(p.join(root.path, 'quota.txt'));
+    await input.writeAsString('A book');
+    final book = await store.importFile(input.path);
+    await store.configureCloudConsent(book.id, 'openai-speech',
+        allowed: true, maxCharacters: 10);
+    await store.reserveCharacters(book.id, 'openai-speech', 9);
+    await expectLater(
+      store.configureCloudConsent(book.id, 'openai-speech',
+          allowed: true, maxCharacters: 8),
+      throwsStateError,
+    );
+    await store.configureCloudConsent(book.id, 'openai-speech',
+        allowed: true, maxCharacters: 20);
+    expect(store.getConsent(book.id, 'openai-speech').usedCharacters, 9);
+    expect(store.getConsent(book.id, 'openai-speech').remainingCharacters, 11);
+    await store.removeBook(book.id);
+    expect(store.getConsent(book.id, 'openai-speech').allowed, isFalse);
+  });
+
+  test('SQLite v4 upgrades cloud policy without dropping bookmarks',
+      () async {
+    final input = File(p.join(root.path, 'v4-cloud.txt'));
+    await input.writeAsString('Privacy matters');
+    final book = await store.importFile(input.path);
+    await store.addBookmark(BookBookmark(
+      id: 'bookmark-cloud', bookId: book.id,
+      title: 'A bookmark', globalOffset: 3,
+      createdAt: DateTime.utc(2026, 10, 22),
+    ));
+    store.dispose();
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    db.execute('DROP TABLE cloud_speech_consent');
+    db.execute('PRAGMA user_version = 4');
+    db.dispose();
+
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.listBookmarks(book.id), hasLength(1));
+    expect(store.getConsent(book.id, 'openai-speech').allowed, isFalse);
   });
 
 }
