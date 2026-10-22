@@ -11,9 +11,10 @@ import '../domain/reading_anchor.dart';
 import '../domain/pronunciation_rule.dart';
 import '../domain/speech_preferences.dart';
 import '../domain/book_bookmark.dart';
+import '../domain/cloud_speech_consent.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
-class LibraryStore {
+class LibraryStore implements CloudSpeechAccess {
   LibraryStore({Directory? homeDirectory}) : _configuredHome = homeDirectory;
   final Directory? _configuredHome;
   Directory? _home;
@@ -40,7 +41,7 @@ class LibraryStore {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 4) {
+      if (version > 5) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -111,6 +112,24 @@ class LibraryStore {
             ON bookmarks(book_id, created_at)
           ''');
           db.execute('PRAGMA user_version = 4');
+        });
+      }
+      if (version < 5) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS cloud_speech_consent (
+              book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+              provider_id TEXT NOT NULL,
+              allowed INTEGER NOT NULL DEFAULT 0,
+              max_chars INTEGER NOT NULL DEFAULT 0,
+              used_chars INTEGER NOT NULL DEFAULT 0,
+              approved_at TEXT,
+              PRIMARY KEY (book_id, provider_id),
+              CHECK (max_chars >= 0 AND max_chars <= 10000000),
+              CHECK (used_chars >= 0 AND used_chars <= max_chars)
+            )
+          ''');
+          db.execute('PRAGMA user_version = 5');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -363,6 +382,97 @@ class LibraryStore {
 
   Future<void> deleteBookmark(String id) async {
     _database.execute('DELETE FROM bookmarks WHERE id = ?', [id]);
+  }
+
+  @override
+  CloudSpeechConsent getConsent(String bookId, String providerId) {
+    final rows = _database.select('''
+      SELECT * FROM cloud_speech_consent
+      WHERE book_id = ? AND provider_id = ?
+    ''', [bookId, providerId]);
+    if (rows.isEmpty) {
+      return CloudSpeechConsent(
+        bookId: bookId,
+        providerId: providerId,
+        allowed: false,
+        maxCharacters: 0,
+        usedCharacters: 0,
+      );
+    }
+    final row = rows.first;
+    return CloudSpeechConsent(
+      bookId: bookId,
+      providerId: providerId,
+      allowed: (row['allowed'] as int) == 1,
+      maxCharacters: row['max_chars'] as int,
+      usedCharacters: row['used_chars'] as int,
+      approvedAt: row['approved_at'] is String
+          ? DateTime.parse(row['approved_at'] as String)
+          : null,
+    );
+  }
+
+  /// Explicit user action only. Re-authorizing never resets consumed quota.
+  /// Disabled means NO API request can be made, even if a key exists.
+  Future<void> configureCloudConsent(
+    String bookId,
+    String providerId, {
+    required bool allowed,
+    required int maxCharacters,
+  }) async {
+    if (providerId != 'openai-speech' || getBook(bookId) == null) {
+      throw StateError('Unknown book or unsupported cloud provider');
+    }
+    if (maxCharacters < 0 || maxCharacters > 10000000) {
+      throw ArgumentError.value(maxCharacters, 'maxCharacters');
+    }
+    _transaction(_database, () {
+      _database.execute('''
+        INSERT INTO cloud_speech_consent (
+          book_id, provider_id, allowed, max_chars, used_chars, approved_at
+        ) VALUES (?, ?, ?, ?, 0, ?)
+        ON CONFLICT(book_id, provider_id) DO UPDATE SET
+          allowed = excluded.allowed,
+          max_chars = excluded.max_chars,
+          approved_at = excluded.approved_at
+        WHERE cloud_speech_consent.used_chars <= excluded.max_chars
+      ''', [
+        bookId, providerId, allowed ? 1 : 0, maxCharacters,
+        allowed ? DateTime.now().toUtc().toIso8601String() : null,
+      ]);
+      final changed = _database.select('SELECT changes() AS n')
+          .first['n'] as int;
+      if (changed != 1) {
+        throw StateError('Budget cannot be less than already used characters');
+      }
+    });
+  }
+
+  /// Reserves BEFORE sending text, including requests that later fail.
+  /// The comparison and increment are one atomic SQLite transaction, so
+  /// concurrent providers cannot accidentally exceed the local hard limit.
+  @override
+  Future<void> reserveCharacters(
+    String bookId, String providerId, int characters,
+  ) async {
+    if (characters <= 0 || characters > 4096) {
+      throw ArgumentError.value(characters, 'characters');
+    }
+    _transaction(_database, () {
+      _database.execute('''
+        UPDATE cloud_speech_consent
+        SET used_chars = used_chars + ?
+        WHERE book_id = ? AND provider_id = ? AND allowed = 1
+          AND max_chars - used_chars >= ?
+      ''', [characters, bookId, providerId, characters]);
+      final changed = _database.select('SELECT changes() AS n')
+          .first['n'] as int;
+      if (changed != 1) {
+        throw const CloudSpeechBlocked(
+          'No explicit book consent or character budget exhausted',
+        );
+      }
+    });
   }
 
   Future<void> removeBook(String bookId) async {
