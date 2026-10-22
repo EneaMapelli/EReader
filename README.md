@@ -8,14 +8,14 @@
 
 Sul branch `feature/m0-flutter-foundation` sono presenti:
 - Modello libri e importazione/copia locale di TXT, EPUB e PDF (limite provvisorio 100 MB).
-- Biblioteca con metadati minimi e progressi locali (indice JSON provvisorio).
+- Biblioteca SQLite 3.x con progressi persistenti e migrazione automatica del precedente indice JSON.
 - Estrazione e lettura in forma testuale di TXT/EPUB; **il renderer EPUB completo e gli anchor stabili non sono ancora implementati**.
-- Visualizzazione PDF senza sintesi vocale tramite `pdfrx`.
+- Visualizzazione PDF tramite `pdfrx` e modalità sperimentale di lettura vocale per PDF con testo selezionabile (senza garanzia sull'ordine di colonne, note e tabelle).
 - Lettura vocale con voci del sistema Windows/Android, selezione voce, lingua, pitch, rate, salta avanti/indietro e evidenziazione del *segmento* in lettura.
-- Test unitari per modello di libro, segmentazione e queue player.
+- Test unitari per modelli, segmentazione, queue player, database SQLite, migrazione JSON e decodifica TXT.
 - Workflow GitHub Actions **solo manuale** per analisi, test e build, da lanciare dopo la prima verifica locale.
 
-**Non ancora verificati:** compilazione, test/analisi effettivi e funzionamento su dispositivi reali. Gli ambienti Flutter/Dart e i toolchain Windows/Android non erano disponibili nel contesto di sviluppo. Le cartelle native `android/` e `windows/` devono ancora essere generate e versionate dopo il bootstrap.
+**Non ancora verificati:** compilazione, test/analisi effettivi, migrazione SQLite reale e funzionamento su dispositivi Windows/Android. Gli ambienti Flutter/Dart e i toolchain Windows/Android non erano disponibili nel contesto di sviluppo. Le cartelle native `android/` e `windows/` devono ancora essere generate e versionate dopo il bootstrap.
 
 ## Avvio su Windows
 
@@ -36,7 +36,7 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 ## Architettura
 
 - `lib/domain/`: modello libri e segmenti UTF-16.
-- `lib/data/`: biblioteca locale e decoder (TXT/EPUB).
+- `lib/data/`: biblioteca SQLite e decoder (TXT/EPUB/PDF testuale).
 - `lib/audio/`: interfaccia TTS + adapter OS e player.
 - `lib/features/library/`, `lib/features/reader/`: schermate Flutter.
 - `test/`: unit test senza engine TTS reale.
