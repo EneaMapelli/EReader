@@ -1,21 +1,23 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:epubx/epubx.dart';
-import 'package:html/parser.dart' as html_parser;
 import 'package:pdfrx/pdfrx.dart';
 
 import '../domain/book.dart';
+import 'epub_text_extractor.dart';
 
 class DocumentContent {
   const DocumentContent({
     required this.text,
     required this.title,
     this.pdfPageRanges = const [],
+    this.epubSpineRanges = const [],
   });
   final String text;
   final String title;
   final List<PdfPageRange> pdfPageRanges;
+  final List<EpubSpineRange> epubSpineRanges;
 }
 
 /// Maps extracted text offsets back to an originating PDF page.
@@ -50,34 +52,14 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
         );
       case BookFormat.epub:
         final bytes = await file.readAsBytes();
-        final epub = await EpubReader.readBook(bytes);
-        final chunks = <String>[];
-        void addChapter(EpubChapter chapter) {
-          final raw = chapter.HtmlContent ?? '';
-          if (raw.isNotEmpty) {
-            final withBreaks = raw.replaceAll(
-              RegExp(r'</(p|div|h[1-6]|li|blockquote)>', caseSensitive: false),
-              '\n\n',
-            );
-            final document = html_parser.parse(withBreaks);
-            document.querySelectorAll('script,style').forEach(
-              (element) => element.remove(),
-            );
-            final text = document.body?.text.trim() ?? '';
-            if (text.isNotEmpty) chunks.add(text);
-          }
-          for (final child in chapter.SubChapters ?? <EpubChapter>[]) {
-            addChapter(child);
-          }
-        }
-        for (final chapter in epub.Chapters ?? <EpubChapter>[]) {
-          addChapter(chapter);
-        }
-        final text = chunks.join('\n\n');
-        if (text.isEmpty) {
-          throw const FormatException('No readable text found in EPUB');
-        }
-        return DocumentContent(title: epub.Title ?? record.title, text: text);
+        final content = const EpubTextExtractor().extract(
+          Uint8List.fromList(bytes),
+        );
+        return DocumentContent(
+          title: content.title,
+          text: content.text,
+          epubSpineRanges: content.ranges,
+        );
       case BookFormat.pdf:
         return _readPdfText(record);
     }
