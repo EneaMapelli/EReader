@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:ereader/audio/mp3_playback.dart';
 import 'package:ereader/audio/openai_speech_engine.dart';
 import 'package:ereader/audio/secret_vault.dart';
+import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/domain/cloud_speech_consent.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
