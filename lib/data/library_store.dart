@@ -12,6 +12,7 @@ import '../domain/pronunciation_rule.dart';
 import '../domain/speech_preferences.dart';
 import '../domain/book_bookmark.dart';
 import '../domain/cloud_speech_consent.dart';
+import '../domain/voice_cast.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
 class LibraryStore implements CloudSpeechAccess {
@@ -41,7 +42,7 @@ class LibraryStore implements CloudSpeechAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 5) {
+      if (version > 6) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -130,6 +131,50 @@ class LibraryStore implements CloudSpeechAccess {
             )
           ''');
           db.execute('PRAGMA user_version = 5');
+        });
+      }
+      if (version < 6) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS cast_characters (
+              id TEXT PRIMARY KEY NOT NULL,
+              book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+              display_name TEXT NOT NULL,
+              aliases_json TEXT NOT NULL DEFAULT '[]'
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_cast_book
+            ON cast_characters(book_id, display_name)
+          ''');
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS cast_voices (
+              character_id TEXT NOT NULL
+                REFERENCES cast_characters(id) ON DELETE CASCADE,
+              provider_id TEXT NOT NULL,
+              voice_name TEXT NOT NULL,
+              voice_locale TEXT NOT NULL,
+              PRIMARY KEY (character_id, provider_id)
+            )
+          ''');
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS segment_cast (
+              book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+              start_offset INTEGER NOT NULL,
+              end_offset INTEGER NOT NULL,
+              source_sha256 TEXT NOT NULL,
+              character_id TEXT NOT NULL
+                REFERENCES cast_characters(id) ON DELETE CASCADE,
+              anchor_json TEXT,
+              PRIMARY KEY (book_id, start_offset, end_offset),
+              CHECK (start_offset >= 0 AND end_offset > start_offset)
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_segment_cast_character
+            ON segment_cast(character_id)
+          ''');
+          db.execute('PRAGMA user_version = 6');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -473,6 +518,145 @@ class LibraryStore implements CloudSpeechAccess {
         );
       }
     });
+  }
+
+  /// Manual character roster; not an automatic character detector.
+  List<CastCharacter> listCastCharacters(String bookId) {
+    return _database.select('''
+      SELECT * FROM cast_characters
+      WHERE book_id = ? ORDER BY display_name COLLATE NOCASE, id
+    ''', [bookId]).map((row) => CastCharacter(
+      id: row['id'] as String,
+      bookId: row['book_id'] as String,
+      name: row['display_name'] as String,
+      aliases: List<String>.from(
+        jsonDecode(row['aliases_json'] as String) as List),
+    )).toList();
+  }
+
+  Future<void> saveCastCharacter(CastCharacter character) async {
+    character.validate();
+    if (getBook(character.bookId) == null) {
+      throw StateError('Unknown book for cast character');
+    }
+    // Do not permit moving an existing character to another book.
+    final exists = _database.select(
+      'SELECT book_id FROM cast_characters WHERE id = ?', [character.id]);
+    if (exists.isNotEmpty &&
+        exists.first['book_id'] != character.bookId) {
+      throw StateError('Cannot move character to a different book');
+    }
+    _database.execute('''
+      INSERT INTO cast_characters (id, book_id, display_name, aliases_json)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        display_name = excluded.display_name,
+        aliases_json = excluded.aliases_json
+    ''', [
+      character.id, character.bookId, character.name,
+      jsonEncode(character.aliases),
+    ]);
+  }
+
+  Future<void> deleteCastCharacter(String characterId) async {
+    // SQLite foreign-key cascade removes affected voice and speaker
+    // assignments; those segments automatically revert to narrator.
+    _database.execute('DELETE FROM cast_characters WHERE id = ?',
+        [characterId]);
+  }
+
+  List<CastVoiceAssignment> listCastVoices(String bookId) {
+    return _database.select('''
+      SELECT v.* FROM cast_voices v
+      JOIN cast_characters c ON v.character_id = c.id
+      WHERE c.book_id = ?
+      ORDER BY v.character_id, v.provider_id
+    ''', [bookId]).map((row) => CastVoiceAssignment(
+      characterId: row['character_id'] as String,
+      providerId: row['provider_id'] as String,
+      voiceName: row['voice_name'] as String,
+      voiceLocale: row['voice_locale'] as String,
+    )).toList();
+  }
+
+  Future<void> saveCastVoice(CastVoiceAssignment voice) async {
+    voice.validate();
+    final exists = _database.select(
+      'SELECT id FROM cast_characters WHERE id = ?',
+      [voice.characterId],
+    );
+    if (exists.isEmpty) throw StateError('Unknown cast character');
+    _database.execute('''
+      INSERT INTO cast_voices (
+        character_id, provider_id, voice_name, voice_locale
+      ) VALUES (?, ?, ?, ?)
+      ON CONFLICT(character_id, provider_id) DO UPDATE SET
+        voice_name = excluded.voice_name,
+        voice_locale = excluded.voice_locale
+    ''', [
+      voice.characterId, voice.providerId,
+      voice.voiceName, voice.voiceLocale,
+    ]);
+  }
+
+  Future<void> deleteCastVoice(String characterId, String providerId) async {
+    _database.execute('''
+      DELETE FROM cast_voices
+      WHERE character_id = ? AND provider_id = ?
+    ''', [characterId, providerId]);
+  }
+
+  List<SegmentCastAssignment> listSegmentCast(String bookId) {
+    return _database.select('''
+      SELECT * FROM segment_cast
+      WHERE book_id = ? ORDER BY start_offset, end_offset
+    ''', [bookId]).map((row) => SegmentCastAssignment(
+      bookId: row['book_id'] as String,
+      start: row['start_offset'] as int,
+      end: row['end_offset'] as int,
+      sourceDigest: row['source_sha256'] as String,
+      characterId: row['character_id'] as String,
+      anchor: row['anchor_json'] is String
+          ? ReadingAnchor.fromJson(Map<String, dynamic>.from(
+              jsonDecode(row['anchor_json'] as String) as Map))
+          : null,
+    )).toList();
+  }
+
+  Future<void> saveSegmentCast(SegmentCastAssignment attribution) async {
+    attribution.validate();
+    if (getBook(attribution.bookId) == null) {
+      throw StateError('Unknown book for segment attribution');
+    }
+    final character = _database.select('''
+      SELECT book_id FROM cast_characters WHERE id = ?
+    ''', [attribution.characterId]);
+    if (character.isEmpty ||
+        character.first['book_id'] != attribution.bookId) {
+      throw StateError('Speaker must belong to the same book');
+    }
+    _database.execute('''
+      INSERT INTO segment_cast (
+        book_id, start_offset, end_offset, source_sha256,
+        character_id, anchor_json
+      ) VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(book_id, start_offset, end_offset) DO UPDATE SET
+        source_sha256 = excluded.source_sha256,
+        character_id = excluded.character_id,
+        anchor_json = excluded.anchor_json
+    ''', [
+      attribution.bookId, attribution.start, attribution.end,
+      attribution.sourceDigest, attribution.characterId,
+      attribution.anchor == null ? null : jsonEncode(attribution.anchor!.toJson()),
+    ]);
+  }
+
+  Future<void> deleteSegmentCast(
+      String bookId, int start, int end) async {
+    _database.execute('''
+      DELETE FROM segment_cast
+      WHERE book_id = ? AND start_offset = ? AND end_offset = ?
+    ''', [bookId, start, end]);
   }
 
   Future<void> removeBook(String bookId) async {
