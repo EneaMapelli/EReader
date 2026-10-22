@@ -4,48 +4,201 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/book.dart';
 
-/// Files are copied to app storage rather than retaining temporary picker URIs.
-/// Prototype JSON index will migrate to SQLite for robust concurrent updates.
+/// Local, transactional Windows/Android library. Inject homeDirectory in tests.
 class LibraryStore {
+  LibraryStore({Directory? homeDirectory}) : _configuredHome = homeDirectory;
+  final Directory? _configuredHome;
   Directory? _home;
-  final Map<String, BookRecord> _records = {};
+  Database? _db;
+
+  Database get _database {
+    final db = _db;
+    if (db == null) throw StateError('LibraryStore not initialized');
+    return db;
+  }
+
+  Directory get _booksDir => Directory(p.join(_home!.path, 'books'));
 
   Future<void> initialize() async {
-    final base = await getApplicationSupportDirectory();
-    _home = Directory(p.join(base.path, 'ereader'));
-    await _home!.create(recursive: true);
-    await Directory(p.join(_home!.path, 'books')).create(recursive: true);
-    final index = File(p.join(_home!.path, 'library.json'));
-    if (!await index.exists()) return;
-    final decoded = jsonDecode(await index.readAsString()) as List<dynamic>;
-    for (final item in decoded) {
-      final book = BookRecord.fromJson(item as Map<String, dynamic>);
-      _records[book.id] = book;
+    if (_db != null) return;
+    final support = _configuredHome ??
+        Directory(p.join((await getApplicationSupportDirectory()).path, 'ereader'));
+    _home = support;
+    await support.create(recursive: true);
+    await _booksDir.create(recursive: true);
+    final db = sqlite3.open(p.join(support.path, 'library.sqlite'));
+    try {
+      db.execute('PRAGMA busy_timeout = 5000');
+      db.execute('PRAGMA journal_mode = WAL');
+      db.execute('PRAGMA foreign_keys = ON');
+      final version = db.select('PRAGMA user_version').first['user_version'] as int;
+      if (version > 1) {
+        throw StateError('Library created by a newer EReader version');
+      }
+      if (version < 1) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS books (
+              id TEXT PRIMARY KEY NOT NULL,
+              title TEXT NOT NULL,
+              local_path TEXT NOT NULL,
+              format TEXT NOT NULL,
+              imported_at TEXT NOT NULL,
+              progress_offset INTEGER NOT NULL DEFAULT 0
+                CHECK(progress_offset >= 0)
+            )
+          ''');
+          db.execute('PRAGMA user_version = 1');
+        });
+      }
+      await _migrateLegacyJson(db, support);
+      _db = db;
+    } catch (_) {
+      db.dispose();
+      _home = null;
+      rethrow;
     }
   }
 
-  List<BookRecord> get books {
-    final result = _records.values.toList();
-    result.sort((a, b) => b.importedAt.compareTo(a.importedAt));
-    return result;
+  /// Import the old JSON library atomically; archive it only after COMMIT.
+  /// If archiving fails, repeat startup safely with INSERT OR IGNORE.
+  Future<void> _migrateLegacyJson(Database db, Directory home) async {
+    final legacy = File(p.join(home.path, 'library.json'));
+    if (!await legacy.exists()) return;
+    final contents = jsonDecode(await legacy.readAsString());
+    if (contents is! List) {
+      throw const FormatException('Legacy library must contain a JSON array');
+    }
+    final records = contents.map((item) =>
+        BookRecord.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+
+    _transaction(db, () {
+      for (final book in records) {
+        if (!_isManagedPath(book.localPath)) continue;
+        _insert(db, book, ignoreDuplicates: true);
+      }
+    });
+
+    final archived = File(p.join(home.path, 'library.migrated.json'));
+    try {
+      if (!await archived.exists()) {
+        await legacy.rename(archived.path);
+      } else {
+        await legacy.delete();
+      }
+    } on FileSystemException {
+      // Keep the original; idempotent migration can be retried.
+    }
+  }
+
+  List<BookRecord> get books => _database
+      .select('SELECT * FROM books ORDER BY imported_at DESC, title COLLATE NOCASE')
+      .map(_fromRow)
+      .toList();
+
+  BookRecord? getBook(String id) {
+    final rows = _database.select('SELECT * FROM books WHERE id = ?', [id]);
+    return rows.isEmpty ? null : _fromRow(rows.first);
   }
 
   Future<BookRecord> importFile(String sourcePath, {String? originalName}) async {
     final source = File(sourcePath);
-    if (!await source.exists()) throw const FormatException('Source not found');
+    if (!await source.exists()) throw const FormatException('Source does not exist');
     final displayName = originalName ?? p.basename(sourcePath);
     final format = BookFormatPath.parse(displayName);
-    if (format == null) throw const FormatException('Unsupported file type');
+    if (format == null) throw const FormatException('Unsupported extension');
     final length = await source.length();
-    if (length > 100 * 1024 * 1024) {
-      throw const FormatException('Prototype import limit: 100 MB');
+    if (length == 0 || length > 100 * 1024 * 1024) {
+      throw const FormatException('Book must be 1 byte to 100 MB');
     }
-    if (length == 0) throw const FormatException('Empty file');
 
     final bytes = await source.readAsBytes();
+    _validateSignature(bytes, format);
+    final id = sha256.convert(bytes).toString();
+    final existing = getBook(id);
+    if (existing != null) return existing;
+
+    final target = File(
+        p.join(_booksDir.path, id + '.' + format.extension));
+    if (!_isManagedPath(target.path)) {
+      throw StateError('Unsafe book destination path');
+    }
+    final temporary = File(target.path + '.part');
+    try {
+      await temporary.writeAsBytes(bytes, flush: true);
+      await temporary.rename(target.path);
+      final record = BookRecord(
+        id: id,
+        title: p.basenameWithoutExtension(displayName),
+        localPath: target.path,
+        format: format,
+        importedAt: DateTime.now().toUtc(),
+      );
+      _transaction(_database, () => _insert(_database, record));
+      return record;
+    } catch (_) {
+      if (await temporary.exists()) await temporary.delete();
+      rethrow;
+    }
+  }
+
+  Future<void> savePosition(String bookId, int offset) async {
+    if (offset < 0) throw ArgumentError.value(offset, 'offset');
+    _database.execute(
+        'UPDATE books SET progress_offset = ? WHERE id = ?', [offset, bookId]);
+  }
+
+  Future<void> removeBook(String bookId) async {
+    final book = getBook(bookId);
+    if (book == null) return;
+    _transaction(_database, () {
+      _database.execute('DELETE FROM books WHERE id = ?', [bookId]);
+    });
+    if (_isManagedPath(book.localPath)) {
+      final file = File(book.localPath);
+      if (await file.exists()) await file.delete();
+    }
+  }
+
+  bool _isManagedPath(String path) =>
+      _home != null && p.isWithin(_booksDir.absolute.path, p.absolute(path));
+
+  void dispose() {
+    _db?.dispose();
+    _db = null;
+  }
+
+  static BookRecord _fromRow(Row row) => BookRecord(
+        id: row['id'] as String,
+        title: row['title'] as String,
+        localPath: row['local_path'] as String,
+        format: BookFormat.values.byName(row['format'] as String),
+        importedAt: DateTime.parse(row['imported_at'] as String),
+        progressOffset: row['progress_offset'] as int,
+      );
+
+  static void _insert(Database db, BookRecord record,
+      {bool ignoreDuplicates = false}) {
+    final verb = ignoreDuplicates ? 'INSERT OR IGNORE' : 'INSERT';
+    db.execute('''
+      $verb INTO books (
+        id, title, local_path, format, imported_at, progress_offset
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    ''', [
+      record.id,
+      record.title,
+      record.localPath,
+      record.format.name,
+      record.importedAt.toIso8601String(),
+      record.progressOffset,
+    ]);
+  }
+
+  static void _validateSignature(List<int> bytes, BookFormat format) {
     if (format == BookFormat.pdf &&
         !(bytes.length >= 5 &&
           bytes[0] == 0x25 && bytes[1] == 0x50 &&
@@ -53,52 +206,22 @@ class LibraryStore {
       throw const FormatException('Invalid PDF signature');
     }
     if (format == BookFormat.epub &&
-        !(bytes.length >= 4 && bytes[0] == 0x50 && bytes[1] == 0x4B &&
+        !(bytes.length >= 4 &&
+          bytes[0] == 0x50 && bytes[1] == 0x4B &&
           bytes[2] == 0x03 && bytes[3] == 0x04)) {
       throw const FormatException('Invalid EPUB ZIP signature');
     }
-    final id = sha256.convert(bytes).toString();
-    if (_records.containsKey(id)) return _records[id]!;
-    final safePath = p.join(_home!.path, 'books', '$id.${format.extension}');
-    await File(safePath).writeAsBytes(bytes, flush: true);
-    final title = p.basenameWithoutExtension(displayName);
-    final record = BookRecord(
-      id: id,
-      title: title,
-      localPath: safePath,
-      format: format,
-      importedAt: DateTime.now().toUtc(),
-    );
-    _records[id] = record;
-    await _save();
-    return record;
   }
 
-  Future<void> savePosition(String bookId, int offset) async {
-    final book = _records[bookId];
-    if (book == null) return;
-    _records[bookId] = book.atOffset(offset);
-    await _save();
-  }
-
-  Future<void> removeBook(String bookId) async {
-    final book = _records.remove(bookId);
-    if (book == null) return;
-    await _save();
-    final file = File(book.localPath);
-    if (await file.exists()) await file.delete();
-  }
-
-  Future<void> _save() async {
-    final file = File(p.join(_home!.path, 'library.json'));
-    final temp = File('${file.path}.tmp');
-    await temp.writeAsString(
-      jsonEncode(_records.values.map((e) => e.toJson()).toList()),
-      flush: true,
-    );
-    // Temporary compromise for Windows where rename-to-existing can fail.
-    // SQLite transactional persistence is part of M1.
-    if (await file.exists()) await file.delete();
-    await temp.rename(file.path);
+  static T _transaction<T>(Database db, T Function() run) {
+    db.execute('BEGIN IMMEDIATE');
+    try {
+      final result = run();
+      db.execute('COMMIT');
+      return result;
+    } catch (_) {
+      db.execute('ROLLBACK');
+      rethrow;
+    }
   }
 }
