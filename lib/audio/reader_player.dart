@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../domain/speech_segment.dart';
@@ -52,6 +54,8 @@ class ReaderPlayer extends ChangeNotifier {
   bool isPlaying = false;
   int _session = 0;
   bool _disposed = false;
+  Future<void> _pendingStop = Future<void>.value();
+  Object? lastError;
 
   List<SpeechSegment> get segments => _segments;
   bool get hasNext => currentIndex + 1 < _segments.length;
@@ -71,8 +75,12 @@ class ReaderPlayer extends ChangeNotifier {
     if (currentIndex >= _segments.length) currentIndex = 0;
     final token = ++_session;
     isPlaying = true;
+    lastError = null;
     _notify();
     try {
+      // A rapid pause/play must not synthesize before the old native
+      // utterance has fully stopped, otherwise voices overlap.
+      await _pendingStop;
       while (token == _session && currentIndex < _segments.length) {
         final segment = _segments[currentIndex];
         await onSegmentStarted(segment);
@@ -82,6 +90,12 @@ class ReaderPlayer extends ChangeNotifier {
         currentIndex++;
         _notify();
       }
+    } catch (error) {
+      if (token == _session) {
+        lastError = error;
+        _notify();
+      }
+      rethrow;
     } finally {
       if (token == _session) {
         isPlaying = false;
@@ -91,19 +105,38 @@ class ReaderPlayer extends ChangeNotifier {
   }
 
   Future<void> pause() async {
+    if (_disposed) return;
     _session++;
     isPlaying = false;
     _notify();
-    await _engine.stop();
+    // Serialize stop commands; the next play waits for their completion.
+    final priorStop = _pendingStop;
+    final stopping = () async {
+      try {
+        await priorStop;
+      } catch (_) {
+        // A previous stop failure must not prevent a new stop attempt.
+      }
+      await _engine.stop();
+    }();
+    _pendingStop = stopping;
+    await stopping;
   }
 
   Future<void> seekTo(int index) async {
     final restart = isPlaying;
     await pause();
-    if (_segments.isEmpty) return;
+    if (_disposed || _segments.isEmpty) return;
     currentIndex = index.clamp(0, _segments.length - 1).toInt();
     _notify();
-    if (restart) await play();
+    if (restart) {
+      // Seeking must return as soon as playback is restarted, not only when
+      // the rest of the book finishes. Surface asynchronous errors to the UI.
+      unawaited(play().catchError((Object error, StackTrace stack) {
+        lastError = error;
+        _notify();
+      }));
+    }
   }
 
   void _notify() { if (!_disposed) notifyListeners(); }
@@ -112,7 +145,7 @@ class ReaderPlayer extends ChangeNotifier {
   void dispose() {
     _session++;
     _disposed = true;
-    _engine.dispose();
+    unawaited(_engine.dispose().catchError((Object _) {}));
     super.dispose();
   }
 }
