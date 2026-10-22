@@ -13,7 +13,10 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - Visualizzazione PDF tramite `pdfrx` e modalità sperimentale di lettura vocale per PDF con testo selezionabile (senza garanzia sull'ordine di colonne, note e tabelle).
 - Lettura vocale con voci di sistema Windows/Android, scelta e salvataggio di voce/lingua/pitch/rate per libro e come default globale, navigazione tra segmenti e Read Along con evidenziazione, auto-scroll disattivabile e ripresa della posizione.
 - Dizionario di pronuncia globale o per singolo libro (con anteprima), applicato soltanto al testo pronunciato e non alla copia originale.
+- **Motori TTS configurabili per libro:** voci gratuite del sistema oppure OpenAI Speech tramite API HTTPS; scelta del modello e delle voci del provider. Le altre API e le voci neurali offline sono previste nelle milestone successive.
 - Ricerca testuale offline all'interno del libro e segnalibri nominativi persistenti con navigazione all'ancora sorgente (EPUB spine, PDF pagina o TXT).
+- **Protezione uso cloud:** chiavi conservate nello storage sicuro Windows/Android, consenso esplicito per libro, tetto locale di caratteri, possibilità di revoca e contatore consumi. Il tetto caratteri non è una garanzia di spesa massima in euro.
+- **Cache MP3 privata:** stessa voce, modello e testo possono riusare audio già sintetizzato; limite di 250 MiB, pulizia manuale e alla cancellazione del libro.
 - Test unitari per modelli, segmentazione, queue player, SQLite/migrazione v1-v4, pronuncia, preferenze, segnalibri, ricerca, TXT e ordine/sicurezza EPUB.
 - [Workflow GitHub Actions](https://github.com/EneaMapelli/EReader/actions/workflows/manual-verify.yml) **solo manuale**, avviabile da main scegliendo il branch da verificare; Flutter 3.47.7, Android e Windows.
 
@@ -51,9 +54,10 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Architettura tecnica](docs/TECHNICAL_ARCHITECTURE.md)
 - [Casting dei personaggi e attribuzione dei dialoghi](docs/VOICE_CASTING_SPEC.md)
 - [Implementazione e test](docs/IMPLEMENTATION_STATUS.md)
+- [Provider TTS, sicurezza, privacy e cache](docs/TTS_PROVIDER_INTEGRATION.md)
 
 Priorità di sviluppo funzionale (senza bloccare ogni incremento sulla compilazione): M0 fondazione tecnica, M1 lettore completo, M2 TTS/read-along, M3 provider avanzati e cloud, M4 cast manuale, M5 LLM multi-personaggio, M6 release. **Nessuna milestone è dichiarata validata o pronta per la distribuzione prima dei test finali.**
 
 ## Privacy e licenza
 
-Tutto il prototipo usa dati locali; non ci sono richieste TTS/LLM cloud né API keys. I libri vengono copiati in una directory privata dell'app. EPUB DRM non supportati. Licenza del progetto [MIT](LICENSE); i modelli vocali e i pacchetti di terze parti mantengono licenze autonome.
+Per impostazione predefinita l'app funziona in locale. L'utente può configurare volontariamente una chiave OpenAI e approvare l'invio di estratti del libro per il TTS; **non vengono inviate richieste cloud senza consenso per quello specifico libro**. Il codice cloud non è ancora stato collaudato con chiavi reali. I libri e gli MP3 generati vengono conservati in una directory privata dell'app. EPUB DRM non supportati. Licenza del progetto [MIT](LICENSE); i modelli vocali e i pacchetti di terze parti mantengono licenze autonome.
