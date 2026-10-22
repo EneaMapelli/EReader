@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:ereader/data/library_store.dart';
+import 'package:crypto/crypto.dart';
 import 'package:ereader/domain/reading_anchor.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,6 +48,34 @@ void main() {
     await expectLater(store.importFile(source.path), throwsFormatException);
     expect(store.books, isEmpty);
     await expectLater(store.savePosition('anything', -1), throwsArgumentError);
+  });
+
+  test('reimport repairs a lost managed file without resetting progress', () async {
+    final source = File(p.join(root.path, 'repair.txt'));
+    await source.writeAsString('Restorable content', flush: true);
+    final imported = await store.importFile(source.path);
+    await store.savePosition(imported.id, 7);
+    await File(imported.localPath).delete();
+
+    final repaired = await store.importFile(source.path);
+    expect(repaired.id, imported.id);
+    expect(repaired.progressOffset, 7);
+    expect(File(repaired.localPath).existsSync(), isTrue);
+    expect(store.books, hasLength(1));
+  });
+
+  test('adopts an intact orphan file left after interrupted SQLite commit',
+      () async {
+    final source = File(p.join(root.path, 'orphan.txt'));
+    final bytes = 'Interrupted transaction'.codeUnits;
+    await source.writeAsBytes(bytes);
+    final id = sha256.convert(bytes).toString();
+    final target = File(p.join(root.path, 'books', '$id.txt'));
+    await target.writeAsBytes(bytes, flush: true);
+    final imported = await store.importFile(source.path);
+    expect(imported.id, id);
+    expect(store.books, hasLength(1));
+    expect(await target.readAsBytes(), bytes);
   });
 
   test('removing a book leaves the original import file intact', () async {
