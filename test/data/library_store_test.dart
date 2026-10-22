@@ -7,6 +7,7 @@ import 'package:ereader/domain/reading_anchor.dart';
 import 'package:ereader/domain/pronunciation_rule.dart';
 import 'package:ereader/domain/speech_preferences.dart';
 import 'package:ereader/domain/book_bookmark.dart';
+import 'package:ereader/domain/voice_cast.dart';
 import 'package:ereader/domain/cloud_speech_consent.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -411,6 +412,114 @@ void main() {
     await store.initialize();
     expect(store.listBookmarks(book.id), hasLength(1));
     expect(store.getConsent(book.id, 'openai-speech').allowed, isFalse);
+  });
+
+
+  test('SQLite v6 preserves cast and source-anchored speaker turns',
+      () async {
+    final source = File(p.join(root.path, 'dialogue.txt'));
+    await source.writeAsString('Say hello. Narrator speaking.');
+    final book = await store.importFile(source.path);
+    final person = CastCharacter(
+      id: 'speaker-1', bookId: book.id, name: 'Aeryn',
+      aliases: const ['The scout'],
+    );
+    await store.saveCastCharacter(person);
+    await store.saveCastVoice(const CastVoiceAssignment(
+      characterId: 'speaker-1', providerId: 'system',
+      voiceName: 'Windows Voice', voiceLocale: 'en-US',
+    ));
+    final attribution = SegmentCastAssignment(
+      bookId: book.id, start: 0, end: 10,
+      sourceDigest: SegmentCastAssignment.fingerprint('Say hello.'),
+      characterId: 'speaker-1',
+      anchor: const ReadingAnchor(
+        kind: AnchorKind.text, sourceId: 'body', localOffset: 0,
+      ),
+    );
+    await store.saveSegmentCast(attribution);
+
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.listCastCharacters(book.id).single.name, 'Aeryn');
+    expect(store.listCastCharacters(book.id).single.aliases, ['The scout']);
+    expect(store.listCastVoices(book.id).single.voiceName, 'Windows Voice');
+    expect(store.listSegmentCast(book.id).single.sourceDigest,
+        SegmentCastAssignment.fingerprint('Say hello.'));
+
+    await store.saveCastCharacter(CastCharacter(
+      id: 'speaker-1', bookId: book.id, name: 'Aeryn the Scout',
+    ));
+    expect(store.listCastCharacters(book.id).single.name,
+        'Aeryn the Scout');
+    expect(store.listSegmentCast(book.id), hasLength(1));
+  });
+
+  test('cast is book-isolated and removing a person reverts to narrator',
+      () async {
+    final first = File(p.join(root.path, 'one.txt'));
+    final second = File(p.join(root.path, 'two.txt'));
+    await first.writeAsString('First book');
+    await second.writeAsString('Second book');
+    final b1 = await store.importFile(first.path);
+    final b2 = await store.importFile(second.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'speaker-1', bookId: b1.id, name: 'First',
+    ));
+    await expectLater(
+      store.saveSegmentCast(SegmentCastAssignment(
+        bookId: b2.id, start: 0, end: 5,
+        sourceDigest: SegmentCastAssignment.fingerprint('Other'),
+        characterId: 'speaker-1',
+      )),
+      throwsStateError,
+    );
+    await store.saveCastVoice(const CastVoiceAssignment(
+      characterId: 'speaker-1',
+      providerId: 'system',
+      voiceName: 'Voice One',
+      voiceLocale: 'en-US',
+    ));
+    await store.saveSegmentCast(SegmentCastAssignment(
+      bookId: b1.id, start: 0, end: 5,
+      sourceDigest: SegmentCastAssignment.fingerprint('First'),
+      characterId: 'speaker-1',
+    ));
+    await store.deleteCastCharacter('speaker-1');
+    expect(store.listSegmentCast(b1.id), isEmpty);
+    expect(store.listCastVoices(b1.id), isEmpty);
+    expect(store.listCastCharacters(b2.id), isEmpty);
+  });
+
+  test('SQLite v5 to v6 retains cloud usage and the library',
+      () async {
+    final source = File(p.join(root.path, 'upgrade-cast.txt'));
+    await source.writeAsString('An older library');
+    final book = await store.importFile(source.path);
+    await store.configureCloudConsent(
+      book.id, 'openai-speech',
+      allowed: true, maxCharacters: 200,
+    );
+    await store.reserveCharacters(book.id, 'openai-speech', 10);
+    store.dispose();
+
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    db.execute('DROP TABLE segment_cast');
+    db.execute('DROP TABLE cast_voices');
+    db.execute('DROP TABLE cast_characters');
+    db.execute('PRAGMA user_version = 5');
+    db.dispose();
+
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getBook(book.id), isNotNull);
+    expect(store.getConsent(book.id, 'openai-speech').usedCharacters, 10);
+    expect(store.listCastCharacters(book.id), isEmpty);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'new-speaker', bookId: book.id, name: 'A new character',
+    ));
+    expect(store.listCastCharacters(book.id).single.name, 'A new character');
   });
 
 }
