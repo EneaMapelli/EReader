@@ -63,6 +63,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
       final chunks = segmentSpeech(document.text);
       final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
       final player = ReaderPlayer(
+        engineProviderId: prefs.providerId,
         engine: SpeechEngineFactory(vault: _vault).create(
           preferences: prefs,
           bookId: widget.book.id,
@@ -625,17 +626,20 @@ class _ReaderScreenState extends State<ReaderScreen> {
               ),
               Row(
                 children: [
-                  const Text('Pitch'),
+                  Text(player.currentPreferences.providerId == 'system'
+                      ? 'Pitch' : 'Pitch unavailable'),
                   Expanded(
                     child: Slider(
                       min: 0.5,
                       max: 1.5,
                       divisions: 10,
                       value: player.pitch,
-                      onChanged: (value) {
-                        player.setPitch(value);
-                        unawaited(_saveVoiceSettings());
-                      },
+                      onChanged: player.currentPreferences.providerId == 'system'
+                          ? (value) {
+                              player.setPitch(value);
+                              unawaited(_saveVoiceSettings());
+                            }
+                          : null,
                     ),
                   ),
                   Text(player.pitch.toStringAsFixed(1)),
