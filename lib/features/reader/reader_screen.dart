@@ -10,6 +10,8 @@ import '../../data/book_decoder.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
 import '../../domain/speech_segment.dart';
+import '../../domain/pronunciation_rule.dart';
+import 'pronunciation_screen.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({super.key, required this.book, required this.store});
@@ -23,6 +25,7 @@ class ReaderScreen extends StatefulWidget {
 class _ReaderScreenState extends State<ReaderScreen> {
   ReaderPlayer? _player;
   DocumentContent? _document;
+  List<PronunciationRule> _pronunciationRules = const [];
   String? _error;
   bool _loading = true;
   double _fontSize = 19;
@@ -66,7 +69,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
               widget.book.progressOffset;
       final savedIndex = chunks.indexWhere((chunk) => chunk.end > saved);
       if (savedIndex >= 0) player.currentIndex = savedIndex;
+      _pronunciationRules =
+          widget.store.listPronunciationRules(bookId: widget.book.id);
+      player.speechTextTransform = (original) =>
+          const PronunciationTransformer().apply(
+              original, _pronunciationRules, bookId: widget.book.id);
       await player.loadVoices();
+      await player.applyPreferences(
+          widget.store.getSpeechPreferences(bookId: widget.book.id));
       if (!mounted) {
         player.dispose();
         return;
@@ -155,6 +165,40 @@ class _ReaderScreenState extends State<ReaderScreen> {
     setState(() {});
   }
 
+  Future<void> _openPronunciations() async {
+    if (_player?.isPlaying ?? false) await _player!.pause();
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => PronunciationScreen(
+          store: widget.store,
+          bookId: widget.book.id,
+          bookTitle: widget.book.title,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() {
+      _pronunciationRules =
+          widget.store.listPronunciationRules(bookId: widget.book.id);
+    });
+  }
+
+  Future<void> _saveVoiceSettings() async {
+    final player = _player;
+    if (player == null) return;
+    try {
+      await widget.store.saveSpeechPreferences(
+        player.currentPreferences, bookId: widget.book.id,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot save voice settings: ' + error.toString())),
+      );
+    }
+  }
+
   Future<void> _playOrPause() async {
     final player = _player;
     if (player == null) return;
@@ -223,6 +267,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.spellcheck),
+            tooltip: 'Pronunciation dictionary',
+            onPressed: _openPronunciations,
+          ),
           if (widget.book.format != BookFormat.pdf || _pdfTextMode)
             IconButton(
               tooltip: _autoFollow
@@ -408,6 +457,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                             if (voice == null) return;
                             try {
                               await player.selectVoice(voice);
+                              await _saveVoiceSettings();
                             } catch (error) {
                               if (!mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -420,6 +470,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     ],
                   ),
                 ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: Text('TTS engine: system voice (Windows / Android)'),
+              ),
               Row(
                 children: [
                   const Text('Pitch'),
@@ -429,7 +483,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       max: 1.5,
                       divisions: 10,
                       value: player.pitch,
-                      onChanged: player.setPitch,
+                      onChanged: (value) {
+                        player.setPitch(value);
+                        unawaited(_saveVoiceSettings());
+                      },
                     ),
                   ),
                   Text(player.pitch.toStringAsFixed(1)),
@@ -444,7 +501,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       max: 1.0,
                       divisions: 8,
                       value: player.rate,
-                      onChanged: player.setRate,
+                      onChanged: (value) {
+                        player.setRate(value);
+                        unawaited(_saveVoiceSettings());
+                      },
                     ),
                   ),
                   Text(player.rate.toStringAsFixed(1)),
@@ -459,7 +519,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       child: Text(locale),
                     )).toList(),
                     onChanged: (value) {
-                      if (value != null) player.setLanguage(value);
+                      if (value != null) {
+                        player.setLanguage(value);
+                        unawaited(_saveVoiceSettings());
+                      }
                     },
                   ),
                 ],
