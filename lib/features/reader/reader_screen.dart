@@ -14,6 +14,7 @@ import '../../data/book_decoder.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
 import '../../domain/speech_segment.dart';
+import '../../domain/dialogue_segmenter.dart';
 import '../../domain/pronunciation_rule.dart';
 import '../../domain/voice_cast.dart';
 import 'voice_cast_screen.dart';
@@ -63,7 +64,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
     try {
       final document = await PrototypeDocumentDecoder().read(widget.book);
       if (!mounted) return;
-      final chunks = segmentSpeech(document.text);
+      // Finer original-text spans allow manual dialogue casting without
+      // assigning the surrounding narrator text to the character.
+      final chunks = splitQuotedSegments(segmentSpeech(document.text));
       final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
       final player = ReaderPlayer(
         engineProviderId: prefs.providerId,
