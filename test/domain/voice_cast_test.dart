@@ -4,7 +4,7 @@ import 'package:ereader/domain/voice_cast.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  const source = SpeechSegment(10, 22, '"Hello there"');
+  const source = SpeechSegment(10, 23, '"Hello there"');
   final mark = SegmentCastAssignment(
     bookId: 'book-1', start: 10, end: 23,
     sourceDigest: SegmentCastAssignment.fingerprint(source.text),
