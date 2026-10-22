@@ -11,6 +11,10 @@ dependencies:
     sdk: flutter
   file_picker: ^13.1.0
   flutter_tts: ^4.2.5
+  flutter_secure_storage: ^11.2.0
+  http: ^1.6.0
+  just_audio: ^0.10.6
+  just_audio_windows: ^0.2.3
   path_provider: ^2.1.6
   scrollable_positioned_list: ^0.3.8
   path: ^1.9.1
