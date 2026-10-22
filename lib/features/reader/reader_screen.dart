@@ -53,6 +53,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
         player.dispose();
         return;
       }
+      final previous = _player;
+      if (previous != null) {
+        previous.removeListener(_onPlaybackChanged);
+        previous.dispose();
+      }
       player.addListener(_onPlaybackChanged);
       setState(() {
         _player = player;
@@ -337,10 +342,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
                   const SizedBox(width: 6),
                   DropdownButton<String>(
                     value: player.language,
-                    items: const [
-                      DropdownMenuItem(value: 'it-IT', child: Text('IT')),
-                      DropdownMenuItem(value: 'en-US', child: Text('EN')),
-                    ],
+                    items: <String>{
+                      'it-IT', 'en-US', player.language,
+                      ...player.availableVoices.map((voice) => voice.locale),
+                    }.map((locale) => DropdownMenuItem(
+                      value: locale,
+                      child: Text(locale),
+                    )).toList(),
                     onChanged: (value) {
                       if (value != null) player.setLanguage(value);
                     },
