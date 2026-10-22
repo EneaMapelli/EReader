@@ -1,6 +1,7 @@
 import '../data/library_store.dart';
 import '../domain/speech_preferences.dart';
 import 'openai_speech_engine.dart';
+import 'speech_audio_cache.dart';
 import 'secret_vault.dart';
 import 'speech_engine.dart';
 
@@ -25,6 +26,7 @@ class SpeechEngineFactory {
           modelId: preferences.modelId,
           access: store,
           vault: vault,
+          cache: PrivateMp3SpeechCache(),
         );
       default:
         throw UnsupportedError(
