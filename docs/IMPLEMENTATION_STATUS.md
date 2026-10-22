@@ -12,7 +12,7 @@
 | ER-006 TTS | System speech contract and adapter, OS voice picker, language, rate and pitch | Partial |
 | ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow, viewport-to-audio start; no word marks | Partial |
 | ER-008 Android background | Media session/background service not started | Not started |
-| ER-004/Storage issue #4 | SQLite schema v4, transactional writes, JSON/v1-v3 migrations, pronunciation and bookmarks tests (unexecuted) | Code ready for verification |
+| ER-004/Storage issue #4 | SQLite schema v5, JSON/v1–v4 migrations, consent/quotas, pronunciation and bookmarks tests (unexecuted) | Code ready for verification |
 
 ## Known constraints and gates
 
@@ -22,7 +22,7 @@
 - EPUB reading uses OPF spine ordering and source anchors (spine ID + relative UTF-16 offset). This is more stable than an absolute extraction offset but not a full EPUB CFI anchor; XHTML formatting, notes, illustrations and corpus tests remain outstanding.
 - PDF page view and optional read-aloud extraction are present for selectable-text PDFs; text order in columns/tables is unverified and page-accurate synchronized highlighting is unavailable. Scans require OCR.
 - System voices are OS dependent; Android pause/resume restarts a sentence chunk and background audio requires further integration.
-- No cloud call, API key storage, book upload or cost incurred in this increment.
+- The OpenAI speech engine, secure key vault and explicit per-book cloud authorization are now present as code; no real API calls or costs were incurred in development. The default remains system TTS with no cloud access.
 - Imported books have a 100 MB prototype limit; EPUB extraction checks declared uncompressed resource sizes and ZIP paths, but ZIP fuzz testing remains a release gate.
 - The documentation contains approved **future** features, not implemented ones.
 
@@ -106,5 +106,23 @@ The project owner approved **continuing feature development without making nativ
 
 - Reader text is segmented, not a full paginated EPUB renderer; search is segment-level and is not full-book FTS (search across segment boundaries is unavailable).
 - Current pronunciation substitution is textual; effectiveness depends on the installed OS TTS. The rule editor does not yet synthesize an audio preview.
-- No cloud provider credentials, payment calls or background Android media player have been added. Provider adapters and multi-character dialogue casting remain separate roadmap work.
+- OpenAI Speech provider, secure key vault and consent/usage controls have been added but are **unvalidated**. Azure/ElevenLabs, offline neural voices and multi-character casting remain future work; Android background media player is still missing.
 - Build/analysis and device tests intentionally postponed, but the existing manual GitHub Actions workflow remains available for final integration. Commits are on feature/m0-flutter-foundation; PR #1 stays draft.
+
+## M3 provider integration — 2026-10-22
+
+Detailed design: [TTS Provider Integration](TTS_PROVIDER_INTEGRATION.md).
+
+- System TTS and OpenAI Speech are selected via a shared SpeechEngineFactory. Persisted SpeechPreferences now include the model ID, with backward-compatible defaults.
+- OpenAI Audio Speech adapter sends short text chunks to the fixed HTTPS speech endpoint and plays returned MP3 using just_audio with Windows platform adapter. This code has **not** been run against the live API or on devices.
+- Keys are saved with flutter_secure_storage; neither the book database nor any source file contains a real credential. The UI can save, replace and remove the key without revealing it.
+- SQLite schema v5 enforces a separate, default-deny consent record and local hard character quota per book/provider. Characters are reserved atomically before cloud HTTP; failed attempts still consume local quota. This is not an account billing ceiling.
+- Each book has a settings screen to choose system vs OpenAI, choose one of the API-supported speech models, explicitly authorize or revoke transmission, view usage and erase locally generated audio.
+- Private MP3 cache reuses previous synthesis for the exact book, voice, model and text; repeat playback does not reissue HTTP or spend new quota. The cache has a 250 MiB cap across books and supports per-book deletion.
+- OpenAI pitch is disabled in the reader UI; the speech endpoint does not supply word-level timestamps, and exact verbatim output is not yet proven.
+- Security hardening: HTTPS fixed endpoint, redirects disabled, sanitized status errors (no provider response body), bounded 20 MiB streamed audio responses, generation token prevents stale playback after Stop.
+- Added mock HTTP/audio/vault and SQLite tests for consent, revocation, quotas, key missing, cached repeats, cancellation, secret isolation, storage migrations and cache path safety. **Tests not executed**; builds intentionally deferred to final integration.
+
+### Next functionality
+
+Continue provider capability metadata, other provider adapters and manual voice cast assignments. At the end, execute Flutter builds/unit tests on both platforms and fix findings. Do not merge or release before that verification.
