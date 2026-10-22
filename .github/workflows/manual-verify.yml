@@ -16,7 +16,7 @@ jobs:
       - name: Generate Android runner
         run: flutter create --project-name ereader --org com.example.ereader --platforms=android .
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: dart format lib test
       - run: flutter analyze
       - run: flutter test
       - run: flutter build apk --debug

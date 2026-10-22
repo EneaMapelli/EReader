@@ -33,7 +33,7 @@ List<SpeechSegment> segmentSpeech(String source, {int maxChars = 400}) {
       for (int i = start; i < end; i++) {
         final u = source.codeUnitAt(i);
         if (u == 46 || u == 33 || u == 63 || u == 10 || u == 0x2026) {
-          sentenceEnd = i + 1;
+          if (sentenceEnd < 0) sentenceEnd = i + 1;
         }
         if (_isWhitespace(u)) wordEnd = i;
       }

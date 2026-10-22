@@ -52,18 +52,18 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
             final text = document.body?.text.trim() ?? '';
             if (text.isNotEmpty) chunks.add(text);
           }
-          for (final child in chapter.SubChapters) {
+          for (final child in chapter.SubChapters ?? <EpubChapter>[]) {
             addChapter(child);
           }
         }
-        for (final chapter in epub.Chapters) {
+        for (final chapter in epub.Chapters ?? <EpubChapter>[]) {
           addChapter(chapter);
         }
         final text = chunks.join('\n\n');
         if (text.isEmpty) {
           throw const FormatException('No readable text found in EPUB');
         }
-        return DocumentContent(title: epub.Title, text: text);
+        return DocumentContent(title: epub.Title ?? record.title, text: text);
       case BookFormat.pdf:
         throw const UnsupportedError(
           'PDF text extraction is not enabled yet; open the visual PDF viewer.',

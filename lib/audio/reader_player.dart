@@ -42,6 +42,7 @@ class ReaderPlayer extends ChangeNotifier {
 
   Future<void> play() async {
     if (isPlaying || _segments.isEmpty) return;
+    if (currentIndex >= _segments.length) currentIndex = 0;
     final token = ++_session;
     isPlaying = true;
     _notify();
@@ -74,7 +75,7 @@ class ReaderPlayer extends ChangeNotifier {
     final restart = isPlaying;
     await pause();
     if (_segments.isEmpty) return;
-    currentIndex = index.clamp(0, _segments.length - 1);
+    currentIndex = index.clamp(0, _segments.length - 1).toInt();
     _notify();
     if (restart) await play();
   }

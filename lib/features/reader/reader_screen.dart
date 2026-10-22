@@ -127,14 +127,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
               icon: const Icon(Icons.text_increase),
               tooltip: 'Increase font size',
               onPressed: () => setState(() =>
-                  _fontSize = (_fontSize + 2).clamp(14.0, 32.0)),
+                  _fontSize = (_fontSize + 2).clamp(14.0, 32.0).toDouble()),
             ),
           if (widget.book.format != BookFormat.pdf)
             IconButton(
               icon: const Icon(Icons.text_decrease),
               tooltip: 'Decrease font size',
               onPressed: () => setState(() =>
-                  _fontSize = (_fontSize - 2).clamp(14.0, 32.0)),
+                  _fontSize = (_fontSize - 2).clamp(14.0, 32.0).toDouble()),
             ),
         ],
       ),
