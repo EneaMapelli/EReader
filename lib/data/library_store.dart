@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/book.dart';
+import '../domain/reading_anchor.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
 class LibraryStore {
@@ -36,7 +37,7 @@ class LibraryStore {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 1) {
+      if (version > 2) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -49,10 +50,17 @@ class LibraryStore {
               format TEXT NOT NULL,
               imported_at TEXT NOT NULL,
               progress_offset INTEGER NOT NULL DEFAULT 0
-                CHECK(progress_offset >= 0)
+                CHECK(progress_offset >= 0),
+              progress_anchor TEXT
             )
           ''');
-          db.execute('PRAGMA user_version = 1');
+          db.execute('PRAGMA user_version = 2');
+        });
+      }
+      if (version == 1) {
+        _transaction(db, () {
+          db.execute('ALTER TABLE books ADD COLUMN progress_anchor TEXT');
+          db.execute('PRAGMA user_version = 2');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -146,10 +154,12 @@ class LibraryStore {
     }
   }
 
-  Future<void> savePosition(String bookId, int offset) async {
+  Future<void> savePosition(String bookId, int offset,
+      {ReadingAnchor? anchor}) async {
     if (offset < 0) throw ArgumentError.value(offset, 'offset');
     _database.execute(
-        'UPDATE books SET progress_offset = ? WHERE id = ?', [offset, bookId]);
+        'UPDATE books SET progress_offset = ?, progress_anchor = ? WHERE id = ?',
+        [offset, anchor == null ? null : jsonEncode(anchor.toJson()), bookId]);
   }
 
   Future<void> removeBook(String bookId) async {
@@ -179,6 +189,11 @@ class LibraryStore {
         format: BookFormat.values.byName(row['format'] as String),
         importedAt: DateTime.parse(row['imported_at'] as String),
         progressOffset: row['progress_offset'] as int,
+        progressAnchor: row['progress_anchor'] is String
+            ? ReadingAnchor.fromJson(
+                Map<String, dynamic>.from(
+                    jsonDecode(row['progress_anchor'] as String) as Map))
+            : null,
       );
 
   static void _insert(Database db, BookRecord record,
@@ -186,8 +201,9 @@ class LibraryStore {
     final verb = ignoreDuplicates ? 'INSERT OR IGNORE' : 'INSERT';
     db.execute('''
       $verb INTO books (
-        id, title, local_path, format, imported_at, progress_offset
-      ) VALUES (?, ?, ?, ?, ?, ?)
+        id, title, local_path, format, imported_at, progress_offset,
+        progress_anchor
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', [
       record.id,
       record.title,
@@ -195,6 +211,9 @@ class LibraryStore {
       record.format.name,
       record.importedAt.toIso8601String(),
       record.progressOffset,
+      record.progressAnchor == null
+          ? null
+          : jsonEncode(record.progressAnchor!.toJson()),
     ]);
   }
 
