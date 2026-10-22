@@ -8,6 +8,8 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/book.dart';
 import '../domain/reading_anchor.dart';
+import '../domain/pronunciation_rule.dart';
+import '../domain/speech_preferences.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
 class LibraryStore {
@@ -37,7 +39,7 @@ class LibraryStore {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 2) {
+      if (version > 3) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -61,6 +63,32 @@ class LibraryStore {
         _transaction(db, () {
           db.execute('ALTER TABLE books ADD COLUMN progress_anchor TEXT');
           db.execute('PRAGMA user_version = 2');
+        });
+      }
+      if (version < 3) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS pronunciation_rules (
+              id TEXT PRIMARY KEY NOT NULL,
+              book_id TEXT,
+              phrase TEXT NOT NULL,
+              spoken_as TEXT NOT NULL,
+              whole_word INTEGER NOT NULL DEFAULT 1,
+              case_sensitive INTEGER NOT NULL DEFAULT 0,
+              enabled INTEGER NOT NULL DEFAULT 1
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_pronunciation_book
+            ON pronunciation_rules(book_id)
+          ''');
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS speech_preferences (
+              scope_id TEXT PRIMARY KEY NOT NULL,
+              value_json TEXT NOT NULL
+            )
+          ''');
+          db.execute('PRAGMA user_version = 3');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -185,10 +213,105 @@ class LibraryStore {
         [offset, anchor == null ? null : jsonEncode(anchor.toJson()), bookId]);
   }
 
+  /// Includes global rules and (if supplied) rules for the specified book.
+  /// This is intended to be read when opening a book or its settings editor.
+  List<PronunciationRule> listPronunciationRules({String? bookId}) {
+    final rows = bookId == null
+        ? _database.select(
+            'SELECT * FROM pronunciation_rules WHERE book_id IS NULL '
+            'ORDER BY phrase COLLATE NOCASE, id')
+        : _database.select(
+            'SELECT * FROM pronunciation_rules '
+            'WHERE book_id IS NULL OR book_id = ? '
+            'ORDER BY book_id DESC, phrase COLLATE NOCASE, id', [bookId]);
+    return rows.map((row) => PronunciationRule(
+      id: row['id'] as String,
+      bookId: row['book_id'] as String?,
+      pattern: row['phrase'] as String,
+      replacement: row['spoken_as'] as String,
+      wholeWord: (row['whole_word'] as int) == 1,
+      caseSensitive: (row['case_sensitive'] as int) == 1,
+      enabled: (row['enabled'] as int) == 1,
+    )).toList();
+  }
+
+  Future<void> upsertPronunciationRule(PronunciationRule rule) async {
+    rule.validate();
+    if (rule.bookId != null && getBook(rule.bookId!) == null) {
+      throw StateError('Unknown book for pronunciation rule');
+    }
+    _database.execute('''
+      INSERT INTO pronunciation_rules (
+        id, book_id, phrase, spoken_as, whole_word, case_sensitive, enabled
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        book_id = excluded.book_id,
+        phrase = excluded.phrase,
+        spoken_as = excluded.spoken_as,
+        whole_word = excluded.whole_word,
+        case_sensitive = excluded.case_sensitive,
+        enabled = excluded.enabled
+    ''', [
+      rule.id, rule.bookId, rule.pattern, rule.replacement,
+      rule.wholeWord ? 1 : 0, rule.caseSensitive ? 1 : 0,
+      rule.enabled ? 1 : 0,
+    ]);
+  }
+
+  Future<void> deletePronunciationRule(String id) async {
+    _database.execute('DELETE FROM pronunciation_rules WHERE id = ?', [id]);
+  }
+
+  /// Book preferences completely override global preferences when present.
+  /// Secrets belong in secure storage, NEVER in this JSON blob.
+  SpeechPreferences getSpeechPreferences({String? bookId}) {
+    if (bookId != null) {
+      final book = _database.select(
+        'SELECT value_json FROM speech_preferences WHERE scope_id = ?',
+        ['book:$bookId'],
+      );
+      if (book.isNotEmpty) return _decodeSpeechPrefs(book.first);
+    }
+    final global = _database.select(
+      "SELECT value_json FROM speech_preferences WHERE scope_id = 'global'",
+    );
+    return global.isEmpty
+        ? const SpeechPreferences()
+        : _decodeSpeechPrefs(global.first);
+  }
+
+  Future<void> saveSpeechPreferences(SpeechPreferences preferences,
+      {String? bookId}) async {
+    preferences.validate();
+    if (bookId != null && getBook(bookId) == null) {
+      throw StateError('Unknown book for speech settings');
+    }
+    final scope = bookId == null ? 'global' : 'book:$bookId';
+    _database.execute('''
+      INSERT INTO speech_preferences (scope_id, value_json)
+      VALUES (?, ?)
+      ON CONFLICT(scope_id) DO UPDATE SET value_json = excluded.value_json
+    ''', [scope, jsonEncode(preferences.toJson())]);
+  }
+
+  Future<void> clearBookSpeechPreferences(String bookId) async {
+    _database.execute(
+        'DELETE FROM speech_preferences WHERE scope_id = ?', ['book:$bookId']);
+  }
+
+  static SpeechPreferences _decodeSpeechPrefs(Row row) =>
+      SpeechPreferences.fromJson(
+        Map<String, dynamic>.from(jsonDecode(row['value_json'] as String) as Map),
+      );
+
   Future<void> removeBook(String bookId) async {
     final book = getBook(bookId);
     if (book == null) return;
     _transaction(_database, () {
+      _database.execute('DELETE FROM pronunciation_rules WHERE book_id = ?',
+          [bookId]);
+      _database.execute('DELETE FROM speech_preferences WHERE scope_id = ?',
+          ['book:$bookId']);
       _database.execute('DELETE FROM books WHERE id = ?', [bookId]);
     });
     if (_isManagedPath(book.localPath)) {
