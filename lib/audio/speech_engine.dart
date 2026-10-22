@@ -24,13 +24,18 @@ abstract interface class SpeechEngine {
 }
 
 class SystemSpeechEngine implements SpeechEngine {
-  SystemSpeechEngine() {
-    // speak() returns only after the native utterance completes.
-    _tts.awaitSpeakCompletion(true);
-  }
+  SystemSpeechEngine();
 
   final FlutterTts _tts = FlutterTts();
   SpeechVoice? _selectedVoice;
+  bool _completionConfigured = false;
+
+  Future<void> _prepare() async {
+    if (!_completionConfigured) {
+      await _tts.awaitSpeakCompletion(true);
+      _completionConfigured = true;
+    }
+  }
 
   @override
   Future<List<SpeechVoice>> listVoices() async {
@@ -63,6 +68,7 @@ class SystemSpeechEngine implements SpeechEngine {
     required double rate,
     required double pitch,
   }) async {
+    await _prepare();
     await _tts.setLanguage(language);
     if (_selectedVoice != null) {
       await _tts.setVoice({
