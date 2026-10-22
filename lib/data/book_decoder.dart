@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../domain/book.dart';
+import '../domain/reading_anchor.dart';
 import 'epub_text_extractor.dart';
 
 class DocumentContent {
@@ -18,6 +19,70 @@ class DocumentContent {
   final String title;
   final List<PdfPageRange> pdfPageRanges;
   final List<EpubSpineRange> epubSpineRanges;
+
+  /// Converts the global reader offset to a document-relative source address.
+  /// No anchoring to an EPUB TOC entry or PDF visual coordinate is implied.
+  ReadingAnchor anchorAt(BookFormat format, int offset) {
+    if (offset < 0) throw ArgumentError.value(offset, 'offset');
+    if (format == BookFormat.txt) {
+      return ReadingAnchor(kind: AnchorKind.text, sourceId: 'body',
+          localOffset: offset.clamp(0, text.length).toInt());
+    }
+    if (format == BookFormat.epub && epubSpineRanges.isNotEmpty) {
+      for (final entry in epubSpineRanges) {
+        if (offset < entry.end) {
+          final inside = (offset - entry.start)
+              .clamp(0, entry.end - entry.start).toInt();
+          return ReadingAnchor(kind: AnchorKind.epubSpine,
+              sourceId: entry.idref, localOffset: inside);
+        }
+      }
+      final last = epubSpineRanges.last;
+      return ReadingAnchor(kind: AnchorKind.epubSpine,
+          sourceId: last.idref, localOffset: last.end - last.start);
+    }
+    if (format == BookFormat.pdf && pdfPageRanges.isNotEmpty) {
+      for (final entry in pdfPageRanges) {
+        if (offset < entry.end) {
+          return ReadingAnchor(kind: AnchorKind.pdfPage,
+              sourceId: entry.pageNumber.toString(),
+              localOffset: (offset - entry.start)
+                  .clamp(0, entry.end - entry.start).toInt());
+        }
+      }
+      final last = pdfPageRanges.last;
+      return ReadingAnchor(kind: AnchorKind.pdfPage,
+          sourceId: last.pageNumber.toString(),
+          localOffset: last.end - last.start);
+    }
+    throw StateError('No source ranges available for this format');
+  }
+
+  /// Returns null for incompatible/stale anchors, so the caller can fall back
+  /// to the saved absolute offset from older database versions.
+  int? offsetOf(ReadingAnchor anchor) {
+    if (anchor.kind == AnchorKind.text) {
+      if (anchor.sourceId != 'body') return null;
+      return anchor.localOffset.clamp(0, text.length).toInt();
+    }
+    if (anchor.kind == AnchorKind.epubSpine) {
+      for (final entry in epubSpineRanges) {
+        if (entry.idref == anchor.sourceId) {
+          return entry.start +
+              anchor.localOffset.clamp(0, entry.end - entry.start).toInt();
+        }
+      }
+    }
+    if (anchor.kind == AnchorKind.pdfPage) {
+      for (final entry in pdfPageRanges) {
+        if (entry.pageNumber.toString() == anchor.sourceId) {
+          return entry.start +
+              anchor.localOffset.clamp(0, entry.end - entry.start).toInt();
+        }
+      }
+    }
+    return null;
+  }
 }
 
 /// Maps extracted text offsets back to an originating PDF page.
