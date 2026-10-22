@@ -12,6 +12,7 @@ import '../../domain/book.dart';
 import '../../domain/speech_segment.dart';
 import '../../domain/pronunciation_rule.dart';
 import 'pronunciation_screen.dart';
+import 'reading_tools.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({super.key, required this.book, required this.store});
@@ -165,6 +166,39 @@ class _ReaderScreenState extends State<ReaderScreen> {
     setState(() {});
   }
 
+  Future<void> _searchInBook() async {
+    final player = _player;
+    if (player == null || player.segments.isEmpty) return;
+    final result = await showBookSearch(context, player.segments);
+    if (!mounted || result == null) return;
+    await _select(result);
+  }
+
+  Future<void> _openBookmarks() async {
+    final player = _player;
+    final document = _document;
+    if (player == null || document == null || player.segments.isEmpty) return;
+    final index = player.isPlaying
+        ? player.currentIndex.clamp(0, player.segments.length - 1).toInt()
+        : (_visiblePositionIndex ?? player.currentIndex)
+            .clamp(0, player.segments.length - 1).toInt();
+    final segment = player.segments[index];
+    final offset = await showBookBookmarks(
+      context: context,
+      store: widget.store,
+      book: widget.book,
+      document: document,
+      currentOffset: segment.start,
+      currentExcerpt: segment.text,
+    );
+    if (!mounted || offset == null) return;
+    var destination = player.segments.indexWhere(
+      (entry) => entry.end > offset,
+    );
+    if (destination < 0) destination = player.segments.length - 1;
+    await _select(destination);
+  }
+
   Future<void> _openPronunciations() async {
     if (_player?.isPlaying ?? false) await _player!.pause();
     if (!mounted) return;
@@ -246,6 +280,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
       player.segments[index].start,
       anchor: _document?.anchorAt(widget.book.format, player.segments[index].start),
     );
+    _visiblePositionIndex = index;
+    if (_itemScrollController.isAttached) {
+      _itemScrollController.jumpTo(index: index, alignment: 0.12);
+    }
   }
 
   @override
@@ -267,6 +305,18 @@ class _ReaderScreenState extends State<ReaderScreen> {
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
+          if (_player != null && _player!.segments.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: 'Search this book',
+              onPressed: _searchInBook,
+            ),
+          if (_player != null && _player!.segments.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.bookmarks_outlined),
+              tooltip: 'Bookmarks',
+              onPressed: _openBookmarks,
+            ),
           IconButton(
             icon: const Icon(Icons.spellcheck),
             tooltip: 'Pronunciation dictionary',
