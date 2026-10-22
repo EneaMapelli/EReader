@@ -489,6 +489,90 @@ class LibraryStore implements CloudSpeechAccess {
       final file = File(book.localPath);
       if (await file.exists()) await file.delete();
     }
+    // Derived speech is private book data too; delete it with the book.
+    // Do not derive a filesystem path from untrusted legacy identifiers.
+    if (RegExp(r'^[0-9a-f]{64}
+
+  bool _isManagedPath(String path) =>
+      _home != null && p.isWithin(_booksDir.absolute.path, p.absolute(path));
+
+  void dispose() {
+    _db?.dispose();
+    _db = null;
+  }
+
+  static BookRecord _fromRow(Row row) => BookRecord(
+        id: row['id'] as String,
+        title: row['title'] as String,
+        localPath: row['local_path'] as String,
+        format: BookFormat.values.byName(row['format'] as String),
+        importedAt: DateTime.parse(row['imported_at'] as String),
+        progressOffset: row['progress_offset'] as int,
+        progressAnchor: row['progress_anchor'] is String
+            ? ReadingAnchor.fromJson(
+                Map<String, dynamic>.from(
+                    jsonDecode(row['progress_anchor'] as String) as Map))
+            : null,
+      );
+
+  static void _insert(Database db, BookRecord record,
+      {bool ignoreDuplicates = false}) {
+    final verb = ignoreDuplicates ? 'INSERT OR IGNORE' : 'INSERT';
+    db.execute('''
+      $verb INTO books (
+        id, title, local_path, format, imported_at, progress_offset,
+        progress_anchor
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', [
+      record.id,
+      record.title,
+      record.localPath,
+      record.format.name,
+      record.importedAt.toIso8601String(),
+      record.progressOffset,
+      record.progressAnchor == null
+          ? null
+          : jsonEncode(record.progressAnchor!.toJson()),
+    ]);
+  }
+
+  static void _validateSignature(List<int> bytes, BookFormat format) {
+    if (format == BookFormat.pdf &&
+        !(bytes.length >= 5 &&
+          bytes[0] == 0x25 && bytes[1] == 0x50 &&
+          bytes[2] == 0x44 && bytes[3] == 0x46 && bytes[4] == 0x2D)) {
+      throw const FormatException('Invalid PDF signature');
+    }
+    if (format == BookFormat.epub &&
+        !(bytes.length >= 4 &&
+          bytes[0] == 0x50 && bytes[1] == 0x4B &&
+          bytes[2] == 0x03 && bytes[3] == 0x04)) {
+      throw const FormatException('Invalid EPUB ZIP signature');
+    }
+  }
+
+  static T _transaction<T>(Database db, T Function() run) {
+    db.execute('BEGIN IMMEDIATE');
+    try {
+      final result = run();
+      db.execute('COMMIT');
+      return result;
+    } catch (_) {
+      db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+}
+).hasMatch(bookId)) {
+      final cache = Directory(p.join(_home!.path, 'speech-cache', bookId));
+      try {
+        if (await cache.exists()) await cache.delete(recursive: true);
+      } on FileSystemException {
+        // A currently open audio file may be locked on Windows. A later
+        // cache-cleanup operation can remove the leftover, but never
+        // attempt deletion outside the private speech-cache subtree.
+      }
+    }
   }
 
   bool _isManagedPath(String path) =>
