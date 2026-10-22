@@ -7,6 +7,7 @@ import '../../data/library_store.dart';
 import '../../domain/book.dart';
 import '../../domain/book_bookmark.dart';
 import '../../domain/speech_segment.dart';
+import '../../domain/book_search.dart';
 
 /// Local, case-insensitive search over the text actually shown in the reader.
 /// Returns the index of a speech segment, preserving the original anchor.
@@ -19,16 +20,8 @@ Future<int?> showBookSearch(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (dialogContext, redraw) {
-        final term = queryController.text.trim().toLowerCase();
-        final matches = <int>[];
-        if (term.isNotEmpty) {
-          for (var i = 0; i < segments.length; i++) {
-            if (segments[i].text.toLowerCase().contains(term)) {
-              matches.add(i);
-              if (matches.length == 100) break;
-            }
-          }
-        }
+        final term = queryController.text.trim();
+        final matches = findMatchingSegments(segments, term);
         return AlertDialog(
           title: const Text('Search in book'),
           content: ConstrainedBox(
