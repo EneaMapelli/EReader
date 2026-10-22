@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:ereader/audio/reader_player.dart';
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/domain/speech_segment.dart';
+import 'package:ereader/domain/speech_preferences.dart';
+import 'package:ereader/domain/pronunciation_rule.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class FakeSpeechEngine implements SpeechEngine {
@@ -124,6 +126,71 @@ void main() {
     await first;
     await Future<void>.delayed(Duration.zero);
     expect(player.isPlaying, isFalse);
+    player.dispose();
+  });
+
+
+  test('custom names affect speech only, never source segment offsets', () async {
+    final engine = FakeSpeechEngine();
+    const original = SpeechSegment(42, 57, 'Aeryn incontrò.');
+    const rules = [
+      PronunciationRule(id: 'one', pattern: 'Aeryn',
+          replacement: 'Erin'),
+    ];
+    final positions = <int>[];
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: [original],
+      onSegmentStarted: (seg) async => positions.add(seg.start),
+    );
+    player.speechTextTransform = (input) =>
+        const PronunciationTransformer().apply(
+            input, rules, bookId: 'book');
+    final run = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['Erin incontrò.']);
+    expect(original.text, 'Aeryn incontrò.');
+    expect(positions, [42]);
+    engine.finish();
+    await run;
+    player.dispose();
+  });
+
+  test('restores saved OS voice, language, pitch and rate', () async {
+    final engine = FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: [const SpeechSegment(0, 4, 'Text')],
+      onSegmentStarted: (_) async {},
+    );
+    await player.loadVoices();
+    await player.applyPreferences(const SpeechPreferences(
+      language: 'en-US',
+      rate: 0.7,
+      pitch: 1.2,
+      voiceName: 'Sample',
+      voiceLocale: 'en-US',
+    ));
+    expect(player.currentPreferences.voiceName, 'Sample');
+    expect(player.currentPreferences.rate, 0.7);
+    expect(player.currentPreferences.pitch, 1.2);
+    player.dispose();
+  });
+
+  test('rejects unavailable engines rather than charging implicitly',
+      () async {
+    final engine = FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [],
+      onSegmentStarted: (_) async {},
+    );
+    await expectLater(
+      player.applyPreferences(const SpeechPreferences(
+        providerId: 'cloud-openai',
+      )),
+      throwsUnsupportedError,
+    );
     player.dispose();
   });
 
