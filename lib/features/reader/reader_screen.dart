@@ -6,6 +6,10 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../audio/reader_player.dart';
 import '../../audio/speech_engine.dart';
+import '../../audio/speech_engine_factory.dart';
+import '../../audio/openai_speech_engine.dart';
+import '../../audio/secret_vault.dart';
+import 'speech_provider_screen.dart';
 import '../../data/book_decoder.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
@@ -24,6 +28,7 @@ class ReaderScreen extends StatefulWidget {
 }
 
 class _ReaderScreenState extends State<ReaderScreen> {
+  final SpeechSecretVault _vault = PlatformSpeechSecretVault();
   ReaderPlayer? _player;
   DocumentContent? _document;
   List<PronunciationRule> _pronunciationRules = const [];
@@ -56,18 +61,24 @@ class _ReaderScreenState extends State<ReaderScreen> {
       final document = await PrototypeDocumentDecoder().read(widget.book);
       if (!mounted) return;
       final chunks = segmentSpeech(document.text);
+      final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
       final player = ReaderPlayer(
-        engine: SystemSpeechEngine(),
+        engine: SpeechEngineFactory(vault: _vault).create(
+          preferences: prefs,
+          bookId: widget.book.id,
+          store: widget.store,
+        ),
         segments: chunks,
         onSegmentStarted: (segment) => widget.store.savePosition(
           widget.book.id, segment.start,
           anchor: document.anchorAt(widget.book.format, segment.start),
         ),
       );
-      final saved = widget.book.progressAnchor == null
-          ? widget.book.progressOffset
-          : document.offsetOf(widget.book.progressAnchor!) ??
-              widget.book.progressOffset;
+      final latestBook = widget.store.getBook(widget.book.id) ?? widget.book;
+      final saved = latestBook.progressAnchor == null
+          ? latestBook.progressOffset
+          : document.offsetOf(latestBook.progressAnchor!) ??
+              latestBook.progressOffset;
       final savedIndex = chunks.indexWhere((chunk) => chunk.end > saved);
       if (savedIndex >= 0) player.currentIndex = savedIndex;
       _pronunciationRules =
@@ -76,8 +87,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
           const PronunciationTransformer().apply(
               original, _pronunciationRules, bookId: widget.book.id);
       await player.loadVoices();
-      await player.applyPreferences(
-          widget.store.getSpeechPreferences(bookId: widget.book.id));
+      await player.applyPreferences(prefs);
       if (!mounted) {
         player.dispose();
         return;
@@ -199,6 +209,27 @@ class _ReaderScreenState extends State<ReaderScreen> {
     await _select(destination);
   }
 
+  Future<void> _openSpeechSettings() async {
+    await _player?.pause();
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => SpeechProviderScreen(
+          store: widget.store,
+          bookId: widget.book.id,
+          vault: _vault,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    // Refresh the chosen adapter without losing the saved source position.
+    await _load();
+  }
+
   Future<void> _openPronunciations() async {
     if (_player?.isPlaying ?? false) await _player!.pause();
     if (!mounted) return;
@@ -240,6 +271,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
       if (player.isPlaying) {
         await player.pause();
       } else {
+        final prefs = player.currentPreferences;
+        if (prefs.providerId == OpenAiSpeechEngine.providerId &&
+            !widget.store.getConsent(
+              widget.book.id, OpenAiSpeechEngine.providerId,
+            ).allowed) {
+          await _openSpeechSettings();
+          return;
+        }
         // If the user browsed the pages manually, start audio where the
         // reading viewport is, not at the last audio-only position.
         final visible = _visiblePositionIndex;
@@ -305,6 +344,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.tune),
+            tooltip: 'TTS engines, models and cloud consent',
+            onPressed: _openSpeechSettings,
+          ),
           if (_player != null && _player!.segments.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.search),
@@ -523,7 +567,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
               Row(
                 children: [
                   const Expanded(
-                    child: Text('Engine: system voice'),
+                    child: Text(
+                      player.currentPreferences.providerId == 'system'
+                          ? 'Engine: system voice'
+                          : 'Engine: OpenAI Speech (cloud)',
+                    ),
                   ),
                   PopupMenuButton<String>(
                     tooltip: 'Speech preference scope',
