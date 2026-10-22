@@ -1,39 +1,57 @@
 # EReader
 
-**EReader** è un progetto di lettore di ebook per **Windows e Android**, con riproduzione **text-to-speech (TTS)** offline/gratuita e tramite provider cloud configurabili. L'obiettivo a lungo termine è una modalità opzionale di **audiolibro multi-personaggio**: analisi del romanzo tramite LLM, riconoscimento dei dialoghi, creazione di un cast di voci coerente e correzione manuale delle attribuzioni.
+**EReader** è un'app Flutter local-first per leggere ebook e ascoltarli con voci sintetiche, inizialmente su **Windows e Android**. Obiettivi a lungo termine: TTS offline/cloud intercambiabile e audiolibri multi-personaggio con analisi LLM e cast vocale controllabile dall'utente.
 
-> **Stato del progetto (2026-10-22): pianificazione iniziale.** Non sono ancora presenti applicazioni eseguibili o funzionalità implementate.
+## Stato del codice
 
-## Obiettivi
+**Prototipo iniziale M0 in sviluppo**, non una release.
 
-- Lettura di **EPUB, PDF con testo estraibile e TXT** nella prima versione; estensione futura ad altri formati.
-- Biblioteca locale, segnalibri, progressi, temi, ricerca, navigazione e sincronizzazione testo/audio.
-- Voci del sistema Windows/Android, motori neurali offline opzionali e API cloud a consumo (BYOK).
-- Configurazione indipendente di provider e modelli **TTS** e **LLM**, voci, pitch, velocità e stile *secondo le capacità effettive del provider*.
-- **Cast assistito** con identificazione dei personaggi, speaker dei dialoghi e attribuzione revisionabile; fallback al narratore se il parlante è incerto.
-- Privacy local-first, consenso prima dell'invio dei testi alle API, budget massimo e cache audio per segmento.
-- Un'unica base Flutter per Windows e Android.
+Sul branch `feature/m0-flutter-foundation` sono presenti:
+- Modello libri e importazione/copia locale di TXT, EPUB e PDF (limite provvisorio 100 MB).
+- Biblioteca con metadati minimi e progressi locali (indice JSON provvisorio).
+- Estrazione e lettura in forma testuale di TXT/EPUB; **il renderer EPUB completo e gli anchor stabili non sono ancora implementati**.
+- Visualizzazione PDF senza sintesi vocale tramite `pdfrx`.
+- Lettura vocale con voci del sistema Windows/Android, selezione voce, lingua, pitch, rate, salta avanti/indietro e evidenziazione del *segmento* in lettura.
+- Test unitari per modello di libro, segmentazione e queue player.
+- Workflow GitHub Actions **solo manuale** per analisi, test e build, da lanciare dopo la prima verifica locale.
 
-## Documentazione
+**Non ancora verificati:** compilazione, test/analisi effettivi e funzionamento su dispositivi reali. Gli ambienti Flutter/Dart e i toolchain Windows/Android non erano disponibili nel contesto di sviluppo. Le cartelle native `android/` e `windows/` devono ancora essere generate e versionate dopo il bootstrap.
 
-1. [Piano di sviluppo completo](docs/DEVELOPMENT_PLAN.md) — visione, requisiti, supporto formati, milestones M0–M6, 16 attività iniziali, criteri di accettazione e rischi.
-2. [Architettura tecnica](docs/TECHNICAL_ARCHITECTURE.md) — stack, contratti documenti/TTS/LLM, storage, pipeline audio, caching e sicurezza.
-3. [Specifiche del casting vocale intelligente](docs/VOICE_CASTING_SPEC.md) — personaggi/alias, screening LLM, attribuzione battute, voce narrante, confidenza, schema e revisione umana.
+## Avvio su Windows
 
-## Roadmap sintetica
+Prerequisiti: Flutter SDK (Dart >= 3.11), Android SDK per Android, Visual Studio con carico di lavoro **Desktop development with C++** per Windows, Developer Mode per `pdfrx`.
 
-| Fase | Risultato |
-|---|---|
-| M0 | POC Windows/Android per EPUB, PDF, TTS gratuito e rendering |
-| M1 | Lettore e biblioteca EPUB/PDF/TXT |
-| M2 | Player TTS locale, sincronizzazione testo/audio, audio in background |
-| M3 | TTS neurale offline, provider cloud, voci e budget |
-| M4 | Cast vocale manuale multi-personaggio |
-| M5 | Analisi LLM e riconoscimento/casting automatico revisionabile |
-| M6 | Ottimizzazione, test, packaging e prima release |
+```powershell
+git clone https://github.com/EneaMapelli/EReader.git
+cd EReader
+git switch feature/m0-flutter-foundation
+.\tool\bootstrap.ps1
+flutter run -d windows
+```
 
-**Nota provider:** per l'integrazione OpenAI, il piano prende in considerazione la dismissione dei modelli Speech legacy annunciata per il 6 gennaio 2027; è prevista la verifica della Realtime API come tecnologia futura, con alternative cloud.
+Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `analyze`, `test`. Su Linux è fornito `bash tool/bootstrap.sh` (non può compilare Windows senza host appropriato). Per Android avviare dispositivo/emulatore e usare `flutter run -d <device-id>`.
 
-## Licenza
+**Attenzione:** una versione minima del sistema operativo e i requisiti di compilazione dipendono da Flutter e dai plugin; l'M0 serve a verificare compatibilità, licenze e tempi reali.
 
-Codice del progetto: [MIT](LICENSE). Modelli vocali e librerie di terze parti possono avere licenze autonome: verificarle prima di distribuirli.
+## Architettura
+
+- `lib/domain/`: modello libri e segmenti UTF-16.
+- `lib/data/`: biblioteca locale e decoder (TXT/EPUB).
+- `lib/audio/`: interfaccia TTS + adapter OS e player.
+- `lib/features/library/`, `lib/features/reader/`: schermate Flutter.
+- `test/`: unit test senza engine TTS reale.
+- `docs/IMPLEMENTATION_STATUS.md`: matrice implementato/parziale/mancante e controlli da eseguire.
+
+## Roadmap approvata
+
+- [Decisione di approvazione e stato](docs/DECISIONS.md)
+- [Piano generale](docs/DEVELOPMENT_PLAN.md)
+- [Architettura tecnica](docs/TECHNICAL_ARCHITECTURE.md)
+- [Casting dei personaggi e attribuzione dei dialoghi](docs/VOICE_CASTING_SPEC.md)
+- [Implementazione e test](docs/IMPLEMENTATION_STATUS.md)
+
+Priorità: M0 fondazione tecnica, M1 lettore completo, M2 TTS/read-along, M3 provider avanzati e cloud, M4 cast manuale, M5 LLM multi-personaggio, M6 release.
+
+## Privacy e licenza
+
+Tutto il prototipo usa dati locali; non ci sono richieste TTS/LLM cloud né API keys. I libri vengono copiati in una directory privata dell'app. EPUB DRM non supportati. Licenza del progetto [MIT](LICENSE); i modelli vocali e i pacchetti di terze parti mantengono licenze autonome.
