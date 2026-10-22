@@ -105,24 +105,36 @@ class VoiceCastResolver {
     required List<CastVoiceAssignment> voices,
     required this.providerId,
     required this.bookId,
-    required this.offsetFromAnchor,
-  }) : _attributions = List.unmodifiable(attributions),
-       _voices = List.unmodifiable(voices);
+    required int? Function(ReadingAnchor) offsetFromAnchor,
+  }) {
+    // Resolve and index each annotation once, not on every spoken segment.
+    // This keeps chapter-long playback linear rather than O(turns x turns).
+    for (final mark in attributions) {
+      if (mark.bookId != bookId) continue;
+      final offset = mark.anchor == null
+          ? mark.start
+          : offsetFromAnchor(mark.anchor!);
+      if (offset == null) continue;
+      _byStart.putIfAbsent(offset, () => []).add(mark);
+    }
+    for (final voice in voices) {
+      if (voice.providerId == providerId) {
+        _voicesByCharacter[voice.characterId] = voice;
+      }
+    }
+  }
 
   final String providerId;
   final String bookId;
-  final int? Function(ReadingAnchor) offsetFromAnchor;
-  final List<SegmentCastAssignment> _attributions;
-  final List<CastVoiceAssignment> _voices;
+  final Map<int, List<SegmentCastAssignment>> _byStart = {};
+  final Map<String, CastVoiceAssignment> _voicesByCharacter = {};
 
   String? speakerFor(SpeechSegment segment) {
-    for (final attribution in _attributions) {
-      if (attribution.bookId != bookId) continue;
-      final relocated = attribution.anchor == null
-          ? null : offsetFromAnchor(attribution.anchor!);
-      if (attribution.anchor != null && relocated == null) continue;
-      if (attribution.matches(segment, anchoredOffset: relocated)) {
-        return attribution.characterId;
+    final possible = _byStart[segment.start];
+    if (possible == null) return null;
+    for (final mark in possible) {
+      if (mark.matches(segment, anchoredOffset: segment.start)) {
+        return mark.characterId;
       }
     }
     return null;
@@ -130,12 +142,6 @@ class VoiceCastResolver {
 
   CastVoiceAssignment? voiceFor(SpeechSegment segment) {
     final speaker = speakerFor(segment);
-    if (speaker == null) return null;
-    for (final voice in _voices) {
-      if (voice.characterId == speaker && voice.providerId == providerId) {
-        return voice;
-      }
-    }
-    return null;
+    return speaker == null ? null : _voicesByCharacter[speaker];
   }
 }
