@@ -3,13 +3,27 @@ import 'dart:io';
 
 import 'package:epubx/epubx.dart';
 import 'package:html/parser.dart' as html_parser;
+import 'package:pdfrx/pdfrx.dart';
 
 import '../domain/book.dart';
 
 class DocumentContent {
-  const DocumentContent({required this.text, required this.title});
+  const DocumentContent({
+    required this.text,
+    required this.title,
+    this.pdfPageRanges = const [],
+  });
   final String text;
   final String title;
+  final List<PdfPageRange> pdfPageRanges;
+}
+
+/// Maps extracted text offsets back to an originating PDF page.
+class PdfPageRange {
+  const PdfPageRange(this.pageNumber, this.start, this.end);
+  final int pageNumber;
+  final int start;
+  final int end;
 }
 
 abstract interface class DocumentDecoder {
@@ -65,9 +79,45 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
         }
         return DocumentContent(title: epub.Title ?? record.title, text: text);
       case BookFormat.pdf:
-        throw UnsupportedError(
-          'PDF text extraction is not enabled yet; open the visual PDF viewer.',
-        );
+        return _readPdfText(record);
     }
   }
+
+  /// POC: extracts a text-layer PDF in file/page order. Multi-column reading
+  /// order and physical page highlighting still require dedicated tests.
+  Future<DocumentContent> _readPdfText(BookRecord record) async {
+    final document = await PdfDocument.openFile(record.localPath);
+    try {
+      if (document.pages.length > 3000) {
+        throw const FormatException('PDF has too many pages for text preview');
+      }
+      final buffer = StringBuffer();
+      final ranges = <PdfPageRange>[];
+      for (final page in document.pages) {
+        final raw = await page.loadText();
+        final content = raw?.fullText.trim() ?? '';
+        if (content.isEmpty) continue;
+        if (buffer.isNotEmpty) buffer.write('\n\n');
+        final start = buffer.length;
+        buffer.write(content);
+        ranges.add(PdfPageRange(page.pageNumber, start, buffer.length));
+        if (buffer.length > 25000000) {
+          throw const FormatException('PDF text too large for preview');
+        }
+      }
+      if (ranges.isEmpty) {
+        throw const FormatException(
+          'No selectable text in this PDF. Scanned pages require OCR.',
+        );
+      }
+      return DocumentContent(
+        title: record.title,
+        text: buffer.toString(),
+        pdfPageRanges: ranges,
+      );
+    } finally {
+      await document.dispose();
+    }
+  }
+
 }
