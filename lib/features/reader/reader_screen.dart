@@ -34,6 +34,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   Timer? _saveVisualPositionTimer;
   int? _visiblePositionIndex;
   int _lastFollowedIndex = -1;
+  Object? _lastReportedPlaybackError;
 
   @override
   void initState() {
@@ -119,6 +120,17 @@ class _ReaderScreenState extends State<ReaderScreen> {
   void _onPlaybackChanged() {
     if (!mounted) return;
     final player = _player;
+    if (player?.lastError != null &&
+        !identical(player!.lastError, _lastReportedPlaybackError)) {
+      final failure = player.lastError!;
+      _lastReportedPlaybackError = failure;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Text-to-speech error: $failure')),
+        );
+      });
+    }
     if (player != null && player.isPlaying && player.segments.isNotEmpty) {
       // Pause/resume must continue from the audio cursor, even when no
       // manual visual scrolling occurred during the previous utterance.
