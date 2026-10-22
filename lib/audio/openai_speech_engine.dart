@@ -47,24 +47,40 @@ class OpenAiSpeechHttpTransport implements SpeechHttpTransport {
     required String voice,
     required String input,
   }) async {
-    final response = await _client.post(
-      endpoint,
-      headers: {
-        'Authorization': 'Bearer ' + apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'model': model,
-        'voice': voice,
-        'input': input,
-        'response_format': 'mp3',
-      }),
-    ).timeout(const Duration(seconds: 90));
-    // Do not expose/parse provider error bodies: they may echo source text,
-    // request identifiers or account information.
+    final request = http.Request('POST', endpoint);
+    request.followRedirects = false; // Never forward secrets to another host.
+    request.headers.addAll({
+      'Authorization': 'Bearer ' + apiKey,
+      'Content-Type': 'application/json',
+    });
+    request.body = jsonEncode({
+      'model': model,
+      'voice': voice,
+      'input': input,
+      'response_format': 'mp3',
+    });
+
+    final response = await _client.send(request)
+        .timeout(const Duration(seconds: 90));
+    if (response.statusCode != 200) {
+      // Do not read or expose error bodies; they might echo book contents,
+      // credentials or request information.
+      return SpeechHttpResponse(
+        statusCode: response.statusCode,
+        bytes: Uint8List(0),
+      );
+    }
+    final result = BytesBuilder(copy: false);
+    await for (final chunk
+        in response.stream.timeout(const Duration(seconds: 90))) {
+      if (result.length + chunk.length > 20 * 1024 * 1024) {
+        throw const CloudSpeechException('Audio stream exceeds 20 MiB');
+      }
+      result.add(chunk);
+    }
     return SpeechHttpResponse(
       statusCode: response.statusCode,
-      bytes: Uint8List.fromList(response.bodyBytes),
+      bytes: result.takeBytes(),
     );
   }
 
