@@ -12,7 +12,7 @@
 | ER-006 TTS | System speech contract and adapter, OS voice picker, language, rate and pitch | Partial |
 | ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow, viewport-to-audio start; no word marks | Partial |
 | ER-008 Android background | Media session/background service not started | Not started |
-| ER-004/Storage issue #4 | SQLite schema v5, JSON/v1–v4 migrations, consent/quotas, pronunciation and bookmarks tests (unexecuted) | Code ready for verification |
+| ER-004/Storage issue #4 | SQLite schema v6, JSON/v1–v5 migrations, cast/consent/quotas/bookmarks tests (unexecuted) | Code ready for verification |
 
 ## Known constraints and gates
 
@@ -126,3 +126,16 @@ Detailed design: [TTS Provider Integration](TTS_PROVIDER_INTEGRATION.md).
 ### Next functionality
 
 Continue provider capability metadata, other provider adapters and manual voice cast assignments. At the end, execute Flutter builds/unit tests on both platforms and fix findings. Do not merge or release before that verification.
+## M4 first functional increment — manual voice casting (2026-10-22)
+
+Details: [Manual Casting Implementation](MANUAL_CASTING_IMPLEMENTATION.md).
+
+- SQLite v6 adds per-book character identities (names/aliases), provider-specific voice selections, source-anchored manual speaker attributions. Existing cloud consent, library, voice preferences, progress and bookmarks are preserved on migration.
+- A reader toolbar action opens a two-tab editor: Characters and Passages, including create/rename/delete characters and assigning actual available provider voices to selected original-source segments. No automatic inference or LLM request occurs.
+- Quote-aware segmentation splits narration and dialogue around common angle, curly and ASCII double quotes without changing UTF-16 offsets or original source text. Nested quote styles and mixed passages still require manual review.
+- VoiceCastResolver checks text fingerprints and source-relative chapter/page anchors. Stale annotations, unknown speakers, unsupported voices or missing provider voices safely fall back to narrator rather than guessing.
+- The player temporarily chooses a character voice for valid assigned passages and restores the narrator afterward. Reader shows the active speaker label.
+- Added unexecuted unit tests for SQLite v5-to-v6 migration, book isolation, foreign-key cleanup, cast fingerprint/source anchors, quote segmentation and audio voice switching.
+- This is NOT a completed M4 milestone: arbitrary substring attribution, manual-lock precedence vs future LLM suggestions, style/prosody and advanced dialogue detection are still pending. Issue #7 tracks later work.
+
+Validation: native Windows/Android builds and unit tests remain deferred to final integration by the owner's request. PR #1 remains draft.
