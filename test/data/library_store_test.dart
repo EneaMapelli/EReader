@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:ereader/data/library_store.dart';
+import 'package:ereader/domain/reading_anchor.dart';
+import 'package:sqlite3/sqlite3.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -96,4 +98,54 @@ void main() {
     await expectLater(store.initialize(), throwsFormatException);
     expect(legacy.existsSync(), isTrue);
   });
+  test('SQLite v2 persists source anchor and clears it on legacy writes', () async {
+    final source = File(p.join(root.path, 'anchored.txt'));
+    await source.writeAsString('A document', flush: true);
+    final book = await store.importFile(source.path);
+    await store.savePosition(book.id, 5,
+      anchor: const ReadingAnchor(
+        kind: AnchorKind.text, sourceId: 'body', localOffset: 5));
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getBook(book.id)!.progressAnchor!.localOffset, 5);
+    await store.savePosition(book.id, 8);
+    expect(store.getBook(book.id)!.progressOffset, 8);
+    expect(store.getBook(book.id)!.progressAnchor, isNull);
+  });
+
+  test('upgrade from SQLite v1 preserves existing progress', () async {
+    store.dispose();
+    final dbFile = File(p.join(root.path, 'library.sqlite'));
+    await dbFile.delete();
+    final old = sqlite3.open(dbFile.path);
+    old.execute('''
+      CREATE TABLE books (
+        id TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL,
+        local_path TEXT NOT NULL,
+        format TEXT NOT NULL,
+        imported_at TEXT NOT NULL,
+        progress_offset INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    old.execute('PRAGMA user_version = 1');
+    old.execute('''
+      INSERT INTO books
+        (id, title, local_path, format, imported_at, progress_offset)
+      VALUES (?, ?, ?, ?, ?, ?)
+    ''', ['old-id', 'A classic', p.join(root.path, 'books', 'old.txt'),
+          'txt', '2026-10-22T00:00:00.000Z', 77]);
+    old.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    final restored = store.getBook('old-id')!;
+    expect(restored.progressOffset, 77);
+    expect(restored.progressAnchor, isNull);
+    await store.savePosition('old-id', 78,
+      anchor: const ReadingAnchor(
+        kind: AnchorKind.text, sourceId: 'body', localOffset: 78));
+    expect(store.getBook('old-id')!.progressAnchor!.localOffset, 78);
+  });
+
 }
