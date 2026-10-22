@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../audio/reader_player.dart';
 import '../../audio/speech_engine.dart';
@@ -23,6 +24,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
   bool _loading = true;
   double _fontSize = 19;
   bool _pdfTextMode = false;
+  bool _autoFollow = true;
+  final ItemScrollController _itemScrollController = ItemScrollController();
+  int _lastFollowedIndex = -1;
 
   @override
   void initState() {
@@ -58,6 +62,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         previous.removeListener(_onPlaybackChanged);
         previous.dispose();
       }
+      _lastFollowedIndex = player.currentIndex;
       player.addListener(_onPlaybackChanged);
       setState(() {
         _player = player;
@@ -73,7 +78,24 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   void _onPlaybackChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final player = _player;
+    if (player != null &&
+        player.segments.isNotEmpty &&
+        _autoFollow &&
+        player.currentIndex != _lastFollowedIndex) {
+      final target = player.currentIndex
+          .clamp(0, player.segments.length - 1)
+          .toInt();
+      _lastFollowedIndex = player.currentIndex;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_autoFollow || !_itemScrollController.isAttached) {
+          return;
+        }
+        _itemScrollController.jumpTo(index: target, alignment: 0.12);
+      });
+    }
+    setState(() {});
   }
 
   Future<void> _playOrPause() async {
@@ -133,6 +155,20 @@ class _ReaderScreenState extends State<ReaderScreen> {
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
+          if (widget.book.format != BookFormat.pdf || _pdfTextMode)
+            IconButton(
+              tooltip: _autoFollow
+                  ? 'Disable auto-scroll while listening'
+                  : 'Enable auto-scroll while listening',
+              icon: Icon(_autoFollow ? Icons.my_location : Icons.location_disabled),
+              onPressed: () {
+                setState(() => _autoFollow = !_autoFollow);
+                if (_autoFollow) {
+                  _lastFollowedIndex = -1;
+                  _onPlaybackChanged();
+                }
+              },
+            ),
           if (widget.book.format == BookFormat.pdf && _pdfTextMode)
             IconButton(
               tooltip: 'Return to PDF pages',
@@ -197,11 +233,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
                           children: [
                             Expanded(
                               child: SelectionArea(
-                                child: ListView.builder(
+                                child: ScrollablePositionedList.builder(
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 18, horizontal: 24,
                                   ),
                                   itemCount: player.segments.length,
+                                  itemScrollController: _itemScrollController,
+                                  initialScrollIndex: player.currentIndex
+                                      .clamp(0, player.segments.length - 1)
+                                      .toInt(),
                                   itemBuilder: (context, index) {
                                     final segment = player.segments[index];
                                     final selected =
