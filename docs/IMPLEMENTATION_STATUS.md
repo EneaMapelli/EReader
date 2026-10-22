@@ -8,9 +8,9 @@
 | ER-002 Book/anchors | BookRecord with source anchor + segment UTF-16 IDs; unit tests | Partial; stable spine/page anchors added, EPUB CFI not yet implemented |
 | ER-003 EPUB/TXT | OPF spine-based EPUB2/3 text extractor + TXT import | Partial; bounded ZIP/XML parsing, text-only, no rich XHTML layout |
 | ER-004 PDF | Viewer + text-layer extraction with per-page UTF-16 ranges; complex order/OCR pending | Partial |
-| ER-005 Reader | Basic reader, SQL-backed progress, PDF text-mode and segment auto-scroll | Partial |
+| ER-005 Reader | SQL-backed source anchors, PDF text-mode, reading viewport resume and debounced visual position updates | Partial |
 | ER-006 TTS | System speech contract and adapter, OS voice picker, language, rate and pitch | Partial |
-| ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow toggle; no word-level marks | Partial |
+| ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow, viewport-to-audio start; no word marks | Partial |
 | ER-008 Android background | Media session/background service not started | Not started |
 | ER-004/Storage issue #4 | SQLite schema v2, transactional writes, JSON and schema-v1 migrations, anchor tests (unexecuted) | Code ready for verification |
 
@@ -61,3 +61,11 @@ No workflow run or device build was performed during this session. The applicati
 - SQLite migration v1 → v2 adds `progress_anchor` without discarding `progress_offset`; imported legacy JSON still works. Playback and manual segment seek both persist source-relative anchors.
 - Added unit tests for EPUB chapter offset drift, PDF page anchor round-trip, invalid anchors, legacy JSON/SQLite migration and restoration across restarts.
 - **Status:** source changes have been verified by reading the GitHub files, but tests and compiler remain **not executed**. Windows/Android runner generation and successful manual verification are the next quality gate.
+
+
+## P0 update — visual reading progress (2026-10-22)
+
+- In visual mode (when TTS is not playing), EReader now observes the top visible speech segment and persists its source anchor in SQLite after a short debounce. This avoids committing continuously while scrolling.
+- Pressing Play after manual scrolling starts at that visible segment. While audio is playing, visual scrolling does not change the audio cursor; pause/resume retains the current audio segment.
+- Manual scroll progress is approximate at **segment granularity**, not pixel or word granularity; full pagination and EPUB CFI navigation remain out of scope for M0.
+- The API surface of `scrollable_positioned_list` was checked against the package reference. **Widget interaction and real Windows/Android audio playback have not been tested.**
