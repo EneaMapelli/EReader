@@ -20,6 +20,7 @@ class ReaderScreen extends StatefulWidget {
 
 class _ReaderScreenState extends State<ReaderScreen> {
   ReaderPlayer? _player;
+  DocumentContent? _document;
   String? _error;
   bool _loading = true;
   double _fontSize = 19;
@@ -46,10 +47,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
       final player = ReaderPlayer(
         engine: SystemSpeechEngine(),
         segments: chunks,
-        onSegmentStarted: (segment) =>
-            widget.store.savePosition(widget.book.id, segment.start),
+        onSegmentStarted: (segment) => widget.store.savePosition(
+          widget.book.id, segment.start,
+          anchor: document.anchorAt(widget.book.format, segment.start),
+        ),
       );
-      final saved = widget.book.progressOffset;
+      final saved = widget.book.progressAnchor == null
+          ? widget.book.progressOffset
+          : document.offsetOf(widget.book.progressAnchor!) ??
+              widget.book.progressOffset;
       final savedIndex = chunks.indexWhere((chunk) => chunk.end > saved);
       if (savedIndex >= 0) player.currentIndex = savedIndex;
       await player.loadVoices();
@@ -66,6 +72,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
       player.addListener(_onPlaybackChanged);
       setState(() {
         _player = player;
+        _document = document;
         _loading = false;
       });
     } catch (error) {
@@ -124,6 +131,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
       await widget.store.savePosition(
         widget.book.id,
         player.segments[player.currentIndex].start,
+        anchor: _document?.anchorAt(
+          widget.book.format, player.segments[player.currentIndex].start),
       );
     }
   }
@@ -135,6 +144,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     await widget.store.savePosition(
       widget.book.id,
       player.segments[index].start,
+      anchor: _document?.anchorAt(widget.book.format, player.segments[index].start),
     );
   }
 
