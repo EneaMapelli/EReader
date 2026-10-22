@@ -69,3 +69,19 @@ No workflow run or device build was performed during this session. The applicati
 - Pressing Play after manual scrolling starts at that visible segment. While audio is playing, visual scrolling does not change the audio cursor; pause/resume retains the current audio segment.
 - Manual scroll progress is approximate at **segment granularity**, not pixel or word granularity; full pagination and EPUB CFI navigation remain out of scope for M0.
 - The API surface of `scrollable_positioned_list` was checked against the package reference. **Widget interaction and real Windows/Android audio playback have not been tested.**
+
+## P0 incremental hardening — 2026-10-22
+
+- **SDK constraints:** pubspec now requires Dart >=3.13 to match the existing xml 7.1.0 dependency and pinned Flutter 3.47.7 manual verification environment. This is a compatibility correction, not evidence that pub resolution succeeded.
+- **Playback races:** native Stop/Play operations are now serialized with a pending-stop future. Seek during active playback restarts at the selected segment without waiting for the remainder of the audiobook to finish. Late asynchronous speech failures are retained in ReaderPlayer and displayed by the reader.
+- **Player tests authored:** rapid pause/restart with delayed native Stop, and seek while audio is playing. These are regression tests awaiting actual execution.
+- **Library crash recovery:** import now reuses a valid already-copied book file after an interrupted DB transaction, and reimporting a book with a missing managed file restores the file without losing saved progress.
+- **Storage tests authored:** verify crash-orphan adoption, file-repair behavior and unchanged progress/metadata.
+- **Validation:** inspected GitHub commits and checked published package APIs, but Flutter/Dart are not installed in the execution environment. The working container cannot resolve Flutter SDK download hosts. Native builds and tests are **NOT executed**; keep PR #1 in draft.
+
+### Remaining quality gates
+
+1. Manually run GitHub Actions Windows/Android workflow with git_ref=feature/m0-flutter-foundation; collect actual failure logs rather than assuming it compiles.
+2. Fix analyzer/test and native plugin build failures; lock resolved dependency versions and check in generated platform runners.
+3. Verify imports and TTS output on real Windows/Android devices, including end-of-book, interrupted playback, invalid files, and migration from v1/v2 stores.
+4. Only then promote M0 from in progress to completed, and proceed with next P0 tasks.
