@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:ereader/audio/mp3_playback.dart';
+import 'package:ereader/audio/speech_audio_cache.dart';
 import 'package:ereader/audio/openai_speech_engine.dart';
 import 'package:ereader/audio/secret_vault.dart';
 import 'package:ereader/audio/speech_engine.dart';
@@ -75,6 +76,26 @@ class FakeTransport implements SpeechHttpTransport {
   void dispose() {}
 }
 
+class FakeSpeechCache implements SpeechAudioCache {
+  final saved = <String, Uint8List>{};
+  String fullKey(String bookId, String key) => bookId + ':' + key;
+  @override
+  Future<Uint8List?> read(String bookId, String key) async =>
+      saved[fullKey(bookId, key)];
+
+  @override
+  Future<void> write(String bookId, String key, Uint8List mp3) async {
+    saved[fullKey(bookId, key)] = mp3;
+  }
+
+  @override
+  Future<void> clearBook(String bookId) async {
+    saved.removeWhere((key, _) => key.startsWith(bookId + ':'));
+  }
+  @override
+  Future<void> clearAll() async { saved.clear(); }
+}
+
 class FakeAudioOutput implements SynthesizedAudioOutput {
   int plays = 0;
   int stops = 0;
@@ -95,6 +116,7 @@ void main() {
   late FakeVault vault;
   late FakeTransport transport;
   late FakeAudioOutput output;
+  late FakeSpeechCache cache;
   late OpenAiSpeechEngine engine;
 
   setUp(() {
@@ -102,6 +124,7 @@ void main() {
     vault = FakeVault()..key = 'example-test-key';
     transport = FakeTransport();
     output = FakeAudioOutput();
+    cache = FakeSpeechCache();
     engine = OpenAiSpeechEngine(
       bookId: 'book-123',
       modelId: 'gpt-4o-mini-tts',
@@ -109,6 +132,7 @@ void main() {
       vault: vault,
       transport: transport,
       output: output,
+      cache: cache,
     );
   });
 
@@ -167,6 +191,35 @@ void main() {
     );
     expect(transport.requests, 1);
     expect(access.used, 5);
+  });
+
+  test('replay from private cache does not use key, network or more quota',
+      () async {
+    access.allowed = true;
+    access.budget = 5;
+    await engine.speak('Hello', language: 'en-US',
+        rate: 0.5, pitch: 1.0);
+    expect(transport.requests, 1);
+    expect(access.used, 5);
+    vault.key = null;
+    await engine.speak('Hello', language: 'en-US',
+        rate: 0.75, pitch: 1.0);
+    expect(transport.requests, 1);
+    expect(access.used, 5);
+    expect(output.plays, 2);
+    expect(output.lastSpeed, 1.5);
+  });
+
+  test('changing voice misses cache and requires a new reservation', () async {
+    access.allowed = true;
+    await engine.speak('Hello', language: 'en-US',
+        rate: 0.5, pitch: 1.0);
+    await engine.chooseVoice(
+        const SpeechVoice(name: 'cedar', locale: 'multi'));
+    await engine.speak('Hello', language: 'en-US',
+        rate: 0.5, pitch: 1.0);
+    expect(transport.requests, 2);
+    expect(access.used, 10);
   });
 
   test('HTTP failures consume conservative budget without audio playback',
