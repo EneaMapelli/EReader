@@ -9,17 +9,17 @@
 Sul branch `feature/m0-flutter-foundation` sono presenti:
 - Modello libri e importazione/copia locale di TXT, EPUB e PDF (limite provvisorio 100 MB).
 - Biblioteca SQLite 3.x con progressi persistenti e migrazione automatica del precedente indice JSON.
-- Estrazione e lettura in forma testuale di TXT/EPUB; **il renderer EPUB completo e gli anchor stabili non sono ancora implementati**.
+- Estrazione TXT/EPUB in ordine OPF spine con limiti ZIP/XML e mappatura dei capitoli alle posizioni del testo; **il renderer EPUB completo e gli anchor EPUB CFI persistenti non sono ancora implementati**.
 - Visualizzazione PDF tramite `pdfrx` e modalità sperimentale di lettura vocale per PDF con testo selezionabile (senza garanzia sull'ordine di colonne, note e tabelle).
-- Lettura vocale con voci del sistema Windows/Android, selezione voce, lingua, pitch, rate, salta avanti/indietro e evidenziazione del *segmento* in lettura.
-- Test unitari per modelli, segmentazione, queue player, database SQLite, migrazione JSON e decodifica TXT.
-- Workflow GitHub Actions **solo manuale** per analisi, test e build, da lanciare dopo la prima verifica locale.
+- Lettura vocale con voci di sistema Windows/Android, scelta di voce/lingua/pitch/rate, navigazione tra segmenti e modalità Read Along con evidenziazione, auto-scroll disattivabile e ripresa della posizione.
+- Test unitari per modelli, segmentazione, queue player, SQLite/migrazione, TXT e ordine/sicurezza EPUB.
+- [Workflow GitHub Actions](https://github.com/EneaMapelli/EReader/actions/workflows/manual-verify.yml) **solo manuale**, avviabile da main scegliendo il branch da verificare; Flutter 3.47.7, Android e Windows.
 
 **Non ancora verificati:** compilazione, test/analisi effettivi, migrazione SQLite reale e funzionamento su dispositivi Windows/Android. Gli ambienti Flutter/Dart e i toolchain Windows/Android non erano disponibili nel contesto di sviluppo. Le cartelle native `android/` e `windows/` devono ancora essere generate e versionate dopo il bootstrap.
 
 ## Avvio su Windows
 
-Prerequisiti: Flutter SDK (Dart >= 3.11), Android SDK per Android, Visual Studio con carico di lavoro **Desktop development with C++** per Windows, Developer Mode per `pdfrx`.
+Prerequisiti: Flutter **3.47.7** con Dart **3.13.5** (versione CI di riferimento), Android SDK per Android, Visual Studio con carico di lavoro **Desktop development with C++** per Windows, Developer Mode Windows per i plugin che creano symlink.
 
 ```powershell
 git clone https://github.com/EneaMapelli/EReader.git
