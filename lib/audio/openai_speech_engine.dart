@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
+
 import 'package:http/http.dart' as http;
 
 import '../domain/cloud_speech_consent.dart';
 import 'mp3_playback.dart';
+import 'speech_audio_cache.dart';
 import 'secret_vault.dart';
 import 'speech_engine.dart';
 
@@ -112,8 +115,10 @@ class OpenAiSpeechEngine implements SpeechEngine {
     required this.vault,
     SpeechHttpTransport? transport,
     SynthesizedAudioOutput? output,
+    SpeechAudioCache? cache,
   })  : _transport = transport ?? OpenAiSpeechHttpTransport(),
-        _output = output ?? JustAudioMp3Output() {
+        _output = output ?? JustAudioMp3Output(),
+        _cache = cache ?? const NoSpeechAudioCache() {
     if (!supportedModels.contains(modelId)) {
       throw UnsupportedError('Unsupported OpenAI speech model: ' + modelId);
     }
@@ -135,6 +140,7 @@ class OpenAiSpeechEngine implements SpeechEngine {
   final SpeechSecretVault vault;
   final SpeechHttpTransport _transport;
   final SynthesizedAudioOutput _output;
+  final SpeechAudioCache _cache;
 
   String _voice = 'marin';
   int _generation = 0;
@@ -173,6 +179,17 @@ class OpenAiSpeechEngine implements SpeechEngine {
         'Enable cloud narration explicitly for this book first',
       );
     }
+    final cacheKey = sha256.convert(
+      utf8.encode(modelId + '\u0000' + _voice + '\u0000' + text),
+    ).toString();
+    final cached = await _cache.read(bookId, cacheKey);
+    if (token != _generation || _disposed) return;
+    if (cached != null) {
+      // No API request, quota consumption or key is needed on a cache hit.
+      await _output.play(cached,
+        speed: (rate / 0.5).clamp(0.5, 2.0).toDouble());
+      return;
+    }
     if (consent.remainingCharacters < text.length) {
       throw const CloudSpeechBlocked(
         'Character budget exhausted for this book and provider',
@@ -206,6 +223,14 @@ class OpenAiSpeechEngine implements SpeechEngine {
     if (result.bytes.isEmpty || result.bytes.length > 20 * 1024 * 1024) {
       throw const CloudSpeechException('Empty or oversized audio response');
     }
+    // Cache errors must not throw away paid synthesis, but cache misses
+    // always consume quota. Only successful HTTP audio is cached.
+    try {
+      await _cache.write(bookId, cacheKey, result.bytes);
+    } catch (_) {
+      // Can still play when storage is full or external cleanup races us.
+    }
+    if (token != _generation || _disposed) return;
     // rate=0.5 is nominal 1x in the system TTS reader. Cloud speed uses a
     // local playback rate when the platform backend supports it. Cloud pitch
     // is NOT claimed to work and is omitted from the API request.
