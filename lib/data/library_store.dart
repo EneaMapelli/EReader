@@ -128,7 +128,10 @@ class LibraryStore {
     _validateSignature(bytes, format);
     final id = sha256.convert(bytes).toString();
     final existing = getBook(id);
-    if (existing != null) return existing;
+    if (existing != null && await File(existing.localPath).exists()) {
+      // A duplicate import should preserve reading progress and metadata.
+      return existing;
+    }
 
     final target = File(
         p.join(_booksDir.path, id + '.' + format.extension));
@@ -137,8 +140,28 @@ class LibraryStore {
     }
     final temporary = File(target.path + '.part');
     try {
-      await temporary.writeAsBytes(bytes, flush: true);
-      await temporary.rename(target.path);
+      if (await target.exists()) {
+        // A previous process may have written the file but crashed before
+        // committing its SQLite entry. Validate before adopting it.
+        final foundHash = sha256.convert(await target.readAsBytes()).toString();
+        if (foundHash != id) {
+          throw const FormatException('Managed book file is corrupted');
+        }
+      } else {
+        await temporary.writeAsBytes(bytes, flush: true);
+        await temporary.rename(target.path);
+      }
+
+      if (existing != null) {
+        // Recover a previously imported book whose private file went missing,
+        // while preserving its progress and user-visible title.
+        _transaction(_database, () {
+          _database.execute('UPDATE books SET local_path = ? WHERE id = ?',
+              [target.path, id]);
+        });
+        return getBook(id)!;
+      }
+
       final record = BookRecord(
         id: id,
         title: p.basenameWithoutExtension(displayName),
