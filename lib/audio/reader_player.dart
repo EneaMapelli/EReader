@@ -17,11 +17,13 @@ class ReaderPlayer extends ChangeNotifier {
     required List<SpeechSegment> segments,
     required this.onSegmentStarted,
     this.language = 'it-IT',
+    this.engineProviderId = 'system',
   }) : _engine = engine, _segments = segments;
 
   final SpeechEngine _engine;
   final List<SpeechSegment> _segments;
   final SegmentStarted onSegmentStarted;
+  final String engineProviderId;
   String language;
   double rate = 0.5;
   double pitch = 1.0;
@@ -54,6 +56,12 @@ class ReaderPlayer extends ChangeNotifier {
 
   Future<void> applyPreferences(SpeechPreferences preferences) async {
     preferences.validate();
+    if (preferences.providerId != engineProviderId) {
+      throw UnsupportedError(
+        'Speech provider does not match the active engine: '
+            + preferences.providerId,
+      );
+    }
     if (isPlaying) await pause();
     _providerId = preferences.providerId;
     _modelId = preferences.modelId;
