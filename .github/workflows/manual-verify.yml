@@ -1,36 +1,88 @@
-name: Manual Flutter verification
+name: EReader manual cross-platform verification
+
 on:
   workflow_dispatch:
+    inputs:
+      git_ref:
+        description: 'Branch or commit to test (do not merge unverified code)'
+        required: true
+        default: feature/m0-flutter-foundation
+        type: string
 
 permissions:
   contents: read
 
-jobs:
-  linux-analyze-android:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-      - name: Generate Android runner
-        run: flutter create --project-name ereader --org com.example.ereader --platforms=android .
-      - run: flutter pub get
-      - run: dart format lib test
-      - run: flutter analyze
-      - run: flutter test
-      - run: flutter build apk --debug
+concurrency:
+  group: ereader-manual-verify
+  cancel-in-progress: false
 
-  windows-build:
-    runs-on: windows-latest
+jobs:
+  android:
+    name: Android build + Dart tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.47.7'
           channel: stable
-      - name: Generate Windows runner
+          cache: true
+      - name: Generate Android project
+        run: flutter create --project-name ereader --org com.example.ereader --platforms=android .
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Format for analysis (non-mutating to repository)
+        run: dart format lib test
+      - name: Static analysis
+        run: flutter analyze
+      - name: Unit tests
+        run: flutter test --reporter expanded
+      - name: Build Android APK
+        run: flutter build apk --debug
+      - name: Collect Android APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ereader-android-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
+
+  windows:
+    name: Windows build + Dart tests
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - name: Generate Windows project
         run: flutter create --project-name ereader --org com.example.ereader --platforms=windows .
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
-      - run: flutter build windows --debug
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Format for analysis (non-mutating to repository)
+        run: dart format lib test
+      - name: Static analysis
+        run: flutter analyze
+      - name: Unit tests
+        run: flutter test --reporter expanded
+      - name: Build Windows desktop
+        run: flutter build windows --debug
+      - name: Collect Windows build
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ereader-windows-debug
+          path: build/windows/x64/runner/Debug/
+          retention-days: 7
