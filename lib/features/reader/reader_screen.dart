@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
@@ -27,11 +29,16 @@ class _ReaderScreenState extends State<ReaderScreen> {
   bool _pdfTextMode = false;
   bool _autoFollow = true;
   final ItemScrollController _itemScrollController = ItemScrollController();
+  final ItemPositionsListener _itemPositionsListener =
+      ItemPositionsListener.create();
+  Timer? _saveVisualPositionTimer;
+  int? _visiblePositionIndex;
   int _lastFollowedIndex = -1;
 
   @override
   void initState() {
     super.initState();
+    _itemPositionsListener.itemPositions.addListener(_onVisiblePositions);
     if (widget.book.format != BookFormat.pdf) {
       _load();
     } else {
@@ -69,6 +76,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         previous.dispose();
       }
       _lastFollowedIndex = player.currentIndex;
+      _visiblePositionIndex = player.currentIndex;
       player.addListener(_onPlaybackChanged);
       setState(() {
         _player = player;
@@ -82,6 +90,30 @@ class _ReaderScreenState extends State<ReaderScreen> {
         _loading = false;
       });
     }
+  }
+
+  void _onVisiblePositions() {
+    if (!mounted || _loading || _player == null || _document == null) return;
+    final player = _player!;
+    if (player.isPlaying || player.segments.isEmpty) return;
+    final visible = _itemPositionsListener.itemPositions.value
+        .where((item) => item.itemTrailingEdge > 0)
+        .map((item) => item.index)
+        .toList();
+    if (visible.isEmpty) return;
+    visible.sort();
+    final index = visible.first.clamp(0, player.segments.length - 1).toInt();
+    if (index == _visiblePositionIndex) return;
+    _visiblePositionIndex = index;
+    _saveVisualPositionTimer?.cancel();
+    _saveVisualPositionTimer = Timer(const Duration(milliseconds: 450), () {
+      if (!mounted || player.isPlaying || _player != player) return;
+      final segment = player.segments[index];
+      widget.store.savePosition(
+        widget.book.id, segment.start,
+        anchor: _document?.anchorAt(widget.book.format, segment.start),
+      );
+    });
   }
 
   void _onPlaybackChanged() {
@@ -112,6 +144,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
       if (player.isPlaying) {
         await player.pause();
       } else {
+        // If the user browsed the pages manually, start audio where the
+        // reading viewport is, not at the last audio-only position.
+        final visible = _visiblePositionIndex;
+        if (visible != null && visible != player.currentIndex) {
+          await player.seekTo(visible);
+        }
         await player.play();
       }
     } catch (error) {
@@ -150,6 +188,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   @override
   void dispose() {
+    _saveVisualPositionTimer?.cancel();
+    _itemPositionsListener.itemPositions.removeListener(_onVisiblePositions);
     final player = _player;
     if (player != null) {
       player.removeListener(_onPlaybackChanged);
@@ -249,6 +289,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                                   ),
                                   itemCount: player.segments.length,
                                   itemScrollController: _itemScrollController,
+                                  itemPositionsListener: _itemPositionsListener,
                                   initialScrollIndex: player.currentIndex
                                       .clamp(0, player.segments.length - 1)
                                       .toInt(),
