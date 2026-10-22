@@ -470,9 +470,60 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     ],
                   ),
                 ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 4),
-                child: Text('TTS engine: system voice (Windows / Android)'),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text('Engine: system voice'),
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: 'Speech preference scope',
+                    icon: const Icon(Icons.settings_voice),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 'make-global',
+                        child: Text('Save as global default'),
+                      ),
+                      PopupMenuItem(
+                        value: 'use-global',
+                        child: Text('Use global defaults for this book'),
+                      ),
+                    ],
+                    onSelected: (action) async {
+                      try {
+                        if (action == 'make-global') {
+                          await widget.store.saveSpeechPreferences(
+                            player.currentPreferences,
+                          );
+                        } else if (action == 'use-global') {
+                          await player.pause();
+                          await widget.store.clearBookSpeechPreferences(
+                            widget.book.id,
+                          );
+                          await player.applyPreferences(
+                            widget.store.getSpeechPreferences(
+                              bookId: widget.book.id,
+                            ),
+                          );
+                        }
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Voice preferences updated'),
+                            ),
+                          );
+                        }
+                      } catch (error) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(
+                              'Voice settings error: ' + error.toString(),
+                            )),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ],
               ),
               Row(
                 children: [
