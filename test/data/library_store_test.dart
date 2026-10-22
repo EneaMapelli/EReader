@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:ereader/data/library_store.dart';
 import 'package:crypto/crypto.dart';
 import 'package:ereader/domain/reading_anchor.dart';
+import 'package:ereader/domain/pronunciation_rule.dart';
+import 'package:ereader/domain/speech_preferences.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -175,6 +177,102 @@ void main() {
       anchor: const ReadingAnchor(
         kind: AnchorKind.text, sourceId: 'body', localOffset: 78));
     expect(store.getBook('old-id')!.progressAnchor!.localOffset, 78);
+  });
+
+
+  test('SQLite v3 keeps global and per-book pronunciations across restart',
+      () async {
+    final input = File(p.join(root.path, 'novel.txt'));
+    await input.writeAsString('Aeryn moved.');
+    final book = await store.importFile(input.path);
+    await store.upsertPronunciationRule(const PronunciationRule(
+      id: 'g1', pattern: 'Aeryn', replacement: 'Erin',
+    ));
+    await store.upsertPronunciationRule(PronunciationRule(
+      id: 'b1', bookId: book.id, pattern: 'Aeryn',
+      replacement: 'Air-in',
+    ));
+    expect(store.listPronunciationRules(bookId: book.id), hasLength(2));
+    expect(store.listPronunciationRules(), hasLength(1));
+
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    final loaded = store.listPronunciationRules(bookId: book.id);
+    expect(loaded, hasLength(2));
+    expect(loaded.singleWhere((r) => r.id == 'b1').replacement, 'Air-in');
+    await store.deletePronunciationRule('b1');
+    expect(store.listPronunciationRules(bookId: book.id), hasLength(1));
+  });
+
+  test('speech preferences fall back to global and support book override',
+      () async {
+    final input = File(p.join(root.path, 'speech.txt'));
+    await input.writeAsString('Voice settings.');
+    final book = await store.importFile(input.path);
+    expect(store.getSpeechPreferences(bookId: book.id).rate, 0.5);
+
+    await store.saveSpeechPreferences(const SpeechPreferences(
+      language: 'en-US', rate: 0.8, pitch: 1.1,
+    ));
+    expect(store.getSpeechPreferences(bookId: book.id).rate, 0.8);
+    await store.saveSpeechPreferences(const SpeechPreferences(
+      language: 'it-IT', rate: 0.3, pitch: 1.0,
+      voiceName: 'Test voice', voiceLocale: 'it-IT',
+    ), bookId: book.id);
+
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getSpeechPreferences(bookId: book.id).rate, 0.3);
+    expect(store.getSpeechPreferences(bookId: book.id).voiceName,
+        'Test voice');
+    expect(store.getSpeechPreferences().rate, 0.8);
+    await store.clearBookSpeechPreferences(book.id);
+    expect(store.getSpeechPreferences(bookId: book.id).rate, 0.8);
+  });
+
+  test('deleting a book removes its voice data, preserving global rules',
+      () async {
+    final source = File(p.join(root.path, 'cleanup.txt'));
+    await source.writeAsString('Cleanup');
+    final book = await store.importFile(source.path);
+    await store.upsertPronunciationRule(const PronunciationRule(
+      id: 'global', pattern: 'X', replacement: 'Z',
+    ));
+    await store.upsertPronunciationRule(PronunciationRule(
+      id: 'local', bookId: book.id, pattern: 'X', replacement: 'Y',
+    ));
+    await store.saveSpeechPreferences(
+        const SpeechPreferences(rate: 0.6), bookId: book.id);
+    await store.removeBook(book.id);
+    expect(store.listPronunciationRules(), hasLength(1));
+    expect(store.listPronunciationRules(bookId: book.id), hasLength(1));
+    expect(store.getSpeechPreferences(bookId: book.id).rate, 0.5);
+  });
+
+  test('v2 SQLite migrates to v3 without losing anchors', () async {
+    final source = File(p.join(root.path, 'v2.txt'));
+    await source.writeAsString('Before migration');
+    final book = await store.importFile(source.path);
+    await store.savePosition(book.id, 4,
+      anchor: const ReadingAnchor(
+        kind: AnchorKind.text, sourceId: 'body', localOffset: 4));
+    store.dispose();
+
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    db.execute('DROP TABLE pronunciation_rules');
+    db.execute('DROP TABLE speech_preferences');
+    db.execute('PRAGMA user_version = 2');
+    db.dispose();
+
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getBook(book.id)!.progressAnchor!.localOffset, 4);
+    await store.upsertPronunciationRule(const PronunciationRule(
+      id: 'migrated', pattern: 'Before', replacement: 'Bee-four',
+    ));
+    expect(store.listPronunciationRules(), hasLength(1));
   });
 
 }
