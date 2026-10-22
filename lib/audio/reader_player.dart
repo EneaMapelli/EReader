@@ -149,8 +149,20 @@ class ReaderPlayer extends ChangeNotifier {
         // A narrator voice MUST be restored after a character's turn.
         if (castVoiceForSegment != null) {
           final speakerVoice = castVoiceForSegment!(segment);
-          final fallback = selectedVoice ??
-              (availableVoices.isEmpty ? null : availableVoices.first);
+          // Preserve the provider's default narrator timbre even after
+          // a character voice was temporarily selected.
+          SpeechVoice? fallback = selectedVoice;
+          if (fallback == null && availableVoices.isNotEmpty) {
+            fallback = availableVoices.first;
+            if (engineProviderId == 'openai-speech') {
+              for (final candidate in availableVoices) {
+                if (candidate.name == 'marin') {
+                  fallback = candidate;
+                  break;
+                }
+              }
+            }
+          }
           final requested = speakerVoice ?? fallback;
           SpeechVoice? installed;
           if (requested != null) {
