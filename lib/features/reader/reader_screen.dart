@@ -223,6 +223,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
       ),
     );
     if (!mounted) return;
+    // Keep a visual/scanned PDF view available even without a text layer.
+    // Recreating an audio player is necessary only in text-reading mode.
+    if (widget.book.format == BookFormat.pdf && !_pdfTextMode) {
+      setState(() {});
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
