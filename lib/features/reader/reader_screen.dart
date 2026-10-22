@@ -22,6 +22,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   String? _error;
   bool _loading = true;
   double _fontSize = 19;
+  bool _pdfTextMode = false;
 
   @override
   void initState() {
@@ -127,14 +128,23 @@ class _ReaderScreenState extends State<ReaderScreen> {
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
-          if (widget.book.format != BookFormat.pdf)
+          if (widget.book.format == BookFormat.pdf && _pdfTextMode)
+            IconButton(
+              tooltip: 'Return to PDF pages',
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              onPressed: () async {
+                await _player?.pause();
+                if (mounted) setState(() => _pdfTextMode = false);
+              },
+            ),
+          if (widget.book.format != BookFormat.pdf || _pdfTextMode)
             IconButton(
               icon: const Icon(Icons.text_increase),
               tooltip: 'Increase font size',
               onPressed: () => setState(() =>
                   _fontSize = (_fontSize + 2).clamp(14.0, 32.0).toDouble()),
             ),
-          if (widget.book.format != BookFormat.pdf)
+          if (widget.book.format != BookFormat.pdf || _pdfTextMode)
             IconButton(
               icon: const Icon(Icons.text_decrease),
               tooltip: 'Decrease font size',
@@ -147,15 +157,29 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(child: SelectableText(_error!))
-              : widget.book.format == BookFormat.pdf
+              : widget.book.format == BookFormat.pdf && !_pdfTextMode
                   ? Column(
                       children: [
-                        const MaterialBanner(
-                          content: Text(
-                            'PDF viewer preview: voice reading and '
-                            'reading-order extraction are not implemented yet.',
+                        MaterialBanner(
+                          content: const Text(
+                            'PDF view. Experimental read-aloud uses the '
+                            'PDF text layer; reading order may be incorrect '
+                            'for columns, notes or complex layouts.',
                           ),
-                          actions: [SizedBox.shrink()],
+                          actions: [
+                            TextButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _pdfTextMode = true;
+                                  _loading = true;
+                                  _error = null;
+                                });
+                                _load();
+                              },
+                              icon: const Icon(Icons.record_voice_over),
+                              label: const Text('Read text aloud'),
+                            ),
+                          ],
                         ),
                         Expanded(
                           child: PdfViewer.file(widget.book.localPath),
