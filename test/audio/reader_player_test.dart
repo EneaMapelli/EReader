@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 class FakeSpeechEngine implements SpeechEngine {
   final spoken = <String>[];
   Completer<void>? waiting;
+  Completer<void>? stopGate;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => const [
@@ -30,6 +31,7 @@ class FakeSpeechEngine implements SpeechEngine {
 
   @override
   Future<void> stop() async {
+    if (stopGate != null) await stopGate!.future;
     if (waiting != null && !waiting!.isCompleted) waiting!.complete();
   }
 
@@ -73,4 +75,56 @@ void main() {
     expect(player.isPlaying, false);
     player.dispose();
   });
+  test('rapid pause and play waits for native stop before speaking again', () async {
+    final engine = FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: [const SpeechSegment(0, 5, 'Hello')],
+      onSegmentStarted: (_) async {},
+    );
+    final first = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['Hello']);
+
+    engine.stopGate = Completer<void>();
+    final pausing = player.pause();
+    final restarted = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['Hello'],
+        reason: 'A new utterance must wait for the previous native stop');
+
+    engine.stopGate!.complete();
+    await pausing;
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['Hello', 'Hello']);
+    engine.finish();
+    await first;
+    await restarted;
+    player.dispose();
+  });
+
+  test('seek while playing returns before full book playback completes', () async {
+    final engine = FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: [
+        const SpeechSegment(0, 4, 'One.'),
+        const SpeechSegment(5, 9, 'Two.'),
+      ],
+      onSegmentStarted: (_) async {},
+    );
+    final first = player.play();
+    await Future<void>.delayed(Duration.zero);
+    await player.seekTo(1);
+    await Future<void>.delayed(Duration.zero);
+    expect(player.currentIndex, 1);
+    expect(engine.spoken.last, 'Two.');
+    expect(player.isPlaying, isTrue);
+    engine.finish();
+    await first;
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isPlaying, isFalse);
+    player.dispose();
+  });
+
 }
