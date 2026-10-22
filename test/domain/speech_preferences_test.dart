@@ -18,6 +18,21 @@ void main() {
     expect(restored.pitch, 1.2);
   });
 
+  test('model selection persists while older settings receive a default',
+      () {
+    const prefs = SpeechPreferences(
+      providerId: 'openai-speech',
+      modelId: 'gpt-4o-mini-tts-2025-12-15',
+      voiceName: 'marin',
+      voiceLocale: 'multi',
+    );
+    expect(SpeechPreferences.fromJson(prefs.toJson()).modelId,
+        'gpt-4o-mini-tts-2025-12-15');
+    final old = Map<String, dynamic>.from(prefs.toJson())
+      ..remove('modelId');
+    expect(SpeechPreferences.fromJson(old).modelId, 'gpt-4o-mini-tts');
+  });
+
   test('rejects invalid or non-finite settings', () {
     expect(
       () => const SpeechPreferences(rate: 5).validate(),
