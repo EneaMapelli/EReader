@@ -4,13 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('accepts source-anchored bookmarked positions', () {
-    const bookmark = BookBookmark(
+    final bookmark = BookBookmark(
       id: 'id-1',
       bookId: 'book-hash',
       title: 'Arrival at castle',
       globalOffset: 120,
       createdAt: DateTime.utc(2026, 10, 22),
-      anchor: ReadingAnchor(
+      anchor: const ReadingAnchor(
         kind: AnchorKind.epubSpine,
         sourceId: 'chapter-5',
         localOffset: 23,
