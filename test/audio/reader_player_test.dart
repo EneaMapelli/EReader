@@ -9,16 +9,21 @@ import 'package:flutter_test/flutter_test.dart';
 
 class FakeSpeechEngine implements SpeechEngine {
   final spoken = <String>[];
+  final spokenVoices = <String?>[];
+  String? activeVoice;
   Completer<void>? waiting;
   Completer<void>? stopGate;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => const [
         SpeechVoice(name: 'Sample', locale: 'en-US'),
+        SpeechVoice(name: 'Character', locale: 'en-US'),
       ];
 
   @override
-  Future<void> chooseVoice(SpeechVoice voice) async {}
+  Future<void> chooseVoice(SpeechVoice voice) async {
+    activeVoice = voice.name;
+  }
 
   @override
   Future<void> speak(String text, {
@@ -27,6 +32,7 @@ class FakeSpeechEngine implements SpeechEngine {
     required double pitch,
   }) {
     spoken.add(text);
+    spokenVoices.add(activeVoice);
     waiting = Completer<void>();
     return waiting!.future;
   }
@@ -191,6 +197,68 @@ void main() {
       )),
       throwsUnsupportedError,
     );
+    player.dispose();
+  });
+
+
+  test('manually tagged character voice switches back to narrator',
+      () async {
+    final engine = FakeSpeechEngine();
+    final segments = [
+      const SpeechSegment(0, 6, 'Hello!'),
+      const SpeechSegment(7, 16, 'Narrator.'),
+    ];
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: segments,
+      onSegmentStarted: (_) async {},
+    );
+    await player.loadVoices();
+    await player.applyPreferences(const SpeechPreferences(
+      language: 'en-US',
+      voiceName: 'Sample',
+      voiceLocale: 'en-US',
+    ));
+    player.castVoiceForSegment = (segment) =>
+        segment.start == 0
+            ? const SpeechVoice(name: 'Character', locale: 'en-US')
+            : null;
+    player.castSpeakerForSegment = (segment) =>
+        segment.start == 0 ? 'actor-1' : null;
+
+    final run = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken.first, 'Hello!');
+    expect(engine.spokenVoices.first, 'Character');
+    expect(player.activeSpeakerId, 'actor-1');
+    engine.finish();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spokenVoices, ['Character', 'Sample']);
+    expect(engine.spoken.last, 'Narrator.');
+    expect(player.activeSpeakerId, isNull);
+    engine.finish();
+    await run;
+    expect(player.isPlaying, isFalse);
+    player.dispose();
+  });
+
+  test('unsupported character voice falls back without extra narration',
+      () async {
+    final engine = FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: [const SpeechSegment(0, 5, 'Ciao!')],
+      onSegmentStarted: (_) async {},
+    );
+    await player.loadVoices();
+    player.castVoiceForSegment = (_) =>
+        const SpeechVoice(name: 'Does not exist', locale: 'en-US');
+    final run = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['Ciao!']);
+    expect(engine.spokenVoices, ['Sample']);
+    engine.finish();
+    await run;
     player.dispose();
   });
 
