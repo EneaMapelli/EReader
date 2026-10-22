@@ -36,9 +36,19 @@ class ReaderPlayer extends ChangeNotifier {
   /// untouched even when pronunciation replacements change string length.
   String Function(String)? speechTextTransform;
 
+  /// The narrator voice remains selectedVoice. For a manually attributed
+  /// segment, the resolver may choose a provider-specific installed voice.
+  /// Missing/unknown voices always fall back to narrator.
+  SpeechVoice? Function(SpeechSegment)? castVoiceForSegment;
+  String? Function(SpeechSegment)? castSpeakerForSegment;
+  String? activeSpeakerId;
+  String? _engineVoiceKey;
+
+
   Future<void> loadVoices() async {
     try {
       availableVoices = await _engine.listVoices();
+      _engineVoiceKey = null;
     } catch (_) {
       // Missing system TTS engine or unsupported voice enumeration.
       availableVoices = const [];
@@ -49,6 +59,7 @@ class ReaderPlayer extends ChangeNotifier {
   Future<void> selectVoice(SpeechVoice voice) async {
     await pause();
     await _engine.chooseVoice(voice);
+    _engineVoiceKey = voice.key;
     selectedVoice = voice;
     if (voice.locale != 'multi') language = voice.locale;
     _notify();
@@ -69,11 +80,13 @@ class ReaderPlayer extends ChangeNotifier {
     rate = preferences.rate;
     pitch = preferences.pitch;
     selectedVoice = null;
+    _engineVoiceKey = null;
     if (preferences.voiceName != null && preferences.voiceLocale != null) {
       for (final voice in availableVoices) {
         if (voice.name == preferences.voiceName &&
             voice.locale == preferences.voiceLocale) {
           await _engine.chooseVoice(voice);
+          _engineVoiceKey = voice.key;
           selectedVoice = voice;
           break;
         }
@@ -132,6 +145,30 @@ class ReaderPlayer extends ChangeNotifier {
         final segment = _segments[currentIndex];
         await onSegmentStarted(segment);
         if (token != _session) return;
+        // Cast affects only synthesis voice, never text, offsets or order.
+        // A narrator voice MUST be restored after a character's turn.
+        if (castVoiceForSegment != null) {
+          final speakerVoice = castVoiceForSegment!(segment);
+          final fallback = selectedVoice ??
+              (availableVoices.isEmpty ? null : availableVoices.first);
+          final requested = speakerVoice ?? fallback;
+          SpeechVoice? installed;
+          if (requested != null) {
+            for (final voice in availableVoices) {
+              if (voice.key == requested.key) {
+                installed = voice;
+                break;
+              }
+            }
+          }
+          if (installed != null && installed.key != _engineVoiceKey) {
+            await _engine.chooseVoice(installed);
+            _engineVoiceKey = installed.key;
+          }
+          if (token != _session) return;
+        }
+        activeSpeakerId = castSpeakerForSegment?.call(segment);
+        _notify();
         final spokenText =
             speechTextTransform?.call(segment.text) ?? segment.text;
         await _engine.speak(spokenText,
@@ -149,6 +186,7 @@ class ReaderPlayer extends ChangeNotifier {
     } finally {
       if (token == _session) {
         isPlaying = false;
+        activeSpeakerId = null;
         _notify();
       }
     }
@@ -158,6 +196,7 @@ class ReaderPlayer extends ChangeNotifier {
     if (_disposed) return;
     _session++;
     isPlaying = false;
+    activeSpeakerId = null;
     _notify();
     // Serialize stop commands; the next play waits for their completion.
     final priorStop = _pendingStop;
