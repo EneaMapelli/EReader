@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../audio/openai_speech_engine.dart';
+import '../../audio/speech_audio_cache.dart';
 import '../../audio/secret_vault.dart';
 import '../../audio/speech_engine_factory.dart';
 import '../../data/library_store.dart';
@@ -199,6 +200,37 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
     _feedback('Cloud narration disabled. Used-character history is retained.');
   }
 
+  Future<void> _clearGeneratedAudio() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Delete generated audio for this book?'),
+        content: const Text(
+          'Generated speech files for this book will be removed '
+          'from local private storage. Already consumed API usage '
+          'cannot be refunded; replaying may generate new paid requests.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Delete cached audio'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await PrivateMp3SpeechCache().clearBook(widget.bookId);
+      _feedback('Generated audio for this book cleared.');
+    } catch (error) {
+      _feedback('Audio cache cleanup failed: ' + error.toString());
+    }
+  }
+
   @override
   void dispose() {
     _key.dispose();
@@ -331,6 +363,22 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
               color: Theme.of(context).colorScheme.primary,
             )),
           ],
+          const Divider(height: 40),
+          Text('Generated audio cache',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          const Text(
+            'Generated audio is saved privately on this device (up to '
+            '250 MiB across books). Cached audio for the same text, model '
+            'and voice can be replayed without another paid API call. '
+            'Deleting audio does not reset usage counters.',
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _clearGeneratedAudio,
+            icon: const Icon(Icons.delete_sweep_outlined),
+            label: const Text('Clear generated audio for this book'),
+          ),
           const SizedBox(height: 24),
           const Text('System voices remain usable without keys, cloud '
               'consent, subscriptions or internet access.'),
