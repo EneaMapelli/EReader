@@ -15,6 +15,8 @@ import '../../data/library_store.dart';
 import '../../domain/book.dart';
 import '../../domain/speech_segment.dart';
 import '../../domain/pronunciation_rule.dart';
+import '../../domain/voice_cast.dart';
+import 'voice_cast_screen.dart';
 import 'pronunciation_screen.dart';
 import 'reading_tools.dart';
 
@@ -32,6 +34,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   ReaderPlayer? _player;
   DocumentContent? _document;
   List<PronunciationRule> _pronunciationRules = const [];
+  Map<String, String> _castNames = const {};
   String? _error;
   bool _loading = true;
   double _fontSize = 19;
@@ -89,6 +92,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
               original, _pronunciationRules, bookId: widget.book.id);
       await player.loadVoices();
       await player.applyPreferences(prefs);
+      _configureVoiceCast(player, document);
       if (!mounted) {
         player.dispose();
         return;
@@ -113,6 +117,62 @@ class _ReaderScreenState extends State<ReaderScreen> {
         _loading = false;
       });
     }
+  }
+
+  void _configureVoiceCast(ReaderPlayer player, DocumentContent document) {
+    final people = widget.store.listCastCharacters(widget.book.id);
+    final turns = widget.store.listSegmentCast(widget.book.id);
+    final voiceProfiles = widget.store.listCastVoices(widget.book.id);
+    _castNames = {for (final person in people) person.id: person.name};
+    if (turns.isEmpty) {
+      player.castVoiceForSegment = null;
+      player.castSpeakerForSegment = null;
+      return;
+    }
+    final resolver = VoiceCastResolver(
+      bookId: widget.book.id,
+      providerId: player.currentPreferences.providerId,
+      attributions: turns,
+      voices: voiceProfiles,
+      offsetFromAnchor: document.offsetOf,
+    );
+    player.castSpeakerForSegment = resolver.speakerFor;
+    player.castVoiceForSegment = (segment) {
+      final assignment = resolver.voiceFor(segment);
+      if (assignment == null) return null;
+      // Accept only voices returned by the *current* TTS engine.
+      for (final installed in player.availableVoices) {
+        if (installed.name == assignment.voiceName &&
+            installed.locale == assignment.voiceLocale) {
+          return installed;
+        }
+      }
+      return null;
+    };
+  }
+
+  Future<void> _openCastEditor() async {
+    final player = _player;
+    final document = _document;
+    if (player == null || document == null || player.segments.isEmpty) return;
+    await player.pause();
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => VoiceCastScreen(
+          store: widget.store,
+          book: widget.book,
+          document: document,
+          segments: player.segments,
+          providerId: player.currentPreferences.providerId,
+          availableVoices: player.availableVoices,
+        ),
+      ),
+    );
+    if (!mounted || _player != player) return;
+    // Rebuild an immutable source-aligned snapshot after manual edits.
+    _configureVoiceCast(player, document);
+    setState(() {});
   }
 
   void _onVisiblePositions() {
@@ -358,6 +418,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ),
           if (_player != null && _player!.segments.isNotEmpty)
             IconButton(
+              icon: const Icon(Icons.theater_comedy_outlined),
+              tooltip: 'Characters and manual voice cast',
+              onPressed: _openCastEditor,
+            ),
+          if (_player != null && _player!.segments.isNotEmpty)
+            IconButton(
               icon: const Icon(Icons.search),
               tooltip: 'Search this book',
               onPressed: _searchInBook,
@@ -511,6 +577,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
             children: [
               Text('Segment ${player.currentIndex + 1} of $count',
                   style: Theme.of(context).textTheme.labelMedium),
+              if (player.activeSpeakerId != null)
+                Text('Speaker: ' +
+                    (_castNames[player.activeSpeakerId] ?? 'Unknown')
+                  , style: Theme.of(context).textTheme.labelSmall),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
