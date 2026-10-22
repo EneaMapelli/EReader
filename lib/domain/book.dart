@@ -1,3 +1,5 @@
+import 'reading_anchor.dart';
+
 enum BookFormat { txt, epub, pdf }
 
 extension BookFormatPath on BookFormat {
@@ -20,6 +22,7 @@ class BookRecord {
     required this.format,
     required this.importedAt,
     this.progressOffset = 0,
+    this.progressAnchor,
   });
 
   final String id;
@@ -27,17 +30,18 @@ class BookRecord {
   final String localPath;
   final BookFormat format;
   final DateTime importedAt;
-  /// UTF-16 code-unit offset in the extracted text; prototype only.
-  /// Stable per-spine source anchors replace this before M1 completion.
+  /// Fallback for older libraries; authoritative when no source anchor exists.
   final int progressOffset;
+  final ReadingAnchor? progressAnchor;
 
-  BookRecord atOffset(int offset) => BookRecord(
+  BookRecord atOffset(int offset, {ReadingAnchor? anchor}) => BookRecord(
         id: id,
         title: title,
         localPath: localPath,
         format: format,
         importedAt: importedAt,
         progressOffset: offset,
+        progressAnchor: anchor,
       );
 
   Map<String, Object> toJson() => {
@@ -47,6 +51,7 @@ class BookRecord {
         'format': format.name,
         'importedAt': importedAt.toIso8601String(),
         'progressOffset': progressOffset,
+        if (progressAnchor != null) 'progressAnchor': progressAnchor!.toJson(),
       };
 
   factory BookRecord.fromJson(Map<String, dynamic> json) {
@@ -57,6 +62,10 @@ class BookRecord {
       format: BookFormat.values.byName(json['format'] as String),
       importedAt: DateTime.parse(json['importedAt'] as String),
       progressOffset: json['progressOffset'] as int? ?? 0,
+      progressAnchor: json['progressAnchor'] is Map
+          ? ReadingAnchor.fromJson(
+              Map<String, dynamic>.from(json['progressAnchor'] as Map))
+          : null,
     );
   }
 }
