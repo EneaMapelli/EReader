@@ -10,6 +10,7 @@ import '../domain/book.dart';
 import '../domain/reading_anchor.dart';
 import '../domain/pronunciation_rule.dart';
 import '../domain/speech_preferences.dart';
+import '../domain/book_bookmark.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
 class LibraryStore {
@@ -39,7 +40,7 @@ class LibraryStore {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 3) {
+      if (version > 4) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -89,6 +90,27 @@ class LibraryStore {
             )
           ''');
           db.execute('PRAGMA user_version = 3');
+        });
+      }
+      if (version < 4) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS bookmarks (
+              id TEXT PRIMARY KEY NOT NULL,
+              book_id TEXT NOT NULL REFERENCES books(id)
+                ON DELETE CASCADE,
+              title TEXT NOT NULL,
+              global_offset INTEGER NOT NULL
+                CHECK(global_offset >= 0),
+              anchor_json TEXT,
+              created_at TEXT NOT NULL
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_bookmarks_book
+            ON bookmarks(book_id, created_at)
+          ''');
+          db.execute('PRAGMA user_version = 4');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -303,6 +325,45 @@ class LibraryStore {
       SpeechPreferences.fromJson(
         Map<String, dynamic>.from(jsonDecode(row['value_json'] as String) as Map),
       );
+
+  List<BookBookmark> listBookmarks(String bookId) {
+    final rows = _database.select('''
+      SELECT * FROM bookmarks
+      WHERE book_id = ? ORDER BY created_at, id
+    ''', [bookId]);
+    return rows.map((row) => BookBookmark(
+      id: row['id'] as String,
+      bookId: row['book_id'] as String,
+      title: row['title'] as String,
+      globalOffset: row['global_offset'] as int,
+      createdAt: DateTime.parse(row['created_at'] as String),
+      anchor: row['anchor_json'] is String
+          ? ReadingAnchor.fromJson(Map<String, dynamic>.from(
+              jsonDecode(row['anchor_json'] as String) as Map))
+          : null,
+    )).toList();
+  }
+
+  Future<void> addBookmark(BookBookmark bookmark) async {
+    bookmark.validate();
+    if (getBook(bookmark.bookId) == null) {
+      throw StateError('Cannot bookmark an unknown book');
+    }
+    _database.execute('''
+      INSERT INTO bookmarks (
+        id, book_id, title, global_offset, anchor_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    ''', [
+      bookmark.id, bookmark.bookId, bookmark.title,
+      bookmark.globalOffset,
+      bookmark.anchor == null ? null : jsonEncode(bookmark.anchor!.toJson()),
+      bookmark.createdAt.toIso8601String(),
+    ]);
+  }
+
+  Future<void> deleteBookmark(String id) async {
+    _database.execute('DELETE FROM bookmarks WHERE id = ?', [id]);
+  }
 
   Future<void> removeBook(String bookId) async {
     final book = getBook(bookId);
