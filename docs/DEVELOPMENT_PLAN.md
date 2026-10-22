@@ -1,6 +1,6 @@
 # EReader — Piano di sviluppo Windows + Android
 
-**Versione:** 1.0 · **Data:** 2026-10-22 · **Stato:** proposta iniziale approvabile per implementazione  
+**Versione:** 1.0 · **Data:** 2026-10-22 · **Stato:** APPROVATO (2026-10-22) per implementazione progressiva; decisione in [DECISIONS.md](DECISIONS.md)  
 **Repository:** [EneaMapelli/EReader](https://github.com/EneaMapelli/EReader) · **Branch:** main
 
 ## 1. Visione e risultato atteso
