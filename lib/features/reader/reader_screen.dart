@@ -120,8 +120,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
   void _onPlaybackChanged() {
     if (!mounted) return;
     final player = _player;
-    if (player?.lastError != null &&
-        !identical(player!.lastError, _lastReportedPlaybackError)) {
+    if (player != null && player.lastError != null &&
+        !identical(player.lastError, _lastReportedPlaybackError)) {
       final failure = player.lastError!;
       _lastReportedPlaybackError = failure;
       WidgetsBinding.instance.addPostFrameCallback((_) {
