@@ -217,3 +217,55 @@ DRM, vendita/hosting libri, streaming cataloghi protetti, sincronizzazione via s
 - ElevenLabs TTS: https://elevenlabs.io/docs/overview/capabilities/text-to-speech
 
 **Nota:** librerie, modelli, disponibilità voci, licenze e prezzi devono essere bloccati/verificati al momento dell'implementazione. Questo piano descrive obiettivi e scelte candidate, non funzionalità già realizzate.
+
+
+## 15. Funzionalità aggiuntive candidate — valutazione prima del codice (2026-10-22)
+
+Queste sono **proposte di estensione**, non promesse per l'MVP. Distinguere capacità da prevedere nell'architettura fin da M0 e funzioni effettivamente da implementare negli incrementi successivi. Non spostare M1–M2 finché non esiste un lettore affidabile e TTS offline.
+
+| ID | Feature | Priorità proposta | Implementazione candidata | Dipendenze / vincoli |
+|---|---|---|---|---|
+| ER-017 | **Read Along**: auto-scroll e highlight sincronizzati, switch testo/audio con resume esatto | P0, rafforzare M2 | progress anchor unico e audio timeline indipendente da provider | Word-level *solo* con marks verificabili; altrimenti frase |
+| ER-018 | **Dizionario pronunce** globale/per libro/per personaggio | P1, M3–M4 | regole nome→pronuncia, IPA/SSML dove disponibili, editor e preview | Non tutti i provider espongono lessici/phonemes: fallback per voce |
+| ER-019 | **Lingue miste e rilevamento lingua per segmento** | P1, M3–M5 | override lingua per libro/capitolo/frase + voice selection per lingua | Non inferire varietà linguistica affidandosi solo ai metadati |
+| ER-020 | **Regia audio**: pause, cambio speaker, enfasi, loudness, stili emotivi | P1, M4–M5 | prosody marks separati da speaker, pause templates, normalizzazione audio | Interpretazioni sottili/ironia non necessariamente riconoscibili; test A/B |
+| ER-021 | **Audiobook export** M4B/MP3/Opus con capitoli, copertina, resume export e stima costi | P1/P2, M6 | job queue separata dal player; segmenti in cache ricomponibili | Verifica diritti di uso, redistribuzione, e termini TTS; niente export dove vietato |
+| ER-022 | **Audiobook import** MP3/M4B, EPUB 3 Media Overlays embedded | P1/P2, M6 | modello \`AudioSource\` separato da \`SpeechProvider\`; parse chapter marks/SMIL | Gli EPUB Media Overlays associano audio e contenuto già allineati |
+| ER-023 | **Allineamento audiolibro esterno ↔ testo** con forced alignment opzionale | P2 | matching capitoli e timing, revision UI | Solo se l'utente possiede sia testo sia audio; accuratezza, costi e privacy |
+| ER-024 | **Schede personaggi spoiler-safe**: identità, alias, relazioni, citazioni già lette | P1/P2, dopo M5 | knowledge graph versionato per capitolo e cutoff di posizione | RAG solo su porzioni già viste; protezione spoiler anche su risultati ricerca |
+| ER-025 | **Assistente di lettura contestuale** (chi è X?, termine, recap fin qui) | P2 | retrieval su chapter range ammesso + citazioni/anchor | LLM può allucinare: risposte con evidenza, scelta offline/cloud, nessun spoiler |
+| ER-026 | **Backup e sync opzionali cross-device** (WebDAV/Nextcloud/local folder) | P1/P2, progettare M0, rilasciare dopo M3 | sync engine separato da DB; ID contenuto stabili, encryption, conflict resolution | Sync progress/bookmarks/cast/pronunce; file dei libri solo con opt-in |
+| ER-027 | **Cataloghi OPDS 1.2/2.0** e integrazione Calibre via OPDS | P2 | \`CatalogSource\` import plugin | No bypass DRM; credenziali secure storage; verifica link/copyright |
+| ER-028 | **Accessibility++**: OpenDyslexic opzionale, font personalizzati, modalità concentrazione, maschera righe, tema high contrast, tap-to-speak | P1, M1–M2 | reader UX e screenreader semantics, preferenze per libro | Font specifici non sono efficaci per tutti; controllare contrasto/tasti |
+| ER-029 | **PDF reading-order correction** e OCR locale opzionale | P1, M1 raffinamento + V2 | editor ordine blocchi/colonne, OCR adapter con anchors | PDF scannerizzati non diventano searchable/TTS senza OCR |
+| ER-030 | **Book audio preparation**: prerender per capitolo/libro, limiti spazio, offline queue, Wi-Fi only | P1, M3 | background jobs, quota disco e cost cap; cancel/resume idempotente | Costi approvati prima, device power constraints |
+| ER-031 | **Audio session completa**: lock screen/BT controls, Android Auto se supportato, sleep timer/fade-out, retry e resume | P0/P1, M2–M3 | Android Media3 MediaSessionService, player service native; Windows OS integration | Widget controls diversi per device e player live TTS |
+| ER-032 | **Lettura personalizzata**: skipping note/intestazioni, numeri pagina, footnote spoken on demand | P1, M2 | semantic text block filters con traccia del testo escluso | Non eliminare intere frasi per errore |
+| ER-033 | **Cronologia/obiettivi**: tempo ascolto/lettura, statistica progressi, sessioni | P2 | analytics solo locale e azzerabile; nessuna telemetria nascosta | Non blocca requisiti core |
+| ER-034 | **Interfaccia per biblioteca massiva**: serie, tag, raccolte smart, ricerca full-text offline | P1/P2, M1–M6 | SQLite FTS e indexer cancellabile | Duplicati, file rinominati, indice solo su consenso |
+
+### 15.1 Raccomandazione di scope
+
+**Da progettare subito e realizzare presto (P0/P1):** read-along con anchors robusti, dizionario pronunce, lingua per segmento, gestione pause/cambio speaker, preparazione audio a blocchi, Android background media session, reader accessibile. Questo evita migrazioni costose del data model e dei contratti provider.
+
+**Da prevedere nell'architettura ma rilasciare dopo stabilità del core:** import/export audio, EPUB 3 Media Overlays, sync WebDAV, OPDS, audiolibro esterno sincronizzato, Q&A dei personaggi, stats. Progettare la separazione \`AudioSource\`/\`SpeechProvider\`, ma **non** far crescere l'MVP.
+
+**Differenzianti da testare con utenti e campioni narrativi:** regia audio, glossario spoiler-safe, riassunti "fino al punto corrente", casting A/B. Mantenere espliciti in UI confidenza, fonti e possibilità di disabilitare.
+
+### 15.2 Ulteriori decisioni da prendere in M0
+
+- Consentire una singola entità \`ReadingPosition\` per visuale/audio/annotazioni con mapper stabile, altrimenti sync successiva fragile.
+- Persistenza \`PronunciationRule\` con \`scope = global | book | character\`, versione e override.
+- \`AudioSource\`: TTS live, synthetic cached, prerecorded file, EPUB Media Overlays; interfaccia comune al player senza pretendere che ogni fonte offra marks.
+- \`ProsodyCue\` separato dal \`VoiceProfile\`, così voci permanenti e stato emotivo momentaneo non si confondono.
+- Plugin \`LibrarySource\` separato da parsers: in seguito OPDS, Calibre, WebDAV, filesystem, share sheet.
+- Schema degli eventi di modifica e versioni per sync futuro (book/content hash, anchor, revisione per annotazione); nessun server in M0.
+- Rilevazione spoiler \`visibleAtAnchor\` anche per alias, relazioni, risultati Q&A e cast, non soltanto nel widget.
+- Storage modelli audio e job cache come contenuto potenzialmente voluminoso: quote, cleanup e metadati esportabili indipendenti dai file generati.
+- **Nessun requisito legato al solo provider**: feature flag per capacità audio, licenze e fiducia nei marks; le funzioni disabilitate devono essere trasparenti all'utente.
+
+### 15.3 Riferimenti standard e piattaforma
+
+- EPUB Media Overlays (audio sincronizzato con XHTML): https://w3c.github.io/epub-specs/epub33/core/#sec-media-overlays
+- OPDS Catalog 2.0: https://specs.opds.io/opds-2.0
+- Android Media3 background playback: https://developer.android.com/media/media3/session/background-playback
