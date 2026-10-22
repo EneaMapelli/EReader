@@ -33,10 +33,11 @@ class LibraryStore {
     return result;
   }
 
-  Future<BookRecord> importFile(String sourcePath) async {
+  Future<BookRecord> importFile(String sourcePath, {String? originalName}) async {
     final source = File(sourcePath);
     if (!await source.exists()) throw const FormatException('Source not found');
-    final format = BookFormatPath.parse(sourcePath);
+    final displayName = originalName ?? p.basename(sourcePath);
+    final format = BookFormatPath.parse(displayName);
     if (format == null) throw const FormatException('Unsupported file type');
     final length = await source.length();
     if (length > 100 * 1024 * 1024) {
@@ -45,11 +46,22 @@ class LibraryStore {
     if (length == 0) throw const FormatException('Empty file');
 
     final bytes = await source.readAsBytes();
+    if (format == BookFormat.pdf &&
+        !(bytes.length >= 5 &&
+          bytes[0] == 0x25 && bytes[1] == 0x50 &&
+          bytes[2] == 0x44 && bytes[3] == 0x46 && bytes[4] == 0x2D)) {
+      throw const FormatException('Invalid PDF signature');
+    }
+    if (format == BookFormat.epub &&
+        !(bytes.length >= 4 && bytes[0] == 0x50 && bytes[1] == 0x4B &&
+          bytes[2] == 0x03 && bytes[3] == 0x04)) {
+      throw const FormatException('Invalid EPUB ZIP signature');
+    }
     final id = sha256.convert(bytes).toString();
     if (_records.containsKey(id)) return _records[id]!;
     final safePath = p.join(_home!.path, 'books', '$id.${format.extension}');
     await File(safePath).writeAsBytes(bytes, flush: true);
-    final title = p.basenameWithoutExtension(sourcePath);
+    final title = p.basenameWithoutExtension(displayName);
     final record = BookRecord(
       id: id,
       title: title,

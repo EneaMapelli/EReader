@@ -29,7 +29,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       if (path == null) {
         throw const FormatException('File path unavailable from picker');
       }
-      final record = await widget.store.importFile(path);
+      final record = await widget.store.importFile(path, originalName: result.files.single.name);
       if (!mounted) return;
       setState(() {});
       await _open(record);

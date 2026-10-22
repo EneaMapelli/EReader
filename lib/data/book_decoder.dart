@@ -65,7 +65,7 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
         }
         return DocumentContent(title: epub.Title ?? record.title, text: text);
       case BookFormat.pdf:
-        throw const UnsupportedError(
+        throw UnsupportedError(
           'PDF text extraction is not enabled yet; open the visual PDF viewer.',
         );
     }
