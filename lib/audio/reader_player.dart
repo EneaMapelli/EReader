@@ -27,6 +27,8 @@ class ReaderPlayer extends ChangeNotifier {
   double pitch = 1.0;
   List<SpeechVoice> availableVoices = const [];
   SpeechVoice? selectedVoice;
+  String _providerId = 'system';
+  String _modelId = 'gpt-4o-mini-tts';
 
   /// Called immediately before TTS. Display text and reading offsets remain
   /// untouched even when pronunciation replacements change string length.
@@ -46,17 +48,15 @@ class ReaderPlayer extends ChangeNotifier {
     await pause();
     await _engine.chooseVoice(voice);
     selectedVoice = voice;
-    language = voice.locale;
+    if (voice.locale != 'multi') language = voice.locale;
     _notify();
   }
 
   Future<void> applyPreferences(SpeechPreferences preferences) async {
     preferences.validate();
-    if (preferences.providerId != 'system') {
-      throw UnsupportedError('TTS provider is not installed: '
-          + preferences.providerId);
-    }
     if (isPlaying) await pause();
+    _providerId = preferences.providerId;
+    _modelId = preferences.modelId;
     language = preferences.language;
     rate = preferences.rate;
     pitch = preferences.pitch;
@@ -75,7 +75,8 @@ class ReaderPlayer extends ChangeNotifier {
   }
 
   SpeechPreferences get currentPreferences => SpeechPreferences(
-        providerId: 'system',
+        providerId: _providerId,
+        modelId: _modelId,
         language: language,
         rate: rate,
         pitch: pitch,
