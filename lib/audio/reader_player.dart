@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../domain/speech_segment.dart';
+import '../domain/speech_preferences.dart';
 import 'speech_engine.dart';
 
 typedef SegmentStarted = Future<void> Function(SpeechSegment segment);
@@ -27,6 +28,10 @@ class ReaderPlayer extends ChangeNotifier {
   List<SpeechVoice> availableVoices = const [];
   SpeechVoice? selectedVoice;
 
+  /// Called immediately before TTS. Display text and reading offsets remain
+  /// untouched even when pronunciation replacements change string length.
+  String Function(String)? speechTextTransform;
+
   Future<void> loadVoices() async {
     try {
       availableVoices = await _engine.listVoices();
@@ -44,6 +49,39 @@ class ReaderPlayer extends ChangeNotifier {
     language = voice.locale;
     _notify();
   }
+
+  Future<void> applyPreferences(SpeechPreferences preferences) async {
+    preferences.validate();
+    if (preferences.providerId != 'system') {
+      throw UnsupportedError('TTS provider is not installed: '
+          + preferences.providerId);
+    }
+    if (isPlaying) await pause();
+    language = preferences.language;
+    rate = preferences.rate;
+    pitch = preferences.pitch;
+    selectedVoice = null;
+    if (preferences.voiceName != null && preferences.voiceLocale != null) {
+      for (final voice in availableVoices) {
+        if (voice.name == preferences.voiceName &&
+            voice.locale == preferences.voiceLocale) {
+          await _engine.chooseVoice(voice);
+          selectedVoice = voice;
+          break;
+        }
+      }
+    }
+    _notify();
+  }
+
+  SpeechPreferences get currentPreferences => SpeechPreferences(
+        providerId: 'system',
+        language: language,
+        rate: rate,
+        pitch: pitch,
+        voiceName: selectedVoice?.name,
+        voiceLocale: selectedVoice?.locale,
+      );
 
   void setPitch(double value) {
     pitch = value;
@@ -85,7 +123,10 @@ class ReaderPlayer extends ChangeNotifier {
         final segment = _segments[currentIndex];
         await onSegmentStarted(segment);
         if (token != _session) return;
-        await _engine.speak(segment.text, language: language, rate: rate, pitch: pitch);
+        final spokenText =
+            speechTextTransform?.call(segment.text) ?? segment.text;
+        await _engine.speak(spokenText,
+            language: language, rate: rate, pitch: pitch);
         if (token != _session) return;
         currentIndex++;
         _notify();
