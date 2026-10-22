@@ -18,14 +18,12 @@ Uint8List makeEpub({
       utf8.encode('application/epub+zip'),
     ))
     ..add(ArchiveFile.string('META-INF/container.xml', '''
-      <?xml version="1.0"?>
       <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
         <rootfiles><rootfile full-path="OEBPS/content.opf"
           media-type="application/oebps-package+xml"/></rootfiles>
       </container>
     '''))
     ..add(ArchiveFile.string('OEBPS/content.opf', opf ?? '''
-      <?xml version="1.0" encoding="UTF-8"?>
       <package xmlns="http://www.idpf.org/2007/opf" version="3.0">
         <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
           <dc:title>Test Book</dc:title>
