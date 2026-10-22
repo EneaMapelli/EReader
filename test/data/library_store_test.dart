@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:ereader/domain/reading_anchor.dart';
 import 'package:ereader/domain/pronunciation_rule.dart';
 import 'package:ereader/domain/speech_preferences.dart';
+import 'package:ereader/domain/book_bookmark.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -273,6 +274,65 @@ void main() {
       id: 'migrated', pattern: 'Before', replacement: 'Bee-four',
     ));
     expect(store.listPronunciationRules(), hasLength(1));
+  });
+
+
+  test('bookmarks persist source anchors across restart', () async {
+    final input = File(p.join(root.path, 'marks.txt'));
+    await input.writeAsString('Several chapters');
+    final book = await store.importFile(input.path);
+    await store.addBookmark(BookBookmark(
+      id: 'bookmark-1',
+      bookId: book.id,
+      title: 'Important passage',
+      globalOffset: 7,
+      createdAt: DateTime.utc(2026, 10, 22),
+      anchor: const ReadingAnchor(
+        kind: AnchorKind.text, sourceId: 'body', localOffset: 7),
+    ));
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    final marks = store.listBookmarks(book.id);
+    expect(marks, hasLength(1));
+    expect(marks.single.globalOffset, 7);
+    expect(marks.single.anchor!.sourceId, 'body');
+    await store.deleteBookmark('bookmark-1');
+    expect(store.listBookmarks(book.id), isEmpty);
+  });
+
+  test('book deletion cascades into bookmarks', () async {
+    final input = File(p.join(root.path, 'cascade.txt'));
+    await input.writeAsString('A text');
+    final book = await store.importFile(input.path);
+    await store.addBookmark(BookBookmark(
+      id: 'mark-deleted',
+      bookId: book.id,
+      title: 'Chapter',
+      globalOffset: 0,
+      createdAt: DateTime.utc(2026, 10, 22),
+    ));
+    await store.removeBook(book.id);
+    expect(store.listBookmarks(book.id), isEmpty);
+  });
+
+  test('SQLite schema v3 migrates bookmarks without changing old data',
+      () async {
+    final input = File(p.join(root.path, 'legacy-v3.txt'));
+    await input.writeAsString('Saved');
+    final book = await store.importFile(input.path);
+    await store.savePosition(book.id, 4);
+    store.dispose();
+
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    db.execute('DROP TABLE bookmarks');
+    db.execute('PRAGMA user_version = 3');
+    db.dispose();
+
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getBook(book.id)!.progressOffset, 4);
+    expect(store.listBookmarks(book.id), isEmpty);
   });
 
 }
