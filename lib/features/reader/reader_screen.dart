@@ -47,6 +47,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
       final saved = widget.book.progressOffset;
       final savedIndex = chunks.indexWhere((chunk) => chunk.end > saved);
       if (savedIndex >= 0) player.currentIndex = savedIndex;
+      await player.loadVoices();
+      if (!mounted) {
+        player.dispose();
+        return;
+      }
       player.addListener(_onPlaybackChanged);
       setState(() {
         _player = player;
@@ -238,6 +243,58 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     icon: const Icon(Icons.skip_next),
                     onPressed: () => _move(1),
                   ),
+                ],
+              ),
+              if (player.availableVoices.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    children: [
+                      const Text('Voice'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButton<SpeechVoice>(
+                          isExpanded: true,
+                          hint: const Text('Default system voice'),
+                          value: player.selectedVoice,
+                          items: player.availableVoices.map((voice) {
+                            return DropdownMenuItem(
+                              value: voice,
+                              child: Text(
+                                voice.toString(),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (voice) async {
+                            if (voice == null) return;
+                            try {
+                              await player.selectVoice(voice);
+                            } catch (error) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Voice unavailable: $error')),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Row(
+                children: [
+                  const Text('Pitch'),
+                  Expanded(
+                    child: Slider(
+                      min: 0.5,
+                      max: 1.5,
+                      divisions: 10,
+                      value: player.pitch,
+                      onChanged: player.setPitch,
+                    ),
+                  ),
+                  Text(player.pitch.toStringAsFixed(1)),
                 ],
               ),
               Row(

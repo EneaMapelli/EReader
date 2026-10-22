@@ -21,6 +21,32 @@ class ReaderPlayer extends ChangeNotifier {
   final SegmentStarted onSegmentStarted;
   String language;
   double rate = 0.5;
+  double pitch = 1.0;
+  List<SpeechVoice> availableVoices = const [];
+  SpeechVoice? selectedVoice;
+
+  Future<void> loadVoices() async {
+    try {
+      availableVoices = await _engine.listVoices();
+    } catch (_) {
+      // Missing system TTS engine or unsupported voice enumeration.
+      availableVoices = const [];
+    }
+    _notify();
+  }
+
+  Future<void> selectVoice(SpeechVoice voice) async {
+    await pause();
+    await _engine.chooseVoice(voice);
+    selectedVoice = voice;
+    language = voice.locale;
+    _notify();
+  }
+
+  void setPitch(double value) {
+    pitch = value;
+    _notify();
+  }
 
   int currentIndex = 0;
   bool isPlaying = false;
@@ -51,7 +77,7 @@ class ReaderPlayer extends ChangeNotifier {
         final segment = _segments[currentIndex];
         await onSegmentStarted(segment);
         if (token != _session) return;
-        await _engine.speak(segment.text, language: language, rate: rate);
+        await _engine.speak(segment.text, language: language, rate: rate, pitch: pitch);
         if (token != _session) return;
         currentIndex++;
         _notify();

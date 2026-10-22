@@ -10,8 +10,19 @@ class FakeSpeechEngine implements SpeechEngine {
   Completer<void>? waiting;
 
   @override
-  Future<void> speak(String text,
-      {required String language, required double rate}) {
+  Future<List<SpeechVoice>> listVoices() async => const [
+        SpeechVoice(name: 'Sample', locale: 'en-US'),
+      ];
+
+  @override
+  Future<void> chooseVoice(SpeechVoice voice) async {}
+
+  @override
+  Future<void> speak(String text, {
+    required String language,
+    required double rate,
+    required double pitch,
+  }) {
     spoken.add(text);
     waiting = Completer<void>();
     return waiting!.future;

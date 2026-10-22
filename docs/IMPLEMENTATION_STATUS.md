@@ -9,7 +9,7 @@
 | ER-003 EPUB/TXT | EPUB/TXT prototype decoder and import | Partial; text-only EPUB POC, no full-fidelity renderer |
 | ER-004 PDF | pdf viewer proposed, text extraction / correct ordering pending | Partial |
 | ER-005 Reader | Basic reader and local position | Partial |
-| ER-006 TTS | System speech contract and adapter | Partial |
+| ER-006 TTS | System speech contract and adapter, OS voice picker, language, rate and pitch | Partial |
 | ER-007 Read along | Segment-level highlight and seek (UI), no word-level sync | Partial |
 | ER-008 Android background | Media session/background service not started | Not started |
 
