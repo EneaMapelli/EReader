@@ -119,6 +119,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
   void _onPlaybackChanged() {
     if (!mounted) return;
     final player = _player;
+    if (player != null && player.isPlaying && player.segments.isNotEmpty) {
+      // Pause/resume must continue from the audio cursor, even when no
+      // manual visual scrolling occurred during the previous utterance.
+      _visiblePositionIndex = player.currentIndex
+          .clamp(0, player.segments.length - 1).toInt();
+    }
     if (player != null &&
         player.segments.isNotEmpty &&
         _autoFollow &&
