@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../data/library_store.dart';
+import '../audio/reader_media_handler.dart';
 import '../features/library/library_screen.dart';
 
 class EReaderApp extends StatelessWidget {
-  const EReaderApp({super.key, required this.store});
+  const EReaderApp({super.key, required this.store, this.mediaHandler});
   final LibraryStore store;
+  final ReaderMediaHandler? mediaHandler;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +26,7 @@ class EReaderApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: LibraryScreen(store: store),
+      home: LibraryScreen(store: store, mediaHandler: mediaHandler),
     );
   }
 }
