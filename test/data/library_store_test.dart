@@ -747,4 +747,89 @@ void main() {
     expect(store.getLlmAnalysisConsent(book.id).allowed, isFalse);
   });
 
+
+  test('SQLite v9 persists verified backward-only LLM evidence',
+      () async {
+    const source = 'Anna entered. «Hello!»';
+    const prior = 'Anna entered.';
+    const quote = '«Hello!»';
+    final textFile = File(p.join(root.path, 'evidence.txt'));
+    await textFile.writeAsString(source);
+    final book = await store.importFile(textFile.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'actor', bookId: book.id, name: 'Anna',
+    ));
+    final quoteStart = source.indexOf(quote);
+    final proposal = CastSpan(
+      id: 'llm-grounded', bookId: book.id,
+      start: quoteStart, end: quoteStart + quote.length,
+      sourceDigest: CastSpan.digest(quote),
+      speakerId: 'actor',
+      origin: CastSpanOrigin.llm, status: CastSpanStatus.proposed,
+      lockedByUser: false, confidence: 0.8,
+      evidence: CastSpanEvidence(
+        start: 0, end: prior.length,
+        sourceDigest: CastSpan.digest(prior),
+      ),
+    );
+    await store.importCastProposals([proposal], source);
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+
+    final restored = store.listCastSpans(book.id).single;
+    expect(restored.evidence!.matchesSource(source), isTrue);
+    expect(restored.evidence!.sourceDigest, CastSpan.digest(prior));
+
+    await expectLater(
+      store.reviewCastProposal('llm-grounded', approve: true),
+      throwsStateError,
+    );
+    await expectLater(
+      store.reviewCastProposal('llm-grounded', approve: true,
+          currentSource: source.replaceFirst('Anna', 'Elsa'),
+          resolvedStart: quoteStart),
+      throwsFormatException,
+    );
+    expect(store.listCastSpans(book.id).single.status,
+        CastSpanStatus.proposed);
+    await store.reviewCastProposal('llm-grounded', approve: true,
+      currentSource: source, resolvedStart: quoteStart);
+    expect(store.listCastSpans(book.id).single.status,
+        CastSpanStatus.accepted);
+  });
+
+  test('SQLite v8-to-v9 migration preserves existing cast and approval',
+      () async {
+    const source = 'An old attribution';
+    final input = File(p.join(root.path, 'schema-v8.txt'));
+    await input.writeAsString(source);
+    final book = await store.importFile(input.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'older', bookId: book.id, name: 'Narrator One',
+    ));
+    await store.saveManualCastSpan(CastSpan(
+      id: 'before-migration', bookId: book.id,
+      start: 0, end: source.length,
+      sourceDigest: CastSpan.digest(source),
+      speakerId: 'older',
+      origin: CastSpanOrigin.user, status: CastSpanStatus.accepted,
+      lockedByUser: true,
+    ), source);
+    store.dispose();
+
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    db.execute('ALTER TABLE cast_spans DROP COLUMN evidence_json');
+    db.execute('PRAGMA user_version = 8');
+    db.dispose();
+
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    final old = store.listCastSpans(book.id).single;
+    expect(old.speakerId, 'older');
+    expect(old.lockedByUser, isTrue);
+    expect(old.evidence, isNull);
+    expect(store.getBook(book.id), isNotNull);
+  });
+
 }
