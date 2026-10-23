@@ -17,6 +17,7 @@ import '../../domain/alias_candidate.dart';
 import '../../domain/narrative_reference.dart';
 import '../../llm/dialogue_analysis_plan.dart';
 import '../../llm/narrative_antecedent_finder.dart';
+import '../../llm/conversation_speaker_inspector.dart';
 import '../../domain/llm_cast_proposals.dart';
 
 /// User-curated characters, provider voice profiles and segment attribution.
@@ -793,6 +794,17 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
         ref.status == NarrativeReferenceStatus.accepted &&
         ref.bookId == widget.book.id).toList(),
     );
+    final conversation = const ConversationSpeakerInspector().inspect(
+      bookId: widget.book.id,
+      source: widget.document.text,
+      scopeStart: safeScopeStart,
+      referenceStart: candidate.start,
+      referenceEnd: candidate.end,
+      cast: _characters,
+      reviewedSpans: _fine,
+      manualSegments: widget.store.listSegmentCast(widget.book.id),
+      offsetFromAnchor: widget.document.offsetOf,
+    );
     final namesById = {
       for (final character in _characters)
         character.id: character.name,
@@ -865,6 +877,48 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
                               child: const Text('Select as possible referent'),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const Divider(height: 24),
+                Text('Who spoke earlier? Confirmed dialogue speakers',
+                  style: Theme.of(context).textTheme.titleSmall),
+                const Text(
+                  'These voice assignments indicate who SPOKE earlier '
+                  'quoted words. They do NOT establish who a pronoun '
+                  'or description refers to.',
+                ),
+                if (conversation.conflictingLabels)
+                  const Text(
+                    'Conflicting accepted speaker labels were found '
+                    'and omitted from these cues.',
+                  ),
+                if (conversation.hasMultipleSpeakers)
+                  const Text(
+                    'Multiple characters spoke recently. Do not infer '
+                    'the referent from turn order.',
+                  ),
+                if (conversation.turns.isEmpty)
+                  const Text('No earlier, source-verified dialogue labels '
+                    'exist within this chapter and review window.'),
+                for (final turn in conversation.turns)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Previously SPOKE: ' +
+                              (namesById[turn.speakerId] ?? 'Unknown') +
+                              ' · ' +
+                              (turn.origin ==
+                                  ConversationTurnOrigin.reviewedSpan
+                                  ? 'Accepted precise label'
+                                  : 'Manual segment label') +
+                              ' · ' + (candidate.start - turn.end)
+                                  .toString() + ' chars earlier'),
+                          SelectableText(turn.excerpt),
                         ],
                       ),
                     ),
