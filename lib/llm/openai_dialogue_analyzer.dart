@@ -173,6 +173,15 @@ Do not infer any chapter beyond the provided excerpt.
         window.contextSegments.length > DialogueAnalysisPlanner.maxSegments) {
       throw const FormatException('Invalid selected analysis window');
     }
+    final speakerIds = <String>{};
+    for (final character in window.cast) {
+      character.validate();
+      if (character.bookId != window.bookId ||
+          !speakerIds.add(character.id)) {
+        throw const FormatException(
+          'Analysis roster includes duplicate or foreign-book identities');
+      }
+    }
     var totalSourceChars = 0;
     var previousEnd = window.scope.start;
     for (final segment in window.segments) {
