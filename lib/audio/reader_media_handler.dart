@@ -179,6 +179,11 @@ class ReaderMediaHandler extends BaseAudioHandler {
     final player = _player;
     if (_closed || player == null || player.isPlaying ||
         player.segments.isEmpty) return;
+    // Never acquire focus or dispatch billable/cloud narration while an
+    // older native utterance might still be playing after Stop timed out.
+    if (player.nativeStopUnconfirmed) {
+      throw StateError('Native speech Stop not confirmed; playback is locked');
+    }
     final epoch = _bindingEpoch;
     // Two Play requests may both wait on cloud consent or native focus.
     // Only the most recent request may initiate a new playback session.
@@ -197,7 +202,8 @@ class ReaderMediaHandler extends BaseAudioHandler {
       throw StateError('Cannot obtain Android audio focus');
     }
     if (_closed || !identical(_player, player) ||
-        epoch != _bindingEpoch || command != _commandEpoch) {
+        epoch != _bindingEpoch || command != _commandEpoch ||
+        player.nativeStopUnconfirmed) {
       // detach/pause/new commands own any required focus release.
       // A stale play must not release a newer successful play's focus.
       return;
