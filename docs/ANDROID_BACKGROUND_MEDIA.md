@@ -62,7 +62,9 @@ checked on actual target devices.
    attempted without an active reading page.
 3. Restarting the Android process does **not** silently restore the last book,
    request cloud synthesis or start speaking: the user must reopen the reader.
-   A persistent authorized background queue / cold-start restore is future work.
+   SQLite v16 now provides a crash-only **manual reopening notice** when
+   narration may have been interrupted, but headless service reconstruction
+   remains future work ([details](NARRATION_CRASH_RECOVERY.md)).
 4. System native TTS may still restart the current segment after pause; cloud
    audio is sequential with one-ahead opt-in prefetch, not guaranteed gapless.
 5. Audio focus is conservative: ducking also pauses because mixed TTS engines
