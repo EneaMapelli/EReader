@@ -381,6 +381,10 @@ class _ReaderScreenState extends State<ReaderScreen>
     final player = _player;
     if (player == null) return;
     try {
+      if (widget.mediaHandler != null &&
+          !widget.mediaHandler!.ownsPlayer(player)) {
+        throw StateError('Audio session closed. Reopen this book to play.');
+      }
       if (player.isPlaying) {
         await (widget.mediaHandler?.pause() ?? player.pause());
       } else {
@@ -447,8 +451,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     // when a live media handler owns that player.
     _saveVisualPositionTimer?.cancel();
     if (Platform.isAndroid &&
-        widget.mediaHandler?.hasActiveBook != true &&
-        _player != null) {
+        _player != null &&
+        widget.mediaHandler?.ownsPlayer(_player!) != true) {
       unawaited(_player!.pause().catchError((Object error, StackTrace stack) {
         if (!mounted) return;
         _onPlaybackChanged();
