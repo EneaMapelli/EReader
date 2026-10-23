@@ -14,12 +14,15 @@ class EpubSpineRange {
     required this.href,
     required this.start,
     required this.end,
+    this.title = '',
   });
 
   final String idref;
   final String href;
   final int start;
   final int end;
+  /// Display-only chapter title. Does not affect the source anchor or text.
+  final String title;
 }
 
 class EpubTextResult {
@@ -146,6 +149,7 @@ class EpubTextExtractor {
       final html = _readRequired(files, href, maxLength: maxEntrySize);
       final text = _extractVisibleText(html);
       if (text.isEmpty) continue;
+      final chapterTitle = _extractChapterTitle(html, ranges.length + 1);
       if (buffer.isNotEmpty) buffer.write('\n\n');
       final start = buffer.length;
       buffer.write(text);
@@ -154,6 +158,7 @@ class EpubTextExtractor {
       }
       ranges.add(EpubSpineRange(
         idref: idref, href: href, start: start, end: buffer.length,
+        title: chapterTitle,
       ));
     }
     if (ranges.isEmpty) {
@@ -213,6 +218,32 @@ class EpubTextExtractor {
     return _safeZipName(
       path.posix.join(path.posix.dirname(opf), filename),
     );
+  }
+
+  /// Chapter labels are derived only from the XHTML body (never OPF,
+  /// scripts, page metadata, or a navigation-only manifest document).
+  /// The source text and UTF-16 offsets remain entirely unchanged.
+  static String _extractChapterTitle(String xhtml, int fallbackNumber) {
+    final dom = html_parser.parse(xhtml);
+    for (final unwanted in dom.querySelectorAll(
+        'script,style,nav,svg,head,noscript')) {
+      unwanted.remove();
+    }
+    // Prefer the first highest-level visible heading, not a body excerpt
+    // or a filename supplied by an untrusted ZIP path.
+    for (final heading in ['h1', 'h2', 'h3']) {
+      for (final element in dom.body?.querySelectorAll(heading) ?? []) {
+        final title = element.text
+            .replaceAll(RegExp(r'\\s+'), ' ')
+            .trim();
+        if (title.isNotEmpty) {
+          return title.length <= 120
+              ? title
+              : '${title.substring(0, 117)}…';
+        }
+      }
+    }
+    return 'Chapter $fallbackNumber';
   }
 
   static String _extractVisibleText(String xhtml) {
