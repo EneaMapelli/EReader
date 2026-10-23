@@ -14,6 +14,10 @@ The analysis screen now has three tasks. **Reconcile aliases** suggests source-v
 
 Optionally turn on **Include known names from earlier chapters** in the analysis screen (OFF by default). Only preapproved character names/aliases explicitly chosen for the request are searched in at most six entirely previous book scopes. The app extracts up to five short, exact source snippets, verifies SHA-256 and original offsets, keeps within the reading-position spoiler limit and previews each excerpt before transmission. This data goes in the new `historical_mentions` request field, never into target `segments` or evidence-bearing `context_segments`. Target excerpt validation, human review and the same analysis consent/input quota still apply. See [Historical Character Context](HISTORICAL_CHARACTER_CONTEXT.md).
 
+## Optional indirect reference analysis
+
+The fourth task, **Resolve references**, suggests links from exact, indirect pronouns/titles/descriptions to an existing selected character without affecting any dialogue or TTS voice. Contradictory model claims stay unresolved until explicit human selection in Voice Cast > Review; citations, spoiler limits, separate per-book consent and input budget are unchanged. Approved links are saved in SQLite v13 as narrative metadata only. See [Indirect Character References](INDIRECT_CHARACTER_REFERENCES.md).
+
 ## User flow
 
 1. Add characters and aliases in Voice Cast. Unknown or additional characters cannot be created by model output.
