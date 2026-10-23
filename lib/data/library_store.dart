@@ -26,6 +26,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   final Directory? _configuredHome;
   Directory? _home;
   Database? _db;
+  String? _startupInterruptedBookId;
 
   Database get _database {
     final db = _db;
@@ -48,7 +49,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 15) {
+      if (version > 16) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -366,7 +367,30 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           db.execute('PRAGMA user_version = 15');
         });
       }
+      // A single, intentionally ephemeral "narration may have been
+      // interrupted" marker. It stores no text, credentials or permission.
+      // The last spoken *source anchor* is saved atomically with this row.
+      if (version < 16) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS speech_recovery_marker (
+              slot INTEGER PRIMARY KEY NOT NULL CHECK(slot = 1),
+              book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+              started_at TEXT NOT NULL
+            )
+          ''');
+          db.execute('PRAGMA user_version = 16');
+        });
+      }
       await _migrateLegacyJson(db, support);
+      // A marker is stale only on a new process startup. Consume exactly
+      // once; reopening a book must NEVER cause the app to auto-synthesize.
+      _startupInterruptedBookId = _transaction(db, () {
+        final rows = db.select(
+            'SELECT book_id FROM speech_recovery_marker WHERE slot = 1');
+        db.execute('DELETE FROM speech_recovery_marker WHERE slot = 1');
+        return rows.isEmpty ? null : rows.first['book_id'] as String;
+      });
       _db = db;
     } catch (_) {
       db.dispose();
@@ -432,6 +456,22 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     return null;
   }
 
+  /// Exists only in memory for the *current launch*, after startup has
+  /// consumed any checkpoint left by a terminated prior process.
+  /// A missing/deleted book never leaks an unusable recovery prompt.
+  BookRecord? get interruptedNarrationBook {
+    final bookId = _startupInterruptedBookId;
+    if (bookId == null) return null;
+    final book = getBook(bookId);
+    if (book == null || !_isManagedPath(book.localPath) ||
+        !File(book.localPath).existsSync()) return null;
+    return book;
+  }
+
+  void dismissInterruptedNarration() {
+    _startupInterruptedBookId = null;
+  }
+
   /// Called only when the user opens a reader. It never grants TTS/LLM
   /// consent and intentionally doesn't change the saved reading anchor.
   Future<void> markBookOpened(String bookId) async {
@@ -440,6 +480,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     ''', [DateTime.now().toUtc().toIso8601String(), bookId]);
     if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
       throw StateError('Cannot resume an unknown book');
+    }
+    if (_startupInterruptedBookId == bookId) {
+      _startupInterruptedBookId = null;
     }
   }
 
@@ -532,6 +575,40 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       if (await temporary.exists()) await temporary.delete();
       rethrow;
     }
+  }
+
+  /// Synchronous and atomic: if Android kills the process after this
+  /// returns, either the new source anchor AND the interrupted-session
+  /// marker survive, or neither does. The player must call this *before*
+  /// attempting native/cloud synthesis of each segment.
+  void recordSpeechSegmentStart(String bookId, int offset,
+      {ReadingAnchor? anchor}) {
+    if (offset < 0) throw ArgumentError.value(offset, 'offset');
+    _transaction(_database, () {
+      _database.execute(
+        'UPDATE books SET progress_offset = ?, progress_anchor = ? '
+        'WHERE id = ?',
+        [offset, anchor == null ? null : jsonEncode(anchor.toJson()), bookId],
+      );
+      if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
+        throw StateError('Cannot checkpoint speech for an unknown book');
+      }
+      _database.execute('''
+        INSERT INTO speech_recovery_marker (slot, book_id, started_at)
+        VALUES (1, ?, ?)
+        ON CONFLICT(slot) DO UPDATE SET
+          book_id = excluded.book_id, started_at = excluded.started_at
+      ''', [bookId, DateTime.now().toUtc().toIso8601String()]);
+    });
+  }
+
+  /// A normal user Pause, completed book, error or reader teardown is not
+  /// a process crash. Only clear the matching book's checkpoint, so an old
+  /// reader cannot erase a newer session after an asynchronous handoff.
+  void clearSpeechRecoveryMarker(String bookId) {
+    _database.execute(
+      'DELETE FROM speech_recovery_marker WHERE book_id = ?', [bookId],
+    );
   }
 
   Future<void> savePosition(String bookId, int offset,
@@ -1891,8 +1968,11 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       _home != null && p.isWithin(_booksDir.absolute.path, p.absolute(path));
 
   void dispose() {
+    // Closing the SQLite connection is not equivalent to normal narration
+    // termination: a crashed process leaves the checkpoint behind.
     _db?.dispose();
     _db = null;
+    _startupInterruptedBookId = null;
   }
 
   static BookRecord _fromRow(Row row) => BookRecord(
