@@ -543,7 +543,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
   Future<void> _reviewCharacter(
     CharacterCandidate candidate, {required bool approve},
   ) async {
-    if (!candidate.matchesSource(widget.document.text)) {
+    if (approve && !candidate.matchesSource(widget.document.text)) {
       _error(const FormatException(
         'Original character mention changed; cannot review stale evidence'));
       return;
