@@ -137,7 +137,7 @@ void main() {
     expect(store.getBook(book)!.progressOffset, 8);
     expect(store.lastOpenedBook, isNull);
     final dbAfter = sqlite3.open(p.join(root.path, 'library.sqlite'));
-    expect(dbAfter.select('PRAGMA user_version').first['user_version'], 15);
+    expect(dbAfter.select('PRAGMA user_version').first['user_version'], 16);
     dbAfter.dispose();
   });
 
