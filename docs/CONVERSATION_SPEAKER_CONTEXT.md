@@ -63,3 +63,8 @@ text transmission, or automatic speaker-referent link is introduced.
 Source code and static readback checks only. Flutter/Dart analyzer and tests
 have NOT been executed, nor Windows/Android builds or native runtime checks.
 PR #1 remains draft pending final integration per owner request.
+
+
+## Partial and interrupted dialogue review
+
+The new **Dialogues** tab complements speaker history with a local chapter/page diagnostic pass over quoted turns, flagging incomplete/interrupting punctuation, nearby turn boundaries, partial or missing speaker labels, and overlapping conflicts. It offers exact-selection manual correction without guessing a speaker. See [Complex Dialogue Review](COMPLEX_DIALOGUE_REVIEW.md).
