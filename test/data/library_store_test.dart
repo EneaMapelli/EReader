@@ -625,6 +625,18 @@ void main() {
     await store.reviewCastProposal('safe', approve: true);
     expect(store.listCastSpans(book.id).firstWhere(
       (s) => s.id == 'safe').status, CastSpanStatus.accepted);
+    // The user may replace an earlier approved machine label explicitly.
+    await store.saveManualCastSpan(CastSpan(
+      id: 'corrected-by-user', bookId: book.id,
+      start: 8, end: 13, sourceDigest: CastSpan.digest('three'),
+      speakerId: null,
+      origin: CastSpanOrigin.user,
+      status: CastSpanStatus.accepted, lockedByUser: true,
+    ), content);
+    expect(store.listCastSpans(book.id).firstWhere(
+      (s) => s.id == 'safe').status, CastSpanStatus.rejected);
+    expect(store.listCastSpans(book.id).firstWhere(
+      (s) => s.id == 'corrected-by-user').lockedByUser, isTrue);
     await store.reviewCastProposal('conflict', approve: false);
     expect(store.listCastSpans(book.id).firstWhere(
       (s) => s.id == 'conflict').status, CastSpanStatus.rejected);
