@@ -85,3 +85,8 @@ Run Dart format/analyze and Flutter tests, then verify manual selection,
 narration voice switching, EPUB/PDF/TXT extraction and native Windows/
 Android scrolling on actual devices at final integration. CI stays
 manual-only and PR #1 stays draft until these gates pass.
+
+
+## Detailed paginated turn editor
+
+The existing Dialogues diagnostics remain read-only. An additional **Open detailed dialogue turn editor** action now supports paged 12k-character review windows, line-start em/en dash turns and per-subspan display of source-verified labels. Fully unlabeled, complete dialogue turns can be assigned to a character or explicit narrator after individual human confirmation; partially labeled, conflicting or window-truncated turns cannot be overwritten with a whole-turn action. See [Complex Dialogue Turns](COMPLEX_DIALOGUE_TURNS.md).
