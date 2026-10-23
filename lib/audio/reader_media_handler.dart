@@ -47,6 +47,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // All focus gains and releases are queued on one native operation chain.
   // A delayed gain must never override a newer Pause/release.
   Future<void> _focusOperation = Future<void>.value();
+  bool _focusActive = false;
 
   bool get hasActiveBook => _player != null;
 
@@ -89,9 +90,9 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (_closed) return;
     _publish();
     final player = _player;
-    if (player != null && !player.isPlaying &&
-        (player.currentIndex >= player.segments.length ||
-         player.lastError != null)) {
+    if (player != null && player.isSettledIdle) {
+      // Also covers sleep-timer expiry and direct UI pause. A temporary
+      // isPlaying=false during a seek is NOT a settled idle state.
       unawaited(_releaseAudioFocus());
     }
   }
@@ -136,8 +137,12 @@ class ReaderMediaHandler extends BaseAudioHandler {
     return () async {
       try {
         await previous;
-        if (_requestFocus != null) return await _requestFocus!();
-        return await _session?.setActive(true) ?? true;
+        if (_focusActive) return true;
+        final acquired = _requestFocus != null
+            ? await _requestFocus!()
+            : (await _session?.setActive(true) ?? true);
+        _focusActive = acquired;
+        return acquired;
       } finally {
         settled.complete();
       }
@@ -151,6 +156,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     return () async {
       try {
         await previous;
+        if (!_focusActive) return;
         try {
           if (_releaseFocusOverride != null) {
             await _releaseFocusOverride();
@@ -159,6 +165,8 @@ class ReaderMediaHandler extends BaseAudioHandler {
           }
         } catch (_) {
           // Android may already have disposed the native audio session.
+        } finally {
+          _focusActive = false;
         }
       } finally {
         settled.complete();
@@ -172,7 +180,9 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (_closed || player == null || player.isPlaying ||
         player.segments.isEmpty) return;
     final epoch = _bindingEpoch;
-    final command = _commandEpoch;
+    // Two Play requests may both wait on cloud consent or native focus.
+    // Only the most recent request may initiate a new playback session.
+    final command = ++_commandEpoch;
 
     // Remote headset/lock-screen controls must honor the same per-book
     // consent gate as the in-reader Play button.
@@ -182,6 +192,8 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (_closed || !identical(_player, player) ||
         epoch != _bindingEpoch || command != _commandEpoch) return;
     if (!await _claimAudioFocus()) {
+      if (_closed || !identical(_player, player) ||
+          epoch != _bindingEpoch || command != _commandEpoch) return;
       throw StateError('Cannot obtain Android audio focus');
     }
     if (_closed || !identical(_player, player) ||
@@ -204,9 +216,14 @@ class ReaderMediaHandler extends BaseAudioHandler {
     _commandEpoch++;
     final player = _player;
     if (player == null) return;
-    await player.pause();
-    if (identical(player, _player) && !player.isPlaying) {
-      await _releaseAudioFocus();
+    try {
+      await player.pause();
+    } finally {
+      // The listener releases focus when native stop actually settles.
+      // Await that queued release before resolving the transport command.
+      if (identical(player, _player) && player.isSettledIdle) {
+        await _focusOperation;
+      }
     }
   }
 
