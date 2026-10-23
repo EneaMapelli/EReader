@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../audio/speech_engine.dart';
 import '../../audio/secret_vault.dart';
 import 'dialogue_analysis_screen.dart';
+import 'cast_merge_screen.dart';
 import '../../data/book_decoder.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
@@ -245,6 +246,11 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
           onPressed: () => _edit(null),
           icon: const Icon(Icons.person_add_alt_1),
           label: const Text('Add character'),
+        ),
+        OutlinedButton.icon(
+          onPressed: _characters.length > 1 ? _openMergeEditor : null,
+          icon: const Icon(Icons.merge_type),
+          label: const Text('Merge duplicate characters'),
         ),
         Text('Current provider: ' + widget.providerId),
         if (widget.availableVoices.isEmpty)
@@ -542,6 +548,19 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
       span.matchesSource(widget.document.text, widget.document.offsetOf) &&
       (span.evidence == null ||
           span.evidence!.matchesSource(widget.document.text));
+
+  Future<void> _openMergeEditor() async {
+    if (_characters.length < 2) return;
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CastMergeScreen(
+          store: widget.store,
+          book: widget.book,
+        ),
+      ),
+    );
+    if (mounted) _reload();
+  }
 
   Future<void> _reviewCharacter(
     CharacterCandidate candidate, {required bool approve},
