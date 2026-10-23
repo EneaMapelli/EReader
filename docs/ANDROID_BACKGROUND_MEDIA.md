@@ -76,10 +76,13 @@ checked on actual target devices.
 
 ## Authored tests and final integration checklist
 
-`test/audio/reader_media_handler_test.dart` contains eight authored but
+`test/audio/reader_media_handler_test.dart` contains twelve authored but
 **unexecuted** unit tests: metadata lifecycle, nonblocking Play and transport
-seek, remote consent denial, denied/delayed focus, serialized focus release, interruption without
-auto-resume, in-flight seek interruption, and stale book replacement.
+seek, remote consent denial, denied/delayed focus, serialized focus release,
+interruption without auto-resume, in-flight seek interruption, stale book
+replacement, late granted focus cleanup, task removal/stop failures and
+notification dismissal. Three additional lifecycle policy tests live in
+`test/audio/reader_lifecycle_policy_test.dart`.
 
 On a real Android device, once the user elects to compile:
 
@@ -105,5 +108,19 @@ On a real Android device, once the user elects to compile:
 - https://pub.dev/packages/audio_service
 - https://pub.dev/packages/audio_session
 - https://developer.android.com/media/media3/session/background-playback
+
+## Recent lifecycle hardening
+
+- Native audio focus gains and releases now share a serialized operation
+  queue, including delayed grants made obsolete by a newer Pause.
+- `onTaskRemoved` pauses and detaches media items (also if the native stop
+  fails); `onNotificationDeleted` pauses without implicit resume.
+- Android screen-off/hidden lifecycle handling leaves active speech running
+  **only** when that same book has a live media handler. Otherwise the
+  reader pauses; pending visual save timers are cancelled.
+- The last opened book is tracked locally by SQLite v14, accessible with
+  an explicit Continue reading tile. It never auto-plays, auto-requests
+  cloud speech or promises process-death background reconstruction.
+  See [Session Resume and Lifecycle](SESSION_RESUME_AND_LIFECYCLE.md).
 
 No native build or device run is claimed by this document.
