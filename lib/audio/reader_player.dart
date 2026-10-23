@@ -169,8 +169,12 @@ class ReaderPlayer extends ChangeNotifier {
       rethrow;
     }
     if (_disposed || epoch != _navigationEpoch) return;
-    _resumeAfterNavigation = false;
-    if (shouldResume) _resumeUnawaited();
+    if (shouldResume) {
+      _resumeUnawaited();
+    } else {
+      _resumeAfterNavigation = false;
+      _notify();
+    }
   }
 
   Future<void> applyPreferences(SpeechPreferences preferences) async {
@@ -223,7 +227,16 @@ class ReaderPlayer extends ChangeNotifier {
   int _session = 0;
   int _navigationEpoch = 0;
   bool _resumeAfterNavigation = false;
+  int _pendingNativeStops = 0;
   bool _disposed = false;
+
+  /// Unlike !isPlaying, this is true only once native stop has settled
+  /// and no seek/voice switch intends to resume the current book. Audio
+  /// focus and crash checkpoints must use this rather than a transient
+  /// state notification emitted during a serialized seek.
+  bool get isSettledIdle =>
+      !_disposed && !isPlaying &&
+      !_resumeAfterNavigation && _pendingNativeStops == 0;
   Future<void> _pendingStop = Future<void>.value();
   Future<void> _pendingVoiceChange = Future<void>.value();
   Object? lastError;
@@ -331,6 +344,7 @@ class ReaderPlayer extends ChangeNotifier {
   // but each public navigation operation has a distinct supersession epoch.
   Future<void> _stopCurrent() async {
     _session++;
+    _pendingNativeStops++;
     isPlaying = false;
     activeSpeakerId = null;
     _notify();
@@ -344,7 +358,14 @@ class ReaderPlayer extends ChangeNotifier {
       await _engine.stop();
     }();
     _pendingStop = stopping;
-    await stopping;
+    try {
+      await stopping;
+    } finally {
+      _pendingNativeStops--;
+      // Even an engine stop error must not be mistaken for a still-running
+      // transient navigation. Listeners may now release focus/checkpoints.
+      _notify();
+    }
   }
 
   Future<void> pause() async {
@@ -373,10 +394,16 @@ class ReaderPlayer extends ChangeNotifier {
     _resumeAfterNavigation = resume;
     await _stopCurrent();
     if (_disposed || epoch != _navigationEpoch || _segments.isEmpty) return;
-    _resumeAfterNavigation = false;
     currentIndex = index.clamp(0, _segments.length - 1).toInt();
-    _notify();
-    if (resume) _resumeUnawaited();
+    if (resume) {
+      // play() synchronously transitions to playing before its first await.
+      // Do not publish an artificial idle interval that would release focus
+      // or erase crash recovery while navigation is resuming.
+      _resumeUnawaited();
+    } else {
+      _resumeAfterNavigation = false;
+      _notify();
+    }
   }
 
   /// Called only when the user COMMITS a rate/pitch/language adjustment.
