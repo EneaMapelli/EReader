@@ -103,7 +103,12 @@ class ReaderPlayer extends ChangeNotifier {
       }
       if (_disposed || epoch != _navigationEpoch) return;
       await _engine.chooseVoice(voice);
-      if (_disposed || epoch != _navigationEpoch) return;
+      if (_disposed || epoch != _navigationEpoch) {
+        // The native voice may have changed despite cancellation. Force
+        // the next live utterance to reapply its intended narrator/cast.
+        _engineVoiceKey = null;
+        return;
+      }
       _engineVoiceKey = voice.key;
       selectedVoice = voice;
       if (voice.locale != 'multi') language = voice.locale;
@@ -208,14 +213,16 @@ class ReaderPlayer extends ChangeNotifier {
         if (token != _session) return;
         // Cast affects only synthesis voice, never text, offsets or order.
         // A narrator voice MUST be restored after a character's turn.
-        if (castVoiceForSegment != null) {
-          final installed = _voiceFor(segment);
-          if (installed != null && installed.key != _engineVoiceKey) {
-            await _engine.chooseVoice(installed);
-            _engineVoiceKey = installed.key;
-          }
-          if (token != _session) return;
+        // A previous asynchronous native voice selection can complete
+        // after an interrupted session. Reapply the chosen narrator voice
+        // even when no multi-character casting callback is installed.
+        final installed = castVoiceForSegment != null
+            ? _voiceFor(segment) : selectedVoice;
+        if (installed != null && installed.key != _engineVoiceKey) {
+          await _engine.chooseVoice(installed);
+          _engineVoiceKey = installed.key;
         }
+        if (token != _session) return;
         activeSpeakerId = castSpeakerForSegment?.call(segment);
         _notify();
         final spokenText =
