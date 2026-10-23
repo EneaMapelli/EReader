@@ -15,6 +15,7 @@ import '../domain/cloud_speech_consent.dart';
 import '../domain/voice_cast.dart';
 import '../domain/cast_span.dart';
 import '../domain/character_candidate.dart';
+import '../domain/alias_candidate.dart';
 import '../domain/llm_analysis_consent.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
@@ -45,7 +46,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 10) {
+      if (version > 11) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -257,6 +258,36 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
             ON character_candidates(book_id, status, mention_start)
           ''');
           db.execute('PRAGMA user_version = 10');
+        });
+      }
+      if (version < 11) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS alias_candidates (
+              id TEXT PRIMARY KEY,
+              book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+              alias_text TEXT NOT NULL,
+              suggested_character_id TEXT
+                REFERENCES cast_characters(id) ON DELETE SET NULL,
+              approved_character_id TEXT
+                REFERENCES cast_characters(id) ON DELETE SET NULL,
+              mention_start INTEGER NOT NULL,
+              mention_end INTEGER NOT NULL,
+              source_sha256 TEXT NOT NULL,
+              evidence_json TEXT,
+              confidence REAL NOT NULL,
+              status TEXT NOT NULL DEFAULT 'proposed',
+              CHECK (mention_start >= 0 AND mention_end > mention_start),
+              CHECK (confidence >= 0 AND confidence <= 1),
+              CHECK (status IN ('proposed', 'accepted', 'rejected')),
+              UNIQUE(book_id, mention_start, mention_end, alias_text)
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_alias_candidates_book
+            ON alias_candidates(book_id, status, mention_start)
+          ''');
+          db.execute('PRAGMA user_version = 11');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -810,6 +841,144 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     });
   }
 
+  List<AliasCandidate> listAliasCandidates(String bookId) {
+    return _database.select('''
+      SELECT * FROM alias_candidates
+      WHERE book_id = ? ORDER BY mention_start, id
+    ''', [bookId]).map((row) => AliasCandidate(
+      id: row['id'] as String,
+      bookId: row['book_id'] as String,
+      alias: row['alias_text'] as String,
+      targetCharacterId: (row['status'] as String) == 'accepted'
+          ? row['approved_character_id'] as String?
+          : row['suggested_character_id'] as String?,
+      start: row['mention_start'] as int,
+      end: row['mention_end'] as int,
+      sourceDigest: row['source_sha256'] as String,
+      confidence: (row['confidence'] as num).toDouble(),
+      status: AliasCandidateStatus.values.byName(row['status'] as String),
+      evidence: row['evidence_json'] is String
+          ? CastSpanEvidence.fromJson(Map<String, dynamic>.from(
+              jsonDecode(row['evidence_json'] as String) as Map))
+          : null,
+    )).toList();
+  }
+
+  /// The model can populate a *pending* queue, never the character roster.
+  Future<void> importAliasCandidates(
+      List<AliasCandidate> candidates, String source) async {
+    if (candidates.length > 60) {
+      throw const FormatException('Too many alias suggestions');
+    }
+    _transaction(_database, () {
+      for (final alias in candidates) {
+        alias.validate();
+        if (alias.status != AliasCandidateStatus.proposed ||
+            !alias.matchesSource(source) || alias.targetCharacterId == null) {
+          throw const FormatException('Alias must be pending and source-exact');
+        }
+        final people = listCastCharacters(alias.bookId);
+        final target = people.where((c) => c.id == alias.targetCharacterId);
+        if (target.isEmpty) {
+          throw StateError('Suggested character does not belong to this book');
+        }
+        final taken = <String>[
+          for (final person in people) person.name,
+          for (final person in people) ...person.aliases,
+        ];
+        if (candidateConflictsWithCast(alias.alias, taken)) continue;
+        // Cross-window disagreement is not automatically resolved.
+        final sameAlias = listAliasCandidates(alias.bookId)
+            .where((p) => p.status == AliasCandidateStatus.proposed &&
+              CharacterCandidate.normalizeName(p.alias) ==
+                  CharacterCandidate.normalizeName(alias.alias));
+        if (sameAlias.isNotEmpty) {
+          if (sameAlias.any((p) =>
+              p.targetCharacterId != alias.targetCharacterId)) {
+            throw StateError('Conflicting proposed owners for this alias');
+          }
+          continue;
+        }
+        _database.execute('''
+          INSERT OR IGNORE INTO alias_candidates (
+            id, book_id, alias_text, suggested_character_id,
+            mention_start, mention_end, source_sha256, evidence_json,
+            confidence, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'proposed')
+        ''', [
+          alias.id, alias.bookId, alias.alias, alias.targetCharacterId,
+          alias.start, alias.end, alias.sourceDigest,
+          alias.evidence == null ? null : jsonEncode(alias.evidence!.toJson()),
+          alias.confidence,
+        ]);
+      }
+    });
+  }
+
+  /// Single atomic user decision. No alias may silently claim the name or
+  /// existing alias of a different person; the confirmed target must belong
+  /// to the same book and must still exist at review time.
+  Future<void> reviewAliasCandidate(String candidateId, {
+    required bool approve,
+    required String source,
+    String? confirmedCharacterId,
+  }) async {
+    _transaction(_database, () {
+      final entries = _database.select('''
+        SELECT book_id FROM alias_candidates WHERE id = ?
+      ''', [candidateId]);
+      if (entries.isEmpty) throw StateError('Unknown alias suggestion');
+      final bookId = entries.first['book_id'] as String;
+      final alias = listAliasCandidates(bookId)
+          .firstWhere((p) => p.id == candidateId);
+      if (alias.status != AliasCandidateStatus.proposed) {
+        throw StateError('Alias suggestion already reviewed');
+      }
+      if (!approve) {
+        _database.execute('''
+          UPDATE alias_candidates SET status = 'rejected'
+          WHERE id = ? AND status = 'proposed'
+        ''', [candidateId]);
+        return;
+      }
+      if (!alias.matchesSource(source)) {
+        throw const FormatException('Alias mention or evidence changed');
+      }
+      final targetId = confirmedCharacterId;
+      if (targetId == null) {
+        throw const FormatException('Choose an existing character for alias');
+      }
+      final characters = listCastCharacters(bookId);
+      CastCharacter? target;
+      for (final character in characters) {
+        if (character.id == targetId) target = character;
+      }
+      if (target == null) {
+        throw StateError('Alias owner is not a current book character');
+      }
+      final allNames = <String>[
+        for (final character in characters) character.name,
+        for (final character in characters) ...character.aliases,
+      ];
+      if (candidateConflictsWithCast(alias.alias, allNames)) {
+        throw StateError('Name/alias already in use in this book');
+      }
+      if (target.aliases.length >= 50) {
+        throw StateError('Maximum number of character aliases reached');
+      }
+      final merged = [...target.aliases, alias.alias];
+      _database.execute('''
+        UPDATE cast_characters SET aliases_json = ?
+        WHERE id = ? AND book_id = ?
+      ''', [jsonEncode(merged), target.id, bookId]);
+      _database.execute('''
+        UPDATE alias_candidates
+        SET status = 'accepted', approved_character_id = ?
+        WHERE id = ? AND status = 'proposed'
+      ''', [target.id, candidateId]);
+    });
+  }
+
   /// Manual character roster; not an automatic character detector.
   List<CastCharacter> listCastCharacters(String bookId) {
     return _database.select('''
@@ -826,26 +995,43 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
 
   Future<void> saveCastCharacter(CastCharacter character) async {
     character.validate();
-    if (getBook(character.bookId) == null) {
-      throw StateError('Unknown book for cast character');
-    }
-    // Do not permit moving an existing character to another book.
-    final exists = _database.select(
-      'SELECT book_id FROM cast_characters WHERE id = ?', [character.id]);
-    if (exists.isNotEmpty &&
-        exists.first['book_id'] != character.bookId) {
-      throw StateError('Cannot move character to a different book');
-    }
-    _database.execute('''
-      INSERT INTO cast_characters (id, book_id, display_name, aliases_json)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        display_name = excluded.display_name,
-        aliases_json = excluded.aliases_json
-    ''', [
-      character.id, character.bookId, character.name,
-      jsonEncode(character.aliases),
-    ]);
+    _transaction(_database, () {
+      if (getBook(character.bookId) == null) {
+        throw StateError('Unknown book for cast character');
+      }
+      final exists = _database.select(
+        'SELECT book_id FROM cast_characters WHERE id = ?', [character.id]);
+      if (exists.isNotEmpty &&
+          exists.first['book_id'] != character.bookId) {
+        throw StateError('Cannot move character between books');
+      }
+      final normalized = <String>{};
+      for (final name in [character.name, ...character.aliases]) {
+        final token = CharacterCandidate.normalizeName(name);
+        if (token.isEmpty || !normalized.add(token)) {
+          throw const FormatException('Duplicate name or alias on character');
+        }
+      }
+      for (final other in listCastCharacters(character.bookId)) {
+        if (other.id == character.id) continue;
+        for (final occupied in [other.name, ...other.aliases]) {
+          if (normalized.contains(
+              CharacterCandidate.normalizeName(occupied))) {
+            throw StateError('Name or alias belongs to another character');
+          }
+        }
+      }
+      _database.execute('''
+        INSERT INTO cast_characters (id, book_id, display_name, aliases_json)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          display_name = excluded.display_name,
+          aliases_json = excluded.aliases_json
+      ''', [
+        character.id, character.bookId, character.name,
+        jsonEncode(character.aliases),
+      ]);
+    });
   }
 
   Future<void> deleteCastCharacter(String characterId) async {
