@@ -222,7 +222,11 @@ class ReaderMediaHandler extends BaseAudioHandler {
   void handleSystemInterruption() {
     _commandEpoch++;
     final player = _player;
-    if (player == null || !player.isPlaying) return;
+    // Seek and voice switches can be waiting for native stop with
+    // isPlaying=false but an automatic resume still pending. pause()
+    // invalidates that navigation as well; merely checking isPlaying
+    // would let a late seek restart speech after an incoming call.
+    if (player == null) return;
     unawaited(pause().catchError((Object _, StackTrace __) {
       // Native stop errors are not permitted to crash an event subscription.
     }));
@@ -235,5 +239,6 @@ class ReaderMediaHandler extends BaseAudioHandler {
     _closed = true;
     await _interruption?.cancel();
     await _noisy?.cancel();
+    await _pendingFocusRelease;
   }
 }
