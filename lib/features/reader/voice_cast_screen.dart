@@ -468,7 +468,12 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
 
   Future<void> _review(CastSpan span, {required bool approve}) async {
     try {
-      await widget.store.reviewCastProposal(span.id, approve: approve);
+      await widget.store.reviewCastProposal(
+        span.id,
+        approve: approve,
+        currentSource: widget.document.text,
+        resolvedStart: span.resolvedStart(widget.document.offsetOf),
+      );
       if (mounted) _reload();
     } catch (error) {
       _error(error);
@@ -515,6 +520,22 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
       _error(error);
     }
   }
+
+  String _evidencePreview(CastSpan span) {
+    final reference = span.evidence;
+    if (reference == null) return 'No earlier source evidence supplied';
+    if (!reference.matchesSource(widget.document.text)) {
+      return 'Evidence no longer matches the book text';
+    }
+    return 'Earlier evidence: ' + widget.document.text.substring(
+      reference.start, reference.end,
+    );
+  }
+
+  bool _reviewable(CastSpan span) =>
+      span.matchesSource(widget.document.text, widget.document.offsetOf) &&
+      (span.evidence == null ||
+          span.evidence!.matchesSource(widget.document.text));
 
   Widget _reviewTab() {
     final accepted = _fine.where(
@@ -598,14 +619,14 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
               subtitle: Text(
                 'Speaker: ' + (names[span.speakerId] ?? 'Unknown') +
                 ' · confidence: ' +
-                (span.confidence?.toStringAsFixed(2) ?? '?'),
+                (span.confidence?.toStringAsFixed(2) ?? '?') +
+                '\n' + _evidencePreview(span),
               ),
               trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
                 IconButton(
                   icon: const Icon(Icons.check),
                   tooltip: 'Accept this suggestion',
-                  onPressed: span.matchesSource(
-                      widget.document.text, widget.document.offsetOf)
+                  onPressed: _reviewable(span)
                       ? () => _review(span, approve: true) : null,
                 ),
                 IconButton(
