@@ -134,21 +134,29 @@ PreparedCastSpeech prepareCastSpeech({
 
   final output = <SpeechSegment>[];
   final speakers = <int, String>{};
+  var firstPossible = 0;
   for (final segment in base) {
     if (segment.start < 0 || segment.end > source.length ||
         segment.end <= segment.start ||
         source.substring(segment.start, segment.end) != segment.text) {
       throw const FormatException('Base segment is not source-aligned');
     }
+    while (firstPossible < accepted.length &&
+        accepted[firstPossible].end <= segment.start) {
+      firstPossible++;
+    }
+    final nearby = <({int start, int end, String speaker})>[];
     final cuts = <int>{segment.start, segment.end};
-    for (final active in accepted) {
-      if (active.start < segment.end && active.end > segment.start) {
-        if (active.start > segment.start && active.start < segment.end) {
-          cuts.add(active.start);
-        }
-        if (active.end > segment.start && active.end < segment.end) {
-          cuts.add(active.end);
-        }
+    for (var candidate = firstPossible; candidate < accepted.length;
+        candidate++) {
+      final active = accepted[candidate];
+      if (active.start >= segment.end) break;
+      nearby.add(active);
+      if (active.start > segment.start && active.start < segment.end) {
+        cuts.add(active.start);
+      }
+      if (active.end > segment.start && active.end < segment.end) {
+        cuts.add(active.end);
       }
     }
     final sorted = cuts.toList()..sort();
@@ -163,7 +171,7 @@ PreparedCastSpeech prepareCastSpeech({
       if (from >= to) continue;
       final part = SpeechSegment(from, to, source.substring(from, to));
       output.add(part);
-      for (final active in accepted) {
+      for (final active in nearby) {
         if (from >= active.start && to <= active.end) {
           speakers[from] = active.speaker;
           break;
