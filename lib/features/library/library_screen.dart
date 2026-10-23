@@ -145,28 +145,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   ),
                 Expanded(
                   child: ListView.builder(
-              itemCount: books.length,
-              itemBuilder: (context, index) {
-                final book = books[index];
-                return ListTile(
-                  leading: Icon(
-                    book.format == BookFormat.pdf
-                        ? Icons.picture_as_pdf_outlined
-                        : Icons.menu_book_outlined,
-                  ),
-                  title: Text(book.title),
-                  subtitle: Text(
-                    '${book.format.name.toUpperCase()} · '
-                    'saved at character ${book.progressOffset}',
-                  ),
-                  onTap: () => _open(book),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    tooltip: 'Remove book',
-                    onPressed: () => _remove(book),
-                  ),
-                );
-              },
+                    itemCount: books.length,
+                    itemBuilder: (context, index) {
+                      final book = books[index];
+                      return ListTile(
+                        leading: Icon(
+                          book.format == BookFormat.pdf
+                              ? Icons.picture_as_pdf_outlined
+                              : Icons.menu_book_outlined,
+                        ),
+                        title: Text(book.title),
+                        subtitle: Text(
+                          '${book.format.name.toUpperCase()} · '
+                          'saved at character ${book.progressOffset}',
+                        ),
+                        onTap: () => _open(book),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: 'Remove book',
+                          onPressed: () => _remove(book),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
