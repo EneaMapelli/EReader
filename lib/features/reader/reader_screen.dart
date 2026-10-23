@@ -756,6 +756,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       onChanged: player.currentPreferences.providerId == 'system'
                           ? (value) {
                               player.setPitch(value);
+                            }
+                          : null,
+                      onChangeEnd: player.currentPreferences.providerId == 'system'
+                          ? (_) {
+                              unawaited(player.restartAfterSettingsChange());
                               unawaited(_saveVoiceSettings());
                             }
                           : null,
@@ -775,6 +780,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       value: player.rate,
                       onChanged: (value) {
                         player.setRate(value);
+                      },
+                      onChangeEnd: (_) {
+                        unawaited(player.restartAfterSettingsChange());
                         unawaited(_saveVoiceSettings());
                       },
                     ),
@@ -793,6 +801,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     onChanged: (value) {
                       if (value != null) {
                         player.setLanguage(value);
+                        unawaited(player.restartAfterSettingsChange());
                         unawaited(_saveVoiceSettings());
                       }
                     },
