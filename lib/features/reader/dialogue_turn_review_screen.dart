@@ -205,15 +205,18 @@ class _DialogueTurnReviewScreenState extends State<DialogueTurnReviewScreen> {
             OutlinedButton.icon(
               icon: const Icon(Icons.chevron_right),
               onPressed: _saving || end >= scope.end ? null : () =>
-                  setState(() => _position = end),
+                  setState(() => _position = turns.length ==
+                      DialogueTurnReviewPlanner.maxTurns &&
+                      turns.last.end < end ? turns.last.end : end),
               label: const Text('Next')),
           ]),
           Text('Original source offsets: ' + start.toString() + '–' +
               end.toString() + ' · ' + turns.length.toString() +
               ' dialogue fragments in this window'),
           if (turns.length == DialogueTurnReviewPlanner.maxTurns)
-            const Text('Maximum review count reached. '
-                'Use a smaller selected window for later turns.'),
+            const Text('Turn display cap reached. Next continues directly '
+                'after the last inspected turn; intervening text is not '
+                'silently skipped.'),
           if (turns.isEmpty)
             const Padding(
               padding: EdgeInsets.all(18),
