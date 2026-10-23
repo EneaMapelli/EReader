@@ -313,8 +313,12 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
       } else {
         audio = await _synthesize(text, voice, token);
       }
-      if (!_live(token) || audio == null ||
-          !access.getConsent(bookId, providerId).allowed) return;
+      if (!_live(token) || audio == null) return;
+      if (!access.getConsent(bookId, providerId).allowed) {
+        throw const CloudSpeechBlocked(
+          'Cloud speech consent was revoked before playback',
+        );
+      }
       // A prefetch is allowed only once the active clip has rendered
       // successfully; audio output remains serialized to one player.
       ready.complete(true);
