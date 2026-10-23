@@ -57,8 +57,14 @@ class HistoricalCharacterConcordance {
     var totalChars = 0;
     for (final scope in candidates) {
       if (result.length >= maxMentions) break;
-      final scanStart = (scope.end - maxSearchPerScope)
+      var scanStart = (scope.end - maxSearchPerScope)
           .clamp(scope.start, scope.end).toInt();
+      if (scanStart < scope.end &&
+          source.codeUnitAt(scanStart) >= 0xDC00 &&
+          source.codeUnitAt(scanStart) <= 0xDFFF) scanStart++;
+      // Slice the bounded prior chapter; running regex over the whole source
+      // could inadvertently scan later chapters even if no result was sent.
+      final earlierText = source.substring(scanStart, scope.end);
       for (final person in window.cast) {
         if (person.bookId != bookId ||
             (perCharacter[person.id] ?? 0) >= maxMentionsPerPerson ||
@@ -70,16 +76,14 @@ class HistoricalCharacterConcordance {
           final expression = RegExp(
             RegExp.escape(name), caseSensitive: false, unicode: true,
           );
-          for (final match in expression.allMatches(
-              source, scanStart)) {
-            if (match.start >= scope.end) break;
-            if (match.end > scope.end ||
-                !CastSpan.validUtf16Range(
-                    source, match.start, match.end) ||
-                _letterNextTo(source, match.start, before: true) ||
-                _letterNextTo(source, match.end, before: false)) continue;
-            if (latest == null || match.start > latest.start) {
-              latest = (start: match.start, end: match.end, name: name);
+          for (final match in expression.allMatches(earlierText)) {
+            final start = scanStart + match.start;
+            final end = scanStart + match.end;
+            if (!CastSpan.validUtf16Range(source, start, end) ||
+                _letterNextTo(source, start, before: true) ||
+                _letterNextTo(source, end, before: false)) continue;
+            if (latest == null || start > latest.start) {
+              latest = (start: start, end: end, name: name);
             }
           }
         }
