@@ -473,7 +473,36 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
     }
   }
 
+  Future<void> _deleteApprovedSpan(CastSpan span) async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Remove this speaker label?'),
+        content: const Text(
+          'This selected passage will revert to narrator unless '
+          'an older full-segment label is still present.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Remove label')),
+        ],
+      ),
+    );
+    if (yes != true) return;
+    try {
+      await widget.store.deleteCastSpan(span.id);
+      if (mounted) _reload();
+    } catch (error) {
+      _error(error);
+    }
+  }
+
   Widget _reviewTab() {
+    final accepted = _fine.where(
+      (span) => span.status == CastSpanStatus.accepted,
+    ).toList();
     final pending = _fine.where(
       (span) => span.status == CastSpanStatus.proposed,
     ).toList();
@@ -484,6 +513,8 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
       children: [
         const Text(
+          'You can add precise manual labels in Passages. '
+          'Approved labels are shown below and can be removed. '
           'Future LLM findings must be reviewed individually. '
           'Manual character labels stay locked and take precedence. '
           'You can import schema-validated JSON locally; no request '
@@ -495,6 +526,36 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
           label: const Text('Import structured suggestions'),
           onPressed: _importProposals,
         ),
+        const Divider(height: 28),
+        Text('Approved speaker labels',
+            style: Theme.of(context).textTheme.titleMedium),
+        if (accepted.isEmpty)
+          const Text('No fine-grained labels have been approved yet.'),
+        for (final span in accepted)
+          ListTile(
+            leading: Icon(span.origin == CastSpanOrigin.user
+                ? Icons.lock : Icons.verified_outlined),
+            title: Text(span.matchesSource(
+                  widget.document.text, widget.document.offsetOf)
+                ? widget.document.text.substring(
+                    span.resolvedStart(widget.document.offsetOf)!,
+                    span.resolvedStart(widget.document.offsetOf)! +
+                        span.length)
+                : '[Stale source annotation]'),
+            subtitle: Text(
+              (names[span.speakerId] ?? 'Narrator / unknown') +
+              (span.origin == CastSpanOrigin.user
+                  ? ' · manual lock' : ' · approved suggestion'),
+            ),
+            trailing: IconButton(
+              tooltip: 'Remove this speaker label',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => _deleteApprovedSpan(span),
+            ),
+          ),
+        const Divider(height: 28),
+        Text('Pending proposals',
+            style: Theme.of(context).textTheme.titleMedium),
         if (pending.isEmpty)
           const Padding(
             padding: EdgeInsets.all(20),
@@ -553,9 +614,11 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
         child: Column(children: [
-          const Text('Select the speaker for each passage. '
-              'This prototype tags entire text segments: a passage '
-              'mixing narration and dialogue should stay with narrator.'),
+          const Text(
+            'Use the text-selection icon to label just part of a passage. '
+            'The menu still assigns an entire current segment. '
+            'Unknown dialogue remains in the narrator voice.',
+          ),
           TextField(
             controller: _search,
             onChanged: (_) => setState(() {}),
