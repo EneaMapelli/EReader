@@ -9,6 +9,7 @@ import 'package:ereader/domain/speech_preferences.dart';
 import 'package:ereader/domain/book_bookmark.dart';
 import 'package:ereader/domain/voice_cast.dart';
 import 'package:ereader/domain/cast_span.dart';
+import 'package:ereader/domain/character_candidate.dart';
 import 'package:ereader/domain/cloud_speech_consent.dart';
 import 'package:ereader/domain/llm_analysis_consent.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -830,6 +831,154 @@ void main() {
     expect(old.lockedByUser, isTrue);
     expect(old.evidence, isNull);
     expect(store.getBook(book.id), isNotNull);
+  });
+
+
+  test('character discovery is persistent and does not create cast silently',
+      () async {
+    const source = 'Anna said: Mira joined the group.';
+    final input = File(p.join(root.path, 'new-character.txt'));
+    await input.writeAsString(source);
+    final book = await store.importFile(input.path);
+    final start = source.indexOf('Mira');
+    final candidate = CharacterCandidate(
+      id: 'discovered-1',
+      bookId: book.id,
+      name: 'Mira',
+      start: start,
+      end: start + 4,
+      sourceDigest: CharacterCandidate.fingerprint('Mira'),
+      confidence: 0.8,
+      status: CharacterCandidateStatus.proposed,
+    );
+    await store.importCharacterCandidates([candidate], source);
+    expect(store.listCastCharacters(book.id), isEmpty);
+    expect(store.listCharacterCandidates(book.id).single.status,
+        CharacterCandidateStatus.proposed);
+
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.listCharacterCandidates(book.id).single.name, 'Mira');
+    expect(store.listCastCharacters(book.id), isEmpty);
+
+    await store.reviewCharacterCandidate(
+      'discovered-1',
+      approve: true,
+      source: source,
+      newCharacterId: 'character-mira',
+      displayName: 'Mira',
+    );
+    expect(store.listCastCharacters(book.id).single.name, 'Mira');
+    final reviewed = store.listCharacterCandidates(book.id).single;
+    expect(reviewed.status, CharacterCandidateStatus.accepted);
+    expect(reviewed.createdCharacterId, 'character-mira');
+    expect(store.listCastVoices(book.id), isEmpty);
+    expect(store.listSegmentCast(book.id), isEmpty);
+  });
+
+  test('forged names and cross-book characters cannot enter cast', () async {
+    const source = 'Anna introduces Mira.';
+    final one = File(p.join(root.path, 'one-person.txt'));
+    final two = File(p.join(root.path, 'other-person.txt'));
+    await one.writeAsString(source);
+    await two.writeAsString('Another novel');
+    final b1 = await store.importFile(one.path);
+    final b2 = await store.importFile(two.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'known', bookId: b1.id, name: 'Anna', aliases: const ['Annie'],
+    ));
+    final illegal = CharacterCandidate(
+      id: 'candidate-bad', bookId: b2.id,
+      name: 'Mira',
+      start: source.indexOf('Mira'), end: source.length - 1,
+      sourceDigest: CharacterCandidate.fingerprint('Mira'),
+      confidence: 0.6,
+      status: CharacterCandidateStatus.proposed,
+    );
+    await expectLater(
+      store.importCharacterCandidates([illegal], source),
+      throwsFormatException,
+    );
+    expect(store.listCharacterCandidates(b1.id), isEmpty);
+    expect(store.listCharacterCandidates(b2.id), isEmpty);
+
+    final start = source.indexOf('Anna');
+    await store.importCharacterCandidates([
+      CharacterCandidate(
+        id: 'candidate-known', bookId: b1.id,
+        name: 'Anna', start: start, end: start + 4,
+        sourceDigest: CharacterCandidate.fingerprint('Anna'),
+        confidence: 0.9, status: CharacterCandidateStatus.proposed,
+      ),
+    ], source);
+    expect(store.listCharacterCandidates(b1.id), isEmpty);
+  });
+
+  test('duplicate case-folded names do not create a second cast member',
+      () async {
+    const source = 'Captain Mira arrived.';
+    final input = File(p.join(root.path, 'duplicate.txt'));
+    await input.writeAsString(source);
+    final book = await store.importFile(input.path);
+    final start = source.indexOf('Captain Mira');
+    final proposed = CharacterCandidate(
+      id: 'candidate-duplicate', bookId: book.id,
+      name: 'Captain Mira', start: start,
+      end: start + 'Captain Mira'.length,
+      sourceDigest: CharacterCandidate.fingerprint('Captain Mira'),
+      confidence: 0.8,
+      status: CharacterCandidateStatus.proposed,
+    );
+    await store.importCharacterCandidates([proposed], source);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'existing-cast', bookId: book.id,
+      name: 'Mira', aliases: const ['Captain Mira'],
+    ));
+    await expectLater(store.reviewCharacterCandidate(
+      proposed.id,
+      approve: true,
+      source: source,
+      newCharacterId: 'duplicate-person',
+      displayName: 'captain  MIRA',
+    ), throwsStateError);
+    expect(store.listCastCharacters(book.id), hasLength(1));
+    expect(store.listCharacterCandidates(book.id).single.status,
+        CharacterCandidateStatus.proposed);
+    await store.reviewCharacterCandidate(
+      proposed.id, approve: false, source: source,
+    );
+    expect(store.listCharacterCandidates(book.id).single.status,
+        CharacterCandidateStatus.rejected);
+  });
+
+  test('SQLite v9 upgrades to v10 without affecting cast and analysis consent',
+      () async {
+    final input = File(p.join(root.path, 'migrate-v10.txt'));
+    await input.writeAsString('Named character.');
+    final book = await store.importFile(input.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'old-person', bookId: book.id, name: 'Earlier Character',
+    ));
+    await store.configureLlmAnalysisConsent(
+      book.id, allowed: true, maxInputCharacters: 4000,
+    );
+    await store.reserveLlmAnalysisInput(book.id, 123);
+    store.dispose();
+
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    db.execute('DROP TABLE character_candidates');
+    db.execute('PRAGMA user_version = 9');
+    db.dispose();
+
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.listCastCharacters(book.id).single.name,
+        'Earlier Character');
+    expect(store.getLlmAnalysisConsent(book.id).usedInputCharacters, 123);
+    expect(store.listCharacterCandidates(book.id), isEmpty);
+    await store.removeBook(book.id);
+    expect(store.listCharacterCandidates(book.id), isEmpty);
   });
 
 }
