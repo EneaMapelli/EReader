@@ -783,6 +783,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
       }
     }
     final inspection = const NarrativeAntecedentFinder().inspect(
+      bookId: widget.book.id,
       source: widget.document.text,
       scopeStart: safeScopeStart,
       referenceStart: candidate.start,
