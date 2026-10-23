@@ -8,6 +8,11 @@ import 'speech_engine.dart';
 
 typedef SegmentStarted = Future<void> Function(SpeechSegment segment);
 
+/// Injectable so the wall-clock sleep deadline can be regression-tested
+/// without waiting for real minutes.
+typedef SleepTimerScheduler = Timer Function(
+    Duration duration, void Function() onElapsed);
+
 /// Serialized speech queue with session tokens to invalidate interrupted runs.
 /// Pause stops the current native utterance; resume RESTARTS that segment.
 /// Word-level timing and background sessions are not claimed in this milestone.
@@ -18,12 +23,50 @@ class ReaderPlayer extends ChangeNotifier {
     required this.onSegmentStarted,
     this.language = 'it-IT',
     this.engineProviderId = 'system',
-  }) : _engine = engine, _segments = segments;
+    SleepTimerScheduler? timerScheduler,
+  }) : _engine = engine,
+       _segments = segments,
+       _timerScheduler = timerScheduler ?? Timer.new;
 
   final SpeechEngine _engine;
   final List<SpeechSegment> _segments;
   final SegmentStarted onSegmentStarted;
   final String engineProviderId;
+  final SleepTimerScheduler _timerScheduler;
+  Timer? _sleepTimer;
+
+  /// This is a session-only wall-clock deadline. Pausing does not extend it.
+  /// It is cancelled when narration finishes or the reader is disposed.
+  DateTime? sleepTimerEndsAt;
+
+  void setSleepTimer(Duration? duration) {
+    if (_disposed) return;
+    if (duration != null && duration <= Duration.zero) {
+      throw ArgumentError.value(duration, 'duration', 'Must be positive');
+    }
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    sleepTimerEndsAt = null;
+    if (duration != null) {
+      sleepTimerEndsAt = DateTime.now().add(duration);
+      _sleepTimer = _timerScheduler(duration, () {
+        _sleepTimer = null;
+        sleepTimerEndsAt = null;
+        if (_disposed) return;
+        // pause() immediately invalidates the playback session before
+        // awaiting native stop, so an in-flight clip cannot advance.
+        unawaited(pause().catchError((Object error, StackTrace stack) {
+          if (_disposed) return;
+          lastError = error;
+          _notify();
+        }));
+      });
+    }
+    _notify();
+  }
+
+  void cancelSleepTimer() => setSleepTimer(null);
+
   String language;
   double rate = 0.5;
   double pitch = 1.0;
@@ -273,6 +316,12 @@ class ReaderPlayer extends ChangeNotifier {
       if (token == _session) {
         isPlaying = false;
         activeSpeakerId = null;
+        // Avoid an obsolete deadline stopping a later manual replay.
+        if (currentIndex >= _segments.length || lastError != null) {
+          _sleepTimer?.cancel();
+          _sleepTimer = null;
+          sleepTimerEndsAt = null;
+        }
         _notify();
       }
     }
@@ -346,6 +395,9 @@ class ReaderPlayer extends ChangeNotifier {
     _session++;
     _navigationEpoch++;
     _resumeAfterNavigation = false;
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    sleepTimerEndsAt = null;
     _disposed = true;
     unawaited(_engine.dispose().catchError((Object _) {}));
     super.dispose();
