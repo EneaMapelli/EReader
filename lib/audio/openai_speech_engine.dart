@@ -275,7 +275,24 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
     final clip = _PreparedCloudClip(
       key: key,
       generation: token,
-      audio: _synthesize(text, intended, token),
+      audio: () async {
+        final bytes = await _synthesize(text, intended, token);
+        if (bytes == null || !_live(token)) return null;
+        // Native decoder warm-up is purely local and has no additional
+        // cloud reservation. Failure falls back to ordinary cold playback
+        // of these SAME paid bytes; never synthesize the text again.
+        if (_output is PreloadableSynthesizedAudioOutput) {
+          try {
+            await (_output as PreloadableSynthesizedAudioOutput).prepareNext(
+              bytes,
+              speed: (rate / 0.5).clamp(0.5, 2.0).toDouble(),
+            );
+          } catch (_) {
+            // File IO / platform decoder availability varies by OS.
+          }
+        }
+        return bytes;
+      }(),
     );
     _prepared = clip;
     try {
