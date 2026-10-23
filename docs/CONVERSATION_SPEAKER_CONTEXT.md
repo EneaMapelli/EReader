@@ -50,7 +50,7 @@ pronoun approval or change the TTS voice. Rejection remains supported.
   ConversationSpeakerCue and bounded ConversationSpeakerInspection.
 - lib/features/reader/voice_cast_screen.dart presents the new section
   separately from NarrativeAntecedentFinder and the manual referent selector.
-- test/llm/conversation_speaker_inspector_test.dart defines twelve
+- test/llm/conversation_speaker_inspector_test.dart defines thirteen
   unexecuted cases covering multi-speaker scenes, manual vs precise labels,
   stale and pending labels, overlaps, source anchors, Unicode boundaries,
   book isolation, excerpt truncation and the no-evidence fallback.
