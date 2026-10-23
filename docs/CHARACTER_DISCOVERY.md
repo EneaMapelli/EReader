@@ -51,3 +51,8 @@ A recognized name is not necessarily a new person. After discovery, **Reconcile 
 ## Combining two existing cast entries
 
 If two entries were created for the same fictional person, use **Voice Cast > Characters > Merge duplicate characters**. This manually reviewed operation retains one stable cast ID, transfers voice assignments and prior source labels, requires explicit voice-conflict choices and records the change in SQLite v12. See [Cast Identity Merge](CAST_IDENTITY_MERGE.md).
+
+
+## Recognizing already-known people from earlier chapters
+
+The AI analysis screen can optionally show a bounded set of exact mentions for **approved, explicitly selected** cast members in previous chapters. This improves narrative continuity but does not invent new characters or silently assign voices. The model can reference this prior context when making *pending* suggestions about the current excerpt; results remain under human review. See [Historical Character Context](HISTORICAL_CHARACTER_CONTEXT.md).
