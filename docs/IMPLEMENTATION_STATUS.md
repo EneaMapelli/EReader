@@ -213,3 +213,16 @@ Documentation: [Cast Identity Merge](CAST_IDENTITY_MERGE.md).
 - Duplicate names/aliases, cross-book targets, exceeding 50 aliases, missing voice decisions or stale previews reject the merge without partially altering records.
 - Added unexecuted test/data/cast_merge_test.dart covering retained voices, source anchors and speaker tags, proposal foreign keys, rollback/choice validation, old-preview rejection and v11-to-v12 migration.
 - Native Windows/Android and Flutter analyzer/test validation are still deferred to final integration by the owner.
+
+## M5 — verified multi-chapter character continuity (2026-10-23)
+
+Protocol: [Historical Character Context](HISTORICAL_CHARACTER_CONTEXT.md).
+
+- A new analysis toggle, **OFF by default**, searches at most six fully previous EPUB spine chapters, PDF pages or TXT ranges. Search is performed on local source substrings, not on the entire book or later chapters.
+- Only identities the user explicitly marked as already known (with manually reviewed names/aliases) are eligible for earlier-chapter matching. A Unicode-aware whole-word check prevents substring mistakes such as `Mira` inside `Amira`.
+- Up to five source-verified mentions (two per person), at most 130 UTF-16 chars per snippet / 550 combined, are generated with exact chapter ID, original UTF-16 boundaries and SHA-256 fingerprints. Emoji boundaries are protected.
+- The HTTP analysis request has a distinct `historical_mentions` array. These snippets are context only: they cannot be model response targets or impersonate source evidence; the current chapter/page remains the sole analysis target.
+- API boundary validates older-chapter scope ordering, the explicit cast allowlist, source hashes, count and spoiler ceiling. The confirmation screen shows all historical excerpts verbatim and their additional quota impact before the user manually sends the request.
+- New `test/llm/historical_character_concordance_test.dart` defines nine unexecuted regression tests: only-earlier scope filtering, default empty cast, Unicode, whole-name boundaries, bounded corpus scan, request content/quota, fabricated history and forbidden prior-speaker attribution.
+- No SQLite upgrade is needed for this feature: the historical concordance is assembled ephemerally from the current extraction; no private index or API key is written to disk.
+- **Validation pending:** Flutter analysis, Dart tests, Windows/Android builds, experimental source-extraction alignment and live consent UX, explicitly postponed until final integration.
