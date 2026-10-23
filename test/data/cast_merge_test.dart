@@ -242,4 +242,107 @@ void main() {
     ));
     expect(store.listCastCharacters(bookId), hasLength(1));
   });
+
+  test('reviewed character discovery and approved alias links survive merge',
+      () async {
+    const text = 'Arin met Commander near the old tower. The Warden left.';
+    final book = await createBook('discovery-links', text);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'target', bookId: book, name: 'Arin',
+    ));
+    const newName = 'Commander';
+    final nameAt = text.indexOf(newName);
+    await store.importCharacterCandidates([
+      CharacterCandidate(
+        id: 'original-discovery', bookId: book,
+        name: newName, start: nameAt,
+        end: nameAt + newName.length,
+        sourceDigest: CharacterCandidate.fingerprint(newName),
+        confidence: 0.75, status: CharacterCandidateStatus.proposed,
+      ),
+    ], text);
+    await store.reviewCharacterCandidate(
+      'original-discovery', approve: true, source: text,
+      newCharacterId: 'from-discovery', displayName: newName,
+    );
+    const alias = 'The Warden';
+    final atAlias = text.indexOf(alias);
+    await store.importAliasCandidates([
+      AliasCandidate(
+        id: 'approved-alias', bookId: book, alias: alias,
+        targetCharacterId: 'from-discovery',
+        start: atAlias, end: atAlias + alias.length,
+        sourceDigest: AliasCandidate.fingerprint(alias),
+        confidence: 0.79, status: AliasCandidateStatus.proposed,
+      ),
+    ], text);
+    await store.reviewAliasCandidate(
+      'approved-alias', approve: true, source: text,
+      confirmedCharacterId: 'from-discovery',
+    );
+    final preview = store.previewCastMerge(
+        book, 'from-discovery', 'target');
+    expect(preview.counts['reviewed_character_candidates'], 1);
+    expect(preview.counts['approved_alias_links'], 1);
+    expect(preview.counts['proposed_alias_links'], 1);
+    await store.mergeCastCharacters(CastMergeDecision(
+      bookId: book, sourceCharacterId: 'from-discovery',
+      targetCharacterId: 'target',
+      expectedSnapshotDigest: preview.snapshotDigest,
+      providerChoices: const {},
+    ));
+    expect(store.listCastCharacters(book).single.aliases,
+        ['Commander', 'The Warden']);
+    expect(store.listCharacterCandidates(book).single.createdCharacterId,
+        'target');
+    final reviewed = store.listAliasCandidates(book).single;
+    expect(reviewed.status, AliasCandidateStatus.accepted);
+    expect(reviewed.targetCharacterId, 'target');
+  });
+
+  test('stale preview detects changed source hashes even when counts match',
+      () async {
+    const text = 'Alpha Beta Gamma';
+    final book = await createBook('same-count', text);
+    await twoCharacters(book);
+    await store.saveSegmentCast(SegmentCastAssignment(
+      bookId: book, start: 0, end: 5,
+      sourceDigest: SegmentCastAssignment.fingerprint('Alpha'),
+      characterId: 'duplicate',
+    ));
+    final before = store.previewCastMerge(book, 'duplicate', 'survivor');
+    // Edit metadata without changing the number of dependent rows.
+    await store.saveSegmentCast(SegmentCastAssignment(
+      bookId: book, start: 0, end: 5,
+      sourceDigest: SegmentCastAssignment.fingerprint('Other'),
+      characterId: 'duplicate',
+    ));
+    final after = store.previewCastMerge(book, 'duplicate', 'survivor');
+    expect(after.counts, before.counts);
+    expect(after.snapshotDigest, isNot(before.snapshotDigest));
+    await expectLater(store.mergeCastCharacters(CastMergeDecision(
+      bookId: book, sourceCharacterId: 'duplicate',
+      targetCharacterId: 'survivor',
+      expectedSnapshotDigest: before.snapshotDigest,
+      providerChoices: const {},
+    )), throwsStateError);
+    expect(store.listCastCharacters(book), hasLength(2));
+  });
+
+  test('merge refuses exceeding 50 aliases, without deleting source',
+      () async {
+    final book = await createBook('too-many', 'Characters');
+    await store.saveCastCharacter(CastCharacter(
+      id: 'survivor', bookId: book, name: 'Arin',
+      aliases: [for (var i = 0; i < 26; i++) 'A$i'],
+    ));
+    await store.saveCastCharacter(CastCharacter(
+      id: 'duplicate', bookId: book, name: 'Commander',
+      aliases: [for (var i = 0; i < 25; i++) 'B$i'],
+    ));
+    expect(() => store.previewCastMerge(
+      book, 'duplicate', 'survivor'), throwsStateError);
+    expect(store.listCastCharacters(book), hasLength(2));
+  });
+
 }
