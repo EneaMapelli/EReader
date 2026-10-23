@@ -464,29 +464,40 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
           const SizedBox(height: 18),
           Text('Analysis task',
               style: Theme.of(context).textTheme.titleMedium),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                value: 'speakers',
-                icon: Icon(Icons.record_voice_over_outlined),
-                label: Text('Assign speakers'),
+          // Chips wrap on narrow Android screens instead of overflowing
+          // a three-label SegmentedButton in portrait orientation.
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              ChoiceChip(
+                avatar: const Icon(Icons.record_voice_over_outlined, size: 18),
+                label: const Text('Assign speakers'),
+                selected: _task == 'speakers',
+                onSelected: _busy ? null : (_) => setState(() {
+                  _task = 'speakers';
+                  _nextFrom = null;
+                }),
               ),
-              ButtonSegment(
-                value: 'characters',
-                icon: Icon(Icons.person_search_outlined),
-                label: Text('Find characters'),
+              ChoiceChip(
+                avatar: const Icon(Icons.person_search_outlined, size: 18),
+                label: const Text('Find characters'),
+                selected: _task == 'characters',
+                onSelected: _busy ? null : (_) => setState(() {
+                  _task = 'characters';
+                  _nextFrom = null;
+                }),
               ),
-              ButtonSegment(
-                value: 'aliases',
-                icon: Icon(Icons.manage_accounts_outlined),
-                label: Text('Reconcile aliases'),
+              ChoiceChip(
+                avatar: const Icon(Icons.manage_accounts_outlined, size: 18),
+                label: const Text('Reconcile aliases'),
+                selected: _task == 'aliases',
+                onSelected: _busy ? null : (_) => setState(() {
+                  _task = 'aliases';
+                  _nextFrom = null;
+                }),
               ),
             ],
-            selected: {_task},
-            onSelectionChanged: _busy ? null : (values) => setState(() {
-              _task = values.first;
-              _nextFrom = null;
-            }),
           ),
           const SizedBox(height: 14),
           Text('Analysis scope',
