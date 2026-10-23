@@ -75,6 +75,44 @@ void main() {
     expect(result.ranges.last.href, 'OEBPS/Text/second chapter.xhtml');
   });
 
+  test('spine labels use XHTML body headings, not navigation or head', () {
+    final archive = makeEpub(
+      first: '''
+        <html>
+          <head><title>Private metadata title</title></head>
+          <body>
+            <nav><h1>Ignore navigation heading</h1></nav>
+            <script><h1>Do not expose script title</h1></script>
+            <h2>  A Chapter   with  Spaces </h2>
+            <p>Real words for the reader.</p>
+          </body>
+        </html>
+      ''',
+    );
+    final result = extractor.extract(archive);
+    expect(result.ranges.first.title, 'A Chapter with Spaces');
+    expect(result.ranges.last.title, 'Chapter 2');
+    expect(result.text, contains('Real words for the reader.'));
+    expect(result.text, isNot(contains('Private metadata title')));
+    expect(result.text, isNot(contains('Ignore navigation heading')));
+    expect(result.text, isNot(contains('Do not expose script title')));
+  });
+
+  test('chapter headings are bounded and leave source offsets untouched', () {
+    final veryLongHeading = List.filled(40, 'Readers').join(' ');
+    final result = extractor.extract(makeEpub(
+      first: '<html><body><h1>$veryLongHeading</h1><p>Content.</p></body></html>',
+    ));
+    expect(result.ranges.first.title.length, lessThanOrEqualTo(120));
+    expect(result.ranges.first.title, endsWith('…'));
+    for (final range in result.ranges) {
+      final excerpt = result.text.substring(range.start, range.end);
+      expect(excerpt, isNotEmpty);
+    }
+    expect(result.text, contains(veryLongHeading),
+      reason: 'Display-only TOC truncation must not rewrite book text');
+  });
+
   test('fails with missing XHTML resource instead of skipping a chapter', () {
     final zip = makeEpub(opf: '''
       <package><manifest>
