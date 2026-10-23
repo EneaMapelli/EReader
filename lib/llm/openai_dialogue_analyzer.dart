@@ -154,6 +154,30 @@ Do not infer any chapter beyond the provided excerpt.
   bool _disposed = false;
 
   String createRequest(DialogueAnalysisWindow window) {
+    if (window.segments.isEmpty ||
+        window.segments.length > DialogueAnalysisPlanner.maxSegments ||
+        window.cast.length > 100 ||
+        window.scope.start < 0 ||
+        window.scope.end <= window.scope.start) {
+      throw const FormatException('Invalid selected analysis window');
+    }
+    var totalSourceChars = 0;
+    var previousEnd = window.scope.start;
+    for (final segment in window.segments) {
+      if (segment.start < previousEnd ||
+          segment.start < window.scope.start ||
+          segment.end > window.scope.end ||
+          segment.end <= segment.start ||
+          segment.text.length != segment.end - segment.start) {
+        throw const FormatException(
+          'Passage is outside the approved analysis scope');
+      }
+      totalSourceChars += segment.text.length;
+      previousEnd = segment.end;
+    }
+    if (totalSourceChars > DialogueAnalysisPlanner.maxWindowCharacters) {
+      throw const FormatException('Analysis window exceeded excerpt limit');
+    }
     final payload = jsonEncode({
       'scope_id': window.scope.id,
       'cast': [
