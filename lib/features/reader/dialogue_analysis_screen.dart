@@ -15,6 +15,7 @@ import '../../llm/openai_dialogue_analyzer.dart';
 import '../../llm/openai_character_discoverer.dart';
 import '../../llm/openai_alias_reconciler.dart';
 import '../../llm/historical_character_concordance.dart';
+import '../../llm/openai_reference_resolver.dart';
 
 /// Intentional one-window-at-a-time analysis. Opening this screen, choosing
 /// scope/model or saving a key NEVER sends any book text to the network.
@@ -46,6 +47,7 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
   late OpenAiDialogueAnalyzer _analyzer;
   late OpenAiCharacterDiscoverer _discoverer;
   late OpenAiAliasReconciler _aliasReconciler;
+  late OpenAiReferenceResolver _referenceResolver;
   String _task = 'speakers';
   int _scopeIndex = 0;
   int? _nextFrom;
@@ -73,6 +75,9 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
     _aliasReconciler = OpenAiAliasReconciler(
       access: widget.store, vault: widget.vault,
     );
+    _referenceResolver = OpenAiReferenceResolver(
+      access: widget.store, vault: widget.vault,
+    );
     final consent = widget.store.getLlmAnalysisConsent(widget.book.id);
     if (consent.maxInputCharacters > 0) {
       _limit.text = consent.maxInputCharacters.toString();
@@ -85,6 +90,7 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
     _analyzer.dispose();
     _discoverer.dispose();
     _aliasReconciler.dispose();
+    _referenceResolver.dispose();
     _key.dispose();
     _limit.dispose();
     super.dispose();
@@ -317,7 +323,9 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
         ? _discoverer.requestedCharacters(window)
         : _task == 'aliases'
           ? _aliasReconciler.requestedCharacters(window)
-          : _analyzer.requestedCharacters(window);
+          : _task == 'references'
+            ? _referenceResolver.requestedCharacters(window)
+            : _analyzer.requestedCharacters(window);
     final consent = widget.store.getLlmAnalysisConsent(widget.book.id);
     if (!consent.allowed || estimatedChars >
         consent.remainingInputCharacters || !_keySaved) {
@@ -332,7 +340,9 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
             ? 'Search this excerpt for new characters?'
             : _task == 'aliases'
                 ? 'Review potential aliases in this excerpt?'
-                : 'Send this excerpt for dialogue attribution?'),
+                : _task == 'references'
+                  ? 'Find pronouns and indirect character references?'
+                  : 'Send this excerpt for dialogue attribution?'),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 580),
           child: SingleChildScrollView(child: Column(
@@ -385,8 +395,12 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
                   ? 'Possible nicknames are untrusted proposals. None '
                     'will be attached to a person until individually '
                     'confirmed in Voice Cast / Review.'
-                  : 'Suggested speakers remain inactive until individually '
-                    'approved in Voice Cast / Review.'),
+                  : _task == 'references'
+                    ? 'Indirect mentions are narrative metadata only. '
+                      'Even after review they NEVER assign speech voices, '
+                      'create a cast member or override dialogue.'
+                    : 'Suggested speakers remain inactive until individually '
+                      'approved in Voice Cast / Review.'),
 
             ],
           )),
@@ -431,6 +445,19 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
         _message('Saved ' + suggestions.length.toString() +
             ' alias candidates. Review and select their real owners '
             'before attaching any nickname to a character.');
+      } else if (_task == 'references') {
+        final candidates = await _referenceResolver.resolve(
+          window: window,
+          source: widget.document.text,
+          idPrefix: idPrefix,
+          model: _model,
+        );
+        await widget.store.importNarrativeReferences(
+          candidates, widget.document.text,
+        );
+        _message('Saved ' + candidates.length.toString() +
+            ' indirect narrative references for human review. '
+            'No speech voices or speaker labels were changed.');
       } else {
         final raw = await _analyzer.analyze(window, model: _model);
         final proposed = planner.materializeProposals(
@@ -526,6 +553,15 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
                 selected: _task == 'aliases',
                 onSelected: _busy ? null : (_) => setState(() {
                   _task = 'aliases';
+                  _nextFrom = null;
+                }),
+              ),
+              ChoiceChip(
+                avatar: const Icon(Icons.account_tree_outlined, size: 18),
+                label: const Text('Resolve references'),
+                selected: _task == 'references',
+                onSelected: _busy ? null : (_) => setState(() {
+                  _task = 'references';
                   _nextFrom = null;
                 }),
               ),
@@ -711,7 +747,9 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
                   ? 'Preview and find new characters'
                   : _task == 'aliases'
                       ? 'Preview and reconcile aliases'
-                      : 'Preview and assign dialogue speakers'),
+                      : _task == 'references'
+                        ? 'Preview and resolve indirect references'
+                        : 'Preview and assign dialogue speakers'),
           ),
           if (_notice != null)
             Padding(
