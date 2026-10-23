@@ -41,6 +41,19 @@ class CastSpan {
   static String digest(String text) =>
       sha256.convert(utf8.encode(text)).toString();
 
+  /// A text selection must not split a UTF-16 surrogate pair in half.
+  /// Offsets are Dart String code units, not grapheme-cluster indices.
+  static bool validUtf16Range(String source, int start, int end) {
+    if (start < 0 || end <= start || end > source.length) return false;
+    bool splitsPair(int index) =>
+        index > 0 && index < source.length &&
+        source.codeUnitAt(index - 1) >= 0xD800 &&
+        source.codeUnitAt(index - 1) <= 0xDBFF &&
+        source.codeUnitAt(index) >= 0xDC00 &&
+        source.codeUnitAt(index) <= 0xDFFF;
+    return !splitsPair(start) && !splitsPair(end);
+  }
+
   int get length => end - start;
 
   void validate() {
@@ -77,8 +90,8 @@ class CastSpan {
     int? Function(ReadingAnchor) locate,
   ) {
     final resolved = resolvedStart(locate);
-    if (resolved == null || resolved < 0 ||
-        resolved + length > source.length) return false;
+    if (resolved == null ||
+        !validUtf16Range(source, resolved, resolved + length)) return false;
     return digest(source.substring(resolved, resolved + length))
         == sourceDigest;
   }
