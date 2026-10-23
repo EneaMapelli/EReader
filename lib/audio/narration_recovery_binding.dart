@@ -45,7 +45,10 @@ class NarrationRecoveryBinding {
   void _onPlayerChanged() {
     if (_disposed) return;
     final player = _player;
-    if (player != null && !player.isPlaying) {
+    if (player != null && player.isSettledIdle) {
+      // A seek/voice change only *looks* paused while native stop is
+      // pending. Preserve the segment checkpoint until playback truly
+      // settles, including a completion or an external transport Pause.
       store.clearSpeechRecoveryMarker(bookId);
     }
   }
