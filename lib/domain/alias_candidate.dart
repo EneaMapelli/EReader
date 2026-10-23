@@ -1,5 +1,6 @@
-import 'package:crypto/crypto.dart';
 import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 
 import 'cast_span.dart';
 import 'character_candidate.dart';
