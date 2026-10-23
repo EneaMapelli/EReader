@@ -78,7 +78,7 @@ checked on actual target devices.
 
 ## Authored tests and final integration checklist
 
-`test/audio/reader_media_handler_test.dart` contains twelve authored but
+`test/audio/reader_media_handler_test.dart` contains eighteen authored but
 **unexecuted** unit tests: metadata lifecycle, nonblocking Play and transport
 seek, remote consent denial, denied/delayed focus, serialized focus release,
 interruption without auto-resume, in-flight seek interruption, stale book
@@ -124,5 +124,19 @@ On a real Android device, once the user elects to compile:
   an explicit Continue reading tile. It never auto-plays, auto-requests
   cloud speech or promises process-death background reconstruction.
   See [Session Resume and Lifecycle](SESSION_RESUME_AND_LIFECYCLE.md).
+
+## Settled native stop and focus ownership
+
+- `ReaderPlayer.isSettledIdle` distinguishes a genuine Pause or completed
+  book from an in-flight Seek/voice switch. The foreground media handler
+  releases the audio-focus lease only once native stop is complete, while
+  retaining focus for pending automatic continuation.
+- Direct pauses originating inside the player (sleep-timer expiry, settings)
+  now release focus without requiring a duplicate Android transport request.
+- Concurrent remote Play calls cannot multiply focus grants or initiate
+  duplicate speech runs; the active lease is reused and the latest Play
+  intent prevails.
+- The existing SQLite v16 recovery marker survives temporary navigation
+  gaps. See [Audio Transition Safety](AUDIO_TRANSITION_SAFETY.md).
 
 No native build or device run is claimed by this document.
