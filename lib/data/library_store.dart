@@ -48,7 +48,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 14) {
+      if (version > 15) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -356,6 +356,16 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           db.execute('PRAGMA user_version = 14');
         });
       }
+      // Visual PDF page is deliberately separate from the extracted-text
+      // source anchor. Scanned PDFs have no read-aloud position at all.
+      if (version < 15) {
+        _transaction(db, () {
+          db.execute('ALTER TABLE books ADD COLUMN pdf_visual_page INTEGER '
+              'CHECK(pdf_visual_page IS NULL OR '
+              '(pdf_visual_page >= 1 AND pdf_visual_page <= 100000))');
+          db.execute('PRAGMA user_version = 15');
+        });
+      }
       await _migrateLegacyJson(db, support);
       _db = db;
     } catch (_) {
@@ -430,6 +440,33 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     ''', [DateTime.now().toUtc().toIso8601String(), bookId]);
     if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
       throw StateError('Cannot resume an unknown book');
+    }
+  }
+
+  /// The PDF renderer's page number, independent from speech/text offsets.
+  /// Defaults to page one for a new/legacy PDF without a visual bookmark.
+  int getPdfVisualPage(String bookId) {
+    final rows = _database.select(
+      "SELECT pdf_visual_page FROM books WHERE id = ? AND format = 'pdf'",
+      [bookId],
+    );
+    if (rows.isEmpty) throw StateError('Unknown PDF book');
+    return rows.first['pdf_visual_page'] as int? ?? 1;
+  }
+
+  /// Called only for a real page transition from the PDF viewer. This does
+  /// not change saved read-aloud anchor, timestamp, or TTS authorization.
+  void savePdfVisualPage(String bookId, int pageNumber) {
+    if (pageNumber < 1 || pageNumber > 100000) {
+      throw RangeError.range(pageNumber, 1, 100000, 'pageNumber');
+    }
+    _database.execute(
+      "UPDATE books SET pdf_visual_page = ? "
+      "WHERE id = ? AND format = 'pdf'",
+      [pageNumber, bookId],
+    );
+    if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
+      throw StateError('Unknown PDF book');
     }
   }
 
