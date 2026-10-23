@@ -224,4 +224,25 @@ void main() {
       expect(seg.text, source.substring(seg.start, seg.end));
     }
   });
+
+  test('disputed precise voices cannot revive a legacy character voice',
+      () {
+    const source = '«One voice and another voice are overlapping.»';
+    final start = source.indexOf('voice');
+    final first = accepted(source, start, start + 'voice and another'.length,
+        'mira');
+    final second = accepted(source, start + 'voice and '.length,
+        start + 'voice and another voice'.length, 'anna');
+    final result = plan(source,
+      old: [legacy(source, 0, source.length)],
+      labels: [first, second]);
+    final disputedChunks = result.coalesced.segments.where(
+      (chunk) => chunk.start >= first.start &&
+          chunk.end <= second.end).toList();
+    expect(disputedChunks, isNotEmpty);
+    expect(disputedChunks.every((chunk) =>
+        result.coalesced.speakerByStart[chunk.start] == null), isTrue);
+  });
+
+
 }
