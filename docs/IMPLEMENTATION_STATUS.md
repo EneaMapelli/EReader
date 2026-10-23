@@ -12,6 +12,7 @@
 | ER-006 TTS | System speech contract and adapter, OS voice picker, language, rate and pitch | Partial |
 | ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow, viewport-to-audio start; no word marks | Partial |
 | ER-008 Android background | Media session/background service not started | Not started |
+| ER-031 Sleep timer | Session-only 10/15/30/45/60-minute wall-clock stop, expiry cancels native speech, tests authored | Partial: fade-out and Android media integration pending |
 | ER-004/Storage issue #4 | SQLite schema v12, JSON/v1–v11 migrations, auditable character merges and casting tests (unexecuted) | Code ready for verification |
 
 ## Known constraints and gates
@@ -326,3 +327,11 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - The dual MP3 decoder now serializes pending native loads and old end-of-clip cleanup per decoder slot. Generation checks around slow native Stop and file deletion prevent an old playback finalizer from stopping or deleting a newly active source.
 - Authored **9 unexecuted navigation/voice tests** in test/audio/rapid_playback_navigation_test.dart; extended test/audio/mp3_preload_test.dart to **10 unexecuted decoder tests** including old-finalizer/new-play and late-old-load/new-MP3 isolation.
 - No additional cloud synthesis, new SQLite schema or background job. Previously transmitted audio requests may still be billable after cancellation; Flutter tests/analyzer and Windows/Android runtime tests remain postponed until final integration.
+
+## M2 — session sleep timer (2026-10-23)
+
+- Added a **10/15/30/45/60-minute sleep timer** to the in-reader playback controls. Choosing another duration replaces the old deadline, and a visible menu entry cancels it.
+- Deadline is explicitly **wall-clock time**: manual pause does not extend it. It is session-only; leaving the reader or completing the book removes it. No background service, fade-out or persistent alarm is claimed.
+- Expiry calls the existing safe `ReaderPlayer.pause()` path to invalidate the playback session **before** awaiting a native stop. A late native completion cannot advance another passage. OpenAI audio prefetch still follows existing cancellation/consent rules; already-submitted paid HTTP work may finish.
+- A configurable timer scheduler enables four deterministic, **authored but unexecuted** unit tests in `test/audio/sleep_timer_test.dart`: in-flight cancellation, replacing/cancelling deadlines, pause behavior, and natural completion/dispose.
+- Windows/Android end-to-end verification, Flutter analyzer, real TTS stop latency, screen-off timer reliability and background-session behavior remain deferred to final integration as agreed. This timer is not a substitute for Media3 background playback.
