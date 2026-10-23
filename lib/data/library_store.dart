@@ -1009,6 +1009,52 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         'WHERE $column = ?', [id]).first['n'] as int;
   }
 
+  /// Include the identity, source hash and review state of every dependent
+  /// row in the optimistic preview. Counts alone are insufficient: a speaker
+  /// label can change without affecting the number of rows.
+  Map<String, Object> _mergeReferencedSnapshot(
+      String sourceId, String targetId) => {
+    'legacy': [
+      for (final row in _database.select('''
+        SELECT book_id, start_offset, end_offset, source_sha256,
+               character_id, anchor_json
+        FROM segment_cast WHERE character_id IN (?, ?)
+        ORDER BY book_id, start_offset, end_offset
+      ''', [sourceId, targetId]))
+        [row['book_id'], row['start_offset'], row['end_offset'],
+         row['source_sha256'], row['character_id'], row['anchor_json']],
+    ],
+    'fine': [
+      for (final row in _database.select('''
+        SELECT id, start_offset, end_offset, speaker_id,
+               source_sha256, status, locked_by_user
+        FROM cast_spans WHERE speaker_id IN (?, ?) ORDER BY id
+      ''', [sourceId, targetId]))
+        [row['id'], row['start_offset'], row['end_offset'],
+         row['speaker_id'], row['source_sha256'], row['status'],
+         row['locked_by_user']],
+    ],
+    'discoveries': [
+      for (final row in _database.select('''
+        SELECT id, status, created_character_id FROM character_candidates
+        WHERE created_character_id IN (?, ?) ORDER BY id
+      ''', [sourceId, targetId]))
+        [row['id'], row['status'], row['created_character_id']],
+    ],
+    'aliasLinks': [
+      for (final row in _database.select('''
+        SELECT id, status, alias_text, suggested_character_id,
+               approved_character_id
+        FROM alias_candidates
+        WHERE suggested_character_id IN (?, ?) OR
+              approved_character_id IN (?, ?)
+        ORDER BY id
+      ''', [sourceId, targetId, sourceId, targetId]))
+        [row['id'], row['status'], row['alias_text'],
+         row['suggested_character_id'], row['approved_character_id']],
+    ],
+  };
+
   /// Recompute a full book-scoped preview without writing any cast data.
   /// The two identities must already belong to this exact book.
   CastMergePreview previewCastMerge(
@@ -1103,6 +1149,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
            voice.voiceName, voice.voiceLocale],
       ],
       'counts': counts,
+      'reference_rows': _mergeReferencedSnapshot(sourceId, targetId),
     });
     return CastMergePreview(
       source: source, target: target,
