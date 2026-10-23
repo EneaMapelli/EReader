@@ -345,4 +345,46 @@ void main() {
     expect(store.listCastCharacters(book), hasLength(2));
   });
 
+
+  test('late audit write failure rolls back voice and dialogue migrations',
+      () async {
+    const sourceText = 'Captain Mira spoke.';
+    final book = await createBook('rollback', sourceText);
+    await twoCharacters(book);
+    await store.saveCastVoice(const CastVoiceAssignment(
+      characterId: 'duplicate', providerId: 'system',
+      voiceName: 'Old-voice', voiceLocale: 'en-US',
+    ));
+    await store.saveSegmentCast(SegmentCastAssignment(
+      bookId: book, start: 0, end: 'Captain Mira'.length,
+      sourceDigest: SegmentCastAssignment.fingerprint('Captain Mira'),
+      characterId: 'duplicate',
+    ));
+    final preview = store.previewCastMerge(book, 'duplicate', 'survivor');
+    store.dispose();
+    final raw = sqlite3.open(p.join(home.path, 'library.sqlite'));
+    raw.execute('''
+      CREATE TRIGGER force_merge_audit_failure
+      BEFORE INSERT ON cast_merges
+      BEGIN SELECT RAISE(ABORT, 'forced late merge failure'); END
+    ''');
+    raw.dispose();
+    store = LibraryStore(homeDirectory: home);
+    await store.initialize();
+
+    await expectLater(store.mergeCastCharacters(CastMergeDecision(
+      bookId: book, sourceCharacterId: 'duplicate',
+      targetCharacterId: 'survivor',
+      expectedSnapshotDigest: preview.snapshotDigest,
+      providerChoices: const {},
+    )), throwsA(isA<Exception>()));
+    expect(store.listCastCharacters(book), hasLength(2));
+    expect(store.listSegmentCast(book).single.characterId, 'duplicate');
+    expect(store.listCastVoices(book).single.characterId, 'duplicate');
+    final audit = sqlite3.open(p.join(home.path, 'library.sqlite'));
+    expect(audit.select('SELECT COUNT(*) AS n FROM cast_merges')
+        .single['n'], 0);
+    audit.dispose();
+  });
+
 }
