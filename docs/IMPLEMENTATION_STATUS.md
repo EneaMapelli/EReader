@@ -269,3 +269,14 @@ See [Complex Dialogue Review](COMPLEX_DIALOGUE_REVIEW.md).
 - Checks only accepted, human-locked, source-exact precise labels and verified legacy manual segments; pending LLM labels, stale/foreign voice tags and text beyond the selected scope do not affect diagnostics.
 - Added `test/domain/dialogue_turn_inspector_test.dart` with 16 authored but not executed cases: alternating verified speakers, gaps and partial tags, overlapping conflicts, quote interruptions, multiline/unclosed quotes, narrator overrides, UTF-16, source boundaries and bounded-scan behavior.
 - No SQLite migration, API usage or background analysis. Formatting, Flutter tests, Windows/Android builds and native TTS switch checks remain deferred to final integration, per owner instruction.
+
+## M5 — paged complex-turn editor with source-safe manual labels (2026-10-23)
+
+See [Complex Dialogue Turns](COMPLEX_DIALOGUE_TURNS.md), complementing the existing read-only [Complex Dialogue Review](COMPLEX_DIALOGUE_REVIEW.md).
+
+- From Voice Cast > **Dialogues**, the new detailed-turn editor pages through EPUB chapters, PDF pages and TXT ranges in bounded 12k UTF-16 source windows (up to 100 turns per window), continuing after the last seen turn when capped.
+- It detects guillemet/curly/ASCII quotations and line-start em/en dash dialogue; marks interruptions (dash or ellipsis), unfinished/truncated turns, partial source-tag coverage, conflicting approved voices, explicit narrator and multiple confirmed speakers in one turn. It never guesses or propagates speaker identities.
+- Every status corresponds to a source-verified subspan. LLM-pending, non-locked or stale annotations cannot drive confirmed display. Original book text, UTF-16 offsets and source hashes remain unchanged.
+- Fully unlabeled **complete** turns have an explicit manual voice/narrator action. Existing LibraryStore.saveManualCastSpan enforces SHA-256, book ownership and no silently overwritten manual locks; partial/conflicted/unfinished turns remain review-only and are corrected via precise Passages editing.
+- Added **14 unexecuted domain tests** (test/domain/dialogue_turn_review_test.dart) and **3 unexecuted SQLite integration tests** (test/data/dialogue_turn_review_store_test.dart) covering punctuation, partial/switch/conflict distinctions, UTF-16, anchors, persistence, stale book source and locked-overlap rollback.
+- No schema migration or cloud call. Flutter tests, analyzer and native Windows/Android builds remain deferred until final integration as instructed.
