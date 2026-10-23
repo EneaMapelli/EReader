@@ -1027,12 +1027,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
           label: const Text('Import structured suggestions'),
           onPressed: _importProposals,
         ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.forum_outlined),
-          label: const Text('Review complex dialogue turns'),
-          onPressed: _openComplexTurnReview,
-        ),
+
         const Divider(height: 28),
         Text('New character candidates',
           style: Theme.of(context).textTheme.titleMedium),
@@ -1388,6 +1383,12 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
               onChanged: (value) => setState(
                 () => _diagnosticScopeId = value,
               ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.edit_note_outlined),
+              label: const Text('Open detailed dialogue turn editor'),
+              onPressed: _openComplexTurnReview,
             ),
             const SizedBox(height: 8),
             Text(report.turns.length.toString() +
