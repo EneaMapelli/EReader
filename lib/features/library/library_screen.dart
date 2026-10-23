@@ -2,12 +2,14 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/library_store.dart';
+import '../../audio/reader_media_handler.dart';
 import '../../domain/book.dart';
 import '../reader/reader_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({super.key, required this.store});
+  const LibraryScreen({super.key, required this.store, this.mediaHandler});
   final LibraryStore store;
+  final ReaderMediaHandler? mediaHandler;
 
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
@@ -47,7 +49,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Future<void> _open(BookRecord book) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) => ReaderScreen(book: book, store: widget.store),
+        builder: (_) => ReaderScreen(book: book, store: widget.store,
+            mediaHandler: widget.mediaHandler),
       ),
     );
     if (mounted) setState(() {});
