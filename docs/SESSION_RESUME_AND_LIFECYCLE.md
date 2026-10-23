@@ -82,7 +82,7 @@ and cost counters. Check Windows and Android migrations under SQLite WAL.
 The app is **not** guaranteed to outlive Android process termination.
 It does not automatically reconstruct an engine after process death, recover
 unfinished cloud requests, persist the timer deadline, or restart narration.
-The PDF page renderer still needs page-accurate visual restoration. Android
+PDF rendered-page restoration is now implemented as source via separate SQLite v15 `pdf_visual_page` and `pdfrx` callbacks; **device behavior remains unverified** (see [PDF Visual Resume](PDF_VISUAL_RESUME.md)). Android
 13+ notification behavior, vendor battery policies, media service shutdown,
 Bluetooth controls and real audio focus timing require physical device tests.
 
