@@ -247,3 +247,14 @@ See [Local Antecedent Cues](LOCAL_ANTECEDENT_CUES.md).
 - Unicode whole-word matching rejects substrings inside longer names; invalid original source, stale accepted references and cross-book cast entries are excluded. The read window is bounded at the current mention and does not scan future text.
 - Added eleven unexecuted `test/llm/narrative_antecedent_finder_test.dart` tests and an integration assertion in `test/data/narrative_reference_test.dart` that cast merging preserves usable reviewed antecedents.
 - This is an ephemeral offline review aid using existing cast and review data: **no schema migration, remote request or API quota change**. Tests and native builds still deferred to final integration by owner.
+
+## M5 — conversation speaker cues vs narrative referents (2026-10-23)
+
+Protocol: [Conversation Speaker Context](CONVERSATION_SPEAKER_CONTEXT.md).
+
+- Source-verified previous dialogue speakers now appear separately from earlier character names/aliases and approved narrative references during manual indirect-reference review. A speaker is not the automatic referent of a pronoun.
+- The offline inspector reads only approved, human-locked fine-grained spans and SHA-256-aligned manually attributed legacy segments from the same book, restricted to the prior 1,200 UTF-16 units and current chapter/page/TXT scope; at most five excerpts of up to 180 characters are displayed.
+- Earlier multi-speaker scenes and contradictory full-range accepted speaker attributions trigger visible warnings. Opposing overlapping labels are suppressed rather than ranked. Missing/stale/foreign, proposed and post-reference labels cannot become cues.
+- The review UI still starts with no referent selected; no speaker assignment, cast identity, consent setting or voice changes as a side effect.
+- Authored **12 unexecuted tests** in test/llm/conversation_speaker_inspector_test.dart covering source integrity, provider-independent labels, overlaps, anchors, lookback, duplicates, cross-book isolation and the speaker-referent distinction.
+- No SQLite migration, remote API call or additional quota is needed. Flutter/Dart tests and builds remain postponed until final integration.
