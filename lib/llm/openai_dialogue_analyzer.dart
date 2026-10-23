@@ -229,7 +229,12 @@ Do not infer any chapter beyond the provided excerpt.
     var historyChars = 0;
     final checked = <String>{};
     for (final mention in window.historicalMentions) {
-      if (!mention.isValidFor(window) ||
+      if (!mention.isValidFor(
+          selectedScopeId: window.scope.id,
+          selectedScopeStart: window.scope.start,
+          spoilerCeiling: window.effectiveCeiling,
+          allowedCast: window.cast,
+        ) ||
           !checked.add(mention.characterId + ':' +
               mention.mentionStart.toString())) {
         throw const FormatException(
