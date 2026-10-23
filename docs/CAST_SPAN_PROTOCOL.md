@@ -56,7 +56,7 @@ The source fingerprint/anchor is checked again at runtime; even after migration,
 
 ## Remaining limitations
 
-The user currently selects a substring within a displayed segment. Cross-paragraph spans, precise multi-line selection inside the main reader, nested quotations, prosody, evidence highlighting and automated speaker attribution still need implementation. Future LLM analysis must require explicit scope/privacy authorization and separate cost controls; the current app merely parses/reviews externally prepared JSON.
+The user currently selects a substring within a displayed segment. Cross-paragraph spans, precise multi-line selection inside the main reader, nested quotations, prosody, evidence highlighting and automated speaker attribution still need implementation. An optional OpenAI Responses analysis adapter now exists behind explicit per-book consent and individual excerpt confirmation. It generates only locally verified pending proposals; see LLM_DIALOGUE_ANALYSIS.md for the new request and budget path.
 
 ## Tests authored, not executed
 
