@@ -46,6 +46,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   NarrationRecoveryBinding? _recoveryBinding;
   DocumentContent? _document;
   List<EpubChapter> _chapters = const [];
+  Map<int, EpubChapter> _chapterStarts = const {};
   List<PronunciationRule> _pronunciationRules = const [];
   Map<String, String> _castNames = const {};
   Map<int, String?> _resolvedSpeakerByStart = const {};
@@ -184,6 +185,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         _recoveryBinding = recoveryBinding;
         _document = document;
         _chapters = chapters;
+        _chapterStarts = {
+          for (final chapter in chapters) chapter.segmentIndex: chapter,
+        };
         _loading = false;
       });
     } catch (error) {
@@ -761,6 +765,9 @@ class _ReaderScreenState extends State<ReaderScreen>
                                       .toInt(),
                                   itemBuilder: (context, index) {
                                     final segment = player.segments[index];
+                                    final heading = isStandaloneChapterHeading(
+                                      _chapterStarts[index], segment,
+                                    );
                                     final selected =
                                         index == player.currentIndex;
                                     return InkWell(
@@ -777,11 +784,17 @@ class _ReaderScreenState extends State<ReaderScreen>
                                                   .primaryContainer
                                               : null,
                                         ),
-                                        child: Text(
-                                          segment.text,
-                                          style: TextStyle(
-                                            fontSize: _fontSize,
-                                            height: 1.6,
+                                        child: Semantics(
+                                          header: heading,
+                                          child: Text(
+                                            segment.text,
+                                            style: TextStyle(
+                                              fontSize: heading
+                                                  ? _fontSize + 5 : _fontSize,
+                                              fontWeight: heading
+                                                  ? FontWeight.w600 : null,
+                                              height: heading ? 1.3 : 1.6,
+                                            ),
                                           ),
                                         ),
                                       ),
