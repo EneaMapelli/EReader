@@ -74,7 +74,8 @@ void main() {
 
   test('bounded lookback ignores distant names and long excerpts', () {
     final source =
-        'Mira talked.' + ('a' * (NarrativeAntecedentFinder.maxLookback + 45)) +
+        'Mira talked.' +
+        List.filled(NarrativeAntecedentFinder.maxLookback + 45, 'a').join() +
         ' She started walking.';
     final result = search(source, 'She');
     expect(result.cues, isEmpty);
