@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 
 import 'reading_anchor.dart';
 import 'speech_segment.dart';
+import 'voice_cast.dart';
 
 /// Exact earlier passage cited in support of a suggested speaker.
 /// This is provenance for review, not proof that the inference is correct.
@@ -158,10 +159,17 @@ PreparedCastSpeech prepareCastSpeech({
   required List<SpeechSegment> base,
   required List<CastSpan> annotations,
   required int? Function(ReadingAnchor) offsetFromAnchor,
+  String? bookId,
+  List<SegmentCastAssignment> legacyAssignments = const [],
+  Set<String>? knownCharacterIds,
 }) {
   final usable = <({int start, int end, String? speaker})>[];
   for (final span in annotations) {
     if (span.status != CastSpanStatus.accepted ||
+        !span.lockedByUser ||
+        (bookId != null && span.bookId != bookId) ||
+        (span.speakerId != null && knownCharacterIds != null &&
+            !knownCharacterIds.contains(span.speakerId)) ||
         !span.matchesSource(source, offsetFromAnchor)) continue;
     final actualStart = span.resolvedStart(offsetFromAnchor)!;
     usable.add((
@@ -189,6 +197,45 @@ PreparedCastSpeech prepareCastSpeech({
       if (!conflicts.contains(i)) usable[i],
   ];
 
+  // Legacy manually attributed *ranges* are also source-hashed, not
+  // tied to the current TTS chunk boundaries. A previously labelled long
+  // quotation must retain its voice when the chunker splits it in two.
+  final legacy = <({int start, int end, String speaker})>[];
+  if (legacyAssignments.isNotEmpty && bookId == null) {
+    throw const FormatException('Legacy speech casting needs a book ID');
+  }
+  for (final mark in legacyAssignments) {
+    if (mark.bookId != bookId ||
+        (knownCharacterIds != null &&
+            !knownCharacterIds.contains(mark.characterId))) continue;
+    final start = mark.anchor == null
+        ? mark.start : offsetFromAnchor(mark.anchor!);
+    if (start == null) continue;
+    final end = start + mark.end - mark.start;
+    if (!CastSpan.validUtf16Range(source, start, end) ||
+        SegmentCastAssignment.fingerprint(
+            source.substring(start, end)) != mark.sourceDigest) continue;
+    legacy.add((start: start, end: end, speaker: mark.characterId));
+  }
+  legacy.sort((a, b) {
+    final byStart = a.start.compareTo(b.start);
+    return byStart != 0 ? byStart : a.end.compareTo(b.end);
+  });
+  // Conflicting or duplicated legacy intervals are not authority; precise
+  // human-approved spans still win over every legacy assignment.
+  final rejectedLegacy = <int>{};
+  for (var i = 0; i < legacy.length; i++) {
+    for (var j = i + 1; j < legacy.length; j++) {
+      if (legacy[j].start >= legacy[i].end) break;
+      rejectedLegacy.add(i);
+      rejectedLegacy.add(j);
+    }
+  }
+  final safeLegacy = [
+    for (var i = 0; i < legacy.length; i++)
+      if (!rejectedLegacy.contains(i)) legacy[i],
+  ];
+
   final pieces = <SpeechSegment>[];
   final speakerByStart = <int, String?>{};
   var firstPossible = 0;
@@ -204,11 +251,21 @@ PreparedCastSpeech prepareCastSpeech({
       firstPossible++;
     }
     final local = <({int start, int end, String? speaker})>[];
+    final localLegacy = <({int start, int end, String speaker})>[];
     final boundaries = <int>{baseSegment.start, baseSegment.end};
     for (var j = firstPossible; j < accepted.length; j++) {
       final active = accepted[j];
       if (active.start >= baseSegment.end) break;
       local.add(active);
+      if (active.start > baseSegment.start &&
+          active.start < baseSegment.end) boundaries.add(active.start);
+      if (active.end > baseSegment.start &&
+          active.end < baseSegment.end) boundaries.add(active.end);
+    }
+    for (final active in safeLegacy) {
+      if (active.start >= baseSegment.end) break;
+      if (active.end <= baseSegment.start) continue;
+      localLegacy.add(active);
       if (active.start > baseSegment.start &&
           active.start < baseSegment.end) boundaries.add(active.start);
       if (active.end > baseSegment.start &&
@@ -225,10 +282,22 @@ PreparedCastSpeech prepareCastSpeech({
       }
       if (from >= to) continue;
       pieces.add(SpeechSegment(from, to, source.substring(from, to)));
+      var assignedFine = false;
       for (final active in local) {
         if (from >= active.start && to <= active.end) {
           speakerByStart[from] = active.speaker;
+          assignedFine = true;
           break;
+        }
+      }
+      // An explicit narrator label is a present-null and masks the legacy
+      // character assignment, including across multiple base chunks.
+      if (!assignedFine) {
+        for (final active in localLegacy) {
+          if (from >= active.start && to <= active.end) {
+            speakerByStart[from] = active.speaker;
+            break;
+          }
         }
       }
     }
