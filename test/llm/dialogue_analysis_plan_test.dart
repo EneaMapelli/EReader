@@ -140,7 +140,7 @@ void main() {
       start: start, end: source.indexOf(' FUTURE REVEAL'),
     );
     final input = [
-      const SpeechSegment(0, earlier.length, earlier),
+      SpeechSegment(0, earlier.length, earlier),
       SpeechSegment(start, start + setup.length, setup),
       SpeechSegment(spokenStart, spokenEnd, speech),
       SpeechSegment(source.indexOf('FUTURE'), source.length, 'FUTURE REVEAL.'),
@@ -176,7 +176,7 @@ void main() {
       content: const DocumentContent(title: 'Cutoff', text: source),
       scope: scope,
       segments: [
-        const SpeechSegment(0, intro.length, intro),
+        SpeechSegment(0, intro.length, intro),
         SpeechSegment(q, source.length, quote),
       ],
       cast: known,
@@ -198,7 +198,7 @@ void main() {
         id: 'scene', title: 'Scene', start: 0, end: source.length,
       ),
       segments: [
-        const SpeechSegment(0, intro.length, intro),
+        SpeechSegment(0, intro.length, intro),
         SpeechSegment(q, source.length, quote),
       ],
       cast: known,
