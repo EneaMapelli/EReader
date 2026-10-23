@@ -591,7 +591,19 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   void _selectFromVisualTap(int index) {
-    unawaited(_select(index).catchError(
+    Future<void> navigate() async {
+      final player = _player;
+      // EPUB is an explicit reading-location selection, not permission
+      // to re-synthesize a new paragraph while narration is active.
+      // Also cancel any pending seek/voice auto-resume before seeking.
+      if (widget.book.format == BookFormat.epub &&
+          player != null && !player.isSettledIdle) {
+        await player.pause();
+      }
+      if (!mounted || _player != player) return;
+      await _select(index);
+    }
+    unawaited(navigate().catchError(
       (Object error, StackTrace stack) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
