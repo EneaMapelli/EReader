@@ -158,7 +158,10 @@ class _ReaderScreenState extends State<ReaderScreen>
         bookId: widget.book.id,
         title: widget.book.title,
         canStart: () async {
-          if (prefs.providerId != OpenAiSpeechEngine.providerId) return true;
+          // Check the active adapter on every external Play, not the
+          // preferences snapshot captured when the screen was first built.
+          if (player.currentPreferences.providerId !=
+              OpenAiSpeechEngine.providerId) return true;
           return widget.store.getConsent(
             widget.book.id, OpenAiSpeechEngine.providerId,
           ).allowed;
