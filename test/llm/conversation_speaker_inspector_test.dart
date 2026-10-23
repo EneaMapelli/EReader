@@ -94,6 +94,18 @@ void main() {
     expect(got.turns, isEmpty);
   });
 
+  test('a currently speaking character does not become pronoun referent',
+      () {
+    const text = '«She is not here», said Mira.';
+    final speakingLabel = span(text, '«She is not here»', 'mira');
+    // The label legitimately describes the SPEAKER of this ongoing quote.
+    // Because it has not ended before the pronoun, it is not a historical
+    // antecedent, nor permission to infer who "She" refers to.
+    final review = inspect(text, 'She', fine: [speakingLabel]);
+    expect(review.turns, isEmpty);
+    expect(review.conflictingLabels, isFalse);
+  });
+
   test('manual legacy segment is accepted only with exact source digest', () {
     const text = 'Mira: «Stop!» Then she turned.';
     final start = text.indexOf('«Stop!»');
