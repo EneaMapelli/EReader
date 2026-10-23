@@ -25,6 +25,7 @@ import '../../domain/cast_span.dart';
 import 'voice_cast_screen.dart';
 import 'pronunciation_screen.dart';
 import 'reading_tools.dart';
+import 'epub_chapter_navigation.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -44,6 +45,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   ReaderPlayer? _player;
   NarrationRecoveryBinding? _recoveryBinding;
   DocumentContent? _document;
+  List<EpubChapter> _chapters = const [];
   List<PronunciationRule> _pronunciationRules = const [];
   Map<String, String> _castNames = const {};
   Map<int, String?> _resolvedSpeakerByStart = const {};
@@ -86,7 +88,10 @@ class _ReaderScreenState extends State<ReaderScreen>
       // legacy whole-passage and precise manual tags as verified ranges
       // BEFORE merging short fragments for the same voice/quote group.
       final quoted = splitQuotedSegmentsWithRegions(
-          segmentSpeech(document.text));
+        widget.book.format == BookFormat.epub
+            ? segmentEpubSpine(document)
+            : segmentSpeech(document.text),
+      );
       final people = widget.store.listCastCharacters(widget.book.id);
       final assigned = prepareCastSpeech(
         source: document.text,
@@ -102,8 +107,15 @@ class _ReaderScreenState extends State<ReaderScreen>
         chunks: assigned.segments,
         quotedChunks: quoted,
         speakerByStart: assigned.speakerByStart,
+        hardBoundaries: widget.book.format == BookFormat.epub
+            ? [for (final range in document.epubSpineRanges.skip(1))
+                range.start]
+            : const [],
       );
       final chunks = prepared.segments;
+      final chapters = widget.book.format == BookFormat.epub
+          ? buildEpubChapters(document, chunks)
+          : const <EpubChapter>[];
       final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
       final recoveryBinding = NarrationRecoveryBinding(
         store: widget.store,
@@ -171,6 +183,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         _player = player;
         _recoveryBinding = recoveryBinding;
         _document = document;
+        _chapters = chapters;
         _loading = false;
       });
     } catch (error) {
@@ -328,6 +341,77 @@ class _ReaderScreenState extends State<ReaderScreen>
       });
     }
     setState(() {});
+  }
+
+  int get _currentChapterIndex {
+    final player = _player;
+    if (player == null || player.segments.isEmpty || _chapters.isEmpty) {
+      return -1;
+    }
+    final cursor = player.currentIndex
+        .clamp(0, player.segments.length - 1).toInt();
+    return chapterIndexForOffset(
+      _chapters, player.segments[cursor].start,
+    );
+  }
+
+  /// Chapter navigation never starts cloud TTS or auto-resumes interrupted
+  /// playback. Persist a stable spine anchor through the existing _select.
+  Future<void> _jumpToChapterIndex(int chapterIndex) async {
+    final player = _player;
+    if (player == null || chapterIndex < 0 ||
+        chapterIndex >= _chapters.length) return;
+    try {
+      _saveVisualPositionTimer?.cancel();
+      if (player.isPlaying) await player.pause();
+      if (!mounted || _player != player) return;
+      await _select(_chapters[chapterIndex].segmentIndex);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot change chapter: $error')),
+      );
+    }
+  }
+
+  Future<void> _openChapterDirectory() async {
+    if (_chapters.isEmpty) return;
+    final current = _currentChapterIndex;
+    final chosen = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: FractionallySizedBox(
+          heightFactor: 0.65,
+          child: Column(
+            children: [
+              const ListTile(title: Text('EPUB chapters')),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _chapters.length,
+                  itemBuilder: (_, index) {
+                    final chapter = _chapters[index];
+                    return ListTile(
+                      leading: index == current
+                          ? const Icon(Icons.menu_book)
+                          : const Icon(Icons.article_outlined),
+                      title: Text(chapter.title),
+                      subtitle: Text(
+                          'Chapter ${index + 1} of ${_chapters.length}'),
+                      selected: index == current,
+                      onTap: () => Navigator.of(sheetContext).pop(index),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted || chosen == null) return;
+    await _jumpToChapterIndex(chosen);
   }
 
   Future<void> _searchInBook() async {
@@ -535,6 +619,12 @@ class _ReaderScreenState extends State<ReaderScreen>
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
+          if (widget.book.format == BookFormat.epub && _chapters.isNotEmpty)
+            IconButton(
+              tooltip: 'Table of contents: EPUB spine chapters',
+              icon: const Icon(Icons.view_list),
+              onPressed: _openChapterDirectory,
+            ),
           IconButton(
             icon: const Icon(Icons.tune),
             tooltip: 'TTS engines, models and cloud consent',
@@ -708,6 +798,40 @@ class _ReaderScreenState extends State<ReaderScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_chapters.isNotEmpty) ...[
+                Builder(builder: (context) {
+                  final index = _currentChapterIndex;
+                  if (index < 0) return const SizedBox.shrink();
+                  return Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'Previous EPUB chapter',
+                        onPressed: index > 0
+                            ? () => _jumpToChapterIndex(index - 1)
+                            : null,
+                        icon: const Icon(Icons.first_page),
+                      ),
+                      Expanded(
+                        child: Text(
+                          '${_chapters[index].title} '
+                          '(${index + 1}/${_chapters.length})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Next EPUB chapter',
+                        onPressed: index + 1 < _chapters.length
+                            ? () => _jumpToChapterIndex(index + 1)
+                            : null,
+                        icon: const Icon(Icons.last_page),
+                      ),
+                    ],
+                  );
+                }),
+              ],
               Text('Segment ${player.currentIndex + 1} of $count',
                   style: Theme.of(context).textTheme.labelMedium),
               if (player.activeSpeakerId != null)
