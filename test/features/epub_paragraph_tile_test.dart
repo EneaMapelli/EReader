@@ -17,6 +17,20 @@ const spokenParagraph = EpubVisualBlock(
   ],
 );
 
+List<TextSpan> leafTextSpans(InlineSpan source) {
+  final result = <TextSpan>[];
+  void visit(InlineSpan span) {
+    if (span is TextSpan) {
+      if (span.text != null && span.text!.isNotEmpty) result.add(span);
+      for (final child in span.children ?? const <InlineSpan>[]) {
+        visit(child);
+      }
+    }
+  }
+  visit(source);
+  return result;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -36,7 +50,7 @@ void main() {
       matching: find.byType(RichText),
     );
     final rich = tester.widget<RichText>(target);
-    final spans = (rich.text as TextSpan).children!.cast<TextSpan>();
+    final spans = leafTextSpans(rich.text);
     expect(spans.map((s) => s.text).join(), 'Hello world');
     expect(spans[0].style?.backgroundColor, isNull);
     expect(spans[1].recognizer, isNull,
@@ -97,7 +111,7 @@ void main() {
       of: find.byType(EpubParagraphTile),
       matching: find.byType(RichText),
     ));
-    final span = (rich.text as TextSpan).children!.single as TextSpan;
+    final span = leafTextSpans(rich.text).single;
     (span.recognizer! as TapGestureRecognizer).onTap!();
     expect(tapped, [5]);
     expect(rich.text.toPlainText(), 'Another');
