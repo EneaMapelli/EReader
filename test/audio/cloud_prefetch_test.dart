@@ -65,9 +65,16 @@ class _Http implements SpeechHttpTransport {
   void dispose() {}
 }
 
-class _Output implements SynthesizedAudioOutput {
+class _Output implements PreloadableSynthesizedAudioOutput {
   final clips = <Uint8List>[];
+  final warmed = <Uint8List>[];
+  final warmSpeeds = <double>[];
   final awaiting = <Completer<void>>[];
+  @override
+  Future<void> prepareNext(Uint8List bytes, {required double speed}) async {
+    warmed.add(bytes);
+    warmSpeeds.add(speed);
+  }
   @override
   Future<void> play(Uint8List bytes, {required double speed}) {
     clips.add(bytes);
@@ -178,7 +185,9 @@ void main() {
     expect(http.requests[1].text, 'Beta');
     expect(meter.used, 9);
     http.complete(1);
-    await _until(() => meter.used == 9);
+    await _until(() => output.warmed.length == 1);
+    expect(output.warmSpeeds, [1.0]);
+    expect(output.warmed.single, [2, 10, 20]);
     expect(output.clips, hasLength(1),
         reason: 'Prebuffer must not play audio ahead of the active segment');
     output.finish(0);
