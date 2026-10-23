@@ -241,6 +241,19 @@ class ReaderMediaHandler extends BaseAudioHandler {
     }));
   }
 
+  /// Swiping away the Android task is a deliberate end of the active
+  /// reading session. Never synthesize an orphaned book after task removal.
+  @override
+  Future<void> onTaskRemoved() async {
+    await pause();
+    detach();
+  }
+
+  /// Notification dismissal must not silently auto-resume narration.
+  /// Keep the reader binding if the app UI is still open.
+  @override
+  Future<void> onNotificationDeleted() => pause();
+
   /// Release native stream listeners only during application shutdown.
   Future<void> close() async {
     if (_closed) return;
