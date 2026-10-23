@@ -33,9 +33,13 @@ Only the immediately following clip can occupy the standby slot; different futur
 
 - `lib/audio/mp3_playback.dart`: optional `PreloadableSynthesizedAudioOutput`; two reusable `Mp3Decoder` backends with local standby load, private temporary MP3 file handling, source/speed matching, serialization, stop/dispose invalidation and testable factory injection.
 - `lib/audio/openai_speech_engine.dart`: after one ahead cloud synthesis succeeds, optional decoder warm-up of the **same** bytes and next-voice playback speed; a native warm-up error cannot trigger another paid synthesis.
-- `test/audio/mp3_preload_test.dart`: **8 unexecuted tests** for idle standby preparation, single replay without reloading, no prefetch before Play, one bounded standby, speed mismatch recovery, Stop/dispose cleanup, in-flight-load cancellation and invalid clip validation.
+- `test/audio/mp3_preload_test.dart`: **10 unexecuted tests** for idle standby preparation, single replay without reloading, no prefetch before Play, one bounded standby, speed mismatch recovery, Stop/dispose cleanup, in-flight-load cancellation and invalid clip validation.
 - `test/audio/cloud_prefetch_test.dart`: existing **7 unexecuted mocked cloud integration tests**, extended with an assertion that the prepared cloud MP3 is handed to the decoder warm-up capability. HTTP and audio output remain mocked; no paid network call is made by tests.
 
 ## Deferred release gates
 
 Run Dart formatter/analyzer and all Flutter tests, native Windows and Android builds, and manual/audio-driver tests for switching time, app backgrounding, read-along synchronization, revocation, unexpected interruptions, Windows file locks and stale temporary files. Do not advertise zero-gap output without measured evidence.
+
+## Rapid navigation and late completion safety
+
+Decoder slot loads and end-of-clip native Stop operations are now serialized, with generation checks and expected-file checks preventing an older delayed operation from mutating the next live MP3 source. A fast Seek or Stop does not permit stale audio to play, and a changed speed/voice forces the appropriate reload and speaker selection. Extended the decoder mock regression suite to 10 **authored, unexecuted** tests. See [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
