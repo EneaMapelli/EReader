@@ -50,7 +50,7 @@ Parser validation rejects book/version mismatches, unknown speaker IDs, repeated
 
 ## Persistence and compatibility
 
-SQLite schema v7 adds cast_spans. Migration preserves preexisting SQLite v6 character roster, provider voice IDs, legacy whole-segment cast, source anchors, progress, reading bookmarks, cloud consent/usage, pronunciations and library metadata.
+SQLite schema v7 adds cast_spans; schema v9 adds optional evidence_json (exact earlier-source start/end/hash) to each span. Migration preserves preexisting SQLite v6 character roster, provider voice IDs, legacy whole-segment cast, source anchors, progress, reading bookmarks, cloud consent/usage, pronunciations and library metadata.
 
 The source fingerprint/anchor is checked again at runtime; even after migration, obsolete attribution never silently migrates to a different character or book.
 
@@ -63,3 +63,8 @@ The user currently selects a substring within a displayed segment. Cross-paragra
 - test/domain/cast_span_test.dart: narrator/character partition, exact source offsets, surrogate safety, stale digest/anchors and overlapping ranges.
 - test/domain/llm_cast_proposals_test.dart: schema, source hash, unknown speakers, confidence and untrusted input rejection.
 - test/data/library_store_test.dart: v7 schema migration, pending-only LLM import, approved/manual precedence, persistence and no-overlap transactions.
+
+
+## Grounded earlier-context evidence (2026-10-23)
+
+The Responses adapter optionally obtains `evidence_segment_index` and `evidence_quote`. The evidence index refers exclusively to the user's explicitly selected **preceding context** within the selected chapter/page/TXT range; it cannot point at a future excerpt or another chapter. EReader locally checks that the cited excerpt occurs exactly once, computes its source offset and SHA-256, and saves only a source reference in SQLite v9. The Review tab displays the original cited text and refuses approval if either quote or evidence becomes stale. Evidence and confidence are not proof of the attribution, so manual review remains mandatory. The default analysis includes **no context** and **no character identities** until the user explicitly chooses them; the saved reading progress is an active spoiler ceiling by default. See [LLM Dialogue Analysis](LLM_DIALOGUE_ANALYSIS.md).
