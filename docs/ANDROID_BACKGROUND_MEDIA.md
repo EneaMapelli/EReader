@@ -139,4 +139,15 @@ On a real Android device, once the user elects to compile:
 - The existing SQLite v16 recovery marker survives temporary navigation
   gaps. See [Audio Transition Safety](AUDIO_TRANSITION_SAFETY.md).
 
+## Native Stop timeout
+
+- An 8-second default bounded wait allows Android Pause/Seek commands to
+  return an error if a provider does not acknowledge native Stop.
+- The original Stop is still pending, and **no new Play/focus grant** is
+  authorized until it confirms success. An outright Stop failure keeps
+  that player locked against new speech.
+- A hung engine is not killed or guaranteed silent by this timeout.
+  A reader closed in this uncertain state preserves its crash-recovery
+  checkpoint. See [Native Stop Timeout](NATIVE_STOP_TIMEOUT.md).
+
 No native build or device run is claimed by this document.
