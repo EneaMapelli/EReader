@@ -41,9 +41,8 @@ class ReaderMediaHandler extends BaseAudioHandler {
 
   ReaderPlayer? _player;
   Future<bool> Function()? _canStart;
-  String? _bookId;
-  String? _bookTitle;
   int _bindingEpoch = 0;
+  int _commandEpoch = 0;
   bool _closed = false;
 
   bool get hasActiveBook => _player != null;
@@ -58,23 +57,21 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (_closed) throw StateError('Media handler has been closed');
     detach();
     _player = player;
-    _bookId = bookId;
-    _bookTitle = title;
     _canStart = canStart;
     player.addListener(_onPlayerChanged);
-    mediaItem.add(MediaItem(id: bookId, title: title, album: 'EReader'));
-    queue.add([mediaItem.value!]);
+    final bookItem = MediaItem(id: bookId, title: title, album: 'EReader');
+    mediaItem.add(bookItem);
+    queue.add([bookItem]);
     _publish();
   }
 
   void detach([ReaderPlayer? expected]) {
     if (expected != null && !identical(expected, _player)) return;
     _bindingEpoch++;
+    _commandEpoch++;
     _player?.removeListener(_onPlayerChanged);
     _player = null;
     _canStart = null;
-    _bookId = null;
-    _bookTitle = null;
     queue.add(const []);
     mediaItem.add(null);
     _publish();
@@ -96,8 +93,8 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (_closed) return;
     final player = _player;
     if (player == null) {
-      playbackState.add(const PlaybackState(
-        controls: [],
+      playbackState.add(PlaybackState(
+        controls: const [],
         processingState: AudioProcessingState.idle,
         playing: false,
       ));
@@ -148,6 +145,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (_closed || player == null || player.isPlaying ||
         player.segments.isEmpty) return;
     final epoch = _bindingEpoch;
+    final command = _commandEpoch;
 
     // Remote headset/lock-screen controls must honor the same per-book
     // consent gate as the in-reader Play button.
@@ -155,13 +153,14 @@ class ReaderMediaHandler extends BaseAudioHandler {
       throw StateError('Cloud speech consent is not enabled for this book');
     }
     if (_closed || !identical(_player, player) ||
-        epoch != _bindingEpoch) return;
+        epoch != _bindingEpoch || command != _commandEpoch) return;
     if (!await _claimAudioFocus()) {
       throw StateError('Cannot obtain Android audio focus');
     }
     if (_closed || !identical(_player, player) ||
-        epoch != _bindingEpoch) {
-      await _releaseAudioFocus();
+        epoch != _bindingEpoch || command != _commandEpoch) {
+      // detach/pause/new commands own any required focus release.
+      // A stale play must not release a newer successful play's focus.
       return;
     }
     // ReaderPlayer.play() finishes only at the end of the entire book.
@@ -175,6 +174,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
 
   @override
   Future<void> pause() async {
+    _commandEpoch++;
     final player = _player;
     if (player == null) return;
     await player.pause();
@@ -189,6 +189,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
 
   @override
   Future<void> skipToNext() async {
+    _commandEpoch++;
     final player = _player;
     if (player == null || player.segments.isEmpty) return;
     await player.seekTo(player.currentIndex + 1);
@@ -196,6 +197,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
 
   @override
   Future<void> skipToPrevious() async {
+    _commandEpoch++;
     final player = _player;
     if (player == null || player.segments.isEmpty) return;
     await player.seekTo(player.currentIndex - 1);
@@ -204,6 +206,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
   /// Conservative policy for phone calls, competing audio and unplugged
   /// headphones: pause; never resume on a subsequent focus-gain event.
   void handleSystemInterruption() {
+    _commandEpoch++;
     final player = _player;
     if (player == null || !player.isPlaying) return;
     unawaited(pause().catchError((Object _, StackTrace __) {
