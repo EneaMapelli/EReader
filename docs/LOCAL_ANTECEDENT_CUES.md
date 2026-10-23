@@ -33,3 +33,8 @@ Readers may select a person by choosing a displayed cue or by selecting another 
 A nearby name does **not** prove the identity of a pronoun, title or description. Cases involving quoted dialogue, misleading narrators, multiple people with the same role, unreliable narrative chronology, split chapters or changed extraction may still be ambiguous. The current approach does not perform syntactic parsing or create automatic character biographies. If no cue is found, the reviewer can still choose a known identity or reject the suggestion.
 
 Tests and native integration are still pending. PR #1 remains draft.
+
+
+## Conversation turn context alongside name cues
+
+The reviewer also sees a separate, source-checked list of *who spoke earlier* in already-approved dialogue attributions. This is not the same as finding which person a pronoun refers to; no voice is selected from proximity, and conflicting overlapping speaker tags are suppressed. See [Conversation Speaker Context](CONVERSATION_SPEAKER_CONTEXT.md).
