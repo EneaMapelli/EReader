@@ -89,7 +89,7 @@ class CastSpan {
 class PreparedCastSpeech {
   const PreparedCastSpeech(this.segments, this.speakerByStart);
   final List<SpeechSegment> segments;
-  final Map<int, String> speakerByStart;
+  final Map<int, String?> speakerByStart;
 }
 
 /// Break base narration into original-text slices at manual speaker edges.
@@ -101,14 +101,13 @@ PreparedCastSpeech prepareCastSpeech({
   required List<CastSpan> annotations,
   required int? Function(ReadingAnchor) offsetFromAnchor,
 }) {
-  final usable = <({int start, int end, String speaker})>[];
+  final usable = <({int start, int end, String? speaker})>[];
   for (final span in annotations) {
     if (span.status != CastSpanStatus.accepted ||
-        span.speakerId == null ||
         !span.matchesSource(source, offsetFromAnchor)) continue;
     final start = span.resolvedStart(offsetFromAnchor)!;
     usable.add((start: start, end: start + span.length,
-        speaker: span.speakerId!));
+        speaker: span.speakerId));
   }
   usable.sort((a, b) {
     final start = a.start.compareTo(b.start);
@@ -127,13 +126,13 @@ PreparedCastSpeech prepareCastSpeech({
       conflicts.add(j);
     }
   }
-  final accepted = <({int start, int end, String speaker})>[
+  final accepted = <({int start, int end, String? speaker})>[
     for (var i = 0; i < usable.length; i++)
       if (!conflicts.contains(i)) usable[i],
   ];
 
   final output = <SpeechSegment>[];
-  final speakers = <int, String>{};
+  final speakers = <int, String?>{};
   var firstPossible = 0;
   for (final segment in base) {
     if (segment.start < 0 || segment.end > source.length ||
@@ -145,7 +144,7 @@ PreparedCastSpeech prepareCastSpeech({
         accepted[firstPossible].end <= segment.start) {
       firstPossible++;
     }
-    final nearby = <({int start, int end, String speaker})>[];
+    final nearby = <({int start, int end, String? speaker})>[];
     final cuts = <int>{segment.start, segment.end};
     for (var candidate = firstPossible; candidate < accepted.length;
         candidate++) {
