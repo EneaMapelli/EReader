@@ -17,6 +17,7 @@ import '../domain/cast_span.dart';
 import '../domain/character_candidate.dart';
 import '../domain/alias_candidate.dart';
 import '../domain/cast_merge.dart';
+import '../domain/narrative_reference.dart';
 import '../domain/llm_analysis_consent.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
@@ -47,7 +48,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 12) {
+      if (version > 13) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -312,6 +313,39 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
             ON cast_merges(book_id, merged_at)
           ''');
           db.execute('PRAGMA user_version = 12');
+        });
+      }
+      if (version < 13) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS narrative_references (
+              id TEXT PRIMARY KEY,
+              book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+              mention_start INTEGER NOT NULL,
+              mention_end INTEGER NOT NULL,
+              mention_text TEXT NOT NULL,
+              source_sha256 TEXT NOT NULL,
+              mention_kind TEXT NOT NULL,
+              proposed_character_id TEXT
+                REFERENCES cast_characters(id) ON DELETE SET NULL,
+              approved_character_id TEXT
+                REFERENCES cast_characters(id) ON DELETE SET NULL,
+              confidence REAL NOT NULL,
+              ambiguous INTEGER NOT NULL DEFAULT 0,
+              evidence_json TEXT,
+              status TEXT NOT NULL DEFAULT 'proposed',
+              CHECK (mention_start >= 0 AND mention_end > mention_start),
+              CHECK (confidence >= 0 AND confidence <= 1),
+              CHECK (ambiguous IN (0, 1)),
+              CHECK (status IN ('proposed', 'accepted', 'rejected')),
+              UNIQUE (book_id, mention_start, mention_end)
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_narrative_ref_book
+            ON narrative_references(book_id, status, mention_start)
+          ''');
+          db.execute('PRAGMA user_version = 13');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -862,6 +896,115 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         SET status = 'accepted', created_character_id = ?
         WHERE id = ? AND status = 'proposed'
       ''', [person.id, candidateId]);
+    });
+  }
+
+  /// Indirect narrative references are metadata only. They are NEVER queried
+  /// by the playback resolver or automatically imported into cast_spans.
+  List<NarrativeReferenceCandidate> listNarrativeReferences(String bookId) {
+    return _database.select('''
+      SELECT * FROM narrative_references
+      WHERE book_id = ? ORDER BY mention_start, id
+    ''', [bookId]).map((row) => NarrativeReferenceCandidate(
+      id: row['id'] as String,
+      bookId: row['book_id'] as String,
+      start: row['mention_start'] as int,
+      end: row['mention_end'] as int,
+      referenceText: row['mention_text'] as String,
+      sourceDigest: row['source_sha256'] as String,
+      kind: NarrativeReferenceKind.values.byName(
+          row['mention_kind'] as String),
+      proposedCharacterId: row['proposed_character_id'] as String?,
+      approvedCharacterId: row['approved_character_id'] as String?,
+      confidence: (row['confidence'] as num).toDouble(),
+      ambiguous: (row['ambiguous'] as int) == 1,
+      status: NarrativeReferenceStatus.values.byName(row['status'] as String),
+      evidence: row['evidence_json'] is String
+          ? CastSpanEvidence.fromJson(Map<String, dynamic>.from(
+              jsonDecode(row['evidence_json'] as String) as Map))
+          : null,
+    )).toList();
+  }
+
+  Future<void> importNarrativeReferences(
+      List<NarrativeReferenceCandidate> proposals, String source) async {
+    if (proposals.length > 80) {
+      throw const FormatException('Too many reference proposals');
+    }
+    _transaction(_database, () {
+      for (final proposal in proposals) {
+        proposal.validate();
+        if (proposal.status != NarrativeReferenceStatus.proposed ||
+            proposal.approvedCharacterId != null ||
+            !proposal.matchesSource(source)) {
+          throw const FormatException('Reference is not pending/source-exact');
+        }
+        if (getBook(proposal.bookId) == null) {
+          throw StateError('Reference belongs to a missing book');
+        }
+        if (proposal.proposedCharacterId != null &&
+            !listCastCharacters(proposal.bookId).any(
+              (person) => person.id == proposal.proposedCharacterId)) {
+          throw StateError('Referenced person is absent from this book');
+        }
+        // One review record per source position. Re-running analysis must
+        // never silently overwrite a prior human decision or model conflict.
+        _database.execute('''
+          INSERT OR IGNORE INTO narrative_references (
+            id, book_id, mention_start, mention_end, mention_text,
+            source_sha256, mention_kind, proposed_character_id,
+            confidence, ambiguous, evidence_json, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'proposed')
+        ''', [
+          proposal.id, proposal.bookId, proposal.start, proposal.end,
+          proposal.referenceText, proposal.sourceDigest, proposal.kind.name,
+          proposal.proposedCharacterId, proposal.confidence,
+          proposal.ambiguous ? 1 : 0,
+          proposal.evidence == null
+              ? null : jsonEncode(proposal.evidence!.toJson()),
+        ]);
+      }
+    });
+  }
+
+  /// Explicit approval links a narrative mention to a reviewed character.
+  /// This does NOT touch cast_spans, segment_cast or voice settings.
+  Future<void> reviewNarrativeReference(String proposalId, {
+    required bool approve,
+    required String source,
+    String? confirmedCharacterId,
+  }) async {
+    _transaction(_database, () {
+      final matches = _database.select('''
+        SELECT book_id FROM narrative_references WHERE id = ?
+      ''', [proposalId]);
+      if (matches.isEmpty) throw StateError('Unknown narrative reference');
+      final bookId = matches.single['book_id'] as String;
+      final proposal = listNarrativeReferences(bookId)
+          .firstWhere((item) => item.id == proposalId);
+      if (proposal.status != NarrativeReferenceStatus.proposed) {
+        throw StateError('Narrative reference already reviewed');
+      }
+      if (!approve) {
+        _database.execute('''
+          UPDATE narrative_references SET status = 'rejected'
+          WHERE id = ? AND status = 'proposed'
+        ''', [proposalId]);
+        return; // Even stale proposals can be cleared from the review queue.
+      }
+      if (!proposal.matchesSource(source)) {
+        throw const FormatException('Reference or supporting quote is stale');
+      }
+      if (confirmedCharacterId == null ||
+          !listCastCharacters(bookId).any(
+              (person) => person.id == confirmedCharacterId)) {
+        throw StateError('Select an existing person from this book');
+      }
+      _database.execute('''
+        UPDATE narrative_references
+        SET status = 'accepted', approved_character_id = ?
+        WHERE id = ? AND status = 'proposed'
+      ''', [confirmedCharacterId, proposalId]);
     });
   }
 
