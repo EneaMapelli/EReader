@@ -12,6 +12,7 @@ class MockMp3Decoder implements Mp3Decoder {
   int stopCalls = 0;
   bool disposed = false;
   Completer<void>? delayedLoad;
+  Completer<void>? playbackReturnGate;
 
   @override
   Future<void> load(String file, {required double speed}) async {
@@ -21,10 +22,12 @@ class MockMp3Decoder implements Mp3Decoder {
     if (delayedLoad != null) await delayedLoad!.future;
   }
   @override
-  Future<void> play() {
+  Future<void> play() async {
     final c = Completer<void>();
     playing.add(c);
-    return c.future;
+    await c.future;
+    final gate = playbackReturnGate;
+    if (gate != null) await gate.future;
   }
   void finish() {
     for (final c in playing) {
@@ -175,6 +178,52 @@ void main() {
     await active;
     expect(decoders.where((d) => d.disposed), hasLength(2));
     expect(temp.listSync(), isEmpty);
+  });
+
+  test('old clip finalizer cannot stop a new playing clip after seek',
+      () async {
+    final former = output.play(Uint8List.fromList([1]), speed: 1);
+    await until(() => decoders.length == 1 &&
+        decoders[0].playing.isNotEmpty);
+    decoders[0].playbackReturnGate = Completer<void>();
+    await output.stop();
+    // Old output.play still awaits its artificial completion barrier.
+    final fresh = output.play(Uint8List.fromList([2]), speed: 1);
+    await until(() => decoders[0].playing.length == 2);
+    expect(decoders[0].playing.last.isCompleted, isFalse);
+    decoders[0].playbackReturnGate!.complete();
+    await former;
+    expect(decoders[0].playing.last.isCompleted, isFalse,
+        reason: 'Stale completion may not stop the new active decoder');
+    decoders[0].playbackReturnGate = null;
+    decoders[0].finish();
+    await fresh;
+    expect(temp.listSync(), isEmpty);
+  });
+
+  test('an older slow decoder load must not erase newer warmed MP3',
+      () async {
+    nextLoadGate = Completer<void>();
+    final first = output.play(Uint8List.fromList([1]), speed: 1);
+    await until(() => decoders.length == 1 &&
+        decoders[0].playing.isNotEmpty);
+    final older = output.prepareNext(
+      Uint8List.fromList([2]), speed: 1);
+    await until(() => decoders.length == 2 &&
+        decoders[1].loadedPaths.isNotEmpty);
+    await output.stop();
+    await first;
+    // Force cleanup of the interrupted original warm load; it belongs to
+    // the previous generation and must not win against future preparing.
+    nextLoadGate!.complete();
+    await older;
+    final current = output.play(Uint8List.fromList([3]), speed: 1);
+    await until(() => decoders[0].playing.length == 2);
+    await output.prepareNext(Uint8List.fromList([4]), speed: 1);
+    expect(decoders[1].loadedPaths, hasLength(2));
+    expect(await File(decoders[1].loadedPaths.last).exists(), isTrue);
+    decoders[0].finish();
+    await current;
   });
 
   test('invalid clip size or rate fails before creating temporary files',
