@@ -11,6 +11,7 @@ enum DialogueTurnFlag {
   partialAttribution,
   conflictingAttributions,
   explicitNarrator,
+  scanBoundary,
 }
 
 enum DialogueAttributionState {
@@ -143,9 +144,11 @@ class DialogueTurnInspector {
     int? opened;
     int? expectedClose;
     var sawNewline = false;
+    var examinedEnd = end;
     for (var i = scopeStart; i < end; i++) {
       if (locations.length >= maxTurns) {
         truncated = true;
+        examinedEnd = i;
         break;
       }
       final ch = source.codeUnitAt(i);
@@ -167,9 +170,10 @@ class DialogueTurnInspector {
         }
       }
     }
-    if (opened != null && locations.length < maxTurns) {
+    if (opened != null && locations.length < maxTurns &&
+        examinedEnd > opened) {
       locations.add((
-        start: opened, end: end, closed: false,
+        start: opened, end: examinedEnd, closed: false,
         multiline: sawNewline,
       ));
     }
@@ -178,7 +182,11 @@ class DialogueTurnInspector {
     for (var i = 0; i < locations.length; i++) {
       final quote = locations[i];
       final flags = <DialogueTurnFlag>[];
-      if (!quote.closed) flags.add(DialogueTurnFlag.unclosedQuote);
+      if (!quote.closed) {
+        flags.add(truncated
+            ? DialogueTurnFlag.scanBoundary
+            : DialogueTurnFlag.unclosedQuote);
+      }
       if (quote.multiline) flags.add(DialogueTurnFlag.multilineQuote);
       if (_endsInterrupted(source, quote.start, quote.end, quote.closed)) {
         flags.add(DialogueTurnFlag.interruptedUtterance);
@@ -237,7 +245,7 @@ class DialogueTurnInspector {
     return DialogueTurnReport(
       turns: List.unmodifiable(results),
       scannedStart: scopeStart,
-      scannedEnd: end,
+      scannedEnd: examinedEnd,
       truncated: truncated,
     );
   }
