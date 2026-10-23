@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:ereader/audio/reader_player.dart';
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/domain/speech_segment.dart';
+import 'package:ereader/domain/dialogue_segmenter.dart';
+import 'package:ereader/domain/cast_span.dart';
 import 'package:ereader/domain/speech_preferences.dart';
 import 'package:ereader/domain/pronunciation_rule.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +13,7 @@ class FakeSpeechEngine implements SpeechEngine {
   final spoken = <String>[];
   final spokenVoices = <String?>[];
   String? activeVoice;
+  int voiceSelections = 0;
   Completer<void>? waiting;
   Completer<void>? stopGate;
 
@@ -22,6 +25,7 @@ class FakeSpeechEngine implements SpeechEngine {
 
   @override
   Future<void> chooseVoice(SpeechVoice voice) async {
+    voiceSelections++;
     activeVoice = voice.name;
   }
 
@@ -261,5 +265,81 @@ void main() {
     await run;
     player.dispose();
   });
+
+  test('long cross-chunk quote retains one voice and restores narrator',
+      () async {
+    final engine = FakeSpeechEngine();
+    final quotedText = '«' +
+        List.filled(145, 'hello').join(' ') + '»';
+    final source = 'Intro. ' + quotedText + ' Then the narrator.';
+    final begin = source.indexOf('«');
+    final end = source.indexOf('»') + 1;
+    final original = splitQuotedSegmentsWithRegions(
+        segmentSpeech(source, maxChars: 75));
+    final voiceSpan = CastSpan(
+      id: 'long-quote', bookId: 'book',
+      start: begin, end: end,
+      sourceDigest: CastSpan.digest(source.substring(begin, end)),
+      speakerId: 'character-1',
+      origin: CastSpanOrigin.user,
+      status: CastSpanStatus.accepted,
+      lockedByUser: true,
+    );
+    final attributed = prepareCastSpeech(
+      source: source,
+      base: [for (final part in original) part.segment],
+      annotations: [voiceSpan],
+      bookId: 'book',
+      knownCharacterIds: {'character-1'},
+      offsetFromAnchor: (_) => null,
+    );
+    final joined = coalesceQuotedSpeech(
+      source: source,
+      chunks: attributed.segments,
+      quotedChunks: original,
+      speakerByStart: attributed.speakerByStart,
+    );
+    final quoteChunks = joined.segments.where((chunk) =>
+        chunk.start >= begin && chunk.end <= end).toList();
+    expect(quoteChunks.length, greaterThan(1));
+    expect(quoteChunks.every((chunk) =>
+        joined.speakerByStart[chunk.start] == 'character-1'), isTrue);
+
+    final player = ReaderPlayer(
+      engine: engine, segments: joined.segments,
+      onSegmentStarted: (_) async {},
+    );
+    await player.loadVoices();
+    await player.applyPreferences(const SpeechPreferences(
+      language: 'en-US', voiceName: 'Sample', voiceLocale: 'en-US',
+    ));
+    player.castVoiceForSegment = (segment) =>
+        joined.speakerByStart[segment.start] == 'character-1'
+            ? const SpeechVoice(name: 'Character', locale: 'en-US')
+            : null;
+    player.castSpeakerForSegment = (segment) =>
+        joined.speakerByStart[segment.start];
+
+    final run = player.play();
+    for (var i = 0; i < joined.segments.length; i++) {
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.spoken.length, i + 1);
+      expect(engine.spoken.last, joined.segments[i].text);
+      engine.finish();
+    }
+    await run;
+    final voiceSequence = <String?>[];
+    for (final voice in engine.spokenVoices) {
+      if (voiceSequence.isEmpty || voiceSequence.last != voice) {
+        voiceSequence.add(voice);
+      }
+    }
+    expect(voiceSequence, ['Sample', 'Character', 'Sample']);
+    // One initial preference plus only two actual transitions.
+    expect(engine.voiceSelections, 3);
+    expect(player.currentIndex, joined.segments.length);
+    player.dispose();
+  });
+
 
 }
