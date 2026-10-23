@@ -315,3 +315,14 @@ Protocol: [MP3 Decoder Preload](MP3_DECODER_PRELOAD.md).
 - Native system TTS does not change. The explicit **OFF-by-default** cloud prebuffer permission and warning about billable *unheard* text remain unchanged. No new consent, SQLite migration or hidden background job was added.
 - Authored **8 new unexecuted tests** in `test/audio/mp3_preload_test.dart`, using injected mock decoders/filesystem, plus extended 7 existing unexecuted cloud prefetch tests to assert that cloud MP3 bytes reach the decoder warm-up hook.
 - Native API support was reviewed against `just_audio` 0.10.x documentation, but source formatting, Flutter analyzer/tests, Windows/Android real builds, MP3 waveform boundaries, foreground/background transitions and Windows file locks are still unverified.
+
+## M5 — race-safe playback navigation and decoder generations (2026-10-23)
+
+Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
+
+- ReaderPlayer now separates speaking-session invalidation from **latest-wins navigation epochs**. Rapid overlapping seek calls cannot restore old positions or auto-resume from stale requests; an explicit Pause or Play supersedes a pending seek while native Stop operations remain serialized.
+- Rapid native voice choices are serialized, with canceled old completions unable to establish the next playback voice. Choosing a voice while playing resumes the current segment with the winning voice; while paused it stays paused. Failure clears pending resume. Disposal is idempotent and blocks new Play.
+- Reader controls restart the *current* source segment when rate/pitch sliders are released or language is changed, not on every drag tick. This invalidates pending prebuffer generations and reasserts the correct narrator/cast voice without altering book text or anchors.
+- The dual MP3 decoder now serializes pending native loads and old end-of-clip cleanup per decoder slot. Generation checks around slow native Stop and file deletion prevent an old playback finalizer from stopping or deleting a newly active source.
+- Authored **9 unexecuted navigation/voice tests** in test/audio/rapid_playback_navigation_test.dart; extended test/audio/mp3_preload_test.dart to **10 unexecuted decoder tests** including old-finalizer/new-play and late-old-load/new-MP3 isolation.
+- No additional cloud synthesis, new SQLite schema or background job. Previously transmitted audio requests may still be billable after cancellation; Flutter tests/analyzer and Windows/Android runtime tests remain postponed until final integration.
