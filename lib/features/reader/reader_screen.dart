@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -35,7 +36,8 @@ class ReaderScreen extends StatefulWidget {
   State<ReaderScreen> createState() => _ReaderScreenState();
 }
 
-class _ReaderScreenState extends State<ReaderScreen> {
+class _ReaderScreenState extends State<ReaderScreen>
+    with WidgetsBindingObserver {
   final SpeechSecretVault _vault = PlatformSpeechSecretVault();
   ReaderPlayer? _player;
   DocumentContent? _document;
@@ -58,6 +60,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _itemPositionsListener.itemPositions.addListener(_onVisiblePositions);
     if (widget.book.format != BookFormat.pdf) {
       _load();
@@ -436,7 +439,27 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.hidden &&
+        state != AppLifecycleState.paused) return;
+    // A deferred viewport write must never replace the segment anchor
+    // recorded by background audio. Leave Android narration running only
+    // when a live media handler owns that player.
+    _saveVisualPositionTimer?.cancel();
+    if (Platform.isAndroid &&
+        widget.mediaHandler?.hasActiveBook != true &&
+        _player != null) {
+      unawaited(_player!.pause().catchError((Object error, StackTrace stack) {
+        if (!mounted) return;
+        _onPlaybackChanged();
+      }));
+    }
+    // Reopening is always user-driven: never auto-call play() on resumed.
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _saveVisualPositionTimer?.cancel();
     _itemPositionsListener.itemPositions.removeListener(_onVisiblePositions);
     final player = _player;
