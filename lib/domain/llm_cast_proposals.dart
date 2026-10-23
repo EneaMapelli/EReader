@@ -45,7 +45,7 @@ class CastProposalParser {
           (speaker != null && speaker is! String)) {
         throw const FormatException('Invalid suggestion fields');
       }
-      if (start < 0 || end <= start || end > sourceText.length) {
+      if (!CastSpan.validUtf16Range(sourceText, start, end)) {
         throw const FormatException('Suggestion points outside the book');
       }
       if (speaker != null && !knownSpeakerIds.contains(speaker)) {
