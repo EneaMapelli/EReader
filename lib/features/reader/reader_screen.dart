@@ -66,14 +66,26 @@ class _ReaderScreenState extends State<ReaderScreen> {
     try {
       final document = await PrototypeDocumentDecoder().read(widget.book);
       if (!mounted) return;
-      // Finer original-text spans allow manual dialogue casting without
-      // assigning the surrounding narrator text to the character.
-      final baseChunks = splitQuotedSegments(segmentSpeech(document.text));
-      final prepared = prepareCastSpeech(
+      // A quoted turn can cross multiple source chunks. Resolve both
+      // legacy whole-passage and precise manual tags as verified ranges
+      // BEFORE merging short fragments for the same voice/quote group.
+      final quoted = splitQuotedSegmentsWithRegions(
+          segmentSpeech(document.text));
+      final people = widget.store.listCastCharacters(widget.book.id);
+      final assigned = prepareCastSpeech(
         source: document.text,
-        base: baseChunks,
+        base: [for (final part in quoted) part.segment],
         annotations: widget.store.listCastSpans(widget.book.id),
+        legacyAssignments: widget.store.listSegmentCast(widget.book.id),
+        bookId: widget.book.id,
+        knownCharacterIds: {for (final person in people) person.id},
         offsetFromAnchor: document.offsetOf,
+      );
+      final prepared = coalesceQuotedSpeech(
+        source: document.text,
+        chunks: assigned.segments,
+        quotedChunks: quoted,
+        speakerByStart: assigned.speakerByStart,
       );
       final chunks = prepared.segments;
       final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
@@ -134,20 +146,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   void _configureVoiceCast(ReaderPlayer player, DocumentContent document) {
     final people = widget.store.listCastCharacters(widget.book.id);
-    final legacy = widget.store.listSegmentCast(widget.book.id);
     final voices = widget.store.listCastVoices(widget.book.id);
     _castNames = {for (final person in people) person.id: person.name};
-    final legacyResolver = VoiceCastResolver(
-      bookId: widget.book.id,
-      providerId: player.currentPreferences.providerId,
-      attributions: legacy,
-      voices: voices,
-      offsetFromAnchor: document.offsetOf,
-    );
+    // All source-hashed legacy and precise ranges were resolved before
+    // coalescing. Never fall back to exact chunk equality here: that could
+    // reapply a stale or intentionally masked legacy speaker.
     String? speakerForSegment(SpeechSegment segment) =>
-        _fineSpeakerByStart.containsKey(segment.start)
-            ? _fineSpeakerByStart[segment.start]
-            : legacyResolver.speakerFor(segment);
+        _fineSpeakerByStart[segment.start];
     player.castSpeakerForSegment = speakerForSegment;
     player.castVoiceForSegment = (segment) {
       final speaker = speakerForSegment(segment);
