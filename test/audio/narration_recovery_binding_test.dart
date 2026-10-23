@@ -130,11 +130,11 @@ void main() {
     await restartStore();
     expect(store.interruptedNarrationBook?.id, bookId);
     expect(store.interruptedNarrationBook?.progressOffset, 0);
-    // Cleanup the in-memory fakes without using the new store's checkpoint.
-    recovery.dispose();
-    await player.pause();
-    await running;
+    // A real killed process has no in-memory player to clean up. Simulate
+    // that by disposing it without notifying the binding (which refers to
+    // the old, deliberately closed database).
     player.dispose();
+    await running;
   });
 
   test('book completion and engine failure both clear active checkpoint',
