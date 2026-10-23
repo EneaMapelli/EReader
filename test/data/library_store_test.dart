@@ -8,6 +8,7 @@ import 'package:ereader/domain/pronunciation_rule.dart';
 import 'package:ereader/domain/speech_preferences.dart';
 import 'package:ereader/domain/book_bookmark.dart';
 import 'package:ereader/domain/voice_cast.dart';
+import 'package:ereader/domain/cast_span.dart';
 import 'package:ereader/domain/cloud_speech_consent.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -520,6 +521,136 @@ void main() {
       id: 'new-speaker', bookId: book.id, name: 'A new character',
     ));
     expect(store.listCastCharacters(book.id).single.name, 'A new character');
+  });
+
+
+  test('SQLite v7 persists precise manual speaker labels across reopening',
+      () async {
+    final file = File(p.join(root.path, 'selection.txt'));
+    const text = 'Narrator: «Hello!» and then narrator.';
+    await file.writeAsString(text);
+    final book = await store.importFile(file.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'actor', bookId: book.id, name: 'Actor',
+    ));
+    final start = text.indexOf('«');
+    final end = text.indexOf('»') + 1;
+    final manual = CastSpan(
+      id: 'manual-1', bookId: book.id,
+      start: start, end: end,
+      sourceDigest: CastSpan.digest(text.substring(start, end)),
+      speakerId: 'actor',
+      origin: CastSpanOrigin.user,
+      status: CastSpanStatus.accepted,
+      lockedByUser: true,
+      anchor: ReadingAnchor(
+        kind: AnchorKind.text, sourceId: 'body', localOffset: start,
+      ),
+    );
+    await store.saveManualCastSpan(manual, text);
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    final restored = store.listCastSpans(book.id);
+    expect(restored, hasLength(1));
+    expect(restored.single.speakerId, 'actor');
+    expect(restored.single.lockedByUser, isTrue);
+    expect(restored.single.sourceDigest, manual.sourceDigest);
+    expect(restored.single.anchor!.localOffset, start);
+  });
+
+  test('overlapping manual assignments are rejected atomically', () async {
+    final file = File(p.join(root.path, 'overlap.txt'));
+    const content = 'abcdef ghijkl';
+    await file.writeAsString(content);
+    final book = await store.importFile(file.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'actor', bookId: book.id, name: 'Actor',
+    ));
+    CastSpan span(String id, int a, int b) => CastSpan(
+      id: id, bookId: book.id,
+      start: a, end: b,
+      sourceDigest: CastSpan.digest(content.substring(a, b)),
+      speakerId: 'actor',
+      origin: CastSpanOrigin.user,
+      status: CastSpanStatus.accepted,
+      lockedByUser: true,
+    );
+    await store.saveManualCastSpan(span('a', 0, 6), content);
+    await expectLater(
+      store.saveManualCastSpan(span('b', 2, 4), content),
+      throwsStateError,
+    );
+    expect(store.listCastSpans(book.id), hasLength(1));
+  });
+
+  test('LLM proposals remain pending and cannot overwrite manual labels',
+      () async {
+    final file = File(p.join(root.path, 'review.txt'));
+    const content = 'one two three';
+    await file.writeAsString(content);
+    final book = await store.importFile(file.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'actor', bookId: book.id, name: 'Actor',
+    ));
+    final original = CastSpan(
+      id: 'existing', bookId: book.id, start: 0, end: 3,
+      sourceDigest: CastSpan.digest('one'),
+      speakerId: 'actor', origin: CastSpanOrigin.user,
+      status: CastSpanStatus.accepted, lockedByUser: true,
+    );
+    await store.saveManualCastSpan(original, content);
+    CastSpan suggestion(String id, int from, int until) => CastSpan(
+      id: id, bookId: book.id,
+      start: from, end: until,
+      sourceDigest: CastSpan.digest(content.substring(from, until)),
+      speakerId: 'actor',
+      origin: CastSpanOrigin.llm,
+      status: CastSpanStatus.proposed,
+      lockedByUser: false,
+      confidence: 0.91,
+    );
+    await store.importCastProposals([
+      suggestion('existing', 0, 3), // Must never replace the manual row.
+      suggestion('conflict', 1, 6),
+      suggestion('safe', 8, 13),
+    ], content);
+    expect(store.listCastSpans(book.id), hasLength(3));
+    expect(store.listCastSpans(book.id).firstWhere(
+      (s) => s.id == 'existing').origin, CastSpanOrigin.user);
+    await expectLater(
+      store.reviewCastProposal('conflict', approve: true),
+      throwsStateError,
+    );
+    await store.reviewCastProposal('safe', approve: true);
+    expect(store.listCastSpans(book.id).firstWhere(
+      (s) => s.id == 'safe').status, CastSpanStatus.accepted);
+    await store.reviewCastProposal('conflict', approve: false);
+    expect(store.listCastSpans(book.id).firstWhere(
+      (s) => s.id == 'conflict').status, CastSpanStatus.rejected);
+  });
+
+  test('SQLite v6-to-v7 preserves legacy cast and cloud consent', () async {
+    final file = File(p.join(root.path, 'cast-v6.txt'));
+    await file.writeAsString('Legacy character');
+    final book = await store.importFile(file.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'legacy-actor', bookId: book.id, name: 'Legacy Actor',
+    ));
+    await store.configureCloudConsent(book.id, 'openai-speech',
+      allowed: true, maxCharacters: 100);
+    await store.reserveCharacters(book.id, 'openai-speech', 12);
+    store.dispose();
+
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    db.execute('DROP TABLE cast_spans');
+    db.execute('PRAGMA user_version = 6');
+    db.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.listCastCharacters(book.id).single.name, 'Legacy Actor');
+    expect(store.getConsent(book.id, 'openai-speech').usedCharacters, 12);
+    expect(store.listCastSpans(book.id), isEmpty);
   });
 
 }
