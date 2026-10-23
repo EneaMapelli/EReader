@@ -12,6 +12,7 @@ import '../../domain/speech_segment.dart';
 import '../../domain/voice_cast.dart';
 import '../../domain/cast_span.dart';
 import '../../domain/character_candidate.dart';
+import '../../domain/alias_candidate.dart';
 import '../../domain/llm_cast_proposals.dart';
 
 /// User-curated characters, provider voice profiles and segment attribution.
@@ -41,6 +42,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
   List<CastCharacter> _characters = const [];
   List<CastVoiceAssignment> _voices = const [];
   List<CharacterCandidate> _characterCandidates = const [];
+  List<AliasCandidate> _aliasCandidates = const [];
   List<CastSpan> _fine = const [];
   late VoiceCastResolver _resolver;
   final _search = TextEditingController();
@@ -55,6 +57,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
     _characters = widget.store.listCastCharacters(widget.book.id);
     _voices = widget.store.listCastVoices(widget.book.id);
     _characterCandidates = widget.store.listCharacterCandidates(widget.book.id);
+    _aliasCandidates = widget.store.listAliasCandidates(widget.book.id);
     _fine = widget.store.listCastSpans(widget.book.id);
     _resolver = VoiceCastResolver(
       bookId: widget.book.id,
@@ -633,6 +636,97 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
     }
   }
 
+  String _aliasEvidence(AliasCandidate candidate) {
+    final ref = candidate.evidence;
+    if (ref == null) return 'No previous-context evidence';
+    return ref.matchesSource(widget.document.text)
+        ? 'Previous evidence: ' +
+            widget.document.text.substring(ref.start, ref.end)
+        : 'Earlier evidence has changed';
+  }
+
+  Future<void> _reviewAlias(
+    AliasCandidate candidate, {required bool approve},
+  ) async {
+    if (!approve) {
+      try {
+        await widget.store.reviewAliasCandidate(
+          candidate.id, approve: false, source: widget.document.text);
+        if (mounted) _reload();
+      } catch (error) {
+        _error(error);
+      }
+      return;
+    }
+    if (!candidate.matchesSource(widget.document.text)) {
+      _error(const FormatException('Alias mention/evidence no longer matches'));
+      return;
+    }
+    String? target = _characters.any(
+        (p) => p.id == candidate.targetCharacterId)
+        ? candidate.targetCharacterId : null;
+    final accepted = await showDialog<String>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialog, refresh) => AlertDialog(
+          title: const Text('Attach this alias to a character?'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 510),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Exact mention: ' + candidate.alias),
+                Text('Uncalibrated confidence: ' +
+                    candidate.confidence.toStringAsFixed(2)),
+                Text(_aliasEvidence(candidate)),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: target,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm the existing character',
+                  ),
+                  items: [
+                    for (final person in _characters)
+                      DropdownMenuItem(
+                        value: person.id, child: Text(person.name)),
+                  ],
+                  onChanged: (id) => refresh(() => target = id),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'This changes only the confirmed character\'s alias list. '
+                  'It does not combine people, rewrite text, assign '
+                  'speech or alter existing voices.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialog),
+              child: const Text('Cancel')),
+            FilledButton(
+              onPressed: target == null ? null :
+                  () => Navigator.pop(dialog, target),
+              child: const Text('Attach reviewed alias'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (accepted == null || !mounted) return;
+    try {
+      await widget.store.reviewAliasCandidate(
+        candidate.id,
+        approve: true,
+        source: widget.document.text,
+        confirmedCharacterId: accepted,
+      );
+      if (mounted) _reload();
+    } catch (error) {
+      _error(error);
+    }
+  }
+
   Widget _reviewTab() {
     final accepted = _fine.where(
       (span) => span.status == CastSpanStatus.accepted,
@@ -702,6 +796,54 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
                     tooltip: 'Reject character candidate',
                     icon: const Icon(Icons.close),
                     onPressed: () => _reviewCharacter(candidate, approve: false),
+                  ),
+                ]),
+              ),
+            ),
+        const Divider(height: 28),
+        Text('Suggested aliases / identity references',
+          style: Theme.of(context).textTheme.titleMedium),
+        const Text(
+          'The model may have linked a nickname or title to the wrong '
+          'person. Verify the cited passage and choose an existing '
+          'character before accepting; no aliases are applied by default.',
+        ),
+        if (!_aliasCandidates.any(
+            (candidate) => candidate.status == AliasCandidateStatus.proposed))
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text('No alias proposals need review.'),
+          ),
+        for (final candidate in _aliasCandidates)
+          if (candidate.status == AliasCandidateStatus.proposed)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.manage_accounts_outlined),
+                title: Text(candidate.alias),
+                subtitle: Text(
+                  'Suggested identity: ' +
+                  _characters.where((c) =>
+                      c.id == candidate.targetCharacterId)
+                      .map((c) => c.name).join(', ') +
+                  '\n' + _aliasEvidence(candidate) +
+                  '\nConfidence: ' +
+                  candidate.confidence.toStringAsFixed(2) +
+                  (candidate.matchesSource(widget.document.text)
+                    ? ' · exact source verified'
+                    : ' · source changed: acceptance blocked'),
+                ),
+                trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+                  IconButton(
+                    tooltip: 'Review and attach alias to an existing person',
+                    icon: const Icon(Icons.link),
+                    onPressed: candidate.matchesSource(widget.document.text)
+                        ? () => _reviewAlias(candidate, approve: true)
+                        : null,
+                  ),
+                  IconButton(
+                    tooltip: 'Reject this alias proposal',
+                    icon: const Icon(Icons.close),
+                    onPressed: () => _reviewAlias(candidate, approve: false),
                   ),
                 ]),
               ),
