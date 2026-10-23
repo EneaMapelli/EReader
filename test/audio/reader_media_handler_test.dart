@@ -443,6 +443,57 @@ void main() {
     player.dispose();
   });
 
+  test('two Play calls pending on audio focus acquire native focus once',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final gate = Completer<bool>();
+    var requests = 0;
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () { requests++; return gate.future; },
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(player, bookId: 'b', title: 'B');
+    final first = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    final second = handler.play();
+    expect(requests, 1);
+    gate.complete(true);
+    await Future.wait([first, second]);
+    await Future<void>.delayed(Duration.zero);
+    expect(requests, 1,
+        reason: 'A granted focus lease is reused within one active book');
+    expect(engine.spoken, ['First']);
+    await handler.pause();
+    expect(releases, 1);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('failed native stop still clears focus after settled failure',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(player, bookId: 'b', title: 'B');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.failStop = true;
+    await expectLater(player.pause(), throwsStateError);
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isPlaying, isFalse);
+    expect(player.isSettledIdle, isTrue);
+    expect(releases, 1);
+    engine.failStop = false;
+    await handler.close();
+    player.dispose();
+  });
+
   test('detached reader cannot hijack a newly attached book', () async {
     final older = _reader(_FakeSpeechEngine());
     final newer = _reader(_FakeSpeechEngine());
