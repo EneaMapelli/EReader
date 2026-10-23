@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../audio/speech_engine.dart';
+import '../../audio/secret_vault.dart';
+import 'dialogue_analysis_screen.dart';
 import '../../data/book_decoder.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
@@ -473,6 +475,21 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
     }
   }
 
+  Future<void> _openDialogueAnalysis() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => DialogueAnalysisScreen(
+          store: widget.store,
+          book: widget.book,
+          document: widget.document,
+          segments: widget.segments,
+          vault: PlatformSpeechSecretVault(),
+        ),
+      ),
+    );
+    if (mounted) _reload();
+  }
+
   Future<void> _deleteApprovedSpan(CastSpan span) async {
     final yes = await showDialog<bool>(
       context: context,
@@ -521,6 +538,12 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
           'or cost is triggered by this screen.',
         ),
         const SizedBox(height: 12),
+        FilledButton.icon(
+          icon: const Icon(Icons.psychology_alt_outlined),
+          label: const Text('Analyze selected chapter or page with AI'),
+          onPressed: _openDialogueAnalysis,
+        ),
+        const SizedBox(height: 8),
         OutlinedButton.icon(
           icon: const Icon(Icons.upload_file),
           label: const Text('Import structured suggestions'),
