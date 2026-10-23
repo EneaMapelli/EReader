@@ -47,13 +47,26 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _open(BookRecord book) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => ReaderScreen(book: book, store: widget.store,
-            mediaHandler: widget.mediaHandler),
-      ),
-    );
-    if (mounted) setState(() {});
+    try {
+      await widget.store.markBookOpened(book.id);
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => ReaderScreen(
+            book: book, store: widget.store,
+            mediaHandler: widget.mediaHandler,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cannot reopen book: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() {});
+    }
   }
 
   Future<void> _remove(BookRecord book) async {
@@ -82,6 +95,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final books = widget.store.books;
+    final lastOpened = widget.store.lastOpenedBook;
     return Scaffold(
       appBar: AppBar(
         title: const Text('EReader'),
@@ -112,7 +126,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ],
               ),
             )
-          : ListView.builder(
+          : Column(
+              children: [
+                if (lastOpened != null)
+                  Card(
+                    margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                    child: ListTile(
+                      leading: const Icon(Icons.history),
+                      title: const Text('Continue reading'),
+                      subtitle: Text(
+                        '${lastOpened.title} · character ${lastOpened.progressOffset}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: const Icon(Icons.arrow_forward),
+                      onTap: () => _open(lastOpened),
+                    ),
+                  ),
+                Expanded(
+                  child: ListView.builder(
               itemCount: books.length,
               itemBuilder: (context, index) {
                 final book = books[index];
@@ -135,6 +167,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   ),
                 );
               },
+                  ),
+                ),
+              ],
             ),
       floatingActionButton: books.isNotEmpty
           ? FloatingActionButton.extended(
