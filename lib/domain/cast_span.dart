@@ -196,6 +196,13 @@ PreparedCastSpeech prepareCastSpeech({
     for (var i = 0; i < usable.length; i++)
       if (!conflicts.contains(i)) usable[i],
   ];
+  // A disputed fine-grained human label is not a reason to resurrect
+  // an older legacy speaker underneath it. Suppress legacy attribution
+  // across all contested exact source intervals and keep narrator fallback.
+  final blockedFine = [
+    for (var i = 0; i < usable.length; i++)
+      if (conflicts.contains(i)) usable[i],
+  ];
 
   // Legacy manually attributed *ranges* are also source-hashed, not
   // tied to the current TTS chunk boundaries. A previously labelled long
@@ -252,11 +259,21 @@ PreparedCastSpeech prepareCastSpeech({
     }
     final local = <({int start, int end, String? speaker})>[];
     final localLegacy = <({int start, int end, String speaker})>[];
+    final localBlocked = <({int start, int end})>[];
     final boundaries = <int>{baseSegment.start, baseSegment.end};
     for (var j = firstPossible; j < accepted.length; j++) {
       final active = accepted[j];
       if (active.start >= baseSegment.end) break;
       local.add(active);
+      if (active.start > baseSegment.start &&
+          active.start < baseSegment.end) boundaries.add(active.start);
+      if (active.end > baseSegment.start &&
+          active.end < baseSegment.end) boundaries.add(active.end);
+    }
+    for (final active in blockedFine) {
+      if (active.start >= baseSegment.end ||
+          active.end <= baseSegment.start) continue;
+      localBlocked.add((start: active.start, end: active.end));
       if (active.start > baseSegment.start &&
           active.start < baseSegment.end) boundaries.add(active.start);
       if (active.end > baseSegment.start &&
@@ -292,7 +309,11 @@ PreparedCastSpeech prepareCastSpeech({
       }
       // An explicit narrator label is a present-null and masks the legacy
       // character assignment, including across multiple base chunks.
-      if (!assignedFine) {
+      // On contested fine-grained ranges, do not reinstate a stale
+      // legacy character voice through the fallback layer.
+      final disputed = localBlocked.any((active) =>
+          from >= active.start && to <= active.end);
+      if (!assignedFine && !disputed) {
         for (final active in localLegacy) {
           if (from >= active.start && to <= active.end) {
             speakerByStart[from] = active.speaker;
