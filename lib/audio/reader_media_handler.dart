@@ -50,6 +50,10 @@ class ReaderMediaHandler extends BaseAudioHandler {
 
   bool get hasActiveBook => _player != null;
 
+  /// A detached/obsolete ReaderScreen must never control another book.
+  bool ownsPlayer(ReaderPlayer player) =>
+      !_closed && identical(_player, player);
+
   /// Only the reader currently displayed may own the external controls.
   /// Closing the page deliberately clears media metadata and controls.
   void attach(ReaderPlayer player, {
