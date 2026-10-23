@@ -37,7 +37,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   DocumentContent? _document;
   List<PronunciationRule> _pronunciationRules = const [];
   Map<String, String> _castNames = const {};
-  Map<int, String?> _fineSpeakerByStart = const {};
+  Map<int, String?> _resolvedSpeakerByStart = const {};
   String? _error;
   bool _loading = true;
   double _fontSize = 19;
@@ -116,8 +116,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
               original, _pronunciationRules, bookId: widget.book.id);
       await player.loadVoices();
       await player.applyPreferences(prefs);
-      _fineSpeakerByStart = prepared.speakerByStart;
-      _configureVoiceCast(player, document);
+      _resolvedSpeakerByStart = prepared.speakerByStart;
+      _configureVoiceCast(player);
       if (!mounted) {
         player.dispose();
         return;
@@ -144,7 +144,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     }
   }
 
-  void _configureVoiceCast(ReaderPlayer player, DocumentContent document) {
+  void _configureVoiceCast(ReaderPlayer player) {
     final people = widget.store.listCastCharacters(widget.book.id);
     final voices = widget.store.listCastVoices(widget.book.id);
     _castNames = {for (final person in people) person.id: person.name};
@@ -152,7 +152,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     // coalescing. Never fall back to exact chunk equality here: that could
     // reapply a stale or intentionally masked legacy speaker.
     String? speakerForSegment(SpeechSegment segment) =>
-        _fineSpeakerByStart[segment.start];
+        _resolvedSpeakerByStart[segment.start];
     player.castSpeakerForSegment = speakerForSegment;
     player.castVoiceForSegment = (segment) {
       final speaker = speakerForSegment(segment);
