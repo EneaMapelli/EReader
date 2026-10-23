@@ -292,7 +292,12 @@ class _ReaderScreenState extends State<ReaderScreen>
     visible.sort();
     final index = visible.first.clamp(0, player.segments.length - 1).toInt();
     if (index == _visiblePositionIndex) return;
+    final previousChapter = _currentChapterIndex;
     _visiblePositionIndex = index;
+    if (_chapters.isNotEmpty &&
+        _currentChapterIndex != previousChapter) {
+      setState(() {});
+    }
     _saveVisualPositionTimer?.cancel();
     _saveVisualPositionTimer = Timer(const Duration(milliseconds: 450), () {
       if (!mounted || player.isPlaying || _player != player ||
@@ -348,8 +353,12 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (player == null || player.segments.isEmpty || _chapters.isEmpty) {
       return -1;
     }
-    final cursor = player.currentIndex
-        .clamp(0, player.segments.length - 1).toInt();
+    // During manual browsing, show the chapter visible on screen. During
+    // playback, the audio cursor is authoritative for the chapter indicator.
+    final selected = player.isPlaying
+        ? player.currentIndex
+        : (_visiblePositionIndex ?? player.currentIndex);
+    final cursor = selected.clamp(0, player.segments.length - 1).toInt();
     return chapterIndexForOffset(
       _chapters, player.segments[cursor].start,
     );
