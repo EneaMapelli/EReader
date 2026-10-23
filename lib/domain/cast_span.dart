@@ -246,6 +246,7 @@ PreparedCastSpeech prepareCastSpeech({
   final pieces = <SpeechSegment>[];
   final speakerByStart = <int, String?>{};
   var firstPossible = 0;
+  var firstLegacy = 0;
   for (final baseSegment in base) {
     if (!CastSpan.validUtf16Range(
             source, baseSegment.start, baseSegment.end) ||
@@ -279,9 +280,13 @@ PreparedCastSpeech prepareCastSpeech({
       if (active.end > baseSegment.start &&
           active.end < baseSegment.end) boundaries.add(active.end);
     }
-    for (final active in safeLegacy) {
+    while (firstLegacy < safeLegacy.length &&
+        safeLegacy[firstLegacy].end <= baseSegment.start) {
+      firstLegacy++;
+    }
+    for (var j = firstLegacy; j < safeLegacy.length; j++) {
+      final active = safeLegacy[j];
       if (active.start >= baseSegment.end) break;
-      if (active.end <= baseSegment.start) continue;
       localLegacy.add(active);
       if (active.start > baseSegment.start &&
           active.start < baseSegment.end) boundaries.add(active.start);
