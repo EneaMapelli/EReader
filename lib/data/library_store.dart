@@ -14,6 +14,7 @@ import '../domain/book_bookmark.dart';
 import '../domain/cloud_speech_consent.dart';
 import '../domain/voice_cast.dart';
 import '../domain/cast_span.dart';
+import '../domain/character_candidate.dart';
 import '../domain/llm_analysis_consent.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
@@ -44,7 +45,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 9) {
+      if (version > 10) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -229,6 +230,33 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         _transaction(db, () {
           db.execute('ALTER TABLE cast_spans ADD COLUMN evidence_json TEXT');
           db.execute('PRAGMA user_version = 9');
+        });
+      }
+      if (version < 10) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS character_candidates (
+              id TEXT PRIMARY KEY,
+              book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+              proposed_name TEXT NOT NULL,
+              mention_start INTEGER NOT NULL,
+              mention_end INTEGER NOT NULL,
+              source_sha256 TEXT NOT NULL,
+              confidence REAL NOT NULL,
+              status TEXT NOT NULL DEFAULT 'proposed',
+              created_character_id TEXT
+                REFERENCES cast_characters(id) ON DELETE SET NULL,
+              CHECK (mention_start >= 0 AND mention_end > mention_start),
+              CHECK (confidence >= 0 AND confidence <= 1),
+              CHECK (status IN ('proposed', 'accepted', 'rejected')),
+              UNIQUE(book_id, mention_start, mention_end, proposed_name)
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_character_candidates_book
+            ON character_candidates(book_id, status, mention_start)
+          ''');
+          db.execute('PRAGMA user_version = 10');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -650,6 +678,130 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           'Approval missing or input-character limit reached',
         );
       }
+    });
+  }
+
+  List<CharacterCandidate> listCharacterCandidates(String bookId) {
+    return _database.select('''
+      SELECT * FROM character_candidates
+      WHERE book_id = ? ORDER BY mention_start, id
+    ''', [bookId]).map((row) => CharacterCandidate(
+      id: row['id'] as String,
+      bookId: row['book_id'] as String,
+      name: row['proposed_name'] as String,
+      start: row['mention_start'] as int,
+      end: row['mention_end'] as int,
+      sourceDigest: row['source_sha256'] as String,
+      confidence: (row['confidence'] as num).toDouble(),
+      status: CharacterCandidateStatus.values.byName(
+          row['status'] as String),
+      createdCharacterId: row['created_character_id'] as String?,
+    )).toList();
+  }
+
+  /// Untrusted model output enters a separate pending-only queue.
+  /// Import never modifies the roster or assigns a voice.
+  Future<void> importCharacterCandidates(
+    List<CharacterCandidate> candidates, String source,
+  ) async {
+    if (candidates.length > 60) {
+      throw const FormatException('Too many character suggestions');
+    }
+    _transaction(_database, () {
+      for (final candidate in candidates) {
+        candidate.validate();
+        if (candidate.status != CharacterCandidateStatus.proposed ||
+            candidate.createdCharacterId != null ||
+            !candidate.matchesSource(source)) {
+          throw const FormatException('Candidate is not pending/source-aligned');
+        }
+        if (getBook(candidate.bookId) == null) {
+          throw StateError('Character suggestion belongs to unknown book');
+        }
+        final roster = listCastCharacters(candidate.bookId);
+        final existing = <String>[
+          for (final person in roster) person.name,
+          for (final person in roster) ...person.aliases,
+        ];
+        if (candidateConflictsWithCast(candidate.name, existing)) continue;
+        // Do not silently regenerate the same proposed character from
+        // another chapter; let the user review an existing pending row.
+        final duplicates = listCharacterCandidates(candidate.bookId);
+        if (duplicates.any((other) =>
+            other.status == CharacterCandidateStatus.proposed &&
+            CharacterCandidate.normalizeName(other.name) ==
+                CharacterCandidate.normalizeName(candidate.name))) continue;
+        _database.execute('''
+          INSERT OR IGNORE INTO character_candidates (
+            id, book_id, proposed_name, mention_start, mention_end,
+            source_sha256, confidence, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'proposed')
+        ''', [
+          candidate.id, candidate.bookId, candidate.name,
+          candidate.start, candidate.end,
+          candidate.sourceDigest, candidate.confidence,
+        ]);
+      }
+    });
+  }
+
+  /// Explicit user review is the ONLY path from candidate to cast member.
+  /// The transaction ensures a crash cannot create a person without
+  /// consuming the corresponding review decision (or vice versa).
+  Future<void> reviewCharacterCandidate(
+    String candidateId, {
+    required bool approve,
+    required String source,
+    String? displayName,
+    String? newCharacterId,
+  }) async {
+    _transaction(_database, () {
+      final rows = _database.select(
+        'SELECT book_id FROM character_candidates WHERE id = ?',
+        [candidateId],
+      );
+      if (rows.isEmpty) throw StateError('Unknown character suggestion');
+      final bookId = rows.first['book_id'] as String;
+      final candidates = listCharacterCandidates(bookId);
+      final candidate = candidates.firstWhere((c) => c.id == candidateId);
+      if (candidate.status != CharacterCandidateStatus.proposed ||
+          !candidate.matchesSource(source)) {
+        throw StateError('Character suggestion is stale or already reviewed');
+      }
+      if (!approve) {
+        _database.execute('''
+          UPDATE character_candidates SET status = 'rejected'
+          WHERE id = ? AND status = 'proposed'
+        ''', [candidateId]);
+        return;
+      }
+      if (displayName == null || newCharacterId == null) {
+        throw const FormatException('Approved person needs confirmed name/ID');
+      }
+      final person = CastCharacter(
+        id: newCharacterId,
+        bookId: bookId,
+        name: displayName.trim(),
+      );
+      person.validate();
+      final roster = listCastCharacters(bookId);
+      final names = <String>[
+        for (final member in roster) member.name,
+        for (final member in roster) ...member.aliases,
+      ];
+      if (candidateConflictsWithCast(person.name, names)) {
+        throw StateError('Character name or alias already exists in the cast');
+      }
+      _database.execute('''
+        INSERT INTO cast_characters (
+          id, book_id, display_name, aliases_json
+        ) VALUES (?, ?, ?, '[]')
+      ''', [person.id, person.bookId, person.name]);
+      _database.execute('''
+        UPDATE character_candidates
+        SET status = 'accepted', created_character_id = ?
+        WHERE id = ? AND status = 'proposed'
+      ''', [person.id, candidateId]);
     });
   }
 
