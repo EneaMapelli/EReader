@@ -26,6 +26,8 @@ import 'voice_cast_screen.dart';
 import 'pronunciation_screen.dart';
 import 'reading_tools.dart';
 import 'epub_chapter_navigation.dart';
+import 'epub_visual_layout.dart';
+import 'epub_paragraph_tile.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -46,6 +48,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   NarrationRecoveryBinding? _recoveryBinding;
   DocumentContent? _document;
   List<EpubChapter> _chapters = const [];
+  EpubVisualLayout _epubLayout = const EpubVisualLayout([], []);
   Map<int, EpubChapter> _chapterStarts = const {};
   List<PronunciationRule> _pronunciationRules = const [];
   Map<String, String> _castNames = const {};
@@ -117,6 +120,9 @@ class _ReaderScreenState extends State<ReaderScreen>
       final chapters = widget.book.format == BookFormat.epub
           ? buildEpubChapters(document, chunks)
           : const <EpubChapter>[];
+      final visualLayout = widget.book.format == BookFormat.epub
+          ? buildEpubVisualLayout(document, chunks, chapters)
+          : const EpubVisualLayout([], []);
       final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
       final recoveryBinding = NarrationRecoveryBinding(
         store: widget.store,
@@ -162,7 +168,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         _recoveryBinding?.dispose();
         previous.dispose();
       }
-      _lastFollowedIndex = player.currentIndex;
+      _lastFollowedIndex = widget.book.format == BookFormat.epub
+          ? visualLayout.blockForSegment(player.currentIndex)
+          : player.currentIndex;
       _visiblePositionIndex = player.currentIndex;
       recoveryBinding.attach(player);
       player.addListener(_onPlaybackChanged);
@@ -185,6 +193,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         _recoveryBinding = recoveryBinding;
         _document = document;
         _chapters = chapters;
+        _epubLayout = visualLayout;
         _chapterStarts = {
           for (final chapter in chapters) chapter.segmentIndex: chapter,
         };
@@ -294,7 +303,16 @@ class _ReaderScreenState extends State<ReaderScreen>
         .toList();
     if (visible.isEmpty) return;
     visible.sort();
-    final index = visible.first.clamp(0, player.segments.length - 1).toInt();
+    final firstItem = visible.first;
+    final int index;
+    if (widget.book.format == BookFormat.epub) {
+      if (firstItem >= _epubLayout.blocks.length) return;
+      final firstSegment = _epubLayout.blocks[firstItem].firstSegmentIndex;
+      if (firstSegment == null) return;
+      index = firstSegment;
+    } else {
+      index = firstItem.clamp(0, player.segments.length - 1).toInt();
+    }
     if (index == _visiblePositionIndex) return;
     final previousChapter = _currentChapterIndex;
     _visiblePositionIndex = index;
@@ -334,20 +352,21 @@ class _ReaderScreenState extends State<ReaderScreen>
       _visiblePositionIndex = player.currentIndex
           .clamp(0, player.segments.length - 1).toInt();
     }
-    if (player != null &&
-        player.segments.isNotEmpty &&
-        _autoFollow &&
-        player.currentIndex != _lastFollowedIndex) {
-      final target = player.currentIndex
-          .clamp(0, player.segments.length - 1)
-          .toInt();
-      _lastFollowedIndex = player.currentIndex;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_autoFollow || !_itemScrollController.isAttached) {
-          return;
-        }
-        _itemScrollController.jumpTo(index: target, alignment: 0.12);
-      });
+    if (player != null && player.segments.isNotEmpty && _autoFollow) {
+      final segmentIndex = player.currentIndex
+          .clamp(0, player.segments.length - 1).toInt();
+      final target = widget.book.format == BookFormat.epub
+          ? _epubLayout.blockForSegment(segmentIndex)
+          : segmentIndex;
+      if (target != _lastFollowedIndex) {
+        _lastFollowedIndex = target;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_autoFollow || !_itemScrollController.isAttached) {
+            return;
+          }
+          _itemScrollController.jumpTo(index: target, alignment: 0.12);
+        });
+      }
     }
     setState(() {});
   }
@@ -573,7 +592,9 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   Future<void> _select(int index) async {
     final player = _player;
-    if (player == null) return;
+    if (player == null || index < 0 || index >= player.segments.length) {
+      return;
+    }
     await player.seekTo(index);
     await widget.store.savePosition(
       widget.book.id,
@@ -582,7 +603,11 @@ class _ReaderScreenState extends State<ReaderScreen>
     );
     _visiblePositionIndex = index;
     if (_itemScrollController.isAttached) {
-      _itemScrollController.jumpTo(index: index, alignment: 0.12);
+      final visualIndex = widget.book.format == BookFormat.epub
+          ? _epubLayout.blockForSegment(index)
+          : index;
+      _lastFollowedIndex = visualIndex;
+      _itemScrollController.jumpTo(index: visualIndex, alignment: 0.12);
     }
   }
 
@@ -757,13 +782,30 @@ class _ReaderScreenState extends State<ReaderScreen>
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 18, horizontal: 24,
                                   ),
-                                  itemCount: player.segments.length,
+                                  itemCount: widget.book.format == BookFormat.epub
+                                      ? _epubLayout.blocks.length
+                                      : player.segments.length,
                                   itemScrollController: _itemScrollController,
                                   itemPositionsListener: _itemPositionsListener,
-                                  initialScrollIndex: player.currentIndex
-                                      .clamp(0, player.segments.length - 1)
-                                      .toInt(),
+                                  initialScrollIndex: widget.book.format ==
+                                          BookFormat.epub
+                                      ? _epubLayout.blockForSegment(
+                                          player.currentIndex)
+                                      : player.currentIndex.clamp(
+                                          0, player.segments.length - 1).toInt(),
                                   itemBuilder: (context, index) {
+                                    if (widget.book.format == BookFormat.epub) {
+                                      final block = _epubLayout.blocks[index];
+                                      return EpubParagraphTile(
+                                        key: ValueKey(block.start),
+                                        block: block,
+                                        activeSegmentIndex: player.currentIndex,
+                                        fontSize: _fontSize,
+                                        onSelectSegment: (segmentIndex) {
+                                          unawaited(_select(segmentIndex));
+                                        },
+                                      );
+                                    }
                                     final segment = player.segments[index];
                                     final heading = isStandaloneChapterHeading(
                                       _chapterStarts[index], segment,
