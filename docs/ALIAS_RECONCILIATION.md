@@ -30,3 +30,7 @@ Source implementation increment: 2026-10-23. Saved on feature/m0-flutter-foundat
 - Cross-chapter coreference, pronoun resolution, role/organization/place disambiguation, linguistic stemming and multilingual alias equivalence still need richer review.
 - Saved-position caps limit transmitted source text but cannot guarantee a model will never infer plot details from allowed text.
 - All tests are **authored, not executed**. No real API keys, network calls, paid usage or device integration was run in this increment.
+
+## Merging already duplicated identities
+
+The Characters tab now supports an explicit merge of two existing identities. The reader selects which stable ID survives and chooses between conflicting provider voices; previous speaker assignments, alias-review links and approved character discoveries are reattached in SQLite v12 before deleting the duplicate. Alias proposals do not trigger merges automatically. See [Cast Identity Merge](CAST_IDENTITY_MERGE.md).
