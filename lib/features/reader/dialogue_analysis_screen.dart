@@ -302,8 +302,12 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
               Text('Scope: ' + window.scope.title),
               Text('Model: ' + _model),
               Text('Passages: ' + window.segments.length.toString()),
-              Text('Character identities sent: ' +
-                  window.cast.map((p) => p.name).join(', ')),
+              const Text('Character names and aliases sent:'),
+              SelectableText(window.cast.map((member) =>
+                member.name + ' [' + member.id + ']' +
+                (member.aliases.isEmpty ? '' :
+                  ' — aliases: ' + member.aliases.join(', '))
+              ).join('\n')),
               Text('Spoiler cutoff (UTF-16): ' +
                   window.effectiveCeiling.toString()),
               Text('Earlier context: ' +
