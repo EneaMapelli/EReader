@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 class _FakeSpeechEngine implements SpeechEngine {
   final spoken = <String>[];
   Completer<void>? waiting;
+  Completer<void>? stopGate;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => const [];
@@ -29,7 +30,10 @@ class _FakeSpeechEngine implements SpeechEngine {
   }
 
   @override
-  Future<void> stop() async => finish();
+  Future<void> stop() async {
+    if (stopGate != null) await stopGate!.future;
+    finish();
+  }
 
   void finish() {
     if (waiting != null && !waiting!.isCompleted) waiting!.complete();
@@ -196,6 +200,32 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(engine.spoken, ['First'],
         reason: 'Audio focus recovery never auto-synthesizes more text');
+    await handler.close();
+    player.dispose();
+  });
+
+  test('incoming call during in-flight seek cancels latent audio resume',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'b', title: 'B');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First']);
+
+    engine.stopGate = Completer<void>();
+    final seeking = player.seekTo(1);
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isPlaying, isFalse);
+    // The player is already marked paused, but its outstanding seek would
+    // otherwise resume once the native stop finishes.
+    handler.handleSystemInterruption();
+    engine.stopGate!.complete();
+    await seeking;
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isPlaying, isFalse);
+    expect(engine.spoken, ['First']);
     await handler.close();
     player.dispose();
   });
