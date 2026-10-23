@@ -97,7 +97,9 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
     try {
       if (await file.exists()) await file.delete();
     } on FileSystemException {
-      // Windows can briefly keep a decoder handle; cleanup is best-effort.
+      // Retain failed cleanup path for another try after stop/dispose:
+      // Windows can briefly keep MP3 files open after playback completion.
+      slot.file = file;
     }
   }
 
@@ -191,6 +193,9 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
     try {
       await slot.decoder.play();
     } finally {
+      // Release the native file handle before erasing private temporary
+      // audio, particularly for the Windows Media Player implementation.
+      await slot.decoder.stop();
       await _clearFile(slot);
     }
   }
