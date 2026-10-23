@@ -96,6 +96,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget build(BuildContext context) {
     final books = widget.store.books;
     final lastOpened = widget.store.lastOpenedBook;
+    final interrupted = widget.store.interruptedNarrationBook;
     return Scaffold(
       appBar: AppBar(
         title: const Text('EReader'),
@@ -128,6 +129,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
             )
           : Column(
               children: [
+                if (interrupted != null)
+                  Card(
+                    margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                    child: ListTile(
+                      leading: const Icon(Icons.settings_backup_restore),
+                      title: const Text('Narration interrupted'),
+                      subtitle: Text(
+                        '${interrupted.title} · Reopen at the saved position. '
+                        'Audio will not start automatically.',
+                      ),
+                      isThreeLine: true,
+                      onTap: () => _open(interrupted),
+                      trailing: IconButton(
+                        tooltip: 'Dismiss interrupted narration notice',
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          widget.store.dismissInterruptedNarration();
+                          setState(() {});
+                        },
+                      ),
+                    ),
+                  ),
                 if (lastOpened != null)
                   Card(
                     margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
