@@ -10,6 +10,7 @@ import 'package:ereader/domain/book_bookmark.dart';
 import 'package:ereader/domain/voice_cast.dart';
 import 'package:ereader/domain/cast_span.dart';
 import 'package:ereader/domain/cloud_speech_consent.dart';
+import 'package:ereader/domain/llm_analysis_consent.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -663,6 +664,87 @@ void main() {
     expect(store.listCastCharacters(book.id).single.name, 'Legacy Actor');
     expect(store.getConsent(book.id, 'openai-speech').usedCharacters, 12);
     expect(store.listCastSpans(book.id), isEmpty);
+  });
+
+
+  test('LLM analysis is opt-in independently from paid speech', () async {
+    final file = File(p.join(root.path, 'analysis-no-optin.txt'));
+    await file.writeAsString('A narrated chapter.');
+    final book = await store.importFile(file.path);
+    await store.configureCloudConsent(book.id, 'openai-speech',
+        allowed: true, maxCharacters: 100);
+    expect(store.getLlmAnalysisConsent(book.id).allowed, isFalse);
+    await expectLater(
+      store.reserveLlmAnalysisInput(book.id, 150),
+      throwsA(isA<LlmAnalysisDenied>()),
+    );
+    expect(store.getLlmAnalysisConsent(book.id).usedInputCharacters, 0);
+    await store.configureLlmAnalysisConsent(book.id,
+        allowed: true, maxInputCharacters: 2000);
+    await store.reserveLlmAnalysisInput(book.id, 600);
+    expect(store.getLlmAnalysisConsent(book.id).remainingInputCharacters, 1400);
+    expect(store.getConsent(book.id, 'openai-speech').usedCharacters, 0);
+  });
+
+  test('analysis quota persists and cannot be reduced below prior usage',
+      () async {
+    final file = File(p.join(root.path, 'analysis-quota.txt'));
+    await file.writeAsString('Small dialogue.');
+    final book = await store.importFile(file.path);
+    await store.configureLlmAnalysisConsent(book.id,
+        allowed: true, maxInputCharacters: 2000);
+    await store.reserveLlmAnalysisInput(book.id, 1800);
+    await expectLater(
+      store.configureLlmAnalysisConsent(book.id,
+          allowed: true, maxInputCharacters: 1600),
+      throwsStateError,
+    );
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getLlmAnalysisConsent(book.id).usedInputCharacters, 1800);
+    await expectLater(
+      store.reserveLlmAnalysisInput(book.id, 250),
+      throwsA(isA<LlmAnalysisDenied>()),
+    );
+    await store.configureLlmAnalysisConsent(book.id,
+        allowed: false, maxInputCharacters: 2000);
+    await expectLater(
+      store.reserveLlmAnalysisInput(book.id, 1),
+      throwsA(isA<LlmAnalysisDenied>()),
+    );
+    expect(store.getLlmAnalysisConsent(book.id).usedInputCharacters, 1800);
+  });
+
+  test('SQLite v7-to-v8 keeps existing cast, voice and consent history',
+      () async {
+    final file = File(p.join(root.path, 'upgrade-analysis.txt'));
+    await file.writeAsString('Dialogue chapter.');
+    final book = await store.importFile(file.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'cast-member', bookId: book.id, name: 'Speaker',
+    ));
+    await store.configureCloudConsent(book.id, 'openai-speech',
+        allowed: true, maxCharacters: 1000);
+    await store.reserveCharacters(book.id, 'openai-speech', 25);
+    store.dispose();
+
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    db.execute('DROP TABLE llm_analysis_consent');
+    db.execute('PRAGMA user_version = 7');
+    db.dispose();
+
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.listCastCharacters(book.id).single.name, 'Speaker');
+    expect(store.getConsent(book.id, 'openai-speech').usedCharacters, 25);
+    expect(store.getLlmAnalysisConsent(book.id).allowed, isFalse);
+    await store.configureLlmAnalysisConsent(book.id,
+        allowed: true, maxInputCharacters: 3500);
+    await store.reserveLlmAnalysisInput(book.id, 1900);
+    expect(store.getLlmAnalysisConsent(book.id).usedInputCharacters, 1900);
+    await store.removeBook(book.id);
+    expect(store.getLlmAnalysisConsent(book.id).allowed, isFalse);
   });
 
 }
