@@ -73,7 +73,7 @@ void main() {
   );
   final window = DialogueAnalysisWindow(
     bookId: 'book', scope: scope,
-    segments: [const SpeechSegment(0, excerpt.length, excerpt)],
+    segments: [SpeechSegment(0, excerpt.length, excerpt)],
     cast: [const CastCharacter(
         id: 'actor', bookId: 'book', name: 'Anna')],
   );
