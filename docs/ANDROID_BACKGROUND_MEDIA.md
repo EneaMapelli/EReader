@@ -76,9 +76,9 @@ checked on actual target devices.
 
 ## Authored tests and final integration checklist
 
-`test/audio/reader_media_handler_test.dart` contains six authored but
+`test/audio/reader_media_handler_test.dart` contains seven authored but
 **unexecuted** unit tests: metadata lifecycle, nonblocking Play and transport
-seek, remote consent denial, denied/delayed focus, interruption without
+seek, remote consent denial, denied/delayed focus, serialized focus release, interruption without
 auto-resume and stale book replacement.
 
 On a real Android device, once the user elects to compile:
