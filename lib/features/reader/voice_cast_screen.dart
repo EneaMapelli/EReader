@@ -310,7 +310,9 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
 
   Future<void> _annotateSelection(SpeechSegment segment) async {
     final editor = TextEditingController(text: segment.text);
-    String? speaker = _characters.isEmpty ? null : _characters.first.id;
+    // Do not preselect a character when reviewing a dialogue fragment.
+    // Narrator/unknown stays the safe default until explicitly changed.
+    String? speaker;
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialog) => StatefulBuilder(
