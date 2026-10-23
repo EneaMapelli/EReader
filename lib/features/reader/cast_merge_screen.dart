@@ -70,8 +70,8 @@ class _CastMergeScreenState extends State<CastMergeScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Merged into ' + result.mergedName +
-            ' (preserved ' + result.movedRecordCount.toString() +
-            ' associated records).'),
+            ' (reviewed ' + result.movedRecordCount.toString() +
+            ' dependent references and voice profiles).'),
       ));
       Navigator.of(context).pop(true);
     } catch (error) {
