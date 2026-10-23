@@ -129,11 +129,12 @@ class ConversationSpeakerInspector {
     for (final span in reviewedSpans) {
       if (span.bookId != bookId ||
           span.status != CastSpanStatus.accepted ||
-          !span.lockedByUser ||
-          span.speakerId == null ||
-          !span.matchesSource(source, offsetFromAnchor)) continue;
+          !span.lockedByUser || span.speakerId == null) continue;
       final start = span.resolvedStart(offsetFromAnchor);
-      if (start == null) continue;
+      if (start == null || start < begin ||
+          start + span.length > referenceStart) continue;
+      // Never even hash text after the reference. Check hard bounds first.
+      if (!span.matchesSource(source, offsetFromAnchor)) continue;
       add(
         start: start, end: start + span.length,
         speaker: span.speakerId!,
@@ -146,7 +147,8 @@ class ConversationSpeakerInspector {
           ? item.start : offsetFromAnchor(item.anchor!);
       if (start == null) continue;
       final end = start + item.end - item.start;
-      if (!CastSpan.validUtf16Range(source, start, end) ||
+      if (start < begin || end > referenceStart ||
+          !CastSpan.validUtf16Range(source, start, end) ||
           SegmentCastAssignment.fingerprint(
               source.substring(start, end)) != item.sourceDigest) continue;
       add(
