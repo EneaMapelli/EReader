@@ -42,6 +42,6 @@ The preview uses an optimistic SHA-256 fingerprint of the roster, provider profi
 
 ## Tests authored but not executed
 
-`test/data/cast_merge_test.dart`: preserve provider voices and speaker spans; pending/approved model pointers; SQLite foreign-key consistency; migration from v11; all-or-nothing rollback with unresolved provider conflict; same-book restriction; stale preview including same-count hash edits; alias cap.
+`test/data/cast_merge_test.dart`: preserve provider voices and speaker spans; pending/approved model pointers; SQLite foreign-key consistency; migration from v11; rollback both for unresolved provider conflicts and for a simulated failure inserting the merge audit row at the **end** of the transaction; same-book restriction; stale previews including same-count hash edits; alias cap.
 
 Production checks still required: format, analyze and test on a real Flutter toolchain, native migration, Unicode/narration smoke tests, concurrent cast edits and Android/Windows UX. The PR must remain draft until these gates pass.
