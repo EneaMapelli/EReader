@@ -882,7 +882,8 @@ void main() {
     final one = File(p.join(root.path, 'one-person.txt'));
     final two = File(p.join(root.path, 'other-person.txt'));
     await one.writeAsString(source);
-    await two.writeAsString('Another novel');
+    const secondSource = 'Another novel';
+    await two.writeAsString(secondSource);
     final b1 = await store.importFile(one.path);
     final b2 = await store.importFile(two.path);
     await store.saveCastCharacter(CastCharacter(
@@ -897,7 +898,7 @@ void main() {
       status: CharacterCandidateStatus.proposed,
     );
     await expectLater(
-      store.importCharacterCandidates([illegal], source),
+      store.importCharacterCandidates([illegal], secondSource),
       throwsFormatException,
     );
     expect(store.listCharacterCandidates(b1.id), isEmpty);
