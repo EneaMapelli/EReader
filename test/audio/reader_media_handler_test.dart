@@ -149,6 +149,36 @@ void main() {
     player.dispose();
   });
 
+  test('focus reacquisition waits for an earlier native release', () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final releaseGate = Completer<void>();
+    var releases = 0;
+    var focusRequests = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async { focusRequests++; return true; },
+      releaseFocus: () {
+        releases++;
+        if (releases == 1) return releaseGate.future;
+        return Future<void>.value();
+      },
+    );
+    handler.attach(player, bookId: 'b', title: 'B');
+    final pendingPlay = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(focusRequests, 0);
+    expect(engine.spoken, isEmpty);
+
+    releaseGate.complete();
+    await pendingPlay;
+    await Future<void>.delayed(Duration.zero);
+    expect(focusRequests, 1);
+    expect(engine.spoken, ['First']);
+    await handler.pause();
+    await handler.close();
+    player.dispose();
+  });
+
   test('system interruption pauses without automatic resume', () async {
     final engine = _FakeSpeechEngine();
     final player = _reader(engine);
