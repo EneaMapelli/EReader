@@ -15,6 +15,8 @@ import '../../domain/cast_span.dart';
 import '../../domain/character_candidate.dart';
 import '../../domain/alias_candidate.dart';
 import '../../domain/narrative_reference.dart';
+import '../../llm/dialogue_analysis_plan.dart';
+import '../../llm/narrative_antecedent_finder.dart';
 import '../../domain/llm_cast_proposals.dart';
 
 /// User-curated characters, provider voice profiles and segment attribution.
@@ -770,20 +772,45 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
           'Indirect reference or earlier evidence is stale'));
       return;
     }
-    String? selected = candidate.ambiguous ? null :
-      (_characters.any((p) => p.id == candidate.proposedCharacterId)
-          ? candidate.proposedCharacterId : null);
+    final ranges = const DialogueAnalysisPlanner().scopes(
+      widget.book.format, widget.document,
+    );
+    var safeScopeStart = candidate.start;
+    for (final range in ranges) {
+      if (range.start <= candidate.start && candidate.end <= range.end) {
+        safeScopeStart = range.start;
+        break;
+      }
+    }
+    final inspection = const NarrativeAntecedentFinder().inspect(
+      source: widget.document.text,
+      scopeStart: safeScopeStart,
+      referenceStart: candidate.start,
+      referenceEnd: candidate.end,
+      cast: _characters,
+      reviewedReferences: _references.where((ref) =>
+        ref.status == NarrativeReferenceStatus.accepted &&
+        ref.bookId == widget.book.id).toList(),
+    );
+    final namesById = {
+      for (final character in _characters)
+        character.id: character.name,
+    };
+    // Even if the model guessed a person, the reviewer has to choose.
+    // Recency hints are NEVER preselected as an identity verdict.
+    String? selected;
     final confirmed = await showDialog<String>(
       context: context,
       builder: (dialog) => StatefulBuilder(
         builder: (dialog, refresh) => AlertDialog(
           title: const Text('Confirm an indirect character reference'),
           content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 540),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            constraints: const BoxConstraints(maxWidth: 540, maxHeight: 510),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Text('Exact reference: ' + candidate.referenceText),
                 Text('Type: ' + candidate.kind.name),
                 Text(candidate.ambiguous
@@ -797,6 +824,50 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
                         candidate.evidence!.start,
                         candidate.evidence!.end,
                       )),
+                const SizedBox(height: 10),
+                const Text(
+                  'Local earlier character mentions (possible cues, '
+                  'NOT proof of identity):',
+                ),
+                Text('Scanned up to ' +
+                    NarrativeAntecedentFinder.maxLookback.toString() +
+                    ' characters before this reference, within its scope.'),
+                if (inspection.containsDifferentPeople)
+                  const Text(
+                    'Several different characters appear nearby. '
+                    'Resolve the ambiguity yourself.',
+                  ),
+                if (inspection.cues.isEmpty)
+                  const Text(
+                    'No verified earlier mentions of known characters '
+                    'were found in this scope.'),
+                for (final cue in inspection.cues)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text((namesById[cue.characterId] ?? 'Unknown') +
+                              ' · ' + (cue.kind ==
+                                AntecedentCueKind.explicitName
+                                  ? 'Direct name/alias'
+                                  : 'Previously reviewed link') +
+                              ' · ' + (candidate.start - cue.end)
+                                  .toString() + ' chars earlier'),
+                          SelectableText(cue.context),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () => refresh(
+                                  () => selected = cue.characterId),
+                              child: const Text('Select as possible referent'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   value: selected,
@@ -819,6 +890,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
                     'It NEVER changes which voice reads any dialogue, '
                     'adds an alias, or merges people.'),
               ],
+            ),
             ),
           ),
           actions: [
