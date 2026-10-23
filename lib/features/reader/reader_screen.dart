@@ -590,6 +590,17 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
+  void _selectFromVisualTap(int index) {
+    unawaited(_select(index).catchError(
+      (Object error, StackTrace stack) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cannot select passage: $error')),
+        );
+      },
+    ));
+  }
+
   Future<void> _select(int index) async {
     final player = _player;
     if (player == null || index < 0 || index >= player.segments.length) {
@@ -804,6 +815,11 @@ class _ReaderScreenState extends State<ReaderScreen>
                                     ? _epubPalette.background(context) : null,
                                 child: SelectionArea(
                                   child: ScrollablePositionedList.builder(
+                                  // A new EPUB extraction/casting pass changes
+                                  // the block index. Remount to honor the
+                                  // restored anchor after the user edits voices.
+                                  key: widget.book.format == BookFormat.epub
+                                      ? ObjectKey(_epubLayout) : null,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 18, horizontal: 24,
                                   ),
@@ -827,9 +843,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                         activeSegmentIndex: player.currentIndex,
                                         fontSize: _fontSize,
                                         palette: _epubPalette,
-                                        onSelectSegment: (segmentIndex) {
-                                          unawaited(_select(segmentIndex));
-                                        },
+                                        onSelectSegment: _selectFromVisualTap,
                                       );
                                     }
                                     final segment = player.segments[index];
@@ -839,7 +853,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                     final selected =
                                         index == player.currentIndex;
                                     return InkWell(
-                                      onTap: () => _select(index),
+                                      onTap: () => _selectFromVisualTap(index),
                                       child: Container(
                                         padding: const EdgeInsets.all(10),
                                         margin: const EdgeInsets.only(bottom: 6),
