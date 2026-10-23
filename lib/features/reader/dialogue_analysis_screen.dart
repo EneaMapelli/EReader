@@ -13,6 +13,7 @@ import '../../domain/voice_cast.dart';
 import '../../llm/dialogue_analysis_plan.dart';
 import '../../llm/openai_dialogue_analyzer.dart';
 import '../../llm/openai_character_discoverer.dart';
+import '../../llm/openai_alias_reconciler.dart';
 
 /// Intentional one-window-at-a-time analysis. Opening this screen, choosing
 /// scope/model or saving a key NEVER sends any book text to the network.
@@ -43,6 +44,7 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
   final Set<String> _selectedCharacterIds = {};
   late OpenAiDialogueAnalyzer _analyzer;
   late OpenAiCharacterDiscoverer _discoverer;
+  late OpenAiAliasReconciler _aliasReconciler;
   String _task = 'speakers';
   int _scopeIndex = 0;
   int? _nextFrom;
@@ -66,6 +68,9 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
     _discoverer = OpenAiCharacterDiscoverer(
       access: widget.store, vault: widget.vault,
     );
+    _aliasReconciler = OpenAiAliasReconciler(
+      access: widget.store, vault: widget.vault,
+    );
     final consent = widget.store.getLlmAnalysisConsent(widget.book.id);
     if (consent.maxInputCharacters > 0) {
       _limit.text = consent.maxInputCharacters.toString();
@@ -77,6 +82,7 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
   void dispose() {
     _analyzer.dispose();
     _discoverer.dispose();
+    _aliasReconciler.dispose();
     _key.dispose();
     _limit.dispose();
     super.dispose();
@@ -99,7 +105,7 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
 
   DialogueAnalysisWindow? _previewWindow() {
     if (_scopes.isEmpty ||
-        (_task == 'speakers' && _selectedCharacterIds.isEmpty)) return null;
+        (_task != 'characters' && _selectedCharacterIds.isEmpty)) return null;
     final scope = _scopes[_scopeIndex];
     final latest = widget.store.getBook(widget.book.id) ?? widget.book;
     final position = latest.progressAnchor == null
@@ -291,7 +297,9 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
     }
     final estimatedChars = _task == 'characters'
         ? _discoverer.requestedCharacters(window)
-        : _analyzer.requestedCharacters(window);
+        : _task == 'aliases'
+          ? _aliasReconciler.requestedCharacters(window)
+          : _analyzer.requestedCharacters(window);
     final consent = widget.store.getLlmAnalysisConsent(widget.book.id);
     if (!consent.allowed || estimatedChars >
         consent.remainingInputCharacters || !_keySaved) {
@@ -304,7 +312,9 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
       builder: (dialog) => AlertDialog(
         title: Text(_task == 'characters'
             ? 'Search this excerpt for new characters?'
-            : 'Send this excerpt for dialogue attribution?'),
+            : _task == 'aliases'
+                ? 'Review potential aliases in this excerpt?'
+                : 'Send this excerpt for dialogue attribution?'),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 580),
           child: SingleChildScrollView(child: Column(
@@ -337,11 +347,14 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
               SelectableText(excerpt, maxLines: 12),
               const SizedBox(height: 12),
               Text(_task == 'characters'
-                ? 'The model may suggest names found in the quoted source. '
-                  'No cast member will be created until you review and add '
-                  'that person; no voices or dialogues are assigned.'
-                : 'Suggested speakers remain inactive until individually '
-                  'approved in Voice Cast / Review.'),
+                ? 'The model may suggest names in this excerpt. No new '
+                  'cast member is created until explicitly confirmed.'
+                : _task == 'aliases'
+                  ? 'Possible nicknames are untrusted proposals. None '
+                    'will be attached to a person until individually '
+                    'confirmed in Voice Cast / Review.'
+                  : 'Suggested speakers remain inactive until individually '
+                    'approved in Voice Cast / Review.'),
 
             ],
           )),
@@ -373,6 +386,19 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
         _message('Discovered ' + discovered.length.toString() +
             ' source-verified character candidates. Review them in '
             'Voice Cast before any new character is created.');
+      } else if (_task == 'aliases') {
+        final suggestions = await _aliasReconciler.reconcile(
+          window: window,
+          source: widget.document.text,
+          idPrefix: idPrefix,
+          model: _model,
+        );
+        await widget.store.importAliasCandidates(
+          suggestions, widget.document.text,
+        );
+        _message('Saved ' + suggestions.length.toString() +
+            ' alias candidates. Review and select their real owners '
+            'before attaching any nickname to a character.');
       } else {
         final raw = await _analyzer.analyze(window, model: _model);
         final proposed = planner.materializeProposals(
@@ -449,6 +475,11 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
                 value: 'characters',
                 icon: Icon(Icons.person_search_outlined),
                 label: Text('Find characters'),
+              ),
+              ButtonSegment(
+                value: 'aliases',
+                icon: Icon(Icons.manage_accounts_outlined),
+                label: Text('Reconcile aliases'),
               ),
             ],
             selected: {_task},
@@ -528,10 +559,10 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
             label: Text('Select characters safe for this point (' +
                 _selectedCharacterIds.length.toString() + ' selected)'),
           ),
-          if (_cast.isEmpty && _task == 'speakers')
+          if (_cast.isEmpty && _task != 'characters')
             const Text('Add characters in Voice Cast first, or switch '
                 'to Find characters to discover names from the excerpt.'),
-          if (_task == 'speakers' &&
+          if (_task != 'characters' &&
               _cast.isNotEmpty && _selectedCharacterIds.isEmpty)
             const Text(
               'Select the already-known characters above before analysis. '
@@ -614,12 +645,14 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
           FilledButton.icon(
             icon: const Icon(Icons.psychology_alt_outlined),
             onPressed: _busy || window == null ||
-                    (_task == 'speakers' && _selectedCharacterIds.isEmpty)
+                    (_task != 'characters' && _selectedCharacterIds.isEmpty)
                 ? null : _analyzeSelected,
             label: Text(_busy ? 'Analysing selected excerpt…'
                 : _task == 'characters'
                   ? 'Preview and find new characters'
-                  : 'Preview and assign dialogue speakers'),
+                  : _task == 'aliases'
+                      ? 'Preview and reconcile aliases'
+                      : 'Preview and assign dialogue speakers'),
           ),
           if (_notice != null)
             Padding(
