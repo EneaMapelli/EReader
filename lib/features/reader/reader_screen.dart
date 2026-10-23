@@ -56,7 +56,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   Timer? _saveVisualPositionTimer;
   Timer? _savePdfPageTimer;
   int? _pendingPdfPage;
-  late final int _initialPdfPage;
+  late int _displayPdfPage;
   int? _visiblePositionIndex;
   int _lastFollowedIndex = -1;
   Object? _lastReportedPlaybackError;
@@ -66,7 +66,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _itemPositionsListener.itemPositions.addListener(_onVisiblePositions);
-    _initialPdfPage = widget.book.format == BookFormat.pdf
+    _displayPdfPage = widget.book.format == BookFormat.pdf
         ? widget.store.getPdfVisualPage(widget.book.id)
         : 1;
     if (widget.book.format != BookFormat.pdf) {
@@ -235,6 +235,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         _pdfTextMode || pageNumber == null ||
         pageNumber < 1 || pageNumber > 100000) return;
     if (_pendingPdfPage == pageNumber) return;
+    _displayPdfPage = pageNumber;
     _pendingPdfPage = pageNumber;
     _savePdfPageTimer?.cancel();
     _savePdfPageTimer = Timer(
@@ -618,7 +619,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                         Expanded(
                           child: PdfViewer.file(
                             widget.book.localPath,
-                            initialPageNumber: _initialPdfPage,
+                            initialPageNumber: _displayPdfPage,
                             params: PdfViewerParams(
                               onPageChanged: _onPdfPageChanged,
                             ),
