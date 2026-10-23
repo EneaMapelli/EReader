@@ -630,6 +630,22 @@ class _ReaderScreenState extends State<ReaderScreen> {
                   ),
                 ],
               ),
+              if (player.engineProviderId ==
+                  OpenAiSpeechEngine.providerId)
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  title: const Text('Prebuffer one cloud audio chunk'),
+                  subtitle: const Text(
+                    'Optional, off by default. The next chunk may be '
+                    'sent to OpenAI and charged while the current one '
+                    'plays, even if you pause or skip before hearing it. '
+                    'Only one future chunk is prepared.',
+                  ),
+                  value: player.prefetchNextCloudChunk,
+                  onChanged: (enabled) => player.setCloudPrefetch(
+                      enabled ?? false),
+                ),
               if (player.availableVoices.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
