@@ -76,6 +76,7 @@ PreparedCastSpeech coalesceQuotedSpeech({
   required List<QuotedSpeechChunk> quotedChunks,
   required Map<int, String?> speakerByStart,
   int maxChars = 400,
+  List<int> hardBoundaries = const [],
 }) {
   if (maxChars < 16) throw ArgumentError.value(maxChars, 'maxChars');
   final merged = <SpeechSegment>[];
@@ -110,7 +111,11 @@ PreparedCastSpeech coalesceQuotedSpeech({
     final sameVoice = previous != null &&
         lastHadLabel == hasLabel &&
         lastSpeaker == speaker;
+    final crossesSourceBoundary = previous != null &&
+        hardBoundaries.any((boundary) =>
+            previous.start < boundary && chunk.end > boundary);
     if (group != null && group == lastGroup && sameVoice && continuous &&
+        !crossesSourceBoundary &&
         chunk.end - previous!.start <= maxChars) {
       final combined = SpeechSegment(
         previous.start,
