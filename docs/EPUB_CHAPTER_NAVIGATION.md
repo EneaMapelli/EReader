@@ -17,6 +17,10 @@ builds intentionally deferred.**
   spine items and highlights the current chapter. A selected item is
   mapped to the first actual TTS segment inside that item's source range,
   persisted using its existing `ReadingAnchor(kind: epubSpine)`.
+  During manual scrolling the chapter indicator follows the visible text;
+  during narration it follows the spoken segment. Standalone headings already
+  present verbatim in the text receive larger typography and a screen-reader
+  heading semantic; no duplicate chapter title is inserted into the book.
   The navigation bar also offers **previous/next chapter** and displays
   the current chapter title and index.
 - Selecting a chapter pauses existing playback first. It does not
@@ -50,10 +54,10 @@ builds intentionally deferred.**
 
 ## Tests written but not executed
 
-- `test/features/epub_chapter_navigation_test.dart`: five tests for
+- `test/features/epub_chapter_navigation_test.dart`: six tests for
   source-exact UTF-16 positioning (including emoji), per-spine narration
   boundaries, quote coalescing restrictions, empty spine items, fallback
-  labels, malformed ranges and TXT compatibility.
+  labels, source-exact semantic headings, malformed ranges and TXT compatibility.
 - `test/data/epub_text_extractor_test.dart`: two new tests for body-only
   heading extraction and display-title truncation without altering
   original text or offsets.
