@@ -14,6 +14,7 @@ import '../../domain/voice_cast.dart';
 import '../../domain/cast_span.dart';
 import '../../domain/character_candidate.dart';
 import '../../domain/alias_candidate.dart';
+import '../../domain/narrative_reference.dart';
 import '../../domain/llm_cast_proposals.dart';
 
 /// User-curated characters, provider voice profiles and segment attribution.
@@ -44,6 +45,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
   List<CastVoiceAssignment> _voices = const [];
   List<CharacterCandidate> _characterCandidates = const [];
   List<AliasCandidate> _aliasCandidates = const [];
+  List<NarrativeReferenceCandidate> _references = const [];
   List<CastSpan> _fine = const [];
   late VoiceCastResolver _resolver;
   final _search = TextEditingController();
@@ -59,6 +61,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
     _voices = widget.store.listCastVoices(widget.book.id);
     _characterCandidates = widget.store.listCharacterCandidates(widget.book.id);
     _aliasCandidates = widget.store.listAliasCandidates(widget.book.id);
+    _references = widget.store.listNarrativeReferences(widget.book.id);
     _fine = widget.store.listCastSpans(widget.book.id);
     _resolver = VoiceCastResolver(
       bookId: widget.book.id,
@@ -746,6 +749,106 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
     }
   }
 
+  Future<void> _reviewNarrativeReference(
+    NarrativeReferenceCandidate candidate, {required bool approve},
+  ) async {
+    if (!approve) {
+      try {
+        await widget.store.reviewNarrativeReference(
+          candidate.id,
+          approve: false,
+          source: widget.document.text,
+        );
+        if (mounted) _reload();
+      } catch (error) {
+        _error(error);
+      }
+      return;
+    }
+    if (!candidate.matchesSource(widget.document.text)) {
+      _error(const FormatException(
+          'Indirect reference or earlier evidence is stale'));
+      return;
+    }
+    String? selected = candidate.ambiguous ? null :
+      (_characters.any((p) => p.id == candidate.proposedCharacterId)
+          ? candidate.proposedCharacterId : null);
+    final confirmed = await showDialog<String>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialog, refresh) => AlertDialog(
+          title: const Text('Confirm an indirect character reference'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 540),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Exact reference: ' + candidate.referenceText),
+                Text('Type: ' + candidate.kind.name),
+                Text(candidate.ambiguous
+                  ? 'Conflicting model interpretations: choose manually'
+                  : 'Model confidence (not a probability): ' +
+                      candidate.confidence.toStringAsFixed(2)),
+                if (candidate.evidence != null &&
+                    candidate.evidence!.matchesSource(widget.document.text))
+                  SelectableText('Earlier supporting excerpt: ' +
+                      widget.document.text.substring(
+                        candidate.evidence!.start,
+                        candidate.evidence!.end,
+                      )),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: selected,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Choose the actual referent',
+                  ),
+                  items: [
+                    for (final person in _characters)
+                      DropdownMenuItem(
+                        value: person.id,
+                        child: Text(person.name,
+                          overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
+                  onChanged: (value) => refresh(() => selected = value),
+                ),
+                const SizedBox(height: 10),
+                const Text('This adds only a reviewed narrative link. '
+                    'It NEVER changes which voice reads any dialogue, '
+                    'adds an alias, or merges people.'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: selected == null ? null :
+                  () => Navigator.pop(dialog, selected),
+              child: const Text('Save reviewed reference'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == null || !mounted) return;
+    try {
+      await widget.store.reviewNarrativeReference(
+        candidate.id,
+        approve: true,
+        source: widget.document.text,
+        confirmedCharacterId: confirmed,
+      );
+      if (mounted) _reload();
+    } catch (error) {
+      _error(error);
+    }
+  }
+
   Widget _reviewTab() {
     final accepted = _fine.where(
       (span) => span.status == CastSpanStatus.accepted,
@@ -863,6 +966,52 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
                     tooltip: 'Reject this alias proposal',
                     icon: const Icon(Icons.close),
                     onPressed: () => _reviewAlias(candidate, approve: false),
+                  ),
+                ]),
+              ),
+            ),
+        const Divider(height: 28),
+        Text('Pronouns and indirect narrative references',
+          style: Theme.of(context).textTheme.titleMedium),
+        const Text('These references are not speech labels. '
+          'Even after approval, they cannot change a TTS voice. '
+          'Ambiguous identities always require a manual choice.'),
+        if (!_references.any(
+            (item) => item.status == NarrativeReferenceStatus.proposed))
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text('No indirect references await review.'),
+          ),
+        for (final item in _references)
+          if (item.status == NarrativeReferenceStatus.proposed)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.account_tree_outlined),
+                title: Text(item.referenceText),
+                subtitle: Text(
+                  (item.ambiguous ? 'Conflicting proposals · ' :
+                    item.proposedCharacterId == null ? 'Unresolved · ' :
+                    'Suggested: ' + _characters
+                        .where((c) => c.id == item.proposedCharacterId)
+                        .map((c) => c.name).join(', ') + ' · ') +
+                  item.kind.name + ' · ' +
+                  (item.matchesSource(widget.document.text)
+                    ? 'source verified'
+                    : 'stale source/evidence'),
+                ),
+                trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+                  IconButton(
+                    tooltip: 'Choose referent (does not change voice)',
+                    icon: const Icon(Icons.fact_check_outlined),
+                    onPressed: item.matchesSource(widget.document.text)
+                      ? () => _reviewNarrativeReference(item, approve: true)
+                      : null,
+                  ),
+                  IconButton(
+                    tooltip: 'Reject indirect reference',
+                    icon: const Icon(Icons.close),
+                    onPressed: () =>
+                        _reviewNarrativeReference(item, approve: false),
                   ),
                 ]),
               ),
