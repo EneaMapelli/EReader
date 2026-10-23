@@ -9,10 +9,12 @@ import 'package:ereader/domain/reading_anchor.dart';
 import 'package:ereader/domain/speech_segment.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqlite3/sqlite3.dart';
 
 class _SpeechEngine implements SpeechEngine {
   final spoken = <String>[];
   Completer<void>? _active;
+  Completer<void>? stopGate;
   bool failNext = false;
 
   @override
@@ -41,7 +43,10 @@ class _SpeechEngine implements SpeechEngine {
   }
 
   @override
-  Future<void> stop() async => finish();
+  Future<void> stop() async {
+    if (stopGate != null) await stopGate!.future;
+    finish();
+  }
 
   @override
   Future<void> dispose() async => finish();
@@ -162,6 +167,95 @@ void main() {
     badPlayer.dispose();
     await restartStore();
     expect(store.interruptedNarrationBook, isNull);
+  });
+
+  int activeCheckpoints() {
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    try {
+      final rows = db.select('SELECT book_id FROM speech_recovery_marker');
+      expect(rows.every((row) => row['book_id'] == bookId), isTrue);
+      return rows.length;
+    } finally {
+      db.dispose();
+    }
+  }
+
+  test('seek preserves crash checkpoint while native stop is pending',
+      () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final player = playerFor(engine, recovery);
+    final firstRun = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(activeCheckpoints(), 1);
+    engine.stopGate = Completer<void>();
+    final seeking = player.seekTo(1);
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isPlaying, isFalse);
+    expect(player.isSettledIdle, isFalse);
+    expect(activeCheckpoints(), 1,
+        reason: 'Navigation must not erase a crash recovery marker');
+
+    engine.stopGate!.complete();
+    await seeking;
+    await firstRun;
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken.last, 'Second.');
+    expect(activeCheckpoints(), 1);
+    expect(store.getBook(bookId)!.progressAnchor?.localOffset, 7);
+    await player.pause();
+    expect(activeCheckpoints(), 0);
+    recovery.dispose();
+    player.dispose();
+  });
+
+  test('pause preserves marker until native stop completes, then clears',
+      () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final player = playerFor(engine, recovery);
+    final running = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(activeCheckpoints(), 1);
+    engine.stopGate = Completer<void>();
+    final pausing = player.pause();
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isSettledIdle, isFalse);
+    expect(activeCheckpoints(), 1);
+    engine.stopGate!.complete();
+    await pausing;
+    await running;
+    expect(player.isSettledIdle, isTrue);
+    expect(activeCheckpoints(), 0);
+    recovery.dispose();
+    player.dispose();
+  });
+
+  test('voice change keeps marker across stop and resumed narration',
+      () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final player = playerFor(engine, recovery);
+    final running = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(activeCheckpoints(), 1);
+    engine.stopGate = Completer<void>();
+    final switching = player.selectVoice(
+      const SpeechVoice(name: 'test-voice', locale: 'it-IT'),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isSettledIdle, isFalse);
+    expect(activeCheckpoints(), 1);
+    engine.stopGate!.complete();
+    await switching;
+    await running;
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isPlaying, isTrue);
+    expect(activeCheckpoints(), 1);
+    await player.pause();
+    expect(activeCheckpoints(), 0);
+    recovery.dispose();
+    player.dispose();
   });
 
   test('binding can only attach once and dispose is idempotent', () async {
