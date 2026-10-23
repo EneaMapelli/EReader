@@ -37,7 +37,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   DocumentContent? _document;
   List<PronunciationRule> _pronunciationRules = const [];
   Map<String, String> _castNames = const {};
-  Map<int, String> _fineSpeakerByStart = const {};
+  Map<int, String?> _fineSpeakerByStart = const {};
   String? _error;
   bool _loading = true;
   double _fontSize = 19;
@@ -145,8 +145,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
       offsetFromAnchor: document.offsetOf,
     );
     String? speakerForSegment(SpeechSegment segment) =>
-        _fineSpeakerByStart[segment.start] ??
-        legacyResolver.speakerFor(segment);
+        _fineSpeakerByStart.containsKey(segment.start)
+            ? _fineSpeakerByStart[segment.start]
+            : legacyResolver.speakerFor(segment);
     player.castSpeakerForSegment = speakerForSegment;
     player.castVoiceForSegment = (segment) {
       final speaker = speakerForSegment(segment);
