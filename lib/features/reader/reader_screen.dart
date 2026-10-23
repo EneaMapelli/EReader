@@ -111,10 +111,14 @@ class _ReaderScreenState extends State<ReaderScreen>
           store: widget.store,
         ),
         segments: chunks,
-        onSegmentStarted: (segment) => widget.store.savePosition(
-          widget.book.id, segment.start,
-          anchor: document.anchorAt(widget.book.format, segment.start),
-        ),
+        onSegmentStarted: (segment) async {
+          // The source anchor and crash-recovery marker must commit together,
+          // before the first native/cloud speech request for this segment.
+          widget.store.recordSpeechSegmentStart(
+            widget.book.id, segment.start,
+            anchor: document.anchorAt(widget.book.format, segment.start),
+          );
+        },
       );
       final latestBook = widget.store.getBook(widget.book.id) ?? widget.book;
       final saved = latestBook.progressAnchor == null
@@ -140,6 +144,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (previous != null) {
         widget.mediaHandler?.detach(previous);
         previous.removeListener(_onPlaybackChanged);
+        widget.store.clearSpeechRecoveryMarker(widget.book.id);
         previous.dispose();
       }
       _lastFollowedIndex = player.currentIndex;
@@ -283,6 +288,11 @@ class _ReaderScreenState extends State<ReaderScreen>
   void _onPlaybackChanged() {
     if (!mounted) return;
     final player = _player;
+    if (player != null && !player.isPlaying) {
+      // Pause, sleep-timer expiry, end of book and native TTS errors are
+      // expected shutdowns, not an interrupted process on next launch.
+      widget.store.clearSpeechRecoveryMarker(widget.book.id);
+    }
     if (player != null && player.lastError != null &&
         !identical(player.lastError, _lastReportedPlaybackError)) {
       final failure = player.lastError!;
@@ -510,6 +520,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (player != null) {
       widget.mediaHandler?.detach(player);
       player.removeListener(_onPlaybackChanged);
+      widget.store.clearSpeechRecoveryMarker(widget.book.id);
       player.dispose();
     }
     super.dispose();
