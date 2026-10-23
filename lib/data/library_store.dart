@@ -778,6 +778,15 @@ class LibraryStore implements CloudSpeechAccess {
     }
     _transaction(_database, () {
       _assertCastSpeaker(span.bookId, span.speakerId);
+      // A newly authored manual correction overrides an earlier approved
+      // machine proposal, but cannot silently replace another manual lock.
+      _database.execute('''
+        UPDATE cast_spans
+        SET status = 'rejected', locked_by_user = 1
+        WHERE book_id = ? AND id <> ?
+          AND origin = 'llm' AND status = 'accepted'
+          AND start_offset < ? AND end_offset > ?
+      ''', [span.bookId, span.id, span.end, span.start]);
       _assertNoAcceptedOverlap(span);
       _writeCastSpan(span);
     });
