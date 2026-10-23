@@ -7,6 +7,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../audio/reader_player.dart';
 import '../../audio/reader_media_handler.dart';
+import '../../audio/narration_recovery_binding.dart';
 import '../../audio/reader_lifecycle_policy.dart';
 import '../../audio/speech_engine.dart';
 import '../../audio/speech_engine_factory.dart';
@@ -41,6 +42,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     with WidgetsBindingObserver {
   final SpeechSecretVault _vault = PlatformSpeechSecretVault();
   ReaderPlayer? _player;
+  NarrationRecoveryBinding? _recoveryBinding;
   DocumentContent? _document;
   List<PronunciationRule> _pronunciationRules = const [];
   Map<String, String> _castNames = const {};
@@ -103,6 +105,12 @@ class _ReaderScreenState extends State<ReaderScreen>
       );
       final chunks = prepared.segments;
       final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
+      final recoveryBinding = NarrationRecoveryBinding(
+        store: widget.store,
+        bookId: widget.book.id,
+        anchorFor: (segment) =>
+            document.anchorAt(widget.book.format, segment.start),
+      );
       final player = ReaderPlayer(
         engineProviderId: prefs.providerId,
         engine: SpeechEngineFactory(vault: _vault).create(
@@ -111,14 +119,7 @@ class _ReaderScreenState extends State<ReaderScreen>
           store: widget.store,
         ),
         segments: chunks,
-        onSegmentStarted: (segment) async {
-          // The source anchor and crash-recovery marker must commit together,
-          // before the first native/cloud speech request for this segment.
-          widget.store.recordSpeechSegmentStart(
-            widget.book.id, segment.start,
-            anchor: document.anchorAt(widget.book.format, segment.start),
-          );
-        },
+        onSegmentStarted: recoveryBinding.onSegmentStarted,
       );
       final latestBook = widget.store.getBook(widget.book.id) ?? widget.book;
       final saved = latestBook.progressAnchor == null
@@ -137,6 +138,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       _resolvedSpeakerByStart = prepared.speakerByStart;
       _configureVoiceCast(player);
       if (!mounted) {
+        recoveryBinding.dispose();
         player.dispose();
         return;
       }
@@ -144,11 +146,12 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (previous != null) {
         widget.mediaHandler?.detach(previous);
         previous.removeListener(_onPlaybackChanged);
-        widget.store.clearSpeechRecoveryMarker(widget.book.id);
+        _recoveryBinding?.dispose();
         previous.dispose();
       }
       _lastFollowedIndex = player.currentIndex;
       _visiblePositionIndex = player.currentIndex;
+      recoveryBinding.attach(player);
       player.addListener(_onPlaybackChanged);
       widget.mediaHandler?.attach(
         player,
@@ -163,6 +166,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       );
       setState(() {
         _player = player;
+        _recoveryBinding = recoveryBinding;
         _document = document;
         _loading = false;
       });
@@ -288,12 +292,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   void _onPlaybackChanged() {
     if (!mounted) return;
     final player = _player;
-    if (player != null && !player.isPlaying) {
-      // Pause, sleep-timer expiry, end of book and native TTS errors are
-      // expected shutdowns, not an interrupted process on next launch.
-      widget.store.clearSpeechRecoveryMarker(widget.book.id);
-    }
-    if (player != null && player.lastError != null &&
+     if (player != null && player.lastError != null &&
         !identical(player.lastError, _lastReportedPlaybackError)) {
       final failure = player.lastError!;
       _lastReportedPlaybackError = failure;
@@ -520,7 +519,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (player != null) {
       widget.mediaHandler?.detach(player);
       player.removeListener(_onPlaybackChanged);
-      widget.store.clearSpeechRecoveryMarker(widget.book.id);
+      _recoveryBinding?.dispose();
       player.dispose();
     }
     super.dispose();
