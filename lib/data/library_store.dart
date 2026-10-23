@@ -13,6 +13,7 @@ import '../domain/speech_preferences.dart';
 import '../domain/book_bookmark.dart';
 import '../domain/cloud_speech_consent.dart';
 import '../domain/voice_cast.dart';
+import '../domain/cast_span.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
 class LibraryStore implements CloudSpeechAccess {
@@ -42,7 +43,7 @@ class LibraryStore implements CloudSpeechAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 6) {
+      if (version > 7) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -175,6 +176,34 @@ class LibraryStore implements CloudSpeechAccess {
             ON segment_cast(character_id)
           ''');
           db.execute('PRAGMA user_version = 6');
+        });
+      }
+      if (version < 7) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS cast_spans (
+              id TEXT PRIMARY KEY NOT NULL,
+              book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+              start_offset INTEGER NOT NULL,
+              end_offset INTEGER NOT NULL,
+              source_sha256 TEXT NOT NULL,
+              speaker_id TEXT REFERENCES cast_characters(id)
+                ON DELETE SET NULL,
+              anchor_json TEXT,
+              origin TEXT NOT NULL,
+              status TEXT NOT NULL,
+              confidence REAL,
+              locked_by_user INTEGER NOT NULL DEFAULT 0,
+              CHECK (start_offset >= 0 AND end_offset > start_offset),
+              CHECK (origin IN ('user', 'llm')),
+              CHECK (status IN ('proposed', 'accepted', 'rejected'))
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_cast_spans_book
+            ON cast_spans(book_id, start_offset, end_offset)
+          ''');
+          db.execute('PRAGMA user_version = 7');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -657,6 +686,165 @@ class LibraryStore implements CloudSpeechAccess {
       DELETE FROM segment_cast
       WHERE book_id = ? AND start_offset = ? AND end_offset = ?
     ''', [bookId, start, end]);
+  }
+
+  /// Fine-grained manual labels and future *unapproved* LLM suggestions.
+  List<CastSpan> listCastSpans(String bookId) {
+    final rows = _database.select('''
+      SELECT * FROM cast_spans
+      WHERE book_id = ? ORDER BY start_offset, end_offset, id
+    ''', [bookId]);
+    return rows.map((row) => CastSpan(
+      id: row['id'] as String,
+      bookId: row['book_id'] as String,
+      start: row['start_offset'] as int,
+      end: row['end_offset'] as int,
+      sourceDigest: row['source_sha256'] as String,
+      speakerId: row['speaker_id'] as String?,
+      origin: CastSpanOrigin.values.byName(row['origin'] as String),
+      status: CastSpanStatus.values.byName(row['status'] as String),
+      lockedByUser: (row['locked_by_user'] as int) == 1,
+      confidence: (row['confidence'] as num?)?.toDouble(),
+      anchor: row['anchor_json'] is String
+          ? ReadingAnchor.fromJson(Map<String, dynamic>.from(
+              jsonDecode(row['anchor_json'] as String) as Map))
+          : null,
+    )).toList();
+  }
+
+  void _assertCastSpeaker(String bookId, String? speakerId) {
+    if (getBook(bookId) == null) {
+      throw StateError('Cannot cast a book that is not imported');
+    }
+    if (speakerId == null) return; // explicit "unknown"/narrator
+    final found = _database.select('''
+      SELECT book_id FROM cast_characters WHERE id = ?
+    ''', [speakerId]);
+    if (found.isEmpty || found.first['book_id'] != bookId) {
+      throw StateError('Cast speaker must belong to this book');
+    }
+  }
+
+  void _assertNoAcceptedOverlap(CastSpan span) {
+    final overlap = _database.select('''
+      SELECT id FROM cast_spans WHERE book_id = ?
+        AND status = 'accepted' AND id <> ?
+        AND start_offset < ? AND end_offset > ?
+      LIMIT 1
+    ''', [span.bookId, span.id, span.end, span.start]);
+    if (overlap.isNotEmpty) {
+      throw StateError('An approved cast span overlaps this passage');
+    }
+  }
+
+  void _writeCastSpan(CastSpan span) {
+    _database.execute('''
+      INSERT INTO cast_spans (
+        id, book_id, start_offset, end_offset, source_sha256,
+        speaker_id, anchor_json, origin, status, confidence, locked_by_user
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        start_offset = excluded.start_offset,
+        end_offset = excluded.end_offset,
+        source_sha256 = excluded.source_sha256,
+        speaker_id = excluded.speaker_id,
+        anchor_json = excluded.anchor_json,
+        origin = excluded.origin,
+        status = excluded.status,
+        confidence = excluded.confidence,
+        locked_by_user = excluded.locked_by_user
+      WHERE cast_spans.book_id = excluded.book_id
+    ''', [
+      span.id, span.bookId, span.start, span.end, span.sourceDigest,
+      span.speakerId,
+      span.anchor == null ? null : jsonEncode(span.anchor!.toJson()),
+      span.origin.name, span.status.name, span.confidence,
+      span.lockedByUser ? 1 : 0,
+    ]);
+  }
+
+  /// Requires exact source text, including UTF-16 boundaries. The manual
+  /// label is accepted/locked and can never be displaced by an LLM import.
+  Future<void> saveManualCastSpan(CastSpan span, String source) async {
+    span.validate();
+    if (span.origin != CastSpanOrigin.user ||
+        !span.lockedByUser || span.status != CastSpanStatus.accepted) {
+      throw const FormatException('Only locked manual labels accepted here');
+    }
+    if (span.end > source.length ||
+        CastSpan.digest(source.substring(span.start, span.end))
+            != span.sourceDigest) {
+      throw const FormatException('Selected excerpt differs from book source');
+    }
+    _transaction(_database, () {
+      _assertCastSpeaker(span.bookId, span.speakerId);
+      _assertNoAcceptedOverlap(span);
+      _writeCastSpan(span);
+    });
+  }
+
+  /// Schema-checked proposals are deliberately pending. A response cannot
+  /// replace a manual row or automatically enable a new speaker.
+  Future<void> importCastProposals(
+      List<CastSpan> proposals, String source) async {
+    _transaction(_database, () {
+      for (final proposal in proposals) {
+        proposal.validate();
+        if (proposal.origin != CastSpanOrigin.llm ||
+            proposal.status != CastSpanStatus.proposed ||
+            proposal.lockedByUser) {
+          throw const FormatException('Import requires pending LLM candidates');
+        }
+        if (proposal.end > source.length ||
+            CastSpan.digest(source.substring(proposal.start, proposal.end))
+                != proposal.sourceDigest) {
+          throw const FormatException('LLM attribution is not source-aligned');
+        }
+        _assertCastSpeaker(proposal.bookId, proposal.speakerId);
+        _database.execute('''
+          INSERT OR IGNORE INTO cast_spans (
+            id, book_id, start_offset, end_offset, source_sha256,
+            speaker_id, anchor_json, origin, status, confidence, locked_by_user
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        ''', [
+          proposal.id, proposal.bookId, proposal.start, proposal.end,
+          proposal.sourceDigest, proposal.speakerId,
+          proposal.anchor == null ? null : jsonEncode(proposal.anchor!.toJson()),
+          'llm', 'proposed', proposal.confidence,
+        ]);
+      }
+    });
+  }
+
+  /// Explicit review event; automatic LLM output is never promoted to active
+  /// narration without the user's decision. Rejected spans remain auditable.
+  Future<void> reviewCastProposal(String id, {required bool approve}) async {
+    _transaction(_database, () {
+      final found = listCastSpansById(id);
+      if (found == null || found.origin != CastSpanOrigin.llm ||
+          found.status != CastSpanStatus.proposed) {
+        throw StateError('No pending suggestion with that identifier');
+      }
+      if (approve) {
+        _assertCastSpeaker(found.bookId, found.speakerId);
+        _assertNoAcceptedOverlap(found);
+      }
+      _database.execute('''
+        UPDATE cast_spans SET status = ?, locked_by_user = 1 WHERE id = ?
+      ''', [approve ? 'accepted' : 'rejected', id]);
+    });
+  }
+
+  CastSpan? listCastSpansById(String id) {
+    final rows = _database.select(
+      'SELECT book_id FROM cast_spans WHERE id = ?', [id]);
+    return rows.isEmpty ? null :
+        listCastSpans(rows.first['book_id'] as String)
+            .where((span) => span.id == id).firstOrNull;
+  }
+
+  Future<void> deleteCastSpan(String id) async {
+    _database.execute('DELETE FROM cast_spans WHERE id = ?', [id]);
   }
 
   Future<void> removeBook(String bookId) async {
