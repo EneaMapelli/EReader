@@ -62,6 +62,21 @@ Never merge characters, change a voice or attribute spoken lines.
     if (window.cast.isEmpty) {
       throw const FormatException('Select known cast members before aliases');
     }
+    if (window.scope.end > source.length ||
+        window.scope.start < 0) {
+      throw const FormatException('Scope not contained in local source');
+    }
+    for (final passage in [
+      ...window.contextSegments,
+      ...window.segments,
+    ]) {
+      if (!CastSpan.validUtf16Range(
+              source, passage.start, passage.end) ||
+          source.substring(passage.start, passage.end) != passage.text) {
+        throw const FormatException(
+            'Selected LLM source passage does not match the book');
+      }
+    }
     final consent = access.getLlmAnalysisConsent(window.bookId);
     if (!consent.allowed) {
       throw const LlmAnalysisDenied('Alias analysis not authorized');
@@ -104,6 +119,11 @@ Never merge characters, change a voice or attribute spoken lines.
     if (jsonResponse.length > 256 * 1024 ||
         idPrefix.isEmpty || idPrefix.length > 96) {
       throw const FormatException('Alias response exceeds limits');
+    }
+    if (window.bookId.isEmpty ||
+        window.scope.start < 0 || window.scope.end > source.length ||
+        window.effectiveCeiling > window.scope.end) {
+      throw const FormatException('Invalid alias source scope');
     }
     final value = jsonDecode(jsonResponse);
     if (value is! Map || value['proposals'] is! List ||
