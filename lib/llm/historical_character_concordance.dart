@@ -121,7 +121,12 @@ class HistoricalCharacterConcordance {
           excerptStart: left, excerpt: excerpt,
           sourceDigest: CastSpan.digest(excerpt),
         );
-        if (!mention.isValidFor(window) ||
+        if (!mention.isValidFor(
+          selectedScopeId: window.scope.id,
+          selectedScopeStart: window.scope.start,
+          spoilerCeiling: window.effectiveCeiling,
+          allowedCast: window.cast,
+        ) ||
             !mention.matchesOriginal(source)) continue;
         result.add(mention);
         totalChars += excerpt.length;
