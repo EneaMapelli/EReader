@@ -38,3 +38,8 @@ Pre-rendering audio can move cost earlier in time and may leave paid clips unuse
 ## Local MP3 decoder warm-up
 
 The same explicitly authorized, one-ahead cloud clip can now also be loaded into a second **idle native MP3 player** before it is heard, using the *already paid or cached bytes*. This does not reserve more quota or send any additional text to OpenAI. Playback remains one clip at a time. Pauses, seek and stop invalidate unused prepared audio, and files remain private temporary copies. Details and tests: [MP3 Decoder Preload](MP3_DECODER_PRELOAD.md). **Gapless audio is not yet demonstrated.**
+
+
+## Navigation and settings session guards
+
+Rapid overlapping source seeks and native voice selections now use session epochs and serialized Stop/voice operations. The last user navigation command wins; a paused reader cannot be resumed by an obsolete request. The current segment is restarted after speed/pitch/language edits are committed, invalidating old MP3 warm-up. Prebuffering remains explicitly session-optional and OFF by default. See [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md). No extra cloud calls were added by these safeguards; already transmitted requests may still incur charges.
