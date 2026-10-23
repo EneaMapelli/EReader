@@ -156,7 +156,7 @@ void main() {
       () {
     final quote = '«' +
         List.filled(ConversationSpeakerInspector.maxExcerptCharacters + 25,
-          'word ').join() + '»';
+          'w').join() + '»';
     final text = quote + ' She listened.';
     final got = inspect(text, 'She', fine: [span(text, quote, 'mira')]);
     expect(got.turns, hasLength(1));
