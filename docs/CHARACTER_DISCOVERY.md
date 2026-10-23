@@ -42,3 +42,7 @@ Implementation increment: 2026-10-23. Source code committed but not compiled or 
 ## Remaining work
 
 Semantic role disambiguation, separate organizations/locations, alias reconciliation, evidence ranking, optional offline NER and actual Flutter Windows/Android runtime tests. Until final integration, code is unverified and PR #1 must stay draft.
+
+## Distinguishing an alias from a new identity
+
+A recognized name is not necessarily a new person. After discovery, **Reconcile aliases** may separately propose that a literal nickname or title belongs to an already-known character. It is not applied until a reviewer confirms the link; no existing people or voices are merged. Existing book-scoped names and aliases are checked for collisions. See [Alias Reconciliation](ALIAS_RECONCILIATION.md).
