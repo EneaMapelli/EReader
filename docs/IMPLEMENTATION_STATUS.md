@@ -6,9 +6,9 @@
 |---|---|---|
 | ER-001 Bootstrap | `pubspec.yaml`, Flutter entry point, bootstrap scripts | In progress |
 | ER-002 Book/anchors | BookRecord with source anchor + segment UTF-16 IDs; unit tests | Partial; stable spine/page anchors added, EPUB CFI not yet implemented |
-| ER-003 EPUB/TXT | OPF spine-based EPUB2/3 text extractor, XHTML heading chapter titles and reader directory; bounded ZIP/XML | Partial; spine items are not NAV/NCX, text-only renderer remains |
+| ER-003 EPUB/TXT | OPF spine extraction, chapter directory and lazy safe paragraph renderer with source-exact text/segment highlights | Partial; XHTML CSS/images/NAV/NCX fidelity incomplete |
 | ER-004 PDF | PDF viewer + text-layer extraction; SQLite v15 independent visual-page recovery including scanned PDFs, 7 authored tests | Partial: page-only resume, no scroll/zoom bookmark, complex ordering/OCR pending |
-| ER-005 Reader | Source-anchor text viewer with EPUB chapter directory/prev-next navigation, PDF text mode, recent-book shortcut | Partial; EPUB full XHTML layout, EPUB NAV/NCX and device verification open |
+| ER-005 Reader | EPUB paragraph layout, per-run tap and read-along highlight, theme palettes, source-anchor navigation, PDF view | Partial; EPUB full CSS/images/CFI and device verification open |
 | ER-006 TTS | OS/cloud speech adapters, voice/rate/pitch controls; 8-second bounded native Stop with no auto-replay | Partial; hung engine cannot be forcibly silenced by Dart alone |
 | ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow, viewport-to-audio start; no word marks | Partial |
 | ER-008 Android background | MediaSession, settled-idle focus, deduplicated Play and fail-closed Stop timeout | Source implemented; no process-death TTS restart; native validation pending |
@@ -393,3 +393,12 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - `segmentEpubSpine` limits each segment to its own XHTML spine file, and `coalesceQuotedSpeech` accepts hard boundaries to prevent a long dialogue turn from inadvertently combining chunks from different chapters. Casting annotations remain validated against original source ranges. Chapter index construction is linear in the number of source segments.
 - Added **6 authored, unexecuted navigation tests** in `test/features/epub_chapter_navigation_test.dart` plus **2 EPUB heading/extraction tests** in `test/data/epub_text_extractor_test.dart`. No schema migration needed.
 - This is a **spine-item directory**, not a genuine nested EPUB3 NAV/EPUB2 NCX table of contents. Rich XHTML rendering, fonts, illustrations, table layout and EPUB CFI anchors are not yet implemented. Windows/Android compilation and live-device verification remain deferred. See [EPUB Chapter Navigation](EPUB_CHAPTER_NAVIGATION.md).
+
+## M1 — source-aligned EPUB paragraph renderer (2026-10-23)
+
+- Added `EpubVisualLayout` to group exact extracted EPUB strings into display paragraphs and Unicode-safe, size-bounded visual blocks. Mapping between displayed blocks and existing spoken segments preserves the SQLite v16 source-anchor model, cast hashes and position savings without a migration.
+- `EpubParagraphTile` displays readable serif paragraphs at a max 760 logical-pixel width, accessible exact chapter headings, within-paragraph TTS highlights and tappable speech spans. `ReaderScreen` now maps initial resume, manual viewport changes, playback follow and explicit chapter jumps through the visual block index.
+- Three session-only palettes (system, warm sepia and night) and existing font-size controls provide preliminary reading comfort without author CSS execution, WebViews or remote EPUB asset retrieval.
+- EPUB paragraph breaks are now hard boundaries for quoted speech coalescing; detection uses binary search on sorted source boundaries. No automatic TTS is triggered by a visual change, paragraph tap, theme selection or chapter jump.
+- Added **7 authored unexecuted layout regression tests** and **4 unexecuted Flutter widget tests** covering UTF-16/emoji, source fidelity, voice spans, malformed ranges, headings, theme contrast, callbacks and list recycling. All tests and builds remain intentionally unexecuted. See [EPUB Paragraph Renderer](EPUB_PARAGRAPH_RENDERER.md).
+- Not yet a full XHTML renderer: italics/strong, floats, inline images, embedded fonts, footnote jumps, true EPUB NAV/NCX, linked stylesheets and EPUB CFI persistence remain open.
