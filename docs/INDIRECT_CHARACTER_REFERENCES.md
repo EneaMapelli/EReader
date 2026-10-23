@@ -81,3 +81,8 @@ Every pending reference now opens with an empty confirmed-person selection. The 
 
 Final production validation remains blocked on deferred Dart/Flutter toolchain
 execution and Android/Windows real-device checks. PR #1 stays draft.
+
+
+## Prior dialogue speakers are separate from referents
+
+Confirmed speakers from at most 1,200 UTF-16 characters before an ambiguous mention now appear in a dedicated, verified conversation history alongside prior *character mentions*. Multiple preceding speakers and conflicting overlapping labels are called out; none determines the referent automatically. See [Conversation Speaker Context](CONVERSATION_SPEAKER_CONTEXT.md).
