@@ -48,7 +48,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 13) {
+      if (version > 14) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -348,6 +348,14 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           db.execute('PRAGMA user_version = 13');
         });
       }
+      // Optional local-only last-opened marker. This contains neither text,
+      // TTS authorization nor credentials and does not enable auto-play.
+      if (version < 14) {
+        _transaction(db, () {
+          db.execute('ALTER TABLE books ADD COLUMN last_opened_at TEXT');
+          db.execute('PRAGMA user_version = 14');
+        });
+      }
       await _migrateLegacyJson(db, support);
       _db = db;
     } catch (_) {
@@ -396,6 +404,33 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   BookRecord? getBook(String id) {
     final rows = _database.select('SELECT * FROM books WHERE id = ?', [id]);
     return rows.isEmpty ? null : _fromRow(rows.first);
+  }
+
+  /// The most recent explicit book-opening action, after an app restart.
+  /// Deleted/missing private files are not offered as a resume shortcut.
+  /// Position always comes from the existing source-anchor record.
+  BookRecord? get lastOpenedBook {
+    final rows = _database.select('''
+      SELECT * FROM books WHERE last_opened_at IS NOT NULL
+      ORDER BY last_opened_at DESC, id DESC
+    ''');
+    for (final row in rows) {
+      final book = _fromRow(row);
+      if (_isManagedPath(book.localPath) &&
+          File(book.localPath).existsSync()) return book;
+    }
+    return null;
+  }
+
+  /// Called only when the user opens a reader. It never grants TTS/LLM
+  /// consent and intentionally doesn't change the saved reading anchor.
+  Future<void> markBookOpened(String bookId) async {
+    _database.execute('''
+      UPDATE books SET last_opened_at = ? WHERE id = ?
+    ''', [DateTime.now().toUtc().toIso8601String(), bookId]);
+    if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
+      throw StateError('Cannot resume an unknown book');
+    }
   }
 
   Future<BookRecord> importFile(String sourcePath, {String? originalName}) async {
