@@ -115,7 +115,16 @@ class ReaderPlayer extends ChangeNotifier {
       _notify();
     }();
     _pendingVoiceChange = changing;
-    await changing;
+    try {
+      await changing;
+    } catch (error) {
+      if (!_disposed && epoch == _navigationEpoch) {
+        _resumeAfterNavigation = false;
+        lastError = error;
+        _notify();
+      }
+      rethrow;
+    }
     if (_disposed || epoch != _navigationEpoch) return;
     _resumeAfterNavigation = false;
     if (shouldResume) _resumeUnawaited();
@@ -333,6 +342,7 @@ class ReaderPlayer extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_disposed) return;
     _session++;
     _navigationEpoch++;
     _resumeAfterNavigation = false;
