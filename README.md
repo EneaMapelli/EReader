@@ -18,6 +18,7 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - **Protezione uso cloud:** chiavi conservate nello storage sicuro Windows/Android, consenso esplicito per libro, tetto locale di caratteri, possibilità di revoca e contatore consumi. Il tetto caratteri non è una garanzia di spesa massima in euro.
 - **Cast vocale manuale:** anagrafica personaggi e alias, voci distinte per provider, attribuzione di interi passaggi o porzioni di testo selezionate a personaggi, e ritorno automatico alla voce narrante. Le virgolette vengono usate soltanto per separare segmenti, non per indovinare chi parla.
 - **Analisi dialoghi con LLM (facoltativa):** per capitolo EPUB, pagina PDF o intervallo TXT scelto; API OpenAI Responses con chiave e consenso specifici, quota di caratteri d'ingresso e conferma dell'estratto a ogni richiesta. I suggerimenti JSON sono verificati localmente e restano inattivi fino all'approvazione manuale. Il limite spoiler predefinito è la posizione di lettura salvata; contesto precedente e nomi dei personaggi sono inclusi solo dopo una selezione esplicita. Le prove citate dal modello sono ricollegate al testo originale.
+- **Continuità dei personaggi tra capitoli:** ricerca locale, disattivata di default, di brevi menzioni già conosciute negli ultimi capitoli precedenti; solo gli estratti verificati e mostrati nell'anteprima vengono opzionalmente inviati al modello, sempre entro il limite spoiler.
 - **Scoperta di nuovi personaggi:** modalità AI separata che propone solo nomi letteralmente presenti nel capitolo o estratto autorizzato. I candidati restano in una coda di revisione finché l'utente non ne conferma la creazione; nessuna voce o battuta viene assegnata automaticamente.
 - **Riconciliazione dei soprannomi:** una terza modalità AI suggerisce collegamenti fra appellativi citati nel testo e personaggi già noti; ogni proposta viene verificata e approvata manualmente prima di aggiungere un alias. I riferimenti ambigui non vengono fusi automaticamente.
 - **Unificazione manuale dei personaggi:** anteprima e conferma per fondere due identità duplicate, trasferendo attribuzioni, alias, voci e riferimenti delle proposte AI, con risoluzione esplicita di ogni conflitto vocale e audit locale della fusione.
@@ -63,6 +64,7 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Casting manuale, voci e attribuzioni](docs/MANUAL_CASTING_IMPLEMENTATION.md)
 - [Selezione precisa dei dialoghi e protocollo di revisione LLM](docs/CAST_SPAN_PROTOCOL.md)
 - [Analisi dialoghi LLM, consenso per libro e API Responses](docs/LLM_DIALOGUE_ANALYSIS.md)
+- [Contesto verificato dei personaggi dai capitoli precedenti](docs/HISTORICAL_CHARACTER_CONTEXT.md)
 - [Riconoscimento assistito di nuovi personaggi e revisione](docs/CHARACTER_DISCOVERY.md)
 - [Riconciliazione alias, soprannomi e identità](docs/ALIAS_RECONCILIATION.md)
 - [Unificazione manuale di due personaggi e conservazione delle attribuzioni](docs/CAST_IDENTITY_MERGE.md)
