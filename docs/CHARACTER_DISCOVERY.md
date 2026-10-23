@@ -18,7 +18,7 @@ Implementation increment: 2026-10-23. Source code committed but not compiled or 
 
 - Cloud access remains off by default, and the authorization is per book. No background scans, future chapter previews or automatic browsing are added.
 - Model output is untrusted; it can suggest source strings only, not execute instructions, choose an ID or edit the database directly.
-- Existing/ambiguous names are intentionally treated conservatively. For two genuinely different people with identical names, the user can curate the cast manually rather than allowing automatic duplication.
+- Existing/ambiguous names are intentionally treated conservatively. For genuinely different people with identical names, the reader must use distinct human-readable display names (for example, adding a contextual qualifier). The application blocks identical normalized names/aliases in one book, including manual edits, to keep speech attribution unambiguous.
 - Discovery only spots literal named mentions. It does **not** prove that a mention is a fictional person rather than a location, book, historical figure or organization. Human review remains mandatory.
 - Approving a candidate does not assign a speaking voice, an alias, gender, personality or any dialogue. Those remain explicit manual or separately reviewed operations.
 - The same analysis consent and input-character ceiling apply to both AI tasks. Character ceilings are not monetary billing caps; provider output may generate additional token charges.
