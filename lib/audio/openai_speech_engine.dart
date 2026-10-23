@@ -262,7 +262,8 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
     // Do not spend for future audio until the CURRENT clip is ready to
     // play. This prevents double charges when its initial HTTP call fails.
     final current = _currentAudioReady;
-    if (current == null || !await current.future || !_live(token)) return;
+    if (current == null || !await current.future || !_live(token) ||
+        !identical(_currentAudioReady, current)) return;
     final key = _cacheKey(intended, text);
     final existing = _prepared;
     if (existing != null && existing.generation == token) {
