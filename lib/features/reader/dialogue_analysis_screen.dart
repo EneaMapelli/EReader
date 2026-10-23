@@ -39,6 +39,7 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
   static const planner = DialogueAnalysisPlanner();
   late List<DialogueAnalysisScope> _scopes;
   late List<CastCharacter> _cast;
+  final Set<String> _selectedCharacterIds = {};
   late OpenAiDialogueAnalyzer _analyzer;
   int _scopeIndex = 0;
   int? _nextFrom;
@@ -90,7 +91,7 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
   }
 
   DialogueAnalysisWindow? _previewWindow() {
-    if (_scopes.isEmpty || _cast.isEmpty) return null;
+    if (_scopes.isEmpty || _selectedCharacterIds.isEmpty) return null;
     final scope = _scopes[_scopeIndex];
     final latest = widget.store.getBook(widget.book.id) ?? widget.book;
     final position = latest.progressAnchor == null
@@ -109,12 +110,74 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
         scope: scope,
         from: _nextFrom ?? scope.start,
         segments: widget.segments,
-        cast: _cast,
+        cast: _cast.where(
+          (member) => _selectedCharacterIds.contains(member.id),
+        ).toList(),
         spoilerCeiling: spoilerCeiling,
         contextChars: _previousContextChars,
       );
     } on FormatException {
       return null;
+    }
+  }
+
+  Future<void> _selectSafeCast() async {
+    final chosen = Set<String>.of(_selectedCharacterIds);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialog, refresh) => AlertDialog(
+          title: const Text('Which characters are known at this point?'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 430, maxWidth: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Only checked character IDs, names and aliases will be '
+                  'sent with the chosen passage. Exclude identities from '
+                  'future chapters to reduce spoilers.',
+                ),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final member in _cast)
+                        CheckboxListTile(
+                          title: Text(member.name),
+                          subtitle: member.aliases.isEmpty ? null
+                              : Text(member.aliases.join(', ')),
+                          value: chosen.contains(member.id),
+                          onChanged: (value) => refresh(() {
+                            if (value == true) {
+                              chosen.add(member.id);
+                            } else {
+                              chosen.remove(member.id);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Use selected characters')),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == true && mounted) {
+      setState(() {
+        _selectedCharacterIds
+          ..clear()
+          ..addAll(chosen);
+        _nextFrom = null;
+      });
     }
   }
 
@@ -239,6 +302,8 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
               Text('Scope: ' + window.scope.title),
               Text('Model: ' + _model),
               Text('Passages: ' + window.segments.length.toString()),
+              Text('Character identities sent: ' +
+                  window.cast.map((p) => p.name).join(', ')),
               Text('Spoiler cutoff (UTF-16): ' +
                   window.effectiveCeiling.toString()),
               Text('Earlier context: ' +
@@ -400,10 +465,20 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
             },
           ),
           const SizedBox(height: 14),
-          Text('Known characters: ' + _cast.length.toString()),
+          Text('Known characters in library: ' + _cast.length.toString()),
+          OutlinedButton.icon(
+            onPressed: _busy || _cast.isEmpty ? null : _selectSafeCast,
+            icon: const Icon(Icons.group_outlined),
+            label: Text('Select characters safe for this point (' +
+                _selectedCharacterIds.length.toString() + ' selected)'),
+          ),
           if (_cast.isEmpty)
-            const Text('Add characters in Voice Cast before using analysis. '
-                'The model cannot create new speaker identities.'),
+            const Text('Add characters in Voice Cast first.'),
+          if (_cast.isNotEmpty && _selectedCharacterIds.isEmpty)
+            const Text(
+              'Select the already-known characters above before analysis. '
+              'No character names or future aliases are selected by default.',
+            ),
           if (_limitToReadingPosition)
             const Text(
               'If no passage is available, read farther in the book or '
@@ -480,7 +555,7 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
           const Divider(height: 30),
           FilledButton.icon(
             icon: const Icon(Icons.psychology_alt_outlined),
-            onPressed: _busy || window == null || _cast.isEmpty
+            onPressed: _busy || window == null || _selectedCharacterIds.isEmpty
                 ? null : _analyzeSelected,
             label: Text(_busy ? 'Analysing selected excerpt…'
                 : 'Preview and analyse selected excerpt'),
