@@ -135,6 +135,26 @@ void main() {
     analyzer.dispose();
   });
 
+  test('transport adapter rejects a segment outside approved scope', () {
+    final analyzer = OpenAiDialogueAnalyzer(
+      access: TestAccess(), vault: TestVault(),
+      transport: TestTransport(),
+    );
+    final invalid = DialogueAnalysisWindow(
+      bookId: 'book',
+      scope: const DialogueAnalysisScope(
+        id: 'first', title: 'Only first chapter',
+        start: 0, end: 6,
+      ),
+      segments: [
+        const SpeechSegment(0, 8, '«Ciao!»'),
+      ],
+      cast: const [],
+    );
+    expect(() => analyzer.createRequest(invalid), throwsFormatException);
+    analyzer.dispose();
+  });
+
   test('Responses API uses store=false and strict JSON schema without tools',
       () async {
     final httpClient = MockClient((request) async {
