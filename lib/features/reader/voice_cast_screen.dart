@@ -6,6 +6,7 @@ import '../../audio/speech_engine.dart';
 import '../../audio/secret_vault.dart';
 import 'dialogue_analysis_screen.dart';
 import 'cast_merge_screen.dart';
+import 'dialogue_turn_review_screen.dart';
 import '../../data/book_decoder.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
@@ -498,6 +499,19 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
     } catch (error) {
       _error(error);
     }
+  }
+
+  Future<void> _openComplexTurnReview() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => DialogueTurnReviewScreen(
+          store: widget.store,
+          book: widget.book,
+          document: widget.document,
+        ),
+      ),
+    );
+    if (mounted) _reload();
   }
 
   Future<void> _openDialogueAnalysis() async {
@@ -1010,6 +1024,12 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
           icon: const Icon(Icons.upload_file),
           label: const Text('Import structured suggestions'),
           onPressed: _importProposals,
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.forum_outlined),
+          label: const Text('Review complex dialogue turns'),
+          onPressed: _openComplexTurnReview,
         ),
         const Divider(height: 28),
         Text('New character candidates',
