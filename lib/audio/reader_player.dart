@@ -88,12 +88,32 @@ class ReaderPlayer extends ChangeNotifier {
   }
 
   Future<void> selectVoice(SpeechVoice voice) async {
-    await pause();
-    await _engine.chooseVoice(voice);
-    _engineVoiceKey = voice.key;
-    selectedVoice = voice;
-    if (voice.locale != 'multi') language = voice.locale;
-    _notify();
+    if (_disposed) return;
+    final shouldResume = isPlaying || _resumeAfterNavigation;
+    final epoch = ++_navigationEpoch;
+    _resumeAfterNavigation = shouldResume;
+    await _stopCurrent();
+    if (_disposed || epoch != _navigationEpoch) return;
+    // Native voice switches are serialized: an old platform method call
+    // cannot finish AFTER a newer choice and overwrite the wanted timbre.
+    final previous = _pendingVoiceChange;
+    final changing = () async {
+      try { await previous; } catch (_) {
+        // A failed prior choice cannot block the user's new selection.
+      }
+      if (_disposed || epoch != _navigationEpoch) return;
+      await _engine.chooseVoice(voice);
+      if (_disposed || epoch != _navigationEpoch) return;
+      _engineVoiceKey = voice.key;
+      selectedVoice = voice;
+      if (voice.locale != 'multi') language = voice.locale;
+      _notify();
+    }();
+    _pendingVoiceChange = changing;
+    await changing;
+    if (_disposed || epoch != _navigationEpoch) return;
+    _resumeAfterNavigation = false;
+    if (shouldResume) _resumeUnawaited();
   }
 
   Future<void> applyPreferences(SpeechPreferences preferences) async {
@@ -148,6 +168,7 @@ class ReaderPlayer extends ChangeNotifier {
   bool _resumeAfterNavigation = false;
   bool _disposed = false;
   Future<void> _pendingStop = Future<void>.value();
+  Future<void> _pendingVoiceChange = Future<void>.value();
   Object? lastError;
 
   List<SpeechSegment> get segments => _segments;
@@ -177,6 +198,10 @@ class ReaderPlayer extends ChangeNotifier {
       // A rapid pause/play must not synthesize before the old native
       // utterance has fully stopped, otherwise voices overlap.
       await _pendingStop;
+      // Wait out voice selection in flight before starting a new clip.
+      try { await _pendingVoiceChange; } catch (_) {
+        if (token == _session) rethrow;
+      }
       while (token == _session && currentIndex < _segments.length) {
         final segment = _segments[currentIndex];
         await onSegmentStarted(segment);
@@ -265,8 +290,10 @@ class ReaderPlayer extends ChangeNotifier {
   }
 
   void _resumeUnawaited() {
-    unawaited(play().catchError((Object error, StackTrace stack) {
-      if (_disposed) return;
+    final running = play();
+    final token = _session;
+    unawaited(running.catchError((Object error, StackTrace stack) {
+      if (_disposed || token != _session) return;
       lastError = error;
       _notify();
     }));
