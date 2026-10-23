@@ -322,6 +322,127 @@ void main() {
     player.dispose();
   });
 
+  test('seek keeps focus during native stop and resumes original session',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(player, bookId: 'b', title: 'B');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.stopGate = Completer<void>();
+    final seeking = handler.skipToNext();
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isPlaying, isFalse);
+    expect(player.isSettledIdle, isFalse);
+    expect(releases, 0,
+        reason: 'Do not drop Android focus during an in-flight seek');
+
+    engine.stopGate!.complete();
+    await seeking;
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isPlaying, isTrue);
+    expect(engine.spoken.last, 'Second');
+    expect(releases, 0);
+    await handler.pause();
+    expect(releases, 1);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('direct player Pause releases Android focus after native stop',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(player, bookId: 'b', title: 'B');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.stopGate = Completer<void>();
+    final pausing = player.pause();
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isSettledIdle, isFalse);
+    expect(releases, 0,
+        reason: 'Focus must be held until the native speech stop finishes');
+    engine.stopGate!.complete();
+    await pausing;
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isSettledIdle, isTrue);
+    expect(releases, 1,
+        reason: 'UI/sleep timer Pause must release focus without handler.pause');
+    await handler.close();
+    player.dispose();
+  });
+
+  test('sleep timer release works without a media command', () async {
+    final engine = _FakeSpeechEngine();
+    late void Function() expire;
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [SpeechSegment(0, 5, 'First')],
+      onSegmentStarted: (_) async {},
+      timerScheduler: (duration, callback) {
+        expire = callback;
+        return Timer(const Duration(days: 1), () {});
+      },
+    );
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(player, bookId: 'timer', title: 'Timer');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isPlaying, isTrue);
+    player.setSleepTimer(const Duration(minutes: 10));
+    expire();
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    expect(player.isPlaying, isFalse);
+    expect(player.isSettledIdle, isTrue);
+    expect(releases, 1);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('two Play requests waiting for cloud consent start speech once',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final firstGate = Completer<bool>();
+    final secondGate = Completer<bool>();
+    var attempts = 0;
+    var focusRequests = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async { focusRequests++; return true; },
+    );
+    handler.attach(player, bookId: 'private', title: 'Private',
+      canStart: () {
+        attempts++;
+        return attempts == 1 ? firstGate.future : secondGate.future;
+      });
+    final older = handler.play();
+    final latest = handler.play();
+    secondGate.complete(true);
+    await latest;
+    await Future<void>.delayed(Duration.zero);
+    firstGate.complete(true);
+    await older;
+    expect(engine.spoken, ['First']);
+    expect(focusRequests, 1);
+    await handler.pause();
+    await handler.close();
+    player.dispose();
+  });
+
   test('detached reader cannot hijack a newly attached book', () async {
     final older = _reader(_FakeSpeechEngine());
     final newer = _reader(_FakeSpeechEngine());
