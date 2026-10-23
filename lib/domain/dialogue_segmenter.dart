@@ -81,6 +81,7 @@ PreparedCastSpeech coalesceQuotedSpeech({
   if (maxChars < 16) throw ArgumentError.value(maxChars, 'maxChars');
   final merged = <SpeechSegment>[];
   final labels = <int, String?>{};
+  final sortedBoundaries = hardBoundaries.toList()..sort();
   var quoteIndex = 0;
   int? lastGroup;
   bool lastHadLabel = false;
@@ -112,8 +113,7 @@ PreparedCastSpeech coalesceQuotedSpeech({
         lastHadLabel == hasLabel &&
         lastSpeaker == speaker;
     final crossesSourceBoundary = previous != null &&
-        hardBoundaries.any((boundary) =>
-            previous.start < boundary && chunk.end > boundary);
+        _hasHardBoundary(sortedBoundaries, previous.start, chunk.end);
     if (group != null && group == lastGroup && sameVoice && continuous &&
         !crossesSourceBoundary &&
         chunk.end - previous!.start <= maxChars) {
@@ -134,6 +134,23 @@ PreparedCastSpeech coalesceQuotedSpeech({
   }
   return PreparedCastSpeech(
     List.unmodifiable(merged), Map.unmodifiable(labels));
+}
+
+/// Binary search keeps paragraph-aware coalescing O(chunks * log breaks).
+/// Boundaries equal to the beginning or end of a chunk do not count as
+/// *crossing* that chunk.
+bool _hasHardBoundary(List<int> sorted, int start, int end) {
+  var low = 0;
+  var high = sorted.length;
+  while (low < high) {
+    final middle = low + (high - low) ~/ 2;
+    if (sorted[middle] <= start) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low < sorted.length && sorted[low] < end;
 }
 
 int? _closerFor(int unit) {
