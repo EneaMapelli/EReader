@@ -292,3 +292,15 @@ Design and limitations: [Cross-Chunk TTS Casting](CROSS_CHUNK_TTS_CASTING.md).
 - ReaderPlayer already changes provider/native voice only when the voice key changes. The new mock playback test asserts continuity across several long-quote chunks and narrator restoration.
 - Added 12 unexecuted source-domain tests in test/domain/cross_chunk_cast_test.dart and one unexecuted mocked engine test in test/audio/reader_player_test.dart; no on-device audio or gapless waveform promises are made.
 - No SQLite migration, automatic cast inference, cloud request or consent change. Flutter analyzer/tests, Windows/Android compilation and audible TTS hand-off tests remain deferred until final integration.
+
+## M5 — one-ahead cloud audio prebuffer, explicit opt-in (2026-10-23)
+
+Protocol: [Cloud TTS Prefetch](CLOUD_TTS_PREFETCH.md).
+
+- Added an optional `AheadOfTimeSpeechEngine` capability implemented only by OpenAiSpeechEngine. It asynchronously prepares at most one future, immutable model/voice/text MP3 clip while keeping the actual audio output serialized.
+- ReaderPlayer passes the next segment's pronunciation-transformed speech text and verified cast/narrator voice. Prefetch is **OFF by default** and enabled only by a separate session checkbox in ReaderScreen when OpenAI Speech is selected. The UI explicitly discloses that future text may incur cloud quota/charges before it is heard.
+- The cloud engine waits until the current audio is successfully rendered and is ready to start output before starting a paid lookahead. A failed first clip therefore cannot schedule a second paid request. Lookahead still uses the existing book-scoped consent, secure API key, immutable model/voice/text SHA-256 cache key, attempted-character reservation and MP3 size cap.
+- When the matching next clip is played, the engine consumes its prepared Future/result without re-requesting or re-reserving. A failed lookahead is surfaced on that next segment rather than automatically retrying at additional cost.
+- Pause, seek, stop and dispose invalidate generations and suppress stale future audio. Consent is rechecked before playing prepared bytes; revocation produces an error, not silent skipped narration. An HTTP request already submitted cannot be guaranteed cancelled or unbilled.
+- Added seven mocked tests (test/audio/cloud_prefetch_test.dart), **authored but not executed**, for default-deny, gated scheduling, different next character voice, network failure without paid retry, consent revocation, pause/seek and failed first clip.
+- `JustAudioMp3Output` still loads a private file per clip; this optimization overlaps HTTP synthesis but does **not** guarantee gapless device playback or eliminate OS/native TTS pauses. Windows/Android and Flutter integration remains deferred.
