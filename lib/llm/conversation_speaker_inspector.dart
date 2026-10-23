@@ -11,14 +11,20 @@ class ConversationSpeakerCue {
     required this.speakerId,
     required this.start,
     required this.end,
+    required this.attributionStart,
+    required this.attributionEnd,
     required this.excerpt,
     required this.sourceDigest,
     required this.origin,
   });
 
   final String speakerId;
+  /// Source bounds of the displayed (possibly truncated) excerpt.
   final int start;
   final int end;
+  /// Full source range of the approved speaker attribution.
+  final int attributionStart;
+  final int attributionEnd;
   final String excerpt;
   final String sourceDigest;
   final ConversationTurnOrigin origin;
@@ -26,6 +32,9 @@ class ConversationSpeakerCue {
   bool matchesSource(String source) =>
       CastSpan.validUtf16Range(source, start, end) &&
       source.substring(start, end) == excerpt &&
+      attributionStart <= start && end <= attributionEnd &&
+      CastSpan.validUtf16Range(
+        source, attributionStart, attributionEnd) &&
       CastSpan.digest(excerpt) == sourceDigest;
 }
 
@@ -109,6 +118,8 @@ class ConversationSpeakerInspector {
         speakerId: speaker,
         start: left,
         end: end,
+        attributionStart: start,
+        attributionEnd: end,
         excerpt: excerpt,
         sourceDigest: CastSpan.digest(excerpt),
         origin: origin,
@@ -150,8 +161,8 @@ class ConversationSpeakerInspector {
     for (var i = 0; i < all.length; i++) {
       for (var j = i + 1; j < all.length; j++) {
         if (all[i].speakerId != all[j].speakerId &&
-            all[i].start < all[j].end &&
-            all[j].start < all[i].end) {
+            all[i].attributionStart < all[j].attributionEnd &&
+            all[j].attributionStart < all[i].attributionEnd) {
           conflicts.add(i);
           conflicts.add(j);
         }
@@ -174,7 +185,8 @@ class ConversationSpeakerInspector {
     final output = <ConversationSpeakerCue>[];
     for (final cue in filtered) {
       final key = cue.speakerId + ':' +
-          cue.start.toString() + ':' + cue.end.toString();
+          cue.attributionStart.toString() + ':' +
+          cue.attributionEnd.toString();
       if (!unique.add(key)) continue;
       output.add(cue);
       if (output.length == maxTurns) break;
