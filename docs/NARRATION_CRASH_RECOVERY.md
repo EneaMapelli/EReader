@@ -67,7 +67,10 @@ this is why auto-resume is explicitly disabled.
 - PDF visual pages stay in `pdf_visual_page` (v15), independent from
   both spoken position and the new recovery table.
 - If the engine is stopping due to Pause, Seek or voice changes, the crash
-  marker stays in place until native stop completes. It is not cleared during
+  marker stays in place until native stop completes. After an 8-second Stop
+  timeout the player blocks further speech, and even ReaderScreen teardown
+  conservatively leaves the checkpoint for manual recovery (see
+  [Native Stop Timeout](NATIVE_STOP_TIMEOUT.md)). It is not cleared during
   a temporary `isPlaying=false` state if playback should resume. Errors in
   native stop settle the idle notification, but device validation remains
   required. See [Audio Transition Safety](AUDIO_TRANSITION_SAFETY.md).
@@ -78,7 +81,7 @@ this is why auto-resume is explicitly disabled.
   abrupt termination, single-use notice, manual reopening/dismissal,
   clean stop, different books, missing/deleted files, atomic rejection,
   v15→v16 migration, and checkpoint privacy.
-- `test/audio/narration_recovery_binding_test.dart`: 7 tests using an
+- `test/audio/narration_recovery_binding_test.dart`: 8 tests using an
   injectable fake `SpeechEngine` with a real `ReaderPlayer`, covering
   pause/completion/failure cleanup, process-loss recovery, and checkpoint
   retention during delayed Seek, Pause, and narrator voice changes.
