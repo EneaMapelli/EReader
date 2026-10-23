@@ -196,6 +196,33 @@ void main() {
     expect(engine.spoken, ['One']);
   });
 
+  test('direct Play supersedes a blocked seek without a late jump',
+      () async {
+    final first = player.play();
+    await _until(() => engine.spoken.length == 1);
+    engine.stopGate = Completer<void>();
+    final outdatedSeek = player.seekTo(2);
+    final direct = player.play();
+    engine.stopGate!.complete();
+    await outdatedSeek;
+    await first;
+    await _until(() => engine.spoken.length == 2);
+    expect(engine.spoken, ['One', 'One']);
+    expect(player.currentIndex, 0);
+    engine.finish();
+    await direct;
+  });
+
+  test('changing narrator voice while paused does not start narration',
+      () async {
+    const voice = SpeechVoice(name: 'Second', locale: 'en-US');
+    await player.selectVoice(voice);
+    expect(player.selectedVoice?.name, 'Second');
+    expect(engine.activeVoice, 'Second');
+    expect(engine.spoken, isEmpty);
+    expect(player.isPlaying, isFalse);
+  });
+
   test('direct Play is denied after disposal', () async {
     player.dispose();
     await player.play();
