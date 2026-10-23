@@ -49,8 +49,9 @@ The text remains source-exact and selectable.
 - The original source offsets, `epubSpine` reading anchors, cast span
   hashes, manual voice assignments, speech text and OpenAI consent remain
   unchanged. The visual renderer is purely a presentation projection.
-- Tapping a spoken run invokes the preexisting explicit segment selection
-  path. It does **not** start speaking or send text to cloud services.
+- Tapping a spoken run first pauses any active or pending EPUB narration,
+  then invokes the existing segment-selection path. It does **not** start
+  speaking or send new text to cloud services.
   Selecting the Play action later still follows the user's consent,
   focus, native-stop timeout and character-budget guards.
 - No EPUB HTML executes: there is no WebView, active scripts, external
