@@ -1,5 +1,5 @@
 import '../domain/cast_span.dart';
-import 'dialogue_analysis_plan.dart';
+import '../domain/voice_cast.dart';
 
 /// Source-verified, earlier-chapter mention of a character explicitly chosen
 /// by the user. Never an inferred speaker assignment or a new identity.
@@ -32,14 +32,19 @@ class HistoricalCharacterMention {
 
   /// Defense in depth: never accept a fabricated historical "preview" that
   /// points into the analyzed chapter or past the spoiler ceiling.
-  bool isValidFor(DialogueAnalysisWindow window) {
-    if (scopeId.isEmpty || scopeId == window.scope.id ||
+  bool isValidFor({
+    required String selectedScopeId,
+    required int selectedScopeStart,
+    required int spoilerCeiling,
+    required List<CastCharacter> allowedCast,
+  }) {
+    if (scopeId.isEmpty || scopeId == selectedScopeId ||
         characterId.isEmpty || matchedName.isEmpty ||
-        !window.cast.any((member) => member.id == characterId) ||
+        !allowedCast.any((member) => member.id == characterId) ||
         scopeStart < 0 || scopeEnd <= scopeStart ||
-        scopeEnd > window.scope.start ||
+        scopeEnd > selectedScopeStart ||
         excerptStart < scopeStart || excerptEnd > scopeEnd ||
-        excerptEnd > window.effectiveCeiling ||
+        excerptEnd > spoilerCeiling ||
         mentionStart < excerptStart || mentionEnd > excerptEnd ||
         mentionEnd <= mentionStart ||
         !CastSpan.validUtf16Range(
@@ -48,7 +53,7 @@ class HistoricalCharacterMention {
     final actual = excerpt.substring(
       mentionStart - excerptStart, mentionEnd - excerptStart,
     );
-    final member = window.cast.firstWhere(
+    final member = allowedCast.firstWhere(
         (person) => person.id == characterId);
     final normalized = matchedName.toLowerCase();
     return actual.toLowerCase() == normalized &&
