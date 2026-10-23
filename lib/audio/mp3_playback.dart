@@ -49,6 +49,9 @@ class _Mp3Slot {
   _Mp3Slot(this.decoder);
   final Mp3Decoder decoder;
   File? file;
+  // Native setFilePath/stop must not race on the SAME physical decoder
+  // when a new session starts before an older load has completed.
+  Future<void> loading = Future<void>.value();
 }
 
 /// Two reusable, strictly serial players: one playing and one loading.
@@ -90,43 +93,55 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
     return _standby ??= _Mp3Slot(_createDecoder());
   }
 
-  Future<void> _clearFile(_Mp3Slot slot) async {
+  Future<void> _clearFile(_Mp3Slot slot, {File? expected}) async {
     final file = slot.file;
+    if (file == null ||
+        (expected != null && !identical(file, expected))) return;
     slot.file = null;
-    if (file == null) return;
     try {
       if (await file.exists()) await file.delete();
     } on FileSystemException {
-      // Retain failed cleanup path for another try after stop/dispose:
-      // Windows can briefly keep MP3 files open after playback completion.
-      slot.file = file;
+      // A stale cleanup may not claim a newer session's file. Retry only
+      // while this slot is not already pointing to another temp MP3.
+      if (slot.file == null) slot.file = file;
     }
   }
 
   Future<void> _load(_Mp3Slot slot, Uint8List bytes,
-      double speed, int generation) async {
-    await slot.decoder.stop();
-    await _clearFile(slot);
-    if (_disposed || generation != _generation) return;
-    final dir = await _temporaryDirectory();
-    if (_disposed || generation != _generation) return;
-    final filename = 'ereader-tts-' +
-        DateTime.now().microsecondsSinceEpoch.toString() + '-' +
-        (_fileSerial++).toString() + '.mp3';
-    final file = File(p.join(dir.path, filename));
-    slot.file = file;
-    try {
-      await file.writeAsBytes(bytes, flush: true);
-      if (_disposed || generation != _generation) return;
-      await slot.decoder.load(file.path, speed: speed);
-    } catch (_) {
-      await _clearFile(slot);
-      rethrow;
-    } finally {
-      if (_disposed || generation != _generation) {
-        await _clearFile(slot);
+      double speed, int generation) {
+    final previous = slot.loading;
+    final task = () async {
+      try {
+        await previous;
+      } catch (_) {
+        // A failed former load should not poison later sessions.
       }
-    }
+      if (_disposed || generation != _generation) return;
+      await slot.decoder.stop();
+      await _clearFile(slot);
+      if (_disposed || generation != _generation) return;
+      final dir = await _temporaryDirectory();
+      if (_disposed || generation != _generation) return;
+      final filename = 'ereader-tts-' +
+          DateTime.now().microsecondsSinceEpoch.toString() + '-' +
+          (_fileSerial++).toString() + '.mp3';
+      final file = File(p.join(dir.path, filename));
+      slot.file = file;
+      try {
+        await file.writeAsBytes(bytes, flush: true);
+        if (_disposed || generation != _generation) return;
+        await slot.decoder.load(file.path, speed: speed);
+      } catch (_) {
+        await _clearFile(slot, expected: file);
+        rethrow;
+      } finally {
+        if (_disposed || generation != _generation) {
+          await _clearFile(slot, expected: file);
+        }
+      }
+    }();
+    slot.loading = task;
+    return task;
   }
 
   @override
@@ -210,13 +225,16 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
       await _load(slot, bytes, speed, token);
     }
     if (_disposed || token != _generation) return;
+    final playedFile = slot.file;
     try {
       await slot.decoder.play();
     } finally {
-      // Release the native file handle before erasing private temporary
-      // audio, particularly for the Windows Media Player implementation.
-      await slot.decoder.stop();
-      await _clearFile(slot);
+      // A late old-session completion must never stop a newer clip that
+      // reused this decoder, nor delete its newer private working file.
+      if (!_disposed && token == _generation) {
+        await slot.decoder.stop();
+        await _clearFile(slot, expected: playedFile);
+      }
     }
   }
 
