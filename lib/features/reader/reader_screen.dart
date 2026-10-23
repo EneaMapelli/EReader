@@ -56,6 +56,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   String? _error;
   bool _loading = true;
   double _fontSize = 19;
+  EpubReadingPalette _epubPalette = EpubReadingPalette.system;
   bool _pdfTextMode = false;
   bool _autoFollow = true;
   final ItemScrollController _itemScrollController = ItemScrollController();
@@ -656,6 +657,28 @@ class _ReaderScreenState extends State<ReaderScreen>
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
+          if (widget.book.format == BookFormat.epub)
+            PopupMenuButton<EpubReadingPalette>(
+              tooltip: 'EPUB reading colors',
+              icon: const Icon(Icons.palette_outlined),
+              initialValue: _epubPalette,
+              onSelected: (palette) =>
+                  setState(() => _epubPalette = palette),
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: EpubReadingPalette.system,
+                  child: Text('Follow device theme'),
+                ),
+                PopupMenuItem(
+                  value: EpubReadingPalette.sepia,
+                  child: Text('Warm paper'),
+                ),
+                PopupMenuItem(
+                  value: EpubReadingPalette.night,
+                  child: Text('Night reading'),
+                ),
+              ],
+            ),
           if (widget.book.format == BookFormat.epub && _chapters.isNotEmpty)
             IconButton(
               tooltip: 'Table of contents: EPUB spine chapters',
@@ -776,8 +799,11 @@ class _ReaderScreenState extends State<ReaderScreen>
                       : Column(
                           children: [
                             Expanded(
-                              child: SelectionArea(
-                                child: ScrollablePositionedList.builder(
+                              child: Container(
+                                color: widget.book.format == BookFormat.epub
+                                    ? _epubPalette.background(context) : null,
+                                child: SelectionArea(
+                                  child: ScrollablePositionedList.builder(
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 18, horizontal: 24,
                                   ),
@@ -800,6 +826,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                         block: block,
                                         activeSegmentIndex: player.currentIndex,
                                         fontSize: _fontSize,
+                                        palette: _epubPalette,
                                         onSelectSegment: (segmentIndex) {
                                           unawaited(_select(segmentIndex));
                                         },
@@ -841,6 +868,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                       ),
                                     );
                                   },
+                                  ),
                                 ),
                               ),
                             ),
