@@ -118,10 +118,13 @@ PreparedCastSpeech prepareCastSpeech({
   // Invalid, overlapping authoring data is safe-by-default. Do not give
   // precedence to an arbitrarily ordered conflicting character.
   final conflicts = <int>{};
-  for (var i = 1; i < usable.length; i++) {
-    if (usable[i].start < usable[i - 1].end) {
+  // Check every interval overlapped by a long label, not just neighbors.
+  // The inner loop exits immediately for ordinary nonoverlapping turns.
+  for (var i = 0; i < usable.length; i++) {
+    for (var j = i + 1; j < usable.length; j++) {
+      if (usable[j].start >= usable[i].end) break;
       conflicts.add(i);
-      conflicts.add(i - 1);
+      conflicts.add(j);
     }
   }
   final accepted = <({int start, int end, String speaker})>[
