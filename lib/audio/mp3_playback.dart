@@ -229,12 +229,21 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
     try {
       await slot.decoder.play();
     } finally {
-      // A late old-session completion must never stop a newer clip that
-      // reused this decoder, nor delete its newer private working file.
-      if (!_disposed && token == _generation) {
+      // Serialize the native end-of-clip stop against the NEXT load on this
+      // same decoder. A delayed old generation cannot stop or delete a
+      // restarted segment's private MP3.
+      final prior = slot.loading;
+      final finishing = () async {
+        try { await prior; } catch (_) {
+          // Failed prior load does not prevent stop/cleanup.
+        }
+        if (_disposed || token != _generation) return;
         await slot.decoder.stop();
+        if (_disposed || token != _generation) return;
         await _clearFile(slot, expected: playedFile);
-      }
+      }();
+      slot.loading = finishing;
+      await finishing;
     }
   }
 
