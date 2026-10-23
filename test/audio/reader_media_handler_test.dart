@@ -11,6 +11,7 @@ class _FakeSpeechEngine implements SpeechEngine {
   final spoken = <String>[];
   Completer<void>? waiting;
   Completer<void>? stopGate;
+  bool failStop = false;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => const [];
@@ -32,6 +33,7 @@ class _FakeSpeechEngine implements SpeechEngine {
   @override
   Future<void> stop() async {
     if (stopGate != null) await stopGate!.future;
+    if (failStop) throw StateError('native stop failed');
     finish();
   }
 
@@ -62,6 +64,7 @@ void main() {
     final handler = ReaderMediaHandler(requestFocus: () async => true);
     handler.attach(player, bookId: 'book-A', title: 'A Tale');
     expect(handler.hasActiveBook, isTrue);
+    expect(handler.ownsPlayer(player), isTrue);
     expect(handler.mediaItem.value?.title, 'A Tale');
     expect(handler.queue.value.single.id, 'book-A');
     expect(handler.playbackState.value.playing, isFalse);
@@ -71,6 +74,7 @@ void main() {
 
     handler.detach(player);
     expect(handler.hasActiveBook, isFalse);
+    expect(handler.ownsPlayer(player), isFalse);
     expect(handler.mediaItem.value, isNull);
     expect(handler.playbackState.value.processingState,
         AudioProcessingState.idle);
@@ -225,6 +229,25 @@ void main() {
     expect(handler.mediaItem.value, isNull);
     expect(handler.playbackState.value.processingState,
         AudioProcessingState.idle);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('task removal detaches even if native stop throws', () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'b', title: 'B');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.failStop = true;
+    await expectLater(handler.onTaskRemoved(), throwsStateError);
+    expect(handler.hasActiveBook, isFalse);
+    expect(handler.mediaItem.value, isNull);
+    expect(handler.playbackState.value.controls, isEmpty);
+    // A stale reader can no longer start a new book through this handler.
+    expect(handler.ownsPlayer(player), isFalse);
+    engine.failStop = false;
     await handler.close();
     player.dispose();
   });
