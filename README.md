@@ -21,6 +21,7 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - **Continuità dei personaggi tra capitoli:** ricerca locale, disattivata di default, di brevi menzioni già conosciute negli ultimi capitoli precedenti; solo gli estratti verificati e mostrati nell'anteprima vengono opzionalmente inviati al modello, sempre entro il limite spoiler.
 - **Scoperta di nuovi personaggi:** modalità AI separata che propone solo nomi letteralmente presenti nel capitolo o estratto autorizzato. I candidati restano in una coda di revisione finché l'utente non ne conferma la creazione; nessuna voce o battuta viene assegnata automaticamente.
 - **Editor dettagliato dei turni di dialogo:** dalla scheda Dialogues si apre una vista locale paginata che separa battute con virgolette e trattini, interruzioni e porzioni con parlanti confermati, mancanti o in conflitto. Una battuta interamente non attribuita può essere etichettata solo dopo scelta manuale esplicita.
+- **Decoder MP3 preriscaldato:** quando il prebuffer cloud è attivo, un secondo player locale carica il file successivo durante l'ascolto del primo. La riproduzione resta seriale, il file è temporaneo e non ci sono nuove chiamate API; la continuità perfetta non è ancora garantita.
 - **Prebuffering cloud facoltativo:** durante l'ascolto puoi preparare in anticipo un solo successivo chunk MP3 di OpenAI, dopo che il chunk corrente è pronto. Disattivato di default perché l'anticipo può consumare quota anche se poi salti la battuta; nessuna promessa di audio gapless.
 - **Continuità vocale tra chunk TTS:** le attribuzioni manuali precise e legacy vengono risolte su intervalli verificati del libro, anche quando una stessa battuta attraversa più segmenti. I frammenti consecutivi con la stessa voce nella stessa citazione sono riuniti fino a 400 caratteri senza attraversare i confini narratore/personaggio.
 - **Diagnostica dei dialoghi complessi:** scheda Dialogues con controllo locale delle battute interrotte o non chiuse, cambi di turno ravvicinati e attribuzioni vocali incomplete o in conflitto; da ciascuna battuta si può correggere manualmente una selezione precisa del testo.
@@ -79,6 +80,7 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Editor dettagliato e paginato dei turni di dialogo](docs/COMPLEX_DIALOGUE_TURNS.md)
 - [Continuità delle voci nelle battute TTS spezzate in più chunk](docs/CROSS_CHUNK_TTS_CASTING.md)
 - [Prebuffering cloud a un chunk e gestione prudente della quota](docs/CLOUD_TTS_PREFETCH.md)
+- [Decoder MP3 doppio e preparazione locale del prossimo file](docs/MP3_DECODER_PRELOAD.md)
 - [Riconoscimento assistito di nuovi personaggi e revisione](docs/CHARACTER_DISCOVERY.md)
 - [Riconciliazione alias, soprannomi e identità](docs/ALIAS_RECONCILIATION.md)
 - [Unificazione manuale di due personaggi e conservazione delle attribuzioni](docs/CAST_IDENTITY_MERGE.md)
