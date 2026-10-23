@@ -172,16 +172,24 @@ void main() {
       },
     );
     handler.attach(player, bookId: 'b', title: 'B');
-    final pendingPlay = handler.play();
-    await Future<void>.delayed(Duration.zero);
-    expect(focusRequests, 0);
-    expect(engine.spoken, isEmpty);
-
-    releaseGate.complete();
-    await pendingPlay;
+    await handler.play();
     await Future<void>.delayed(Duration.zero);
     expect(focusRequests, 1);
     expect(engine.spoken, ['First']);
+
+    final pausing = handler.pause();
+    await Future<void>.delayed(Duration.zero);
+    expect(releases, 1);
+    final pendingPlay = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(focusRequests, 1,
+        reason: 'New focus cannot be granted before native release finishes');
+
+    releaseGate.complete();
+    await Future.wait([pausing, pendingPlay]);
+    await Future<void>.delayed(Duration.zero);
+    expect(focusRequests, 2);
+    expect(engine.spoken.last, 'First');
     await handler.pause();
     await handler.close();
     player.dispose();
@@ -209,8 +217,8 @@ void main() {
     await Future.wait([playing, stopping]);
     expect(player.isPlaying, isFalse);
     expect(engine.spoken, isEmpty);
-    expect(released, greaterThanOrEqualTo(2),
-        reason: 'The queued native release must follow a delayed gain');
+    expect(released, 1,
+        reason: 'A late focus grant must be released exactly once');
     await handler.close();
     player.dispose();
   });
