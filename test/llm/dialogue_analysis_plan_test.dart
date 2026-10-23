@@ -114,7 +114,7 @@ void main() {
     final scope = planner.scopes(BookFormat.txt, duplicateContent).first;
     final window = planner.makeWindow(
       bookId: 'book', content: duplicateContent, scope: scope,
-      segments: [const SpeechSegment(0, duplicate.length, duplicate)],
+      segments: [SpeechSegment(0, duplicate.length, duplicate)],
       cast: known, from: 0,
     );
     expect(() => planner.materializeProposals(
