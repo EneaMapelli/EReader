@@ -8,7 +8,7 @@
 
 Sul branch `feature/m0-flutter-foundation` sono presenti:
 - Modello libri e importazione/copia locale di TXT, EPUB e PDF (limite provvisorio 100 MB).
-- Biblioteca SQLite con progressi e ancore persistenti, preferenze vocali, dizionario di pronuncia e segnalibri; migrazione automatica dei precedenti schemi JSON/SQLite (fino alla versione 15).
+- Biblioteca SQLite con progressi e ancore persistenti, preferenze vocali, dizionario di pronuncia e segnalibri; migrazione automatica dei precedenti schemi JSON/SQLite (fino alla versione 16).
 - Estrazione TXT/EPUB in ordine OPF spine con limiti ZIP/XML e mappatura dei capitoli alle posizioni del testo; **il renderer EPUB completo e gli anchor EPUB CFI persistenti non sono ancora implementati**.
 - Visualizzazione PDF tramite `pdfrx` e modalità sperimentale di lettura vocale per PDF con testo selezionabile (senza garanzia sull'ordine di colonne, note e tabelle).
 - **Ripresa visuale dei PDF, anche scansionati (codice, da validare):** salva per libro la pagina visualizzata e la ripristina alla riapertura, indipendentemente dalla posizione TTS. Migrazione SQLite v15; nessun OCR o sincronismo a livello di riga. [Specifica e test](docs/PDF_VISUAL_RESUME.md).
@@ -16,6 +16,7 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - **Sleep timer sessione:** stop automatico della lettura vocale dopo 10/15/30/45/60 minuti, annullabile o reimpostabile; il conteggio segue l'ora reale anche durante la pausa. Il timer non garantisce il funzionamento dopo la terminazione del processo Android.
 - **Controlli media Android (codice, non ancora validato):** servizio audio con Play/Pausa/Stop/precedente/successivo in notifiche, schermata di blocco e cuffie, con pausa su chiamate/perdita focus/cuffie scollegate; mantenuto il consenso cloud anche per Play remoto. Manifest Android applicato dagli script bootstrap; Windows resta invariato. [Dettagli e limiti](docs/ANDROID_BACKGROUND_MEDIA.md).
 - **Continua a leggere (codice, non validato):** la biblioteca ricorda l'ultimo libro aperto con SQLite v14 e mostra un accesso rapido dopo il riavvio. Recupera l'ancora sorgente già salvata; non riavvia autonomamente audio o richieste cloud, e ignora libri i cui file locali mancano.
+- **Recupero TTS dopo chiusura improvvisa (codice, non validato):** checkpoint SQLite v16 scritto atomicamente con la posizione del segmento. Al riavvio un avviso consente di riaprire il libro, ma la lettura vocale non riparte e non vengono inviate richieste API prima di un nuovo Play esplicito. Pause, fine lettura e chiusure normali eliminano il checkpoint. [Dettagli](docs/NARRATION_CRASH_RECOVERY.md).
 - **Gestione del ciclo di vita Android (codice, non validato):** schermo spento/background mantengono il TTS solo quando il libro possiede il media handler Android; altrimenti il TTS va in pausa. Chiusura da task manager o rimozione della notifica interrompono senza ripartenza automatica; i controlli obsoleti non possono pilotare un altro libro.
 - Dizionario di pronuncia globale o per singolo libro (con anteprima), applicato soltanto al testo pronunciato e non alla copia originale.
 - **Motori TTS configurabili per libro:** voci gratuite del sistema oppure OpenAI Speech tramite API HTTPS; scelta del modello e delle voci del provider. Le altre API e le voci neurali offline sono previste nelle milestone successive.
@@ -37,7 +38,7 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - **Riconciliazione dei soprannomi:** una terza modalità AI suggerisce collegamenti fra appellativi citati nel testo e personaggi già noti; ogni proposta viene verificata e approvata manualmente prima di aggiungere un alias. I riferimenti ambigui non vengono fusi automaticamente.
 - **Unificazione manuale dei personaggi:** anteprima e conferma per fondere due identità duplicate, trasferendo attribuzioni, alias, voci e riferimenti delle proposte AI, con risoluzione esplicita di ogni conflitto vocale e audit locale della fusione.
 - **Cache MP3 privata:** stessa voce, modello e testo possono riusare audio già sintetizzato; limite di 250 MiB, pulizia manuale e alla cancellazione del libro.
-- Test unitari per modelli, segmentazione, queue player, SQLite/migrazione v1-v15, pronuncia, preferenze, segnalibri, ricerca, TXT e ordine/sicurezza EPUB.
+- Test unitari per modelli, segmentazione, queue player, SQLite/migrazione v1-v16, pronuncia, preferenze, segnalibri, ricerca, TXT e ordine/sicurezza EPUB.
 - [Workflow GitHub Actions](https://github.com/EneaMapelli/EReader/actions/workflows/manual-verify.yml) **solo manuale**, avviabile da main scegliendo il branch da verificare; Flutter 3.47.7, Android e Windows.
 
 **Verifiche rinviate all'integrazione finale su richiesta del proprietario:** compilazione, test automatici effettivi, migrazioni SQLite reali e uso su Windows/Android. Gli ambienti Flutter/Dart e i toolchain Windows/Android non erano disponibili nel contesto di sviluppo. Le cartelle native `android/` e `windows/` devono ancora essere generate e versionate dopo il bootstrap.
@@ -90,6 +91,7 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Sicurezza delle sessioni TTS: Play, Pausa, Seek, voce e velocità](docs/PLAYBACK_SESSION_SAFETY.md)
 - [Controlli media Android, focus e servizio in background](docs/ANDROID_BACKGROUND_MEDIA.md)
 - [Ripristino libro recente, lifecycle e arresto sessione](docs/SESSION_RESUME_AND_LIFECYCLE.md)
+- [Recupero checkpoint di narrazione dopo chiusure improvvise](docs/NARRATION_CRASH_RECOVERY.md)
 - [Ripresa pagina visuale PDF e separazione dalla posizione TTS](docs/PDF_VISUAL_RESUME.md)
 - [Riconoscimento assistito di nuovi personaggi e revisione](docs/CHARACTER_DISCOVERY.md)
 - [Riconciliazione alias, soprannomi e identità](docs/ALIAS_RECONCILIATION.md)
