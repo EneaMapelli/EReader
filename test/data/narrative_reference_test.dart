@@ -5,6 +5,7 @@ import 'package:ereader/domain/cast_merge.dart';
 import 'package:ereader/domain/cast_span.dart';
 import 'package:ereader/domain/narrative_reference.dart';
 import 'package:ereader/domain/voice_cast.dart';
+import 'package:ereader/llm/narrative_antecedent_finder.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
@@ -197,6 +198,20 @@ void main() {
     expect(refs.every((ref) => ref.proposedCharacterId == 'anna'), isTrue);
     expect(refs.singleWhere((ref) => ref.id == 'accepted')
         .approvedCharacterId, 'anna');
+    // The offline antecedent view follows the merged stable character ID,
+    // without creating any new voice or model-generated speaker attribution.
+    final from = text.indexOf('the captain');
+    final hints = const NarrativeAntecedentFinder().inspect(
+      bookId: book, source: text, scopeStart: 0,
+      referenceStart: from, referenceEnd: from + 'the captain'.length,
+      cast: store.listCastCharacters(book),
+      reviewedReferences: refs,
+    );
+    expect(hints.cues, hasLength(1));
+    expect(hints.cues.single.characterId, 'anna');
+    expect(hints.cues.single.matchedText, 'She');
+    expect(hints.cues.single.kind,
+        AntecedentCueKind.reviewedNarrativeLink);
   });
 
   test('SQLite v12-to-v13 migration retains book, cast and voice history',
