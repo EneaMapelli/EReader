@@ -255,7 +255,8 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   void _onVisiblePositions() {
-    if (!mounted || _loading || _player == null || _document == null) return;
+    if (!mounted || _loading || _player == null || _document == null ||
+        (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
     final player = _player!;
     if (player.isPlaying || player.segments.isEmpty) return;
     final visible = _itemPositionsListener.itemPositions.value
@@ -269,7 +270,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     _visiblePositionIndex = index;
     _saveVisualPositionTimer?.cancel();
     _saveVisualPositionTimer = Timer(const Duration(milliseconds: 450), () {
-      if (!mounted || player.isPlaying || _player != player) return;
+      if (!mounted || player.isPlaying || _player != player ||
+          (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
       final segment = player.segments[index];
       widget.store.savePosition(
         widget.book.id, segment.start,
@@ -568,6 +570,7 @@ class _ReaderScreenState extends State<ReaderScreen>
               icon: const Icon(Icons.picture_as_pdf_outlined),
               onPressed: () async {
                 await _player?.pause();
+                _saveVisualPositionTimer?.cancel();
                 if (mounted) setState(() => _pdfTextMode = false);
               },
             ),
@@ -604,6 +607,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                             TextButton.icon(
                               onPressed: () {
                                 _flushPdfPagePosition();
+                                _saveVisualPositionTimer?.cancel();
                                 setState(() {
                                   _pdfTextMode = true;
                                   _loading = true;
