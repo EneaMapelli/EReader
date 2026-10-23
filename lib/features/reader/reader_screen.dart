@@ -5,6 +5,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../audio/reader_player.dart';
+import '../../audio/reader_media_handler.dart';
 import '../../audio/speech_engine.dart';
 import '../../audio/speech_engine_factory.dart';
 import '../../audio/openai_speech_engine.dart';
@@ -23,9 +24,12 @@ import 'pronunciation_screen.dart';
 import 'reading_tools.dart';
 
 class ReaderScreen extends StatefulWidget {
-  const ReaderScreen({super.key, required this.book, required this.store});
+  const ReaderScreen({
+    super.key, required this.book, required this.store, this.mediaHandler,
+  });
   final BookRecord book;
   final LibraryStore store;
+  final ReaderMediaHandler? mediaHandler;
 
   @override
   State<ReaderScreen> createState() => _ReaderScreenState();
@@ -124,12 +128,24 @@ class _ReaderScreenState extends State<ReaderScreen> {
       }
       final previous = _player;
       if (previous != null) {
+        widget.mediaHandler?.detach(previous);
         previous.removeListener(_onPlaybackChanged);
         previous.dispose();
       }
       _lastFollowedIndex = player.currentIndex;
       _visiblePositionIndex = player.currentIndex;
       player.addListener(_onPlaybackChanged);
+      widget.mediaHandler?.attach(
+        player,
+        bookId: widget.book.id,
+        title: widget.book.title,
+        canStart: () async {
+          if (prefs.providerId != OpenAiSpeechEngine.providerId) return true;
+          return widget.store.getConsent(
+            widget.book.id, OpenAiSpeechEngine.providerId,
+          ).allowed;
+        },
+      );
       setState(() {
         _player = player;
         _document = document;
@@ -363,7 +379,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     if (player == null) return;
     try {
       if (player.isPlaying) {
-        await player.pause();
+        await (widget.mediaHandler?.pause() ?? player.pause());
       } else {
         final prefs = player.currentPreferences;
         if (prefs.providerId == OpenAiSpeechEngine.providerId &&
@@ -379,7 +395,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         if (visible != null && visible != player.currentIndex) {
           await player.seekTo(visible);
         }
-        await player.play();
+        await (widget.mediaHandler?.play() ?? player.play());
       }
     } catch (error) {
       if (mounted) {
@@ -425,6 +441,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     _itemPositionsListener.itemPositions.removeListener(_onVisiblePositions);
     final player = _player;
     if (player != null) {
+      widget.mediaHandler?.detach(player);
       player.removeListener(_onPlaybackChanged);
       player.dispose();
     }
