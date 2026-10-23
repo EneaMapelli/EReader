@@ -5,12 +5,8 @@ import 'package:crypto/crypto.dart';
 import 'reading_anchor.dart';
 import 'speech_segment.dart';
 
-/// A source-accurate, provider-independent speaker label. LLM output may
-/// only create proposed spans; only a user action can accept them.
-/// Null speaker means "unknown" and always uses the narrator voice.
-/// Optional grounded source evidence for a proposed speaker attribution.
-/// It points to an exact earlier passage and carries only a digest/offset,
-/// never a model-generated explanation taken as authoritative.
+/// Exact earlier passage cited in support of a suggested speaker.
+/// This is provenance for review, not proof that the inference is correct.
 class CastSpanEvidence {
   const CastSpanEvidence({
     required this.start,
@@ -24,9 +20,37 @@ class CastSpanEvidence {
 
   void validate() {
     if (start < 0 || end <= start ||
-        !RegExp(r'^[0-9a-f]{64}
+        !RegExp(r'^[0-9a-f]{64}$').hasMatch(sourceDigest)) {
+      throw const FormatException('Invalid speaker evidence reference');
+    }
+  }
+
+  bool matchesSource(String source) =>
+      CastSpan.validUtf16Range(source, start, end) &&
+      CastSpan.digest(source.substring(start, end)) == sourceDigest;
+
+  Map<String, Object> toJson() => {
+        'start': start,
+        'end': end,
+        'source_sha256': sourceDigest,
+      };
+
+  factory CastSpanEvidence.fromJson(Map<String, dynamic> json) {
+    final evidence = CastSpanEvidence(
+      start: json['start'] as int,
+      end: json['end'] as int,
+      sourceDigest: json['source_sha256'] as String,
+    );
+    evidence.validate();
+    return evidence;
+  }
+}
+
+enum CastSpanOrigin { user, llm }
 enum CastSpanStatus { proposed, accepted, rejected }
 
+/// Source-accurate speech assignment. A proposed LLM label cannot drive
+/// narration until a user explicitly reviews and accepts it.
 class CastSpan {
   const CastSpan({
     required this.id,
@@ -56,19 +80,18 @@ class CastSpan {
   final ReadingAnchor? anchor;
   final CastSpanEvidence? evidence;
 
-  static String digest(String text) =>
-      sha256.convert(utf8.encode(text)).toString();
+  static String digest(String source) =>
+      sha256.convert(utf8.encode(source)).toString();
 
-  /// A text selection must not split a UTF-16 surrogate pair in half.
-  /// Offsets are Dart String code units, not grapheme-cluster indices.
+  /// Dart offsets are UTF-16 code units. Never split a surrogate pair.
   static bool validUtf16Range(String source, int start, int end) {
     if (start < 0 || end <= start || end > source.length) return false;
-    bool splitsPair(int index) =>
-        index > 0 && index < source.length &&
-        source.codeUnitAt(index - 1) >= 0xD800 &&
-        source.codeUnitAt(index - 1) <= 0xDBFF &&
-        source.codeUnitAt(index) >= 0xDC00 &&
-        source.codeUnitAt(index) <= 0xDFFF;
+    bool splitsPair(int at) =>
+        at > 0 && at < source.length &&
+        source.codeUnitAt(at - 1) >= 0xD800 &&
+        source.codeUnitAt(at - 1) <= 0xDBFF &&
+        source.codeUnitAt(at) >= 0xDC00 &&
+        source.codeUnitAt(at) <= 0xDFFF;
     return !splitsPair(start) && !splitsPair(end);
   }
 
@@ -90,13 +113,12 @@ class CastSpan {
     }
     evidence?.validate();
     if (evidence != null && evidence!.end > start) {
-      throw const FormatException('Speaker evidence must precede its quote');
+      throw const FormatException('Speaker evidence must precede the quote');
     }
     if (origin == CastSpanOrigin.llm &&
         status != CastSpanStatus.proposed &&
         !lockedByUser) {
-      throw const FormatException(
-          'LLM suggestion needs explicit user approval');
+      throw const FormatException('LLM label requires explicit user review');
     }
     if (origin == CastSpanOrigin.user &&
         (status != CastSpanStatus.accepted || !lockedByUser)) {
@@ -111,25 +133,26 @@ class CastSpan {
     String source,
     int? Function(ReadingAnchor) locate,
   ) {
-    final resolved = resolvedStart(locate);
-    if (resolved == null ||
-        !validUtf16Range(source, resolved, resolved + length)) return false;
-    return digest(source.substring(resolved, resolved + length))
-        == sourceDigest;
+    final actualStart = resolvedStart(locate);
+    if (actualStart == null ||
+        !validUtf16Range(source, actualStart, actualStart + length)) {
+      return false;
+    }
+    return digest(source.substring(actualStart, actualStart + length)) ==
+        sourceDigest;
   }
 }
 
-/// Pure output. The only role of a cast label is to choose a voice: no
-/// rewriting, paraphrasing or reordering of original source text is allowed.
 class PreparedCastSpeech {
   const PreparedCastSpeech(this.segments, this.speakerByStart);
+
   final List<SpeechSegment> segments;
+  /// A present null means the user explicitly selected narrator/unknown.
   final Map<int, String?> speakerByStart;
 }
 
-/// Break base narration into original-text slices at manual speaker edges.
-/// Validate SHA-256 and source anchors first. Stale or overlapping labels
-/// revert to narrator. A future LLM proposal is never used until approved.
+/// Split existing speech segments without changing any book content or
+/// positions. Invalid or overlapping annotations do not take effect.
 PreparedCastSpeech prepareCastSpeech({
   required String source,
   required List<SpeechSegment> base,
@@ -140,20 +163,20 @@ PreparedCastSpeech prepareCastSpeech({
   for (final span in annotations) {
     if (span.status != CastSpanStatus.accepted ||
         !span.matchesSource(source, offsetFromAnchor)) continue;
-    final start = span.resolvedStart(offsetFromAnchor)!;
-    usable.add((start: start, end: start + span.length,
-        speaker: span.speakerId));
+    final actualStart = span.resolvedStart(offsetFromAnchor)!;
+    usable.add((
+      start: actualStart,
+      end: actualStart + span.length,
+      speaker: span.speakerId,
+    ));
   }
   usable.sort((a, b) {
-    final start = a.start.compareTo(b.start);
-    return start == 0 ? a.end.compareTo(b.end) : start;
+    final byStart = a.start.compareTo(b.start);
+    return byStart != 0 ? byStart : a.end.compareTo(b.end);
   });
 
-  // Invalid, overlapping authoring data is safe-by-default. Do not give
-  // precedence to an arbitrarily ordered conflicting character.
+  // Reject both sides of *every* overlap, including contained intervals.
   final conflicts = <int>{};
-  // Check every interval overlapped by a long label, not just neighbors.
-  // The inner loop exits immediately for ordinary nonoverlapping turns.
   for (var i = 0; i < usable.length; i++) {
     for (var j = i + 1; j < usable.length; j++) {
       if (usable[j].start >= usable[i].end) break;
@@ -161,274 +184,60 @@ PreparedCastSpeech prepareCastSpeech({
       conflicts.add(j);
     }
   }
-  final accepted = <({int start, int end, String? speaker})>[
+  final accepted = [
     for (var i = 0; i < usable.length; i++)
       if (!conflicts.contains(i)) usable[i],
   ];
 
-  final output = <SpeechSegment>[];
-  final speakers = <int, String?>{};
+  final pieces = <SpeechSegment>[];
+  final speakerByStart = <int, String?>{};
   var firstPossible = 0;
-  for (final segment in base) {
-    if (segment.start < 0 || segment.end > source.length ||
-        segment.end <= segment.start ||
-        source.substring(segment.start, segment.end) != segment.text) {
-      throw const FormatException('Base segment is not source-aligned');
+  for (final baseSegment in base) {
+    if (!CastSpan.validUtf16Range(
+            source, baseSegment.start, baseSegment.end) ||
+        source.substring(baseSegment.start, baseSegment.end) !=
+            baseSegment.text) {
+      throw const FormatException('Base speech segment is not source-aligned');
     }
     while (firstPossible < accepted.length &&
-        accepted[firstPossible].end <= segment.start) {
+        accepted[firstPossible].end <= baseSegment.start) {
       firstPossible++;
     }
-    final nearby = <({int start, int end, String? speaker})>[];
-    final cuts = <int>{segment.start, segment.end};
-    for (var candidate = firstPossible; candidate < accepted.length;
-        candidate++) {
-      final active = accepted[candidate];
-      if (active.start >= segment.end) break;
-      nearby.add(active);
-      if (active.start > segment.start && active.start < segment.end) {
-        cuts.add(active.start);
-      }
-      if (active.end > segment.start && active.end < segment.end) {
-        cuts.add(active.end);
-      }
+    final local = <({int start, int end, String? speaker})>[];
+    final boundaries = <int>{baseSegment.start, baseSegment.end};
+    for (var j = firstPossible; j < accepted.length; j++) {
+      final active = accepted[j];
+      if (active.start >= baseSegment.end) break;
+      local.add(active);
+      if (active.start > baseSegment.start &&
+          active.start < baseSegment.end) boundaries.add(active.start);
+      if (active.end > baseSegment.start &&
+          active.end < baseSegment.end) boundaries.add(active.end);
     }
-    final sorted = cuts.toList()..sort();
+    final sorted = boundaries.toList()..sort();
     for (var i = 0; i + 1 < sorted.length; i++) {
       var from = sorted[i], to = sorted[i + 1];
-      while (from < to && _whitespace(source.codeUnitAt(from))) {
+      while (from < to && _isWhitespace(source.codeUnitAt(from))) {
         from++;
       }
-      while (to > from && _whitespace(source.codeUnitAt(to - 1))) {
+      while (to > from && _isWhitespace(source.codeUnitAt(to - 1))) {
         to--;
       }
       if (from >= to) continue;
-      final part = SpeechSegment(from, to, source.substring(from, to));
-      output.add(part);
-      for (final active in nearby) {
+      pieces.add(SpeechSegment(from, to, source.substring(from, to)));
+      for (final active in local) {
         if (from >= active.start && to <= active.end) {
-          speakers[from] = active.speaker;
+          speakerByStart[from] = active.speaker;
           break;
         }
       }
     }
   }
   return PreparedCastSpeech(
-      List.unmodifiable(output), Map.unmodifiable(speakers));
+    List.unmodifiable(pieces),
+    Map.unmodifiable(speakerByStart),
+  );
 }
 
-bool _whitespace(int c) => c == 32 || c == 9 || c == 10 ||
-    c == 13 || c == 0xA0;
-).hasMatch(sourceDigest)) {
-      throw const FormatException('Invalid speaker evidence reference');
-    }
-  }
-
-  bool matchesSource(String source) =>
-      CastSpan.validUtf16Range(source, start, end) &&
-      CastSpan.digest(source.substring(start, end)) == sourceDigest;
-
-  Map<String, Object> toJson() => {
-    'start': start, 'end': end, 'source_sha256': sourceDigest,
-  };
-
-  factory CastSpanEvidence.fromJson(Map<String, dynamic> data) {
-    final ref = CastSpanEvidence(
-      start: data['start'] as int,
-      end: data['end'] as int,
-      sourceDigest: data['source_sha256'] as String,
-    );
-    ref.validate();
-    return ref;
-  }
-}
-
-enum CastSpanOrigin { user, llm }
-enum CastSpanStatus { proposed, accepted, rejected }
-
-class CastSpan {
-  const CastSpan({
-    required this.id,
-    required this.bookId,
-    required this.start,
-    required this.end,
-    required this.sourceDigest,
-    required this.speakerId,
-    required this.origin,
-    required this.status,
-    required this.lockedByUser,
-    this.confidence,
-    this.anchor,
-  });
-
-  final String id;
-  final String bookId;
-  final int start;
-  final int end;
-  final String sourceDigest;
-  final String? speakerId;
-  final CastSpanOrigin origin;
-  final CastSpanStatus status;
-  final bool lockedByUser;
-  final double? confidence;
-  final ReadingAnchor? anchor;
-
-  static String digest(String text) =>
-      sha256.convert(utf8.encode(text)).toString();
-
-  /// A text selection must not split a UTF-16 surrogate pair in half.
-  /// Offsets are Dart String code units, not grapheme-cluster indices.
-  static bool validUtf16Range(String source, int start, int end) {
-    if (start < 0 || end <= start || end > source.length) return false;
-    bool splitsPair(int index) =>
-        index > 0 && index < source.length &&
-        source.codeUnitAt(index - 1) >= 0xD800 &&
-        source.codeUnitAt(index - 1) <= 0xDBFF &&
-        source.codeUnitAt(index) >= 0xDC00 &&
-        source.codeUnitAt(index) <= 0xDFFF;
-    return !splitsPair(start) && !splitsPair(end);
-  }
-
-  int get length => end - start;
-
-  void validate() {
-    if (id.isEmpty || id.length > 128 || bookId.isEmpty ||
-        start < 0 || end <= start ||
-        !RegExp(r'^[0-9a-f]{64}$').hasMatch(sourceDigest)) {
-      throw const FormatException('Invalid source cast span');
-    }
-    if (speakerId != null &&
-        (speakerId!.isEmpty || speakerId!.length > 128)) {
-      throw const FormatException('Invalid speaker ID');
-    }
-    if (confidence != null &&
-        (!confidence!.isFinite || confidence! < 0 || confidence! > 1)) {
-      throw const FormatException('Cast confidence must be 0–1');
-    }
-    if (origin == CastSpanOrigin.llm &&
-        status != CastSpanStatus.proposed &&
-        !lockedByUser) {
-      throw const FormatException(
-          'LLM suggestion needs explicit user approval');
-    }
-    if (origin == CastSpanOrigin.user &&
-        (status != CastSpanStatus.accepted || !lockedByUser)) {
-      throw const FormatException('Manual labels must be accepted and locked');
-    }
-  }
-
-  int? resolvedStart(int? Function(ReadingAnchor) locate) =>
-      anchor == null ? start : locate(anchor!);
-
-  bool matchesSource(
-    String source,
-    int? Function(ReadingAnchor) locate,
-  ) {
-    final resolved = resolvedStart(locate);
-    if (resolved == null ||
-        !validUtf16Range(source, resolved, resolved + length)) return false;
-    return digest(source.substring(resolved, resolved + length))
-        == sourceDigest;
-  }
-}
-
-/// Pure output. The only role of a cast label is to choose a voice: no
-/// rewriting, paraphrasing or reordering of original source text is allowed.
-class PreparedCastSpeech {
-  const PreparedCastSpeech(this.segments, this.speakerByStart);
-  final List<SpeechSegment> segments;
-  final Map<int, String?> speakerByStart;
-}
-
-/// Break base narration into original-text slices at manual speaker edges.
-/// Validate SHA-256 and source anchors first. Stale or overlapping labels
-/// revert to narrator. A future LLM proposal is never used until approved.
-PreparedCastSpeech prepareCastSpeech({
-  required String source,
-  required List<SpeechSegment> base,
-  required List<CastSpan> annotations,
-  required int? Function(ReadingAnchor) offsetFromAnchor,
-}) {
-  final usable = <({int start, int end, String? speaker})>[];
-  for (final span in annotations) {
-    if (span.status != CastSpanStatus.accepted ||
-        !span.matchesSource(source, offsetFromAnchor)) continue;
-    final start = span.resolvedStart(offsetFromAnchor)!;
-    usable.add((start: start, end: start + span.length,
-        speaker: span.speakerId));
-  }
-  usable.sort((a, b) {
-    final start = a.start.compareTo(b.start);
-    return start == 0 ? a.end.compareTo(b.end) : start;
-  });
-
-  // Invalid, overlapping authoring data is safe-by-default. Do not give
-  // precedence to an arbitrarily ordered conflicting character.
-  final conflicts = <int>{};
-  // Check every interval overlapped by a long label, not just neighbors.
-  // The inner loop exits immediately for ordinary nonoverlapping turns.
-  for (var i = 0; i < usable.length; i++) {
-    for (var j = i + 1; j < usable.length; j++) {
-      if (usable[j].start >= usable[i].end) break;
-      conflicts.add(i);
-      conflicts.add(j);
-    }
-  }
-  final accepted = <({int start, int end, String? speaker})>[
-    for (var i = 0; i < usable.length; i++)
-      if (!conflicts.contains(i)) usable[i],
-  ];
-
-  final output = <SpeechSegment>[];
-  final speakers = <int, String?>{};
-  var firstPossible = 0;
-  for (final segment in base) {
-    if (segment.start < 0 || segment.end > source.length ||
-        segment.end <= segment.start ||
-        source.substring(segment.start, segment.end) != segment.text) {
-      throw const FormatException('Base segment is not source-aligned');
-    }
-    while (firstPossible < accepted.length &&
-        accepted[firstPossible].end <= segment.start) {
-      firstPossible++;
-    }
-    final nearby = <({int start, int end, String? speaker})>[];
-    final cuts = <int>{segment.start, segment.end};
-    for (var candidate = firstPossible; candidate < accepted.length;
-        candidate++) {
-      final active = accepted[candidate];
-      if (active.start >= segment.end) break;
-      nearby.add(active);
-      if (active.start > segment.start && active.start < segment.end) {
-        cuts.add(active.start);
-      }
-      if (active.end > segment.start && active.end < segment.end) {
-        cuts.add(active.end);
-      }
-    }
-    final sorted = cuts.toList()..sort();
-    for (var i = 0; i + 1 < sorted.length; i++) {
-      var from = sorted[i], to = sorted[i + 1];
-      while (from < to && _whitespace(source.codeUnitAt(from))) {
-        from++;
-      }
-      while (to > from && _whitespace(source.codeUnitAt(to - 1))) {
-        to--;
-      }
-      if (from >= to) continue;
-      final part = SpeechSegment(from, to, source.substring(from, to));
-      output.add(part);
-      for (final active in nearby) {
-        if (from >= active.start && to <= active.end) {
-          speakers[from] = active.speaker;
-          break;
-        }
-      }
-    }
-  }
-  return PreparedCastSpeech(
-      List.unmodifiable(output), Map.unmodifiable(speakers));
-}
-
-bool _whitespace(int c) => c == 32 || c == 9 || c == 10 ||
-    c == 13 || c == 0xA0;
+bool _isWhitespace(int c) =>
+    c == 32 || c == 9 || c == 10 || c == 13 || c == 0xA0;
