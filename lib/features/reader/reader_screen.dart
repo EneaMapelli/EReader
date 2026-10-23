@@ -112,8 +112,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         quotedChunks: quoted,
         speakerByStart: assigned.speakerByStart,
         hardBoundaries: widget.book.format == BookFormat.epub
-            ? [for (final range in document.epubSpineRanges.skip(1))
-                range.start]
+            ? epubParagraphHardBoundaries(document)
             : const [],
       );
       final chunks = prepared.segments;
