@@ -237,3 +237,13 @@ See [Indirect Character References](INDIRECT_CHARACTER_REFERENCES.md).
 - Voice Cast > Review shows each candidate and allows manual selection of its real referent. Approval validates text/proof and writes only a narrative link, while stale candidates can still be rejected.
 - Character merge retargets pending/approved narrative reference pointers and includes them in its optimistic snapshot and preview, keeping history after duplicate-person reconciliation.
 - Authored, but did not execute, eight model/consent tests and seven SQLite migration/review/voice-isolation tests. Windows/Android integration remains deferred as requested.
+
+## M5 — offline antecedent cues for indirect-reference reviewers (2026-10-23)
+
+See [Local Antecedent Cues](LOCAL_ANTECEDENT_CUES.md).
+
+- New bounded local lookup shows up to five source-verified prior cast names/aliases or earlier **accepted** narrative references within the same scope and 900 UTF-16 characters before a selected pronoun or title. Each display excerpt is at most 160 characters and SHA-256 verified.
+- The review dialog surfaces competing identities as explicit alternative cues, source excerpts, provenance and distances. Model-predicted identities are no longer preselected; the reviewer must explicitly select one before approval. This never changes spoken voices or cast assignments.
+- Unicode whole-word matching rejects substrings inside longer names; invalid original source, stale accepted references and cross-book cast entries are excluded. The read window is bounded at the current mention and does not scan future text.
+- Added eleven unexecuted `test/llm/narrative_antecedent_finder_test.dart` tests and an integration assertion in `test/data/narrative_reference_test.dart` that cast merging preserves usable reviewed antecedents.
+- This is an ephemeral offline review aid using existing cast and review data: **no schema migration, remote request or API quota change**. Tests and native builds still deferred to final integration by owner.
