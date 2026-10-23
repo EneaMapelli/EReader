@@ -2,6 +2,10 @@
 
 Implemented in source on 2026-10-23, with actual compilation and device tests intentionally deferred to the final integration phase.
 
+## Optional new-character discovery
+
+The analysis screen offers two separate tasks: Assign speakers and Find characters. Discovery reuses the same per-book privacy permission, secure OpenAI analysis key, spoiler-safe user-selected source window and individually confirmed request. It can suggest only literal names that occur once within a cited TARGET segment; a model cannot invent new names or place a name outside the authorized excerpt. Every candidate enters SQLite v10 as pending and is shown in Voice Cast > Review, where the reader must confirm or reject it. Approving creates a character identity only; it never assigns a voice or labels a dialogue. Existing names and aliases are checked to avoid duplicate identities. See [Character Discovery](CHARACTER_DISCOVERY.md).
+
 ## User flow
 
 1. Add characters and aliases in Voice Cast. Unknown or additional characters cannot be created by model output.
