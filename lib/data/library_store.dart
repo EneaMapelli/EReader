@@ -1196,6 +1196,19 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         [row['id'], row['status'], row['alias_text'],
          row['suggested_character_id'], row['approved_character_id']],
     ],
+    'narrativeReferences': [
+      for (final row in _database.select('''
+        SELECT id, status, mention_start, mention_end, source_sha256,
+               proposed_character_id, approved_character_id
+        FROM narrative_references
+        WHERE proposed_character_id IN (?, ?) OR
+              approved_character_id IN (?, ?)
+        ORDER BY id
+      ''', [sourceId, targetId, sourceId, targetId]))
+        [row['id'], row['status'], row['mention_start'], row['mention_end'],
+         row['source_sha256'], row['proposed_character_id'],
+         row['approved_character_id']],
+    ],
   };
 
   /// Recompute a full book-scoped preview without writing any cast data.
@@ -1274,6 +1287,10 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           'alias_candidates', 'suggested_character_id', sourceId),
       'approved_alias_links': _mergeReferenceCount(
           'alias_candidates', 'approved_character_id', sourceId),
+      'proposed_narrative_references': _mergeReferenceCount(
+          'narrative_references', 'proposed_character_id', sourceId),
+      'approved_narrative_references': _mergeReferenceCount(
+          'narrative_references', 'approved_character_id', sourceId),
       'provider_voices': srcVoices.length,
     };
 
@@ -1378,6 +1395,14 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       ''', [targetId, decision.bookId, sourceId]);
       _database.execute('''
         UPDATE alias_candidates SET approved_character_id = ?
+        WHERE book_id = ? AND approved_character_id = ?
+      ''', [targetId, decision.bookId, sourceId]);
+      _database.execute('''
+        UPDATE narrative_references SET proposed_character_id = ?
+        WHERE book_id = ? AND proposed_character_id = ?
+      ''', [targetId, decision.bookId, sourceId]);
+      _database.execute('''
+        UPDATE narrative_references SET approved_character_id = ?
         WHERE book_id = ? AND approved_character_id = ?
       ''', [targetId, decision.bookId, sourceId]);
 
