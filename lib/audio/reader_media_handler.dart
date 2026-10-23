@@ -249,8 +249,13 @@ class ReaderMediaHandler extends BaseAudioHandler {
   /// reading session. Never synthesize an orphaned book after task removal.
   @override
   Future<void> onTaskRemoved() async {
-    await pause();
-    detach();
+    try {
+      await pause();
+    } finally {
+      // Do not leave a service-controlled book behind if native stop throws.
+      detach();
+      await _focusOperation;
+    }
   }
 
   /// Notification dismissal must not silently auto-resume narration.
