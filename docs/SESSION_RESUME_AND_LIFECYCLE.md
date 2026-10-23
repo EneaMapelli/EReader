@@ -18,7 +18,8 @@ compilation deliberately deferred until final integration.
   It never treats last-opened time as a segment index.
 - The shortcut stores only a local timestamp. It does not persist playback
   state, pending HTTP operations, consent, login, keys, downloaded MP3,
-  ephemeral prefetch state, or a service-restoration request.
+  ephemeral prefetch state, or a service-restoration request. A separate
+  SQLite v16 crash-only marker stores only book ID and timestamp, not TTS state.
 - Reopening never automatically speaks or makes billable cloud requests.
   A new Play must pass the existing consent and quota checks.
 - Removing a book deletes its last-opened marker with the book row.
@@ -80,8 +81,11 @@ and cost counters. Check Windows and Android migrations under SQLite WAL.
 ## Deliberately not claimed
 
 The app is **not** guaranteed to outlive Android process termination.
-It does not automatically reconstruct an engine after process death, recover
-unfinished cloud requests, persist the timer deadline, or restart narration.
+It records a minimal SQLite v16 crash marker, consumed once on the next
+startup, and may show a **manual** reopen card; it does not automatically
+reconstruct an engine after process death, recover unfinished cloud requests,
+persist the timer deadline, or restart narration (see
+[Narration Crash Recovery](NARRATION_CRASH_RECOVERY.md)).
 PDF rendered-page restoration is now implemented as source via separate SQLite v15 `pdf_visual_page` and `pdfrx` callbacks; **device behavior remains unverified** (see [PDF Visual Resume](PDF_VISUAL_RESUME.md)). Android
 13+ notification behavior, vendor battery policies, media service shutdown,
 Bluetooth controls and real audio focus timing require physical device tests.
