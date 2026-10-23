@@ -144,6 +144,8 @@ class ReaderPlayer extends ChangeNotifier {
   int currentIndex = 0;
   bool isPlaying = false;
   int _session = 0;
+  int _navigationEpoch = 0;
+  bool _resumeAfterNavigation = false;
   bool _disposed = false;
   Future<void> _pendingStop = Future<void>.value();
   Object? lastError;
@@ -162,7 +164,10 @@ class ReaderPlayer extends ChangeNotifier {
   }
 
   Future<void> play() async {
-    if (isPlaying || _segments.isEmpty) return;
+    if (_disposed || isPlaying || _segments.isEmpty) return;
+    // A direct Play invalidates outstanding seeks after their awaited stop.
+    _navigationEpoch++;
+    _resumeAfterNavigation = false;
     if (currentIndex >= _segments.length) currentIndex = 0;
     final token = ++_session;
     isPlaying = true;
@@ -232,19 +237,19 @@ class ReaderPlayer extends ChangeNotifier {
     }
   }
 
-  Future<void> pause() async {
-    if (_disposed) return;
+  // All pause/seek/reconfiguration routes use one serialized native stop,
+  // but each public navigation operation has a distinct supersession epoch.
+  Future<void> _stopCurrent() async {
     _session++;
     isPlaying = false;
     activeSpeakerId = null;
     _notify();
-    // Serialize stop commands; the next play waits for their completion.
     final priorStop = _pendingStop;
     final stopping = () async {
       try {
         await priorStop;
       } catch (_) {
-        // A previous stop failure must not prevent a new stop attempt.
+        // One failed native stop does not block the next safety stop.
       }
       await _engine.stop();
     }();
@@ -252,20 +257,42 @@ class ReaderPlayer extends ChangeNotifier {
     await stopping;
   }
 
+  Future<void> pause() async {
+    if (_disposed) return;
+    _navigationEpoch++;
+    _resumeAfterNavigation = false;
+    await _stopCurrent();
+  }
+
+  void _resumeUnawaited() {
+    unawaited(play().catchError((Object error, StackTrace stack) {
+      if (_disposed) return;
+      lastError = error;
+      _notify();
+    }));
+  }
+
   Future<void> seekTo(int index) async {
-    final restart = isPlaying;
-    await pause();
-    if (_disposed || _segments.isEmpty) return;
+    if (_disposed) return;
+    // A second seek during a pending native stop inherits the user's desire
+    // to continue playing; only the MOST RECENT seek may set the position.
+    final resume = isPlaying || _resumeAfterNavigation;
+    final epoch = ++_navigationEpoch;
+    _resumeAfterNavigation = resume;
+    await _stopCurrent();
+    if (_disposed || epoch != _navigationEpoch || _segments.isEmpty) return;
+    _resumeAfterNavigation = false;
     currentIndex = index.clamp(0, _segments.length - 1).toInt();
     _notify();
-    if (restart) {
-      // Seeking must return as soon as playback is restarted, not only when
-      // the rest of the book finishes. Surface asynchronous errors to the UI.
-      unawaited(play().catchError((Object error, StackTrace stack) {
-        lastError = error;
-        _notify();
-      }));
-    }
+    if (resume) _resumeUnawaited();
+  }
+
+  /// Called only when the user COMMITS a rate/pitch/language adjustment.
+  /// Cancels stale prefetched audio and restarts the current source segment
+  /// with updated settings; no new read position or speaker is inferred.
+  Future<void> restartAfterSettingsChange() async {
+    if (_disposed || !isPlaying) return;
+    await seekTo(currentIndex);
   }
 
   void _notify() { if (!_disposed) notifyListeners(); }
@@ -273,6 +300,8 @@ class ReaderPlayer extends ChangeNotifier {
   @override
   void dispose() {
     _session++;
+    _navigationEpoch++;
+    _resumeAfterNavigation = false;
     _disposed = true;
     unawaited(_engine.dispose().catchError((Object _) {}));
     super.dispose();
