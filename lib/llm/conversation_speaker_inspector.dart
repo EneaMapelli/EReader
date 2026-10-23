@@ -129,6 +129,7 @@ class ConversationSpeakerInspector {
     for (final span in reviewedSpans) {
       if (span.bookId != bookId ||
           span.status != CastSpanStatus.accepted ||
+          !span.lockedByUser ||
           span.speakerId == null ||
           !span.matchesSource(source, offsetFromAnchor)) continue;
       final start = span.resolvedStart(offsetFromAnchor);
