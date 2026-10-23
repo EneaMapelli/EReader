@@ -54,12 +54,18 @@ List<SpeechSegment> segmentEpubSpine(DocumentContent document) {
 List<EpubChapter> buildEpubChapters(
     DocumentContent document, List<SpeechSegment> segments) {
   final chapters = <EpubChapter>[];
+  var cursor = 0;
   for (final range in document.epubSpineRanges) {
-    final first = segments.indexWhere(
-      (segment) => segment.start >= range.start &&
-          segment.start < range.end,
-    );
-    if (first < 0) continue;
+    // Both lists are sorted by original text offsets. Walk each speech
+    // segment at most once even for large EPUBs with thousands of files.
+    while (cursor < segments.length &&
+        segments[cursor].start < range.start) {
+      cursor++;
+    }
+    if (cursor >= segments.length ||
+        segments[cursor].start >= range.end) {
+      continue;
+    }
     chapters.add(EpubChapter(
       idref: range.idref,
       title: range.title.trim().isNotEmpty
@@ -67,10 +73,10 @@ List<EpubChapter> buildEpubChapters(
           : 'Chapter ${chapters.length + 1}',
       start: range.start,
       end: range.end,
-      segmentIndex: first,
+      segmentIndex: cursor,
     ));
   }
-  return List.unmodifiable(chapters);
+  return List<EpubChapter>.unmodifiable(chapters);
 }
 
 int chapterIndexForOffset(List<EpubChapter> chapters, int offset) {
