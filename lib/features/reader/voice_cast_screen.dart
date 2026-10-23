@@ -12,6 +12,7 @@ import '../../domain/book.dart';
 import '../../domain/speech_segment.dart';
 import '../../domain/voice_cast.dart';
 import '../../domain/cast_span.dart';
+import '../../domain/dialogue_turn_inspector.dart';
 import '../../domain/character_candidate.dart';
 import '../../domain/alias_candidate.dart';
 import '../../domain/narrative_reference.dart';
@@ -52,6 +53,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
   List<CastSpan> _fine = const [];
   late VoiceCastResolver _resolver;
   final _search = TextEditingController();
+  String? _diagnosticScopeId;
 
   @override
   void initState() {
@@ -1287,20 +1289,167 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
     ]);
   }
 
+  String _dialogueFlagLabel(DialogueTurnFlag flag) {
+    switch (flag) {
+      case DialogueTurnFlag.unclosedQuote:
+        return 'Opening quote has no closing delimiter';
+      case DialogueTurnFlag.multilineQuote:
+        return 'Dialogue crosses a paragraph break';
+      case DialogueTurnFlag.interruptedUtterance:
+        return 'Interrupted or trailing-off speech';
+      case DialogueTurnFlag.adjacentTurn:
+        return 'Nearby dialogue turn; speaker may have changed';
+      case DialogueTurnFlag.missingAttribution:
+        return 'No reviewed speaker label';
+      case DialogueTurnFlag.partialAttribution:
+        return 'Speaker label covers only part of this turn';
+      case DialogueTurnFlag.conflictingAttributions:
+        return 'Conflicting approved speaker labels';
+      case DialogueTurnFlag.explicitNarrator:
+        return 'Explicit narrator/unknown label';
+      case DialogueTurnFlag.scanBoundary:
+        return 'Quote reaches the local inspection limit';
+    }
+  }
+
+  Widget _dialogueChecksTab() {
+    final scopes = const DialogueAnalysisPlanner().scopes(
+      widget.book.format, widget.document,
+    );
+    if (scopes.isEmpty) {
+      return const Center(child: Text(
+        'No extractable text scopes are available for dialogue checks.'));
+    }
+    final selected = scopes.any((scope) => scope.id == _diagnosticScopeId)
+        ? scopes.firstWhere((scope) => scope.id == _diagnosticScopeId)
+        : scopes.first;
+    final report = const DialogueTurnInspector().inspect(
+      bookId: widget.book.id,
+      source: widget.document.text,
+      scopeStart: selected.start,
+      scopeEnd: selected.end,
+      characters: _characters,
+      fineLabels: _fine,
+      legacyLabels: widget.store.listSegmentCast(widget.book.id),
+      offsetFromAnchor: widget.document.offsetOf,
+    );
+    final names = {
+      for (final person in _characters) person.id: person.name,
+    };
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Local dialogue diagnostics. Quotation marks and accepted '
+              'speaker labels are checked, but no speaker is inferred. '
+              'Inspect interrupted, partly labelled or rapidly changing '
+              'turns and select the exact words to correct them manually.',
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: selected.id,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Chapter or page to inspect',
+              ),
+              items: [
+                for (final scope in scopes)
+                  DropdownMenuItem(
+                    value: scope.id,
+                    child: Text(scope.title,
+                        overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (value) => setState(
+                () => _diagnosticScopeId = value,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(report.turns.length.toString() +
+                ' quoted turns · ' + report.issues.toString() +
+                ' flagged for review'),
+            if (report.truncated)
+              const Text(
+                'Inspection limit reached. Only the beginning of this '
+                'scope was checked; an unfinished quote at the cutoff '
+                'is not necessarily missing its closing delimiter.',
+              ),
+          ],
+        ),
+      ),
+      const Divider(height: 1),
+      Expanded(
+        child: report.turns.isEmpty
+            ? const Center(child: Text(
+                'No supported quotation delimiters found in this scope.'))
+            : ListView.builder(
+                itemCount: report.turns.length,
+                itemBuilder: (context, index) {
+                  final turn = report.turns[index];
+                  final voiceText = turn.attribution ==
+                          DialogueAttributionState.confirmed
+                      ? 'Confirmed speaker: ' +
+                          (names[turn.speakerId] ?? 'Unknown')
+                      : turn.attribution ==
+                          DialogueAttributionState.narrator
+                        ? 'Explicit narrator/unknown'
+                        : turn.attribution ==
+                          DialogueAttributionState.conflicting
+                          ? 'Conflicting speaker labels'
+                          : turn.attribution ==
+                            DialogueAttributionState.partial
+                            ? 'Partly attributed'
+                            : 'Speaker not verified';
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 5),
+                    child: ListTile(
+                      leading: Icon(turn.needsReview
+                          ? Icons.rate_review_outlined
+                          : Icons.check_circle_outline),
+                      title: SelectableText(turn.text, maxLines: 4),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(voiceText + ' · source offset ' +
+                              turn.start.toString()),
+                          for (final flag in turn.flags)
+                            Text('• ' + _dialogueFlagLabel(flag)),
+                        ],
+                      ),
+                      trailing: IconButton(
+                        tooltip: 'Review and assign exact selected words',
+                        icon: const Icon(Icons.edit_note_outlined),
+                        onPressed: () => _annotateSelection(SpeechSegment(
+                          turn.start, turn.end, turn.text)),
+                      ),
+                    ),
+                  );
+                },
+              ),
+      ),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) => DefaultTabController(
-    length: 3,
+    length: 4,
     child: Scaffold(
       appBar: AppBar(
         title: const Text('Voice cast'),
         bottom: const TabBar(tabs: [
           Tab(icon: Icon(Icons.groups_outlined), text: 'Characters'),
           Tab(icon: Icon(Icons.format_quote), text: 'Passages'),
+          Tab(icon: Icon(Icons.forum_outlined), text: 'Dialogues'),
           Tab(icon: Icon(Icons.fact_check_outlined), text: 'Review'),
         ]),
       ),
       body: TabBarView(children: [
-        _charactersTab(), _passagesTab(), _reviewTab(),
+        _charactersTab(), _passagesTab(), _dialogueChecksTab(),
+        _reviewTab(),
       ]),
     ),
   );
