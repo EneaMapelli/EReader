@@ -121,10 +121,12 @@ class DialogueTurnInspector {
     for (final label in fineLabels) {
       if (label.bookId != bookId ||
           label.status != CastSpanStatus.accepted ||
-          !label.lockedByUser ||
-          !label.matchesSource(source, offsetFromAnchor)) continue;
+          !label.lockedByUser) continue;
       final start = label.resolvedStart(offsetFromAnchor);
-      if (start == null) continue;
+      // Check bounded source range BEFORE reading or hashing any text.
+      if (start == null || start < scopeStart ||
+          start + label.length > end ||
+          !label.matchesSource(source, offsetFromAnchor)) continue;
       addLabel(start, start + label.length, label.speakerId);
     }
     for (final label in legacyLabels) {
@@ -134,7 +136,8 @@ class DialogueTurnInspector {
           ? label.start : offsetFromAnchor(label.anchor!);
       if (start == null) continue;
       final to = start + (label.end - label.start);
-      if (!CastSpan.validUtf16Range(source, start, to) ||
+      if (start < scopeStart || to > end ||
+          !CastSpan.validUtf16Range(source, start, to) ||
           SegmentCastAssignment.fingerprint(
               source.substring(start, to)) != label.sourceDigest) continue;
       addLabel(start, to, label.characterId);
