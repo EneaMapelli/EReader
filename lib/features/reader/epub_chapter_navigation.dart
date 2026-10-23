@@ -86,3 +86,12 @@ int chapterIndexForOffset(List<EpubChapter> chapters, int offset) {
   }
   return 0;
 }
+
+
+/// Mark only a *source-exact, standalone* chapter heading as semantic
+/// heading text. Never insert an extra copy of the title into the book.
+bool isStandaloneChapterHeading(EpubChapter? chapter, SpeechSegment segment) {
+  if (chapter == null || segment.start != chapter.start) return false;
+  final normalized = segment.text.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return normalized == chapter.title;
+}
