@@ -771,7 +771,7 @@ class LibraryStore implements CloudSpeechAccess {
         !span.lockedByUser || span.status != CastSpanStatus.accepted) {
       throw const FormatException('Only locked manual labels accepted here');
     }
-    if (span.end > source.length ||
+    if (!CastSpan.validUtf16Range(source, span.start, span.end) ||
         CastSpan.digest(source.substring(span.start, span.end))
             != span.sourceDigest) {
       throw const FormatException('Selected excerpt differs from book source');
@@ -804,7 +804,8 @@ class LibraryStore implements CloudSpeechAccess {
             proposal.lockedByUser) {
           throw const FormatException('Import requires pending LLM candidates');
         }
-        if (proposal.end > source.length ||
+        if (!CastSpan.validUtf16Range(
+              source, proposal.start, proposal.end) ||
             CastSpan.digest(source.substring(proposal.start, proposal.end))
                 != proposal.sourceDigest) {
           throw const FormatException('LLM attribution is not source-aligned');
