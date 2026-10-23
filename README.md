@@ -10,6 +10,7 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - Modello libri e importazione/copia locale di TXT, EPUB e PDF (limite provvisorio 100 MB).
 - Biblioteca SQLite con progressi e ancore persistenti, preferenze vocali, dizionario di pronuncia e segnalibri; migrazione automatica dei precedenti schemi JSON/SQLite (fino alla versione 16).
 - Estrazione TXT/EPUB in ordine OPF spine con limiti ZIP/XML e mappatura dei capitoli alle posizioni del testo; **il renderer EPUB completo e gli anchor EPUB CFI persistenti non sono ancora implementati**.
+- **Renderer EPUB per paragrafi (codice, da validare):** il testo è presentato in blocchi fluidi con larghezza di lettura limitata, carattere serif, evidenziazione TTS dentro il paragrafo e tap sulle singole porzioni vocali. Intestazioni accessibili, pagine lunghe spezzate senza danneggiare Unicode e temi sistema/sepia/notte. Non interpreta ancora CSS/XHTML completo o immagini. [Specifiche](docs/EPUB_PARAGRAPH_RENDERER.md).
 - **Navigazione EPUB per capitoli (codice, da validare):** titoli ricavati dalle intestazioni XHTML, indice navigabile, capitolo corrente e pulsanti precedente/successivo. Il salto salva un'ancora spine e mette in pausa il TTS senza avviare nuove sintesi. I segmenti vocali non attraversano i confini dello spine. Non equivale ancora a un indice EPUB3 NAV/NCX completo o a un renderer XHTML. [Specifica](docs/EPUB_CHAPTER_NAVIGATION.md).
 - Visualizzazione PDF tramite `pdfrx` e modalità sperimentale di lettura vocale per PDF con testo selezionabile (senza garanzia sull'ordine di colonne, note e tabelle).
 - **Ripresa visuale dei PDF, anche scansionati (codice, da validare):** salva per libro la pagina visualizzata e la ripristina alla riapertura, indipendentemente dalla posizione TTS. Migrazione SQLite v15; nessun OCR o sincronismo a livello di riga. [Specifica e test](docs/PDF_VISUAL_RESUME.md).
@@ -76,6 +77,7 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Decisione di approvazione e stato](docs/DECISIONS.md)
 - [Piano generale](docs/DEVELOPMENT_PLAN.md)
 - [Navigazione EPUB per capitoli e continuità delle ancore/TTS](docs/EPUB_CHAPTER_NAVIGATION.md)
+- [Renderer EPUB per paragrafi, temi di lettura e sincronizzazione TTS](docs/EPUB_PARAGRAPH_RENDERER.md)
 - [Architettura tecnica](docs/TECHNICAL_ARCHITECTURE.md)
 - [Casting dei personaggi e attribuzione dei dialoghi](docs/VOICE_CASTING_SPEC.md)
 - [Implementazione e test](docs/IMPLEMENTATION_STATUS.md)
