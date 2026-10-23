@@ -60,6 +60,19 @@ void main() {
     expect(got.turns.every((t) => t.end <= text.indexOf('She')), isTrue);
   });
 
+  test('a nominally accepted but non-locked label is never trusted', () {
+    const text = '«Perhaps» She answered.';
+    final unsafe = CastSpan(
+      id: 'not-reviewed', bookId: 'book',
+      start: 0, end: '«Perhaps»'.length,
+      sourceDigest: CastSpan.digest('«Perhaps»'),
+      speakerId: 'mira', origin: CastSpanOrigin.llm,
+      status: CastSpanStatus.accepted, lockedByUser: false,
+    );
+    final got = inspect(text, 'She', fine: [unsafe]);
+    expect(got.turns, isEmpty);
+  });
+
   test('pending LLM speaker guesses never enter confirmed dialogue', () {
     const text = '«Hello» he guessed. She nodded.';
     final guess = span(text, '«Hello»', 'mira',
