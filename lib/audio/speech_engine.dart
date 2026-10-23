@@ -23,6 +23,20 @@ abstract interface class SpeechEngine {
   Future<void> dispose();
 }
 
+/// Optional ability to synthesize ONE future cloud chunk without playing it.
+/// This is never called for a native OS voice. Preparing a cache miss may
+/// transmit book text and debit the user's existing cloud-character budget.
+/// The caller must obtain a separate, explicit session opt-in first.
+abstract interface class AheadOfTimeSpeechEngine {
+  Future<void> prepareSpeech(
+    String text, {
+    required SpeechVoice? voice,
+    required String language,
+    required double rate,
+    required double pitch,
+  });
+}
+
 class SystemSpeechEngine implements SpeechEngine {
   SystemSpeechEngine();
 
