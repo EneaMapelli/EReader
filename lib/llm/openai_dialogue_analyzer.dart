@@ -46,9 +46,12 @@ class OpenAiDialogueTransport implements DialogueAnalysisTransport {
             'exact_quote': {'type': 'string'},
             'speaker_id': {'type': ['string', 'null']},
             'confidence': {'type': 'number'},
+            'evidence_segment_index': {'type': ['integer', 'null']},
+            'evidence_quote': {'type': ['string', 'null']},
           },
           'required': [
-            'segment_index', 'exact_quote', 'speaker_id', 'confidence'
+            'segment_index', 'exact_quote', 'speaker_id', 'confidence',
+            'evidence_segment_index', 'evidence_quote'
           ],
         },
       },
@@ -145,6 +148,12 @@ exact_quote must occur EXACTLY ONCE, verbatim, inside the cited segment.
 Do not change punctuation or whitespace or Unicode characters.
 Unknown speaker = null, never guess a speaker without clear evidence.
 Return an empty proposals array for narration or ambiguous dialogue.
+Use preceding context_segments only to disambiguate a speaker.
+Never assign a voice to context text; annotate target segments only.
+For supported speakers, optionally cite evidence_segment_index and
+evidence_quote, an EXACT, unique substring of that earlier context segment.
+If evidence is absent, use null for BOTH evidence fields.
+Never cite later chapters, future passages or text outside this request.
 Do not infer any chapter beyond the provided excerpt.
 ''';
 
@@ -158,7 +167,10 @@ Do not infer any chapter beyond the provided excerpt.
         window.segments.length > DialogueAnalysisPlanner.maxSegments ||
         window.cast.length > 100 ||
         window.scope.start < 0 ||
-        window.scope.end <= window.scope.start) {
+        window.scope.end <= window.scope.start ||
+        window.effectiveCeiling > window.scope.end ||
+        window.effectiveCeiling <= window.scope.start ||
+        window.contextSegments.length > DialogueAnalysisPlanner.maxSegments) {
       throw const FormatException('Invalid selected analysis window');
     }
     var totalSourceChars = 0;
@@ -175,11 +187,36 @@ Do not infer any chapter beyond the provided excerpt.
       totalSourceChars += segment.text.length;
       previousEnd = segment.end;
     }
-    if (totalSourceChars > DialogueAnalysisPlanner.maxWindowCharacters) {
-      throw const FormatException('Analysis window exceeded excerpt limit');
+    if (totalSourceChars > DialogueAnalysisPlanner.maxWindowCharacters ||
+        previousEnd > window.effectiveCeiling) {
+      throw const FormatException('Analysis window exceeded spoiler limit');
+    }
+    var contextSize = 0;
+    var previousContextEnd = window.scope.start;
+    for (final prior in window.contextSegments) {
+      if (prior.start < window.scope.start ||
+          prior.start < previousContextEnd ||
+          prior.end > window.segments.first.start ||
+          prior.end > window.effectiveCeiling ||
+          prior.end <= prior.start ||
+          prior.text.length != prior.end - prior.start) {
+        throw const FormatException('Context escapes prior chosen scope');
+      }
+      contextSize += prior.text.length;
+      previousContextEnd = prior.end;
+    }
+    if (contextSize + window.contextSegments.length >
+        DialogueAnalysisPlanner.maxContextCharacters + 1) {
+      throw const FormatException('Previous context exceeds length limit');
     }
     final payload = jsonEncode({
       'scope_id': window.scope.id,
+      'context_segments': [
+        for (var i = 0; i < window.contextSegments.length; i++) {
+          'evidence_segment_index': i,
+          'text': window.contextSegments[i].text,
+        },
+      ],
       'cast': [
         for (final person in window.cast) {
           'id': person.id,
@@ -241,7 +278,11 @@ Do not infer any chapter beyond the provided excerpt.
       if (item is! Map || item['segment_index'] is! int ||
           item['exact_quote'] is! String ||
           (item['speaker_id'] != null && item['speaker_id'] is! String) ||
-          item['confidence'] is! num) {
+          item['confidence'] is! num ||
+          (item['evidence_segment_index'] != null &&
+              item['evidence_segment_index'] is! int) ||
+          (item['evidence_quote'] != null &&
+              item['evidence_quote'] is! String)) {
         throw const FormatException('Malformed model proposal fields');
       }
       proposals.add(DialogueModelProposal(
@@ -249,6 +290,8 @@ Do not infer any chapter beyond the provided excerpt.
         exactQuote: item['exact_quote'] as String,
         speakerId: item['speaker_id'] as String?,
         confidence: (item['confidence'] as num).toDouble(),
+        evidenceSegmentIndex: item['evidence_segment_index'] as int?,
+        evidenceQuote: item['evidence_quote'] as String?,
       ));
     }
     return List.unmodifiable(proposals);
