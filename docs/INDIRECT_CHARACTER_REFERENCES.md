@@ -49,6 +49,9 @@ reference IDs to the surviving identity before removing the duplicate.
 The merge preview includes these references and their source hashes/states
 in the optimistic concurrency fingerprint, preventing stale review.
 
+## Local antecedent cues during manual review
+
+Every pending reference now opens with an empty confirmed-person selection. The UI searches at most 900 UTF-16 characters strictly **before** that mention and within its scope for known character names/aliases and earlier manually accepted indirect links. Up to five fingerprint-verified, short excerpts are shown as competing cues (with distance), including explicit warnings when several people occur. No model call is made for these local hints, and nothing selects the speaker or narration voice automatically. Details: [Local Antecedent Cues](LOCAL_ANTECEDENT_CUES.md).
 ## Accuracy and limits
 
 - A citation proves that text occurs; it does not establish the correct
