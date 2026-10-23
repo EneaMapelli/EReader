@@ -20,6 +20,7 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - **Analisi dialoghi con LLM (facoltativa):** per capitolo EPUB, pagina PDF o intervallo TXT scelto; API OpenAI Responses con chiave e consenso specifici, quota di caratteri d'ingresso e conferma dell'estratto a ogni richiesta. I suggerimenti JSON sono verificati localmente e restano inattivi fino all'approvazione manuale. Il limite spoiler predefinito è la posizione di lettura salvata; contesto precedente e nomi dei personaggi sono inclusi solo dopo una selezione esplicita. Le prove citate dal modello sono ricollegate al testo originale.
 - **Continuità dei personaggi tra capitoli:** ricerca locale, disattivata di default, di brevi menzioni già conosciute negli ultimi capitoli precedenti; solo gli estratti verificati e mostrati nell'anteprima vengono opzionalmente inviati al modello, sempre entro il limite spoiler.
 - **Scoperta di nuovi personaggi:** modalità AI separata che propone solo nomi letteralmente presenti nel capitolo o estratto autorizzato. I candidati restano in una coda di revisione finché l'utente non ne conferma la creazione; nessuna voce o battuta viene assegnata automaticamente.
+- **Editor dettagliato dei turni di dialogo:** dalla scheda Dialogues si apre una vista locale paginata che separa battute con virgolette e trattini, interruzioni e porzioni con parlanti confermati, mancanti o in conflitto. Una battuta interamente non attribuita può essere etichettata solo dopo scelta manuale esplicita.
 - **Diagnostica dei dialoghi complessi:** scheda Dialogues con controllo locale delle battute interrotte o non chiuse, cambi di turno ravvicinati e attribuzioni vocali incomplete o in conflitto; da ciascuna battuta si può correggere manualmente una selezione precisa del testo.
 - **Contesto dei dialoghi a più interlocutori:** durante la revisione dei pronomi mostra separatamente chi ha parlato nei passaggi precedenti con attribuzioni già approvate. Una battuta pronunciata non viene mai confusa con il personaggio a cui si riferisce il pronome.
 - **Indizi locali sugli antecedenti:** durante la revisione di pronomi e descrizioni mostra fino a cinque menzioni precedenti verificabili di nomi, alias e riferimenti già approvati. Non seleziona mai automaticamente il referente e non modifica le voci.
@@ -73,6 +74,7 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Indizi locali sugli antecedenti per la disambiguazione manuale](docs/LOCAL_ANTECEDENT_CUES.md)
 - [Interlocutori confermati vs riferimenti narrativi](docs/CONVERSATION_SPEAKER_CONTEXT.md)
 - [Revisione dei dialoghi complessi e battute interrotte](docs/COMPLEX_DIALOGUE_REVIEW.md)
+- [Editor dettagliato e paginato dei turni di dialogo](docs/COMPLEX_DIALOGUE_TURNS.md)
 - [Riconoscimento assistito di nuovi personaggi e revisione](docs/CHARACTER_DISCOVERY.md)
 - [Riconciliazione alias, soprannomi e identità](docs/ALIAS_RECONCILIATION.md)
 - [Unificazione manuale di due personaggi e conservazione delle attribuzioni](docs/CAST_IDENTITY_MERGE.md)
