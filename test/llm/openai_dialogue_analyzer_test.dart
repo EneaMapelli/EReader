@@ -42,6 +42,7 @@ class TestAccess implements LlmAnalysisAccess {
 class TestTransport implements DialogueAnalysisTransport {
   int calls = 0;
   String? requestBody;
+  String? responseOverride;
   int status = 0;
   @override
   Future<String> request({
@@ -54,7 +55,7 @@ class TestTransport implements DialogueAnalysisTransport {
     expect(apiKey, 'private-test-key');
     expect(model, 'gpt-5.4-mini');
     requestBody = requestJson;
-    return jsonEncode({
+    return responseOverride ?? jsonEncode({
       'proposals': [
         {'segment_index': 0, 'exact_quote': '«Ciao!»',
           'speaker_id': 'actor', 'confidence': 0.9},
@@ -132,6 +133,76 @@ void main() {
     await expectLater(analyzer.analyze(window),
         throwsA(isA<LlmAnalysisDenied>()));
     expect(transport.calls, 1);
+    analyzer.dispose();
+  });
+
+  test('approved prior context is visible and later spoilers never transmitted',
+      () async {
+    final analyzer = OpenAiDialogueAnalyzer(
+      access: TestAccess(), vault: TestVault(),
+      transport: TestTransport(),
+    );
+    const intro = 'Anna spoke earlier';
+    const target = '«Ciao!»';
+    final begin = intro.length + 1;
+    final scoped = DialogueAnalysisWindow(
+      bookId: 'book',
+      scope: DialogueAnalysisScope(
+        id: 'chapter-two', title: 'Chapter two',
+        start: 0, end: begin + target.length,
+      ),
+      segments: [SpeechSegment(begin, begin + target.length, target)],
+      contextSegments: [
+        SpeechSegment(0, intro.length, intro),
+      ],
+      cast: [const CastCharacter(id: 'actor',
+          bookId: 'book', name: 'Anna')],
+      spoilerCeiling: begin + target.length,
+    );
+    final request = jsonDecode(analyzer.createRequest(scoped)) as Map;
+    expect((request['context_segments'] as List).single['text'], intro);
+    expect((request['segments'] as List).single['text'], target);
+    expect(analyzer.createRequest(scoped), isNot(contains('future secret')));
+    analyzer.dispose();
+  });
+
+  test('forged later context is rejected before a network call', () {
+    final analyzer = OpenAiDialogueAnalyzer(
+      access: TestAccess(), vault: TestVault(),
+      transport: TestTransport(),
+    );
+    final bad = DialogueAnalysisWindow(
+      bookId: 'book',
+      scope: const DialogueAnalysisScope(
+          id: 'book', title: 'Selected', start: 0, end: 100),
+      segments: [const SpeechSegment(20, 27, '«Ciao!»')],
+      contextSegments: [const SpeechSegment(30, 44, 'Future chapter')],
+      cast: const [],
+      spoilerCeiling: 27,
+    );
+    expect(() => analyzer.createRequest(bad), throwsFormatException);
+    analyzer.dispose();
+  });
+
+  test('structured response parses optional evidence fields', () async {
+    final access = TestAccess()..allowed = true;
+    final fake = TestTransport()
+      ..responseOverride = jsonEncode({
+        'proposals': [{
+          'segment_index': 0,
+          'exact_quote': '«Ciao!»',
+          'speaker_id': 'actor',
+          'confidence': 0.75,
+          'evidence_segment_index': 0,
+          'evidence_quote': 'Anna spoke earlier',
+        }]
+      });
+    final analyzer = OpenAiDialogueAnalyzer(
+        access: access, vault: TestVault(), transport: fake);
+    final proposals = await analyzer.analyze(window);
+    expect(proposals.single.evidenceSegmentIndex, 0);
+    expect(proposals.single.evidenceQuote, 'Anna spoke earlier');
+    expect(proposals.single.confidence, 0.75);
     analyzer.dispose();
   });
 
