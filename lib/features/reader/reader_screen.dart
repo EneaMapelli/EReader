@@ -7,6 +7,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../audio/reader_player.dart';
 import '../../audio/reader_media_handler.dart';
+import '../../audio/reader_lifecycle_policy.dart';
 import '../../audio/speech_engine.dart';
 import '../../audio/speech_engine_factory.dart';
 import '../../audio/openai_speech_engine.dart';
@@ -444,15 +445,18 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.hidden &&
-        state != AppLifecycleState.paused) return;
+    if (!ReaderLifecyclePolicy.backgroundTransition(state)) return;
     // A deferred viewport write must never replace the segment anchor
     // recorded by background audio. Leave Android narration running only
     // when a live media handler owns that player.
     _saveVisualPositionTimer?.cancel();
-    if (Platform.isAndroid &&
-        _player != null &&
-        widget.mediaHandler?.ownsPlayer(_player!) != true) {
+    if (_player != null &&
+        ReaderLifecyclePolicy.mustPauseOnBackground(
+          state: state,
+          isAndroid: Platform.isAndroid,
+          mediaOwnsPlayer:
+              widget.mediaHandler?.ownsPlayer(_player!) == true,
+        )) {
       unawaited(_player!.pause().catchError((Object error, StackTrace stack) {
         if (!mounted) return;
         _onPlaybackChanged();
