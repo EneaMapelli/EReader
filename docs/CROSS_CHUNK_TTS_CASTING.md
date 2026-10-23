@@ -84,3 +84,8 @@ Next production gates (deferred): dart format, Flutter analyzer, unit
 tests, Windows/Android build and playback testing on available TTS engines,
 particularly cloud audio seams, pause/resume and seek after coalescing.
 PR #1 remains draft until those checks are completed.
+
+
+## One-chunk cloud synthesis prebuffer
+
+When OpenAI Speech is explicitly selected and the new session-only prebuffer checkbox is enabled, the reader may synthesize the immediately following chunk while the current MP3 plays, with its exact planned voice and input text. It is still capped at one speculative clip and requires the same book-specific consent/key and character budget; output is sequential, so device playback may still have a small gap. See [Cloud TTS Prefetch](CLOUD_TTS_PREFETCH.md). Tests and builds are deferred.
