@@ -42,6 +42,8 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
   late OpenAiDialogueAnalyzer _analyzer;
   int _scopeIndex = 0;
   int? _nextFrom;
+  bool _limitToReadingPosition = true;
+  int _previousContextChars = 0;
   String _model = 'gpt-5.4-mini';
   bool _busy = false;
   bool _keySaved = false;
@@ -90,7 +92,16 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
   DialogueAnalysisWindow? _previewWindow() {
     if (_scopes.isEmpty || _cast.isEmpty) return null;
     final scope = _scopes[_scopeIndex];
-    if (_nextFrom != null && _nextFrom! >= scope.end) return null;
+    final latest = widget.store.getBook(widget.book.id) ?? widget.book;
+    final position = latest.progressAnchor == null
+        ? latest.progressOffset
+        : widget.document.offsetOf(latest.progressAnchor!) ??
+            latest.progressOffset;
+    final spoilerCeiling = _limitToReadingPosition
+        ? position.clamp(0, scope.end).toInt()
+        : scope.end;
+    if (spoilerCeiling <= scope.start ||
+        (_nextFrom != null && _nextFrom! >= spoilerCeiling)) return null;
     try {
       return planner.makeWindow(
         bookId: widget.book.id,
@@ -99,6 +110,8 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
         from: _nextFrom ?? scope.start,
         segments: widget.segments,
         cast: _cast,
+        spoilerCeiling: spoilerCeiling,
+        contextChars: _previousContextChars,
       );
     } on FormatException {
       return null;
@@ -226,10 +239,20 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
               Text('Scope: ' + window.scope.title),
               Text('Model: ' + _model),
               Text('Passages: ' + window.segments.length.toString()),
+              Text('Spoiler cutoff (UTF-16): ' +
+                  window.effectiveCeiling.toString()),
+              Text('Earlier context: ' +
+                  window.contextExcerpt.length.toString() + ' characters'),
               Text('Local input budget reservation: ' +
                   estimatedChars.toString() + ' characters'),
               const SizedBox(height: 10),
-              const Text('Excerpt sent (cast names are sent too):'),
+              if (window.contextSegments.isNotEmpty) ...[
+                const Text(
+                  'Earlier context sent for speaker disambiguation:'),
+                SelectableText(window.contextExcerpt, maxLines: 8),
+                const SizedBox(height: 8),
+              ],
+              const Text('Target excerpt sent (cast names are sent too):'),
               SelectableText(excerpt, maxLines: 12),
               const SizedBox(height: 12),
               const Text(
@@ -271,6 +294,7 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
             status: CastSpanStatus.proposed,
             origin: CastSpanOrigin.llm,
             lockedByUser: false,
+            evidence: item.evidence,
             anchor: widget.document.anchorAt(
               widget.book.format, item.start),
           ),
@@ -336,6 +360,33 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
                 });
               },
             ),
+          SwitchListTile(
+            title: const Text('Spoiler-safe: stop at my saved reading position'),
+            subtitle: const Text(
+              'On by default. Turning this off explicitly allows the '
+              'selected chapter/page through its end; never later scopes.',
+            ),
+            value: _limitToReadingPosition,
+            onChanged: _busy ? null : (value) => setState(() {
+              _limitToReadingPosition = value;
+              _nextFrom = null;
+            }),
+          ),
+          DropdownButtonFormField<int>(
+            value: _previousContextChars,
+            decoration: const InputDecoration(
+              labelText: 'Earlier context in this scope',
+              helperText: 'No future text. Included in preview and quota.',
+            ),
+            items: const [
+              DropdownMenuItem(value: 0, child: Text('No extra context')),
+              DropdownMenuItem(value: 400, child: Text('Up to 400 characters')),
+              DropdownMenuItem(value: 900, child: Text('Up to 900 characters')),
+            ],
+            onChanged: _busy ? null : (value) {
+              if (value != null) setState(() => _previousContextChars = value);
+            },
+          ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             value: _model,
@@ -353,10 +404,16 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
           if (_cast.isEmpty)
             const Text('Add characters in Voice Cast before using analysis. '
                 'The model cannot create new speaker identities.'),
+          if (_limitToReadingPosition)
+            const Text(
+              'If no passage is available, read farther in the book or '
+              'explicitly turn off the saved-position cutoff above.',
+            ),
           if (window != null) ...[
             Text('Next window: ' + window.segments.length.toString() +
                 ' passages, ' + window.excerpt.length.toString() +
-                ' excerpt characters'),
+                ' excerpt characters; earlier context: ' +
+                window.contextExcerpt.length.toString() + ' characters'),
             OutlinedButton(
               onPressed: _busy ? null : _nextWindow,
               child: const Text('Skip to next window in this scope'),
