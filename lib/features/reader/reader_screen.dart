@@ -628,8 +628,37 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     icon: const Icon(Icons.skip_next),
                     onPressed: () => _move(1),
                   ),
+                  PopupMenuButton<int>(
+                    tooltip: 'Sleep timer',
+                    icon: Icon(player.sleepTimerEndsAt == null
+                        ? Icons.bedtime_outlined : Icons.bedtime),
+                    onSelected: (minutes) {
+                      if (minutes == 0) {
+                        player.cancelSleepTimer();
+                      } else {
+                        player.setSleepTimer(Duration(minutes: minutes));
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      if (player.sleepTimerEndsAt != null)
+                        const PopupMenuItem(
+                          value: 0, child: Text('Turn off sleep timer'),
+                        ),
+                      for (final minutes in [10, 15, 30, 45, 60])
+                        PopupMenuItem(
+                          value: minutes,
+                          child: Text('Stop after $minutes minutes'),
+                        ),
+                    ],
+                  ),
                 ],
               ),
+              if (player.sleepTimerEndsAt != null)
+                Text(
+                  'Sleep timer: stops at ${TimeOfDay.fromDateTime(player.sleepTimerEndsAt!).format(context)}'
+                  ' (continues while paused)',
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
               if (player.engineProviderId ==
                   OpenAiSpeechEngine.providerId)
                 CheckboxListTile(
