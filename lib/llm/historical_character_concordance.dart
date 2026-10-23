@@ -1,8 +1,7 @@
 import '../data/book_decoder.dart';
 import '../domain/cast_span.dart';
-import 'historical_character_mention.dart';
-import '../domain/voice_cast.dart';
 import 'dialogue_analysis_plan.dart';
+import 'historical_character_mention.dart';
 
 /// Does NOT scan the full book. It visits at most a few already completed
 /// earlier scopes and searches a capped tail of each scope for approved cast
