@@ -55,13 +55,16 @@ void main() {
   late Directory temp;
   late List<MockMp3Decoder> decoders;
   late JustAudioMp3Output output;
+  Completer<void>? nextLoadGate;
 
   setUp(() async {
+    nextLoadGate = null;
     temp = await Directory.systemTemp.createTemp('ereader-mp3-warm-');
     decoders = [];
     output = JustAudioMp3Output(
       decoderFactory: () {
         final decoder = MockMp3Decoder();
+        if (decoders.length == 1) decoder.delayedLoad = nextLoadGate;
         decoders.add(decoder);
         return decoder;
       },
@@ -128,6 +131,9 @@ void main() {
     await until(() => decoders[0].playing.length == 2);
     expect(decoders[0].speeds.last, 1.5);
     expect(decoders[1].playing, isEmpty);
+    await output.prepareNext(Uint8List.fromList([3]), speed: 1.5);
+    expect(decoders[1].loadedPaths.length, 2,
+      reason: 'A stale prebuffer must not block future warm loads');
     decoders[0].finish();
     await playback;
   });
@@ -140,6 +146,24 @@ void main() {
     await active;
     expect(temp.listSync(), isEmpty);
     expect(decoders.every((d) => d.stopCalls > 0), isTrue);
+  });
+
+  test('stop during slow native warm-load leaves no playable stale MP3',
+      () async {
+    nextLoadGate = Completer<void>();
+    final current = output.play(Uint8List.fromList([1]), speed: 1);
+    await until(() => decoders.length == 1 &&
+        decoders[0].playing.isNotEmpty);
+    final preload = output.prepareNext(
+        Uint8List.fromList([2]), speed: 1);
+    await until(() => decoders.length == 2 &&
+        decoders[1].loadedPaths.isNotEmpty);
+    await output.stop();
+    nextLoadGate!.complete();
+    await preload;
+    await current;
+    expect(decoders[1].playing, isEmpty);
+    expect(temp.listSync(), isEmpty);
   });
 
   test('dispose releases both native decoders and all temp MP3 files',
