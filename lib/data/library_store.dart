@@ -16,6 +16,7 @@ import '../domain/voice_cast.dart';
 import '../domain/cast_span.dart';
 import '../domain/character_candidate.dart';
 import '../domain/alias_candidate.dart';
+import '../domain/cast_merge.dart';
 import '../domain/llm_analysis_consent.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
@@ -46,7 +47,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 11) {
+      if (version > 12) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -288,6 +289,29 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
             ON alias_candidates(book_id, status, mention_start)
           ''');
           db.execute('PRAGMA user_version = 11');
+        });
+      }
+      if (version < 12) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS cast_merges (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+              old_character_id TEXT NOT NULL,
+              kept_character_id TEXT NOT NULL,
+              old_name TEXT NOT NULL,
+              kept_name TEXT NOT NULL,
+              snapshot_sha256 TEXT NOT NULL,
+              voice_choices_json TEXT NOT NULL,
+              updated_records_json TEXT NOT NULL,
+              merged_at TEXT NOT NULL
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_cast_merges_book
+            ON cast_merges(book_id, merged_at)
+          ''');
+          db.execute('PRAGMA user_version = 12');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -977,6 +1001,227 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         WHERE id = ? AND status = 'proposed'
       ''', [target.id, candidateId]);
     });
+  }
+
+  int _mergeReferenceCount(String table, String column, String id) {
+    // Only call with fixed, developer-owned column names, never with user text.
+    return _database.select('SELECT COUNT(*) AS n FROM $table '
+        'WHERE $column = ?', [id]).first['n'] as int;
+  }
+
+  /// Recompute a full book-scoped preview without writing any cast data.
+  /// The two identities must already belong to this exact book.
+  CastMergePreview previewCastMerge(
+    String bookId, String sourceId, String targetId,
+  ) {
+    if (sourceId == targetId) {
+      throw const FormatException('Choose two different characters');
+    }
+    final people = listCastCharacters(bookId);
+    CastCharacter? source, target;
+    for (final person in people) {
+      if (person.id == sourceId) source = person;
+      if (person.id == targetId) target = person;
+    }
+    if (source == null || target == null) {
+      throw StateError('Both characters must belong to the same book');
+    }
+
+    final combined = <String>[];
+    final normalized = <String>{
+      CharacterCandidate.normalizeName(target.name),
+    };
+    for (final alias in [
+      ...target.aliases, source.name, ...source.aliases,
+    ]) {
+      final key = CharacterCandidate.normalizeName(alias);
+      if (normalized.add(key)) combined.add(alias);
+    }
+    if (combined.length > 50) {
+      throw StateError('Merge exceeds maximum of 50 aliases');
+    }
+    for (final other in people) {
+      if (other.id == sourceId || other.id == targetId) continue;
+      final taken = <String>[
+        other.name, ...other.aliases,
+      ];
+      for (final name in taken) {
+        if (normalized.contains(CharacterCandidate.normalizeName(name))) {
+          throw StateError('Alias conflicts with another surviving character');
+        }
+      }
+    }
+
+    final voices = listCastVoices(bookId);
+    final srcVoices = {
+      for (final voice in voices)
+        if (voice.characterId == sourceId) voice.providerId: voice,
+    };
+    final dstVoices = {
+      for (final voice in voices)
+        if (voice.characterId == targetId) voice.providerId: voice,
+    };
+    final conflicts = <CastMergeVoiceConflict>[];
+    for (final entry in srcVoices.entries) {
+      final dst = dstVoices[entry.key];
+      if (dst != null &&
+          (dst.voiceName != entry.value.voiceName ||
+           dst.voiceLocale != entry.value.voiceLocale)) {
+        conflicts.add(CastMergeVoiceConflict(
+          providerId: entry.key, source: entry.value, target: dst,
+        ));
+      }
+    }
+    conflicts.sort((a, b) => a.providerId.compareTo(b.providerId));
+
+    final counts = <String, int>{
+      'dialogue_segments': _mergeReferenceCount(
+          'segment_cast', 'character_id', sourceId),
+      'precise_spans': _mergeReferenceCount(
+          'cast_spans', 'speaker_id', sourceId),
+      'reviewed_character_candidates': _mergeReferenceCount(
+          'character_candidates', 'created_character_id', sourceId),
+      'proposed_alias_links': _mergeReferenceCount(
+          'alias_candidates', 'suggested_character_id', sourceId),
+      'approved_alias_links': _mergeReferenceCount(
+          'alias_candidates', 'approved_character_id', sourceId),
+      'provider_voices': srcVoices.length,
+    };
+
+    // Optimistic fingerprint stops an old confirmation from merging after
+    // someone edits names/voices or adds dependent references meanwhile.
+    final snapshot = jsonEncode({
+      'book': bookId,
+      'from': sourceId, 'into': targetId,
+      'roster': [
+        for (final person in people)
+          [person.id, person.name, ...person.aliases],
+      ],
+      'voices': [
+        for (final voice in voices)
+          [voice.characterId, voice.providerId,
+           voice.voiceName, voice.voiceLocale],
+      ],
+      'counts': counts,
+    });
+    return CastMergePreview(
+      source: source, target: target,
+      resultingAliases: List.unmodifiable(combined),
+      providerConflicts: List.unmodifiable(conflicts),
+      counts: Map.unmodifiable(counts),
+      snapshotDigest: sha256.convert(utf8.encode(snapshot)).toString(),
+    );
+  }
+
+  /// Transactional merge: retain target identity and its saved narrator
+  /// bindings; retarget ALL known foreign keys before deleting source.
+  /// Conflicting timbres are never resolved without explicit choices.
+  Future<CastMergeResult> mergeCastCharacters(
+      CastMergeDecision decision) async {
+    late CastMergeResult completed;
+    _transaction(_database, () {
+      final current = previewCastMerge(
+        decision.bookId,
+        decision.sourceCharacterId,
+        decision.targetCharacterId,
+      );
+      if (current.snapshotDigest != decision.expectedSnapshotDigest) {
+        throw StateError('Cast changed after preview: review merge again');
+      }
+      final expected = {
+        for (final conflict in current.providerConflicts)
+          conflict.providerId,
+      };
+      if (decision.providerChoices.length != expected.length ||
+          decision.providerChoices.keys.any((key) => !expected.contains(key)) ||
+          decision.providerChoices.values.any(
+              (value) => value != 'source' && value != 'target')) {
+        throw StateError('Choose which voice to retain for every conflict');
+      }
+
+      final sourceId = decision.sourceCharacterId;
+      final targetId = decision.targetCharacterId;
+      final previousVoices = listCastVoices(decision.bookId);
+      final targetByProvider = {
+        for (final voice in previousVoices)
+          if (voice.characterId == targetId) voice.providerId: voice,
+      };
+      for (final voice in previousVoices) {
+        if (voice.characterId != sourceId) continue;
+        final currentTarget = targetByProvider[voice.providerId];
+        if (currentTarget != null &&
+            (currentTarget.voiceName != voice.voiceName ||
+             currentTarget.voiceLocale != voice.voiceLocale) &&
+            decision.providerChoices[voice.providerId] != 'source') {
+          continue; // User explicitly chose the target provider voice.
+        }
+        // Equal voices or provider available only on source are preserved.
+        _database.execute('''
+          INSERT INTO cast_voices(
+            character_id, provider_id, voice_name, voice_locale
+          ) VALUES (?, ?, ?, ?)
+          ON CONFLICT(character_id, provider_id) DO UPDATE SET
+            voice_name = excluded.voice_name,
+            voice_locale = excluded.voice_locale
+        ''', [targetId, voice.providerId, voice.voiceName, voice.voiceLocale]);
+      }
+
+      _database.execute('''
+        UPDATE cast_characters SET aliases_json = ?
+        WHERE id = ? AND book_id = ?
+      ''', [jsonEncode(current.resultingAliases), targetId, decision.bookId]);
+      _database.execute('''
+        UPDATE segment_cast SET character_id = ?
+        WHERE book_id = ? AND character_id = ?
+      ''', [targetId, decision.bookId, sourceId]);
+      _database.execute('''
+        UPDATE cast_spans SET speaker_id = ?
+        WHERE book_id = ? AND speaker_id = ?
+      ''', [targetId, decision.bookId, sourceId]);
+      _database.execute('''
+        UPDATE character_candidates SET created_character_id = ?
+        WHERE book_id = ? AND created_character_id = ?
+      ''', [targetId, decision.bookId, sourceId]);
+      _database.execute('''
+        UPDATE alias_candidates SET suggested_character_id = ?
+        WHERE book_id = ? AND suggested_character_id = ?
+      ''', [targetId, decision.bookId, sourceId]);
+      _database.execute('''
+        UPDATE alias_candidates SET approved_character_id = ?
+        WHERE book_id = ? AND approved_character_id = ?
+      ''', [targetId, decision.bookId, sourceId]);
+
+      // Only the old character and the old voice rows cascade-delete:
+      // all documented references were retargeted above.
+      _database.execute('''
+        DELETE FROM cast_characters WHERE id = ? AND book_id = ?
+      ''', [sourceId, decision.bookId]);
+      if ((_database.select('SELECT changes() AS n')
+             .first['n'] as int) != 1) {
+        throw StateError('Merge failed to delete exactly one old identity');
+      }
+
+      _database.execute('''
+        INSERT INTO cast_merges(
+          book_id, old_character_id, kept_character_id,
+          old_name, kept_name, snapshot_sha256,
+          voice_choices_json, updated_records_json, merged_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        decision.bookId, sourceId, targetId,
+        current.source.name, current.target.name,
+        current.snapshotDigest, jsonEncode(decision.providerChoices),
+        jsonEncode(current.counts),
+        DateTime.now().toUtc().toIso8601String(),
+      ]);
+      completed = CastMergeResult(
+        mergedName: current.target.name,
+        keptCharacterId: targetId,
+        movedRecordCount: current.counts.values.fold<int>(
+            0, (total, count) => total + count),
+      );
+    });
+    return completed;
   }
 
   /// Manual character roster; not an automatic character detector.
