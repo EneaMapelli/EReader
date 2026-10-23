@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -160,6 +161,7 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
   int _generation = 0;
   bool _disposed = false;
   _PreparedCloudClip? _prepared;
+  Completer<bool>? _currentAudioReady;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => [
@@ -257,6 +259,10 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
       throw const FormatException('Unsupported prefetched voice');
     }
     final token = _generation;
+    // Do not spend for future audio until the CURRENT clip is ready to
+    // play. This prevents double charges when its initial HTTP call fails.
+    final current = _currentAudioReady;
+    if (current == null || !await current.future || !_live(token)) return;
     final key = _cacheKey(intended, text);
     final existing = _prepared;
     if (existing != null && existing.generation == token) {
@@ -290,25 +296,36 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
     _validateText(text);
     if (text.isEmpty) return;
     final token = _generation;
-    final voice = _voice;
-    final key = _cacheKey(voice, text);
-    final prepared = _prepared;
-    Uint8List? audio;
-    if (prepared != null &&
-        prepared.key == key && prepared.generation == token) {
-      try {
-        audio = await prepared.audio;
-      } finally {
-        if (identical(_prepared, prepared)) _prepared = null;
+    final ready = Completer<bool>();
+    _currentAudioReady = ready;
+    try {
+      final voice = _voice;
+      final key = _cacheKey(voice, text);
+      final prepared = _prepared;
+      Uint8List? audio;
+      if (prepared != null &&
+          prepared.key == key && prepared.generation == token) {
+        try {
+          audio = await prepared.audio;
+        } finally {
+          if (identical(_prepared, prepared)) _prepared = null;
+        }
+      } else {
+        audio = await _synthesize(text, voice, token);
       }
-    } else {
-      // Any other prepared clip remains bounded at one until consumed or
-      // stopped. Normal playback does not wait for an unrelated lookahead.
-      audio = await _synthesize(text, voice, token);
+      if (!_live(token) || audio == null ||
+          !access.getConsent(bookId, providerId).allowed) return;
+      // A prefetch is allowed only once the active clip has rendered
+      // successfully; audio output remains serialized to one player.
+      ready.complete(true);
+      final speed = (rate / 0.5).clamp(0.5, 2.0).toDouble();
+      await _output.play(audio, speed: speed);
+    } finally {
+      if (!ready.isCompleted) ready.complete(false);
+      if (identical(_currentAudioReady, ready)) {
+        _currentAudioReady = null;
+      }
     }
-    if (!_live(token) || audio == null) return;
-    final speed = (rate / 0.5).clamp(0.5, 2.0).toDouble();
-    await _output.play(audio, speed: speed);
   }
 
   @override
