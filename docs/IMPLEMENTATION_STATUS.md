@@ -258,3 +258,14 @@ Protocol: [Conversation Speaker Context](CONVERSATION_SPEAKER_CONTEXT.md).
 - The review UI still starts with no referent selected; no speaker assignment, cast identity, consent setting or voice changes as a side effect.
 - Authored **13 unexecuted tests** in test/llm/conversation_speaker_inspector_test.dart covering source integrity, provider-independent labels, overlaps, anchors, lookback, duplicates, cross-book isolation and the speaker-referent distinction.
 - No SQLite migration, remote API call or additional quota is needed. Flutter/Dart tests and builds remain postponed until final integration.
+
+## M5 — complex dialogue and partial casting diagnostics (2026-10-23)
+
+See [Complex Dialogue Review](COMPLEX_DIALOGUE_REVIEW.md).
+
+- Added a fourth Voice Cast tab, **Dialogues**, with a chapter/page/TXT-scope selector. It performs local, read-only punctuation and approved-label coverage analysis without changing any speaker until the user explicitly opens the existing text-selection editor.
+- The new bounded inspector identifies incomplete or multiline quotes, interruption markers (dash/ellipsis), adjacent turn boundaries, no speaker assignment, partial quotation coverage, overlapping conflicting speakers and explicit narrator/unknown overrides. No speaker alternation or inferred identity is applied.
+- Each visible turn is an exact UTF-16 substring of source text. The first 24,000 UTF-16 units within the chosen scope and at most 140 turns are scanned; hitting a limit is distinguished from a genuinely unclosed quote at the end of a fully scanned section.
+- Checks only accepted, human-locked, source-exact precise labels and verified legacy manual segments; pending LLM labels, stale/foreign voice tags and text beyond the selected scope do not affect diagnostics.
+- Added `test/domain/dialogue_turn_inspector_test.dart` with 16 authored but not executed cases: alternating verified speakers, gaps and partial tags, overlapping conflicts, quote interruptions, multiline/unclosed quotes, narrator overrides, UTF-16, source boundaries and bounded-scan behavior.
+- No SQLite migration, API usage or background analysis. Formatting, Flutter tests, Windows/Android builds and native TTS switch checks remain deferred to final integration, per owner instruction.
