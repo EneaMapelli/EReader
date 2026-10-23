@@ -947,6 +947,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   Future<void> reviewCastProposal(String id, {
     required bool approve,
     String? currentSource,
+    int? resolvedStart,
   }) async {
     _transaction(_database, () {
       final found = listCastSpansById(id);
@@ -959,7 +960,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           throw StateError('Source verification required for cited evidence');
         }
         if (currentSource != null &&
-            (!found.matchesSource(currentSource, (_) => found.start) ||
+            (!found.matchesSource(currentSource, (_) => resolvedStart) ||
              (found.evidence != null &&
               !found.evidence!.matchesSource(currentSource)))) {
           throw const FormatException('Source/evidence changed before approval');
