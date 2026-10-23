@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../audio/secret_vault.dart';
 import '../domain/llm_analysis_consent.dart';
 import 'dialogue_analysis_plan.dart';
+import 'historical_character_concordance.dart';
 
 abstract interface class DialogueAnalysisTransport {
   Future<String> request({
@@ -153,6 +154,9 @@ Never assign a voice to context text; annotate target segments only.
 For supported speakers, optionally cite evidence_segment_index and
 evidence_quote, an EXACT, unique substring of that earlier context segment.
 If evidence is absent, use null for BOTH evidence fields.
+Historical_mentions are source snippets from previously completed chapters
+for cast identity continuity ONLY; they are NOT dialogue targets and
+cannot be cited via evidence_segment_index (same-scope context only).
 Never cite later chapters, future passages or text outside this request.
 Do not infer any chapter beyond the provided excerpt.
 ''';
@@ -218,8 +222,35 @@ Do not infer any chapter beyond the provided excerpt.
         DialogueAnalysisPlanner.maxContextCharacters + 1) {
       throw const FormatException('Previous context exceeds length limit');
     }
+    if (window.historicalMentions.length >
+        HistoricalCharacterConcordance.maxMentions) {
+      throw const FormatException('Too many historical references');
+    }
+    var historyChars = 0;
+    final checked = <String>{};
+    for (final mention in window.historicalMentions) {
+      if (!mention.isValidFor(window) ||
+          !checked.add(mention.characterId + ':' +
+              mention.mentionStart.toString())) {
+        throw const FormatException(
+            'Historical context is duplicated, spoofed or beyond spoiler cap');
+      }
+      historyChars += mention.excerpt.length;
+      if (historyChars >
+          HistoricalCharacterConcordance.maxSentCharacters) {
+        throw const FormatException('Prior chapter excerpt budget exceeded');
+      }
+    }
     final payload = jsonEncode({
       'scope_id': window.scope.id,
+      'historical_mentions': [
+        for (final mention in window.historicalMentions) {
+          'previous_scope': mention.scopeId,
+          'character_id': mention.characterId,
+          'matched_name': mention.matchedName,
+          'excerpt': mention.excerpt,
+        },
+      ],
       'context_segments': [
         for (var i = 0; i < window.contextSegments.length; i++) {
           'evidence_segment_index': i,
