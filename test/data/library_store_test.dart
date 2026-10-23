@@ -10,6 +10,7 @@ import 'package:ereader/domain/book_bookmark.dart';
 import 'package:ereader/domain/voice_cast.dart';
 import 'package:ereader/domain/cast_span.dart';
 import 'package:ereader/domain/character_candidate.dart';
+import 'package:ereader/domain/alias_candidate.dart';
 import 'package:ereader/domain/cloud_speech_consent.dart';
 import 'package:ereader/domain/llm_analysis_consent.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -980,6 +981,158 @@ void main() {
     expect(store.listCharacterCandidates(book.id), isEmpty);
     await store.removeBook(book.id);
     expect(store.listCharacterCandidates(book.id), isEmpty);
+  });
+
+
+  test('SQLite v11 stores pending nicknames and requires explicit attachment',
+      () async {
+    const source = 'Mira greeted the Captain warmly.';
+    final input = File(p.join(root.path, 'alias-book.txt'));
+    await input.writeAsString(source);
+    final book = await store.importFile(input.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'mira', bookId: book.id, name: 'Mira',
+    ));
+    final start = source.indexOf('the Captain');
+    final proposed = AliasCandidate(
+      id: 'alias-1', bookId: book.id,
+      alias: 'the Captain', targetCharacterId: 'mira',
+      start: start, end: start + 'the Captain'.length,
+      sourceDigest: AliasCandidate.fingerprint('the Captain'),
+      status: AliasCandidateStatus.proposed, confidence: 0.72,
+      evidence: CastSpanEvidence(
+        start: 0, end: 4, sourceDigest: CastSpan.digest('Mira')),
+    );
+    await store.importAliasCandidates([proposed], source);
+    expect(store.listCastCharacters(book.id).single.aliases, isEmpty);
+    expect(store.listAliasCandidates(book.id).single.status,
+        AliasCandidateStatus.proposed);
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.listAliasCandidates(book.id).single.evidence!
+        .matchesSource(source), isTrue);
+    await store.reviewAliasCandidate(proposed.id,
+      approve: true, source: source, confirmedCharacterId: 'mira');
+    expect(store.listCastCharacters(book.id).single.aliases, ['the Captain']);
+    expect(store.listCastVoices(book.id), isEmpty);
+    expect(store.listSegmentCast(book.id), isEmpty);
+    expect(store.listAliasCandidates(book.id).single.status,
+        AliasCandidateStatus.accepted);
+  });
+
+  test('alias collisions cannot move a nickname to another character',
+      () async {
+    const source = 'Anna heard the Captain approaching.';
+    final file = File(p.join(root.path, 'alias-conflict.txt'));
+    await file.writeAsString(source);
+    final book = await store.importFile(file.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'anna', bookId: book.id, name: 'Anna',
+    ));
+    await store.saveCastCharacter(CastCharacter(
+      id: 'mira', bookId: book.id, name: 'Mira',
+    ));
+    final from = source.indexOf('the Captain');
+    final candidate = AliasCandidate(
+      id: 'unclaimed', bookId: book.id,
+      alias: 'the Captain', targetCharacterId: 'mira',
+      start: from, end: from + 'the Captain'.length,
+      sourceDigest: AliasCandidate.fingerprint('the Captain'),
+      confidence: 0.8, status: AliasCandidateStatus.proposed,
+    );
+    await store.importAliasCandidates([candidate], source);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'anna', bookId: book.id, name: 'Anna',
+      aliases: const ['the Captain'],
+    ));
+    await expectLater(store.reviewAliasCandidate(
+      'unclaimed', approve: true, source: source,
+      confirmedCharacterId: 'mira',
+    ), throwsStateError);
+    expect(store.listCastCharacters(book.id).where((p) => p.id == 'mira')
+        .single.aliases, isEmpty);
+    expect(store.listAliasCandidates(book.id).single.status,
+        AliasCandidateStatus.proposed);
+    await expectLater(store.saveCastCharacter(CastCharacter(
+      id: 'mira', bookId: book.id, name: 'Mira',
+      aliases: const ['THE CAPTAIN'],
+    )), throwsStateError);
+    expect(store.listCastCharacters(book.id), hasLength(2));
+    await store.reviewAliasCandidate('unclaimed',
+      approve: false, source: source);
+    expect(store.listAliasCandidates(book.id).single.status,
+        AliasCandidateStatus.rejected);
+  });
+
+  test('stale evidence blocks approval, but stale alias can be rejected',
+      () async {
+    const source = 'Mira becomes the Captain.';
+    final file = File(p.join(root.path, 'alias-evidence.txt'));
+    await file.writeAsString(source);
+    final book = await store.importFile(file.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'mira', bookId: book.id, name: 'Mira',
+    ));
+    final from = source.indexOf('the Captain');
+    await store.importAliasCandidates([
+      AliasCandidate(
+        id: 'stale', bookId: book.id,
+        alias: 'the Captain', targetCharacterId: 'mira',
+        start: from, end: from + 'the Captain'.length,
+        sourceDigest: AliasCandidate.fingerprint('the Captain'),
+        status: AliasCandidateStatus.proposed, confidence: 0.65,
+        evidence: CastSpanEvidence(
+          start: 0, end: 4, sourceDigest: CastSpan.digest('Mira'),
+        ),
+      ),
+    ], source);
+    await expectLater(store.reviewAliasCandidate('stale',
+      approve: true,
+      source: source.replaceFirst('Mira', 'Nora'),
+      confirmedCharacterId: 'mira',
+    ), throwsFormatException);
+    expect(store.listCastCharacters(book.id).single.aliases, isEmpty);
+    await store.reviewAliasCandidate('stale',
+      approve: false, source: source.replaceFirst('Mira', 'Nora'));
+    expect(store.listAliasCandidates(book.id).single.status,
+        AliasCandidateStatus.rejected);
+  });
+
+  test('SQLite v10 to v11 migration retains cast, consent and discoveries',
+      () async {
+    const text = 'Anna met Mira.';
+    final file = File(p.join(root.path, 'upgrade-alias.txt'));
+    await file.writeAsString(text);
+    final book = await store.importFile(file.path);
+    await store.saveCastCharacter(CastCharacter(
+      id: 'anna', bookId: book.id, name: 'Anna',
+    ));
+    final from = text.indexOf('Mira');
+    await store.importCharacterCandidates([
+      CharacterCandidate(
+        id: 'new-mira', bookId: book.id, name: 'Mira',
+        start: from, end: from + 4,
+        sourceDigest: CharacterCandidate.fingerprint('Mira'),
+        confidence: 0.8, status: CharacterCandidateStatus.proposed,
+      ),
+    ], text);
+    await store.configureLlmAnalysisConsent(book.id,
+      allowed: true, maxInputCharacters: 1500);
+    await store.reserveLlmAnalysisInput(book.id, 100);
+    store.dispose();
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    db.execute('DROP TABLE alias_candidates');
+    db.execute('PRAGMA user_version = 10');
+    db.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.listCastCharacters(book.id).single.name, 'Anna');
+    expect(store.listCharacterCandidates(book.id).single.name, 'Mira');
+    expect(store.getLlmAnalysisConsent(book.id).usedInputCharacters, 100);
+    expect(store.listAliasCandidates(book.id), isEmpty);
+    await store.removeBook(book.id);
+    expect(store.listAliasCandidates(book.id), isEmpty);
   });
 
 }
