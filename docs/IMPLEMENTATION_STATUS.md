@@ -9,9 +9,9 @@
 | ER-003 EPUB/TXT | OPF spine-based EPUB2/3 text extractor + TXT import | Partial; bounded ZIP/XML parsing, text-only, no rich XHTML layout |
 | ER-004 PDF | PDF viewer + text-layer extraction; SQLite v15 independent visual-page recovery including scanned PDFs, 7 authored tests | Partial: page-only resume, no scroll/zoom bookmark, complex ordering/OCR pending |
 | ER-005 Reader | SQL source anchors, PDF text-mode, reader viewport, SQLite v14 recent-book shortcut (no auto-play) and 4 authored tests | Partial; source-anchor and page-level PDF visual resume authored, not device verified |
-| ER-006 TTS | System speech contract and adapter, OS voice picker, language, rate and pitch | Partial |
+| ER-006 TTS | OS/cloud speech adapters, voice/rate/pitch controls; 8-second bounded native Stop with no auto-replay | Partial; hung engine cannot be forcibly silenced by Dart alone |
 | ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow, viewport-to-audio start; no word marks | Partial |
-| ER-008 Android background | MediaSession; settled-idle focus policy, deduplicated Play, task interruption safety; 18 authored media tests | Source implemented; no automatic process-death TTS restart; native validation pending |
+| ER-008 Android background | MediaSession, settled-idle focus, deduplicated Play and fail-closed Stop timeout | Source implemented; no process-death TTS restart; native validation pending |
 | ER-031 Sleep timer | Session-only 10/15/30/45/60-minute wall-clock stop, expiry cancels native speech, tests authored | Partial: fade-out and Android media integration pending |
 | ER-004/Storage issue #4 | SQLite schema v16, JSON/v1–v15 migrations, auditable character merges and casting tests (unexecuted) | Code ready for verification |
 
@@ -377,3 +377,11 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - `ReaderScreen` checks its player's **current** provider for remote cloud-authorization checks.
 - **6 new authored but unexecuted Android media regression tests** (18 in that file) plus **3 new binding regression tests** (7 in that file): delayed native stop, Seek and voice switch, sleep timer, simultaneous Play, stop failures and checkpoint retention.
 - The Flutter analyzer, native callbacks, Bluetooth controls and real Android background/Doze transitions have **not** been executed. This does not solve process-death engine reconstruction, hung native stop timeout or automatic/headless audio resurrection. See [Audio Transition Safety](AUDIO_TRANSITION_SAFETY.md).
+
+## M2 — bounded native Stop without unsafe replay (2026-10-23)
+
+- Added injectable `ReaderPlayer.nativeStopTimeout` (**8-second default**) and `SpeechStopTimeout`. Pause/Seek/voice-switch callers stop waiting after the deadline; the original platform Future remains observed. This is **not** a claim that native audio was forcibly stopped.
+- While a Stop is unconfirmed or has failed, the player denies every new Play and invalidates previously queued Play/Seek/voice auto-resume epochs, preventing a second overlapping utterance or unintended cloud request.
+- A late successful native Stop clears the unsafe flag but leaves narration paused until another explicit Play. A native Stop error permanently bars reuse of that player's failed engine.
+- Android MediaSession refuses remote Play before acquiring focus when native Stop is uncertain. Its focus lease and SQLite v16 crash marker remain held until Stop can be confirmed; `NarrationRecoveryBinding.dispose()` also preserves an uncertain marker when the reader is closed.
+- Added **8 authored but unexecuted tests** in `test/audio/native_stop_timeout_test.dart` and **1 new binding test** in `test/audio/narration_recovery_binding_test.dart` (8 tests in that file total). No native Flutter tests or binaries were run, as requested. See [Native Stop Timeout](NATIVE_STOP_TIMEOUT.md).
