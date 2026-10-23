@@ -48,7 +48,12 @@ class HistoricalCharacterMention {
     final actual = excerpt.substring(
       mentionStart - excerptStart, mentionEnd - excerptStart,
     );
-    return actual.toLowerCase() == matchedName.toLowerCase();
+    final member = window.cast.firstWhere(
+        (person) => person.id == characterId);
+    final normalized = matchedName.toLowerCase();
+    return actual.toLowerCase() == normalized &&
+        [member.name, ...member.aliases].any(
+            (name) => name.toLowerCase() == normalized);
   }
 
   bool matchesOriginal(String source) =>
