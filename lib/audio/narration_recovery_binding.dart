@@ -58,8 +58,14 @@ class NarrationRecoveryBinding {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _player?.removeListener(_onPlayerChanged);
+    final player = _player;
+    player?.removeListener(_onPlayerChanged);
     _player = null;
-    store.clearSpeechRecoveryMarker(bookId);
+    // The native engine may still be speaking even after the UI closes.
+    // Retain the checkpoint if Stop timed out/failed: dropping it would
+    // falsely declare a clean shutdown and hide possible interrupted audio.
+    if (player?.nativeStopUnconfirmed != true) {
+      store.clearSpeechRecoveryMarker(bookId);
+    }
   }
 }
