@@ -44,7 +44,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 8) {
+      if (version > 9) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -223,6 +223,12 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
             )
           ''');
           db.execute('PRAGMA user_version = 8');
+        });
+      }
+      if (version < 9) {
+        _transaction(db, () {
+          db.execute('ALTER TABLE cast_spans ADD COLUMN evidence_json TEXT');
+          db.execute('PRAGMA user_version = 9');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -803,6 +809,10 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       status: CastSpanStatus.values.byName(row['status'] as String),
       lockedByUser: (row['locked_by_user'] as int) == 1,
       confidence: (row['confidence'] as num?)?.toDouble(),
+      evidence: row['evidence_json'] is String
+          ? CastSpanEvidence.fromJson(Map<String, dynamic>.from(
+              jsonDecode(row['evidence_json'] as String) as Map))
+          : null,
       anchor: row['anchor_json'] is String
           ? ReadingAnchor.fromJson(Map<String, dynamic>.from(
               jsonDecode(row['anchor_json'] as String) as Map))
@@ -839,8 +849,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     _database.execute('''
       INSERT INTO cast_spans (
         id, book_id, start_offset, end_offset, source_sha256,
-        speaker_id, anchor_json, origin, status, confidence, locked_by_user
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        speaker_id, anchor_json, origin, status, confidence,
+        locked_by_user, evidence_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         start_offset = excluded.start_offset,
         end_offset = excluded.end_offset,
@@ -850,7 +861,8 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         origin = excluded.origin,
         status = excluded.status,
         confidence = excluded.confidence,
-        locked_by_user = excluded.locked_by_user
+        locked_by_user = excluded.locked_by_user,
+        evidence_json = excluded.evidence_json
       WHERE cast_spans.book_id = excluded.book_id
     ''', [
       span.id, span.bookId, span.start, span.end, span.sourceDigest,
@@ -858,6 +870,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       span.anchor == null ? null : jsonEncode(span.anchor!.toJson()),
       span.origin.name, span.status.name, span.confidence,
       span.lockedByUser ? 1 : 0,
+      span.evidence == null ? null : jsonEncode(span.evidence!.toJson()),
     ]);
   }
 
@@ -905,20 +918,25 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         if (!CastSpan.validUtf16Range(
               source, proposal.start, proposal.end) ||
             CastSpan.digest(source.substring(proposal.start, proposal.end))
-                != proposal.sourceDigest) {
-          throw const FormatException('LLM attribution is not source-aligned');
+                != proposal.sourceDigest ||
+            (proposal.evidence != null &&
+                !proposal.evidence!.matchesSource(source))) {
+          throw const FormatException('LLM attribution/evidence is not source-aligned');
         }
         _assertCastSpeaker(proposal.bookId, proposal.speakerId);
         _database.execute('''
           INSERT OR IGNORE INTO cast_spans (
             id, book_id, start_offset, end_offset, source_sha256,
-            speaker_id, anchor_json, origin, status, confidence, locked_by_user
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            speaker_id, anchor_json, origin, status, confidence,
+            locked_by_user, evidence_json
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
         ''', [
           proposal.id, proposal.bookId, proposal.start, proposal.end,
           proposal.sourceDigest, proposal.speakerId,
           proposal.anchor == null ? null : jsonEncode(proposal.anchor!.toJson()),
           'llm', 'proposed', proposal.confidence,
+          proposal.evidence == null
+              ? null : jsonEncode(proposal.evidence!.toJson()),
         ]);
       }
     });
@@ -926,7 +944,10 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
 
   /// Explicit review event; automatic LLM output is never promoted to active
   /// narration without the user's decision. Rejected spans remain auditable.
-  Future<void> reviewCastProposal(String id, {required bool approve}) async {
+  Future<void> reviewCastProposal(String id, {
+    required bool approve,
+    String? currentSource,
+  }) async {
     _transaction(_database, () {
       final found = listCastSpansById(id);
       if (found == null || found.origin != CastSpanOrigin.llm ||
@@ -934,6 +955,15 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         throw StateError('No pending suggestion with that identifier');
       }
       if (approve) {
+        if (found.evidence != null && currentSource == null) {
+          throw StateError('Source verification required for cited evidence');
+        }
+        if (currentSource != null &&
+            (!found.matchesSource(currentSource, (_) => found.start) ||
+             (found.evidence != null &&
+              !found.evidence!.matchesSource(currentSource)))) {
+          throw const FormatException('Source/evidence changed before approval');
+        }
         _assertCastSpeaker(found.bookId, found.speakerId);
         _assertNoAcceptedOverlap(found);
       }
