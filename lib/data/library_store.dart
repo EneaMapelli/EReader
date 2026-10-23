@@ -14,9 +14,10 @@ import '../domain/book_bookmark.dart';
 import '../domain/cloud_speech_consent.dart';
 import '../domain/voice_cast.dart';
 import '../domain/cast_span.dart';
+import '../domain/llm_analysis_consent.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
-class LibraryStore implements CloudSpeechAccess {
+class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   LibraryStore({Directory? homeDirectory}) : _configuredHome = homeDirectory;
   final Directory? _configuredHome;
   Directory? _home;
@@ -43,7 +44,7 @@ class LibraryStore implements CloudSpeechAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 7) {
+      if (version > 8) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -204,6 +205,24 @@ class LibraryStore implements CloudSpeechAccess {
             ON cast_spans(book_id, start_offset, end_offset)
           ''');
           db.execute('PRAGMA user_version = 7');
+        });
+      }
+      if (version < 8) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS llm_analysis_consent (
+              book_id TEXT PRIMARY KEY NOT NULL
+                REFERENCES books(id) ON DELETE CASCADE,
+              allowed INTEGER NOT NULL DEFAULT 0,
+              max_input_chars INTEGER NOT NULL DEFAULT 0,
+              used_input_chars INTEGER NOT NULL DEFAULT 0,
+              approved_at TEXT,
+              CHECK (max_input_chars >= 0 AND max_input_chars <= 10000000),
+              CHECK (used_input_chars >= 0 AND
+                     used_input_chars <= max_input_chars)
+            )
+          ''');
+          db.execute('PRAGMA user_version = 8');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -544,6 +563,85 @@ class LibraryStore implements CloudSpeechAccess {
       if (changed != 1) {
         throw const CloudSpeechBlocked(
           'No explicit book consent or character budget exhausted',
+        );
+      }
+    });
+  }
+
+  /// Separate privacy gate from cloud speech. Nothing is authorized by
+  /// default, even when the user already enabled paid cloud narration.
+  @override
+  LlmAnalysisConsent getLlmAnalysisConsent(String bookId) {
+    final rows = _database.select('''
+      SELECT * FROM llm_analysis_consent WHERE book_id = ?
+    ''', [bookId]);
+    if (rows.isEmpty) {
+      return LlmAnalysisConsent(bookId: bookId, allowed: false,
+          maxInputCharacters: 0, usedInputCharacters: 0);
+    }
+    final row = rows.first;
+    return LlmAnalysisConsent(
+      bookId: bookId,
+      allowed: (row['allowed'] as int) == 1,
+      maxInputCharacters: row['max_input_chars'] as int,
+      usedInputCharacters: row['used_input_chars'] as int,
+      approvedAt: row['approved_at'] is String
+          ? DateTime.parse(row['approved_at'] as String)
+          : null,
+    );
+  }
+
+  /// Only invoked after a distinct explicit user permission dialog.
+  /// Updating limits does not reset earlier usage. False is a hard revoke.
+  Future<void> configureLlmAnalysisConsent(String bookId, {
+    required bool allowed,
+    required int maxInputCharacters,
+  }) async {
+    if (getBook(bookId) == null) throw StateError('Unknown analysis book');
+    if (maxInputCharacters < 0 || maxInputCharacters > 10000000) {
+      throw ArgumentError.value(maxInputCharacters, 'maxInputCharacters');
+    }
+    _transaction(_database, () {
+      _database.execute('''
+        INSERT INTO llm_analysis_consent (
+          book_id, allowed, max_input_chars, used_input_chars, approved_at
+        ) VALUES (?, ?, ?, 0, ?)
+        ON CONFLICT(book_id) DO UPDATE SET
+          allowed = excluded.allowed,
+          max_input_chars = excluded.max_input_chars,
+          approved_at = excluded.approved_at
+        WHERE llm_analysis_consent.used_input_chars <=
+              excluded.max_input_chars
+      ''', [
+        bookId, allowed ? 1 : 0, maxInputCharacters,
+        allowed ? DateTime.now().toUtc().toIso8601String() : null,
+      ]);
+      if ((_database.select('SELECT changes() AS n')
+              .first['n'] as int) != 1) {
+        throw StateError('Limit is below previously reserved input');
+      }
+    });
+  }
+
+  /// Reserve BEFORE HTTPS. Conservative local character-count budget, not
+  /// a token or monetary cap. Failed and timed-out requests are counted.
+  @override
+  Future<void> reserveLlmAnalysisInput(
+      String bookId, int characters) async {
+    if (characters <= 0 || characters > 20000) {
+      throw ArgumentError.value(characters, 'characters');
+    }
+    _transaction(_database, () {
+      _database.execute('''
+        UPDATE llm_analysis_consent
+        SET used_input_chars = used_input_chars + ?
+        WHERE book_id = ? AND allowed = 1
+          AND max_input_chars - used_input_chars >= ?
+      ''', [characters, bookId, characters]);
+      if ((_database.select('SELECT changes() AS n')
+              .first['n'] as int) != 1) {
+        throw const LlmAnalysisDenied(
+          'Approval missing or input-character limit reached',
         );
       }
     });
