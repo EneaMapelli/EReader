@@ -11,7 +11,7 @@
 | ER-005 Reader | SQL-backed source anchors, PDF text-mode, reading viewport resume and debounced visual position updates | Partial |
 | ER-006 TTS | System speech contract and adapter, OS voice picker, language, rate and pitch | Partial |
 | ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow, viewport-to-audio start; no word marks | Partial |
-| ER-008 Android background | Android-only audio_service/media handler, focus interruption policy and generated manifest template; 7 authored tests | Source implemented; Android foreground/lock-screen validation pending |
+| ER-008 Android background | Android-only audio_service/media handler, focus interruption policy and generated manifest template; 8 authored tests | Source implemented; Android foreground/lock-screen validation pending |
 | ER-031 Sleep timer | Session-only 10/15/30/45/60-minute wall-clock stop, expiry cancels native speech, tests authored | Partial: fade-out and Android media integration pending |
 | ER-004/Storage issue #4 | SQLite schema v12, JSON/v1–v11 migrations, auditable character merges and casting tests (unexecuted) | Code ready for verification |
 
@@ -342,5 +342,5 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Exposes Play, Pause, Stop, previous/next source segment plus the current book title to Android media notification, lock screen and headset interfaces. Drops controls when the reader page exits. Read along and cast attribution remain sourced from the same player.
 - Uses a conservative pause-on-interruption/headphone-unplug policy and no auto-resume. Remote Play rechecks cloud consent and requests OS audio focus. Async Play is guarded against stale pause, attach/detach and late focus completion.
 - Android service/activity/receiver and foreground permissions live in `tool/android/AndroidManifest.xml`; both bootstrap scripts install the template **after** generating the native platform project. Windows does not initialize audio_service.
-- Added seven **authored but unexecuted** transport, cloud consent, focus-race and teardown tests in `test/audio/reader_media_handler_test.dart`.
+- Added eight **authored but unexecuted** transport, cloud consent, focus-race and teardown tests in `test/audio/reader_media_handler_test.dart`.
 - Native compilation, Flutter tests, Android 12–16 foreground/doze behavior, media-key latency, notification lifecycle, Android Auto, process-death restoration and Windows regression builds are **not verified**. See [Android Background Media](ANDROID_BACKGROUND_MEDIA.md). No claim of a production-ready Media3 background feature yet.
