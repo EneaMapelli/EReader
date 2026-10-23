@@ -14,6 +14,7 @@ import '../../llm/dialogue_analysis_plan.dart';
 import '../../llm/openai_dialogue_analyzer.dart';
 import '../../llm/openai_character_discoverer.dart';
 import '../../llm/openai_alias_reconciler.dart';
+import '../../llm/historical_character_concordance.dart';
 
 /// Intentional one-window-at-a-time analysis. Opening this screen, choosing
 /// scope/model or saving a key NEVER sends any book text to the network.
@@ -50,6 +51,7 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
   int? _nextFrom;
   bool _limitToReadingPosition = true;
   int _previousContextChars = 0;
+  bool _includeEarlierChapters = false;
   String _model = 'gpt-5.4-mini';
   bool _busy = false;
   bool _keySaved = false;
@@ -118,7 +120,7 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
     if (spoilerCeiling <= scope.start ||
         (_nextFrom != null && _nextFrom! >= spoilerCeiling)) return null;
     try {
-      return planner.makeWindow(
+      final local = planner.makeWindow(
         bookId: widget.book.id,
         content: widget.document,
         scope: scope,
@@ -129,6 +131,22 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
         ).toList(),
         spoilerCeiling: spoilerCeiling,
         contextChars: _previousContextChars,
+      );
+      if (!_includeEarlierChapters || local.cast.isEmpty) return local;
+      final previous = const HistoricalCharacterConcordance().build(
+        bookId: widget.book.id,
+        document: widget.document,
+        scopes: _scopes,
+        window: local,
+      );
+      return DialogueAnalysisWindow(
+        bookId: local.bookId,
+        scope: local.scope,
+        segments: local.segments,
+        cast: local.cast,
+        contextSegments: local.contextSegments,
+        historicalMentions: previous,
+        spoilerCeiling: local.spoilerCeiling,
       );
     } on FormatException {
       return null;
@@ -334,6 +352,12 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
                   window.effectiveCeiling.toString()),
               Text('Earlier context: ' +
                   window.contextExcerpt.length.toString() + ' characters'),
+              Text('Verified mentions from previous scopes: ' +
+                  window.historicalMentions.length.toString() +
+                  ' (additional characters: ' +
+                  window.historicalMentions.fold<int>(
+                      0, (sum, mention) => sum + mention.excerpt.length)
+                      .toString() + ')'),
               Text('Local input budget reservation: ' +
                   estimatedChars.toString() + ' characters'),
               const SizedBox(height: 10),
@@ -341,6 +365,14 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
                 const Text(
                   'Earlier context sent for speaker disambiguation:'),
                 SelectableText(window.contextExcerpt, maxLines: 8),
+                const SizedBox(height: 8),
+              ],
+              if (window.historicalMentions.isNotEmpty) ...[
+                const Text(
+                  'Verified excerpts sent from earlier chapters '
+                  '(known selected characters only):',
+                ),
+                SelectableText(window.historicalPreview, maxLines: 16),
                 const SizedBox(height: 8),
               ],
               const Text('Target excerpt sent (cast names are sent too):'),
@@ -550,6 +582,20 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
               if (value != null) setState(() => _previousContextChars = value);
             },
           ),
+          SwitchListTile(
+            title: const Text('Include known names from earlier chapters'),
+            subtitle: const Text(
+              'OFF by default. Add up to five exact, short mentions '
+              'from at most six previous chapters or pages for characters '
+              'you explicitly selected. Each excerpt is shown before '
+              'upload and counted in the input quota.',
+            ),
+            value: _includeEarlierChapters,
+            onChanged: _busy ? null : (value) => setState(() {
+              _includeEarlierChapters = value;
+              _nextFrom = null;
+            }),
+          ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             value: _model,
@@ -587,8 +633,10 @@ class _DialogueAnalysisScreenState extends State<DialogueAnalysisScreen> {
           if (window != null) ...[
             Text('Next window: ' + window.segments.length.toString() +
                 ' passages, ' + window.excerpt.length.toString() +
-                ' excerpt characters; earlier context: ' +
-                window.contextExcerpt.length.toString() + ' characters'),
+                ' excerpt characters; same-scope context: ' +
+                window.contextExcerpt.length.toString() +
+                '; earlier-chapter mentions: ' +
+                window.historicalMentions.length.toString()),
             OutlinedButton(
               onPressed: _busy ? null : _nextWindow,
               child: const Text('Skip to next window in this scope'),
