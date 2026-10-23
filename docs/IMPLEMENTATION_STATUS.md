@@ -11,7 +11,7 @@
 | ER-005 Reader | SQL source anchors, PDF text-mode, reader viewport, SQLite v14 recent-book shortcut (no auto-play) and 4 authored tests | Partial; source-anchor and page-level PDF visual resume authored, not device verified |
 | ER-006 TTS | System speech contract and adapter, OS voice picker, language, rate and pitch | Partial |
 | ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow, viewport-to-audio start; no word marks | Partial |
-| ER-008 Android background | MediaSession and task interruption policy; SQLite v16 crash-only narration checkpoint and manual recovery prompt | Source implemented; no automatic process-death TTS restart; Android validation pending |
+| ER-008 Android background | MediaSession; settled-idle focus policy, deduplicated Play, task interruption safety; 18 authored media tests | Source implemented; no automatic process-death TTS restart; native validation pending |
 | ER-031 Sleep timer | Session-only 10/15/30/45/60-minute wall-clock stop, expiry cancels native speech, tests authored | Partial: fade-out and Android media integration pending |
 | ER-004/Storage issue #4 | SQLite schema v16, JSON/v1–v15 migrations, auditable character merges and casting tests (unexecuted) | Code ready for verification |
 
@@ -366,5 +366,14 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - SQLite **v16** adds a one-slot, book-linked `speech_recovery_marker`, with just book ID and timestamp. `NarrationRecoveryBinding` writes it atomically with the existing source anchor/UTF-16 offset before starting each utterance, and clears it for ordinary pause, completed book, errors, sleep timer expiry, player reconfiguration and view teardown.
 - On the next launch, storage consumes any leftover checkpoint once. The library shows a **Narration interrupted** card only for an available private source file. A tap opens the normal reader at its saved source anchor; **no automatic TTS, cloud API call, quota spend or consent bypass is performed**. Dismissal does not lose the last reading position.
 - An old book's cleanup is scoped to its book ID and cannot erase a newer book's checkpoint; foreign keys delete the marker with the book. PDF visual-page bookmarks remain independent.
-- Added **10 authored SQLite tests** in `test/data/narration_crash_recovery_test.dart` and **4 player-binding integration tests** in `test/audio/narration_recovery_binding_test.dart`. Updated two earlier migration assertions to expect v16. All tests remain **unexecuted**, as the SDK/toolchains are not present.
+- Added **10 authored SQLite tests** in `test/data/narration_crash_recovery_test.dart` and **7 player-binding integration tests** in `test/audio/narration_recovery_binding_test.dart`. Updated two earlier migration assertions to expect v16. All tests remain **unexecuted**, as the SDK/toolchains are not present.
 - This is **not Android headless MediaSession process resurrection**. An interrupted paid chunk may be regenerated after a *manual* Play if not cached. Actual native background guarantees, process termination behavior and analyzer/device validation remain open. See [Narration Crash Recovery](NARRATION_CRASH_RECOVERY.md).
+
+## M2 — native-stop completion and Android focus lease correctness (2026-10-23)
+
+- The old `!player.isPlaying` is only a temporary signal during `seekTo`, `selectVoice`, and a pending native engine stop. New `ReaderPlayer.isSettledIdle` becomes true only after native stop futures are settled and no resume is pending.
+- `NarrationRecoveryBinding` preserves SQLite v16 recovery markers during transient seek/voice gaps, clearing them after a real stable stop, successful completion, interruption or error.
+- `ReaderMediaHandler` now releases Android audio focus for all settled pauses, including direct player pauses from the session-only sleep timer, and deduplicates focus activation while a lease is active. Consecutive remote Play requests use a command epoch: only the most recent valid request starts speech.
+- `ReaderScreen` checks its player's **current** provider for remote cloud-authorization checks.
+- **6 new authored but unexecuted Android media regression tests** (18 in that file) plus **3 new binding regression tests** (7 in that file): delayed native stop, Seek and voice switch, sleep timer, simultaneous Play, stop failures and checkpoint retention.
+- The Flutter analyzer, native callbacks, Bluetooth controls and real Android background/Doze transitions have **not** been executed. This does not solve process-death engine reconstruction, hung native stop timeout or automatic/headless audio resurrection. See [Audio Transition Safety](AUDIO_TRANSITION_SAFETY.md).
