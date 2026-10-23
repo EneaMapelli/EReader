@@ -104,6 +104,22 @@ void main() {
     expect(chapterIndexForOffset(const [], 2), -1);
   });
 
+  test('standalone heading gets accessible style without inserting text', () {
+    const heading = EpubChapter(
+      idref: 'ch1', title: 'Chapter One', start: 0, end: 100,
+      segmentIndex: 0,
+    );
+    expect(isStandaloneChapterHeading(
+      heading, const SpeechSegment(0, 11, 'Chapter One')), isTrue);
+    expect(isStandaloneChapterHeading(
+      heading, const SpeechSegment(
+        0, 32, 'Chapter One followed by narration')), isFalse);
+    expect(isStandaloneChapterHeading(
+      heading, const SpeechSegment(12, 23, 'Chapter One')), isFalse);
+    expect(isStandaloneChapterHeading(
+      null, const SpeechSegment(0, 11, 'Chapter One')), isFalse);
+  });
+
   test('TXT fallback segmentation unchanged without EPUB spine', () {
     const source = 'A sentence. Another sentence.';
     const plain = DocumentContent(title: 'Text', text: source);
