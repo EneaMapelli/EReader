@@ -44,6 +44,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
   int _bindingEpoch = 0;
   int _commandEpoch = 0;
   bool _closed = false;
+  Future<void> _pendingFocusRelease = Future<void>.value();
 
   bool get hasActiveBook => _player != null;
 
@@ -123,20 +124,33 @@ class ReaderMediaHandler extends BaseAudioHandler {
   }
 
   Future<bool> _claimAudioFocus() async {
+    // Native release from the previous book/pause must finish BEFORE a
+    // new focus grant. Otherwise its late completion can revoke new audio.
+    await _pendingFocusRelease;
     if (_requestFocus != null) return _requestFocus();
     return await _session?.setActive(true) ?? true;
   }
 
-  Future<void> _releaseAudioFocus() async {
-    try {
-      if (_releaseFocusOverride != null) {
-        await _releaseFocusOverride();
-      } else {
-        await _session?.setActive(false);
+  Future<void> _releaseAudioFocus() {
+    final previous = _pendingFocusRelease;
+    final release = () async {
+      try {
+        await previous;
+      } catch (_) {
+        // Older release failure must never poison future sessions.
       }
-    } catch (_) {
-      // Native audio session may already be torn down by Android.
-    }
+      try {
+        if (_releaseFocusOverride != null) {
+          await _releaseFocusOverride();
+        } else {
+          await _session?.setActive(false);
+        }
+      } catch (_) {
+        // Native audio session may already be torn down by Android.
+      }
+    }();
+    _pendingFocusRelease = release;
+    return release;
   }
 
   @override
