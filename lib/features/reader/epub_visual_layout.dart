@@ -47,6 +47,26 @@ class EpubVisualLayout {
   }
 }
 
+/// Paragraph breaks are also hard narration boundaries for EPUB so a
+/// coalesced quoted turn does not span two independently rendered blocks.
+/// Entries are sorted and refer only to original UTF-16 source positions.
+List<int> epubParagraphHardBoundaries(DocumentContent document) {
+  final boundaries = <int>[];
+  final newline = RegExp(r'\n[ \t]*\n+');
+  for (final range in document.epubSpineRanges) {
+    if (range.start < 0 || range.end < range.start ||
+        range.end > document.text.length) {
+      throw const FormatException('Invalid EPUB paragraph ranges');
+    }
+    if (range.start > 0) boundaries.add(range.start);
+    for (final match in newline.allMatches(
+        document.text.substring(range.start, range.end))) {
+      boundaries.add(range.start + match.end);
+    }
+  }
+  return List.unmodifiable(boundaries);
+}
+
 /// Paragraph-aware *safe text* EPUB renderer model. It never executes XHTML,
 /// fetches resources or changes the source text sent to the TTS engine.
 /// Long paragraphs are split for lazy loading; no visual block crosses an
