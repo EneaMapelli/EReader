@@ -125,4 +125,119 @@ void main() {
       idPrefix: 'ambiguous',
     ), throwsFormatException);
   });
+
+  test('backward context never includes previous or later chapters', () {
+    const source =
+        'EARLIER SECRET. Anna entered. «Hello!» FUTURE REVEAL.';
+    const earlier = 'EARLIER SECRET.';
+    const setup = 'Anna entered.';
+    const speech = '«Hello!»';
+    final start = source.indexOf(setup);
+    final spokenStart = source.indexOf(speech);
+    final spokenEnd = spokenStart + speech.length;
+    final scope = DialogueAnalysisScope(
+      id: 'chapter-2', title: 'Chapter two',
+      start: start, end: source.indexOf(' FUTURE REVEAL'),
+    );
+    final input = [
+      const SpeechSegment(0, earlier.length, earlier),
+      SpeechSegment(start, start + setup.length, setup),
+      SpeechSegment(spokenStart, spokenEnd, speech),
+      SpeechSegment(source.indexOf('FUTURE'), source.length, 'FUTURE REVEAL.'),
+    ];
+    final window = planner.makeWindow(
+      bookId: 'book',
+      content: const DocumentContent(title: 'Safe', text: source),
+      scope: scope,
+      segments: input,
+      cast: known,
+      from: spokenStart,
+      spoilerCeiling: spokenEnd,
+      contextChars: 400,
+    );
+    expect(window.segments.single.text, speech);
+    expect(window.contextExcerpt, setup);
+    expect(window.contextExcerpt.contains(earlier), isFalse);
+    expect(window.excerpt.contains('FUTURE'), isFalse);
+    expect(window.effectiveCeiling, spokenEnd);
+  });
+
+  test('reading position cap blocks future incomplete dialogue segment', () {
+    const source = 'Anna entered. «Hello!»';
+    const intro = 'Anna entered.';
+    const quote = '«Hello!»';
+    final q = source.indexOf(quote);
+    final scope = DialogueAnalysisScope(
+      id: 'chapter', title: 'Chapter',
+      start: 0, end: source.length,
+    );
+    expect(() => planner.makeWindow(
+      bookId: 'book',
+      content: const DocumentContent(title: 'Cutoff', text: source),
+      scope: scope,
+      segments: [
+        const SpeechSegment(0, intro.length, intro),
+        SpeechSegment(q, source.length, quote),
+      ],
+      cast: known,
+      from: q,
+      spoilerCeiling: q + 3,
+      contextChars: 400,
+    ), throwsFormatException);
+  });
+
+  test('LLM evidence is tied to an exact earlier source substring', () {
+    const source = 'Anna entered. «Hello!»';
+    const intro = 'Anna entered.';
+    const quote = '«Hello!»';
+    final q = source.indexOf(quote);
+    final window = planner.makeWindow(
+      bookId: 'book',
+      content: const DocumentContent(title: 'Evidence', text: source),
+      scope: DialogueAnalysisScope(
+        id: 'scene', title: 'Scene', start: 0, end: source.length,
+      ),
+      segments: [
+        const SpeechSegment(0, intro.length, intro),
+        SpeechSegment(q, source.length, quote),
+      ],
+      cast: known,
+      from: q,
+      spoilerCeiling: source.length,
+      contextChars: 400,
+    );
+    final sourceGrounded = planner.materializeProposals(
+      bookId: 'book', source: source, window: window,
+      idPrefix: 'evidence',
+      proposals: [const DialogueModelProposal(
+        segmentIndex: 0, exactQuote: quote,
+        speakerId: 'speaker-1', confidence: 0.86,
+        evidenceSegmentIndex: 0, evidenceQuote: intro,
+      )],
+    );
+    expect(sourceGrounded.single.evidence?.start, 0);
+    expect(sourceGrounded.single.evidence?.matchesSource(source), isTrue);
+    expect(sourceGrounded.single.status, CastSpanStatus.proposed);
+
+    expect(() => planner.materializeProposals(
+      bookId: 'book', source: source, window: window,
+      idPrefix: 'wrong',
+      proposals: [const DialogueModelProposal(
+        segmentIndex: 0, exactQuote: quote,
+        speakerId: 'speaker-1', confidence: 0.9,
+        evidenceSegmentIndex: 0, evidenceQuote: 'Later revelation',
+      )],
+    ), throwsFormatException);
+
+    expect(() => planner.materializeProposals(
+      bookId: 'book', source: source, window: window,
+      idPrefix: 'outside',
+      proposals: [const DialogueModelProposal(
+        segmentIndex: 0, exactQuote: quote,
+        speakerId: 'speaker-1', confidence: 0.9,
+        evidenceSegmentIndex: 3, evidenceQuote: intro,
+      )],
+    ), throwsFormatException);
+  });
+
 }
