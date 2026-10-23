@@ -11,6 +11,7 @@ import '../../domain/book.dart';
 import '../../domain/speech_segment.dart';
 import '../../domain/voice_cast.dart';
 import '../../domain/cast_span.dart';
+import '../../domain/character_candidate.dart';
 import '../../domain/llm_cast_proposals.dart';
 
 /// User-curated characters, provider voice profiles and segment attribution.
@@ -39,6 +40,7 @@ class VoiceCastScreen extends StatefulWidget {
 class _VoiceCastScreenState extends State<VoiceCastScreen> {
   List<CastCharacter> _characters = const [];
   List<CastVoiceAssignment> _voices = const [];
+  List<CharacterCandidate> _characterCandidates = const [];
   List<CastSpan> _fine = const [];
   late VoiceCastResolver _resolver;
   final _search = TextEditingController();
@@ -52,6 +54,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
   void _reload() {
     _characters = widget.store.listCastCharacters(widget.book.id);
     _voices = widget.store.listCastVoices(widget.book.id);
+    _characterCandidates = widget.store.listCharacterCandidates(widget.book.id);
     _fine = widget.store.listCastSpans(widget.book.id);
     _resolver = VoiceCastResolver(
       bookId: widget.book.id,
@@ -537,6 +540,99 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
       (span.evidence == null ||
           span.evidence!.matchesSource(widget.document.text));
 
+  Future<void> _reviewCharacter(
+    CharacterCandidate candidate, {required bool approve},
+  ) async {
+    if (!candidate.matchesSource(widget.document.text)) {
+      _error(const FormatException(
+        'Original character mention changed; cannot review stale evidence'));
+      return;
+    }
+    if (!approve) {
+      try {
+        await widget.store.reviewCharacterCandidate(
+          candidate.id, approve: false, source: widget.document.text,
+        );
+        if (mounted) _reload();
+      } catch (error) {
+        _error(error);
+      }
+      return;
+    }
+    final name = TextEditingController(text: candidate.name);
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialog, refresh) {
+          final current = name.text.trim();
+          final allNames = <String>[
+            for (final person in _characters) person.name,
+            for (final person in _characters) ...person.aliases,
+          ];
+          final duplicate = candidateConflictsWithCast(current, allNames);
+          return AlertDialog(
+            title: const Text('Add this character to your cast?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('The model found the exact book mention: ' +
+                    candidate.name),
+                Text('Confidence (not verified probability): ' +
+                    candidate.confidence.toStringAsFixed(2)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: name,
+                  maxLength: 120,
+                  onChanged: (_) => refresh(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm or correct display name',
+                  ),
+                ),
+                if (duplicate)
+                  const Text(
+                    'This name already belongs to a character or alias. '
+                    'Do not create a duplicate; edit the existing cast '
+                    'manually if these references identify the same person.',
+                  ),
+                const Text(
+                  'Only an identity will be created after confirmation. '
+                  'No dialogue, voice, aliases or future-story details '
+                  'will be added automatically.',
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialog),
+                child: const Text('Cancel')),
+              FilledButton(
+                onPressed: duplicate || current.length < 2
+                    ? null : () => Navigator.pop(dialog, current),
+                child: const Text('Add character'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    name.dispose();
+    if (selected == null || !mounted) return;
+    try {
+      await widget.store.reviewCharacterCandidate(
+        candidate.id,
+        approve: true,
+        source: widget.document.text,
+        displayName: selected,
+        newCharacterId: 'character-' +
+            DateTime.now().microsecondsSinceEpoch.toString() + '-' +
+            Random.secure().nextInt(1 << 30).toString(),
+      );
+      if (mounted) _reload();
+    } catch (error) {
+      _error(error);
+    }
+  }
+
   Widget _reviewTab() {
     final accepted = _fine.where(
       (span) => span.status == CastSpanStatus.accepted,
@@ -570,6 +666,46 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
           label: const Text('Import structured suggestions'),
           onPressed: _importProposals,
         ),
+        const Divider(height: 28),
+        Text('New character candidates',
+          style: Theme.of(context).textTheme.titleMedium),
+        const Text(
+          'These names were proposed from exact excerpts. '
+          'Approve a new identity explicitly; no voice or dialogue '
+          'will be assigned automatically.',
+        ),
+        if (!_characterCandidates.any(
+            (c) => c.status == CharacterCandidateStatus.proposed))
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text('No new character candidates await review.'),
+          ),
+        for (final candidate in _characterCandidates)
+          if (candidate.status == CharacterCandidateStatus.proposed)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.person_search_outlined),
+                title: Text(candidate.name),
+                subtitle: Text(candidate.matchesSource(widget.document.text)
+                    ? 'Original mention verified · confidence ' +
+                        candidate.confidence.toStringAsFixed(2)
+                    : 'Original book text changed: cannot approve'),
+                trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+                  IconButton(
+                    tooltip: 'Review and create this character',
+                    icon: const Icon(Icons.person_add_alt_1),
+                    onPressed: candidate.matchesSource(widget.document.text)
+                        ? () => _reviewCharacter(candidate, approve: true)
+                        : null,
+                  ),
+                  IconButton(
+                    tooltip: 'Reject character candidate',
+                    icon: const Icon(Icons.close),
+                    onPressed: () => _reviewCharacter(candidate, approve: false),
+                  ),
+                ]),
+              ),
+            ),
         const Divider(height: 28),
         Text('Approved speaker labels',
             style: Theme.of(context).textTheme.titleMedium),
