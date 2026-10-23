@@ -130,7 +130,7 @@ void main() {
     final doc = documentOf(source, title: 'Not a title');
     const segments = [
       SpeechSegment(0, 2, 'Hi'),
-      SpeechSegment(4, 9, 'there'),
+      SpeechSegment(3, 8, 'there'),
       SpeechSegment(11, 12, 'A'),
       SpeechSegment(13, 19, 'second'),
     ];
