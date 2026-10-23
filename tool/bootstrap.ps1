@@ -4,6 +4,9 @@ if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
 }
 flutter doctor -v
 flutter create --project-name ereader --org com.example.ereader --platforms=windows,android .
+if ($LASTEXITCODE -ne 0) { throw "flutter create failed" }
+# Apply audio_service declarations to generated Android project.
+Copy-Item -LiteralPath "tool/android/AndroidManifest.xml" -Destination "android/app/src/main/AndroidManifest.xml" -Force
 flutter pub get
 flutter analyze
 flutter test
