@@ -46,3 +46,8 @@ Semantic role disambiguation, separate organizations/locations, alias reconcilia
 ## Distinguishing an alias from a new identity
 
 A recognized name is not necessarily a new person. After discovery, **Reconcile aliases** may separately propose that a literal nickname or title belongs to an already-known character. It is not applied until a reviewer confirms the link; no existing people or voices are merged. Existing book-scoped names and aliases are checked for collisions. See [Alias Reconciliation](ALIAS_RECONCILIATION.md).
+
+
+## Combining two existing cast entries
+
+If two entries were created for the same fictional person, use **Voice Cast > Characters > Merge duplicate characters**. This manually reviewed operation retains one stable cast ID, transfers voice assignments and prior source labels, requires explicit voice-conflict choices and records the change in SQLite v12. See [Cast Identity Merge](CAST_IDENTITY_MERGE.md).
