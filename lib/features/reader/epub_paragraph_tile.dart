@@ -3,6 +3,38 @@ import 'package:flutter/material.dart';
 
 import 'epub_visual_layout.dart';
 
+/// Display-only, session-local colors. A future reader-preferences screen
+/// can persist these without touching source anchors or speech settings.
+enum EpubReadingPalette { system, sepia, night }
+
+extension EpubReadingPaletteColors on EpubReadingPalette {
+  Color background(BuildContext context) => switch (this) {
+    EpubReadingPalette.system =>
+        Theme.of(context).scaffoldBackgroundColor,
+    EpubReadingPalette.sepia => const Color(0xFFF4ECD9),
+    EpubReadingPalette.night => const Color(0xFF17191E),
+  };
+
+  Color foreground(BuildContext context) => switch (this) {
+    EpubReadingPalette.system => Theme.of(context).colorScheme.onSurface,
+    EpubReadingPalette.sepia => const Color(0xFF372B20),
+    EpubReadingPalette.night => const Color(0xFFE2E3E7),
+  };
+
+  Color highlight(BuildContext context) => switch (this) {
+    EpubReadingPalette.system => Theme.of(context).colorScheme.primaryContainer,
+    EpubReadingPalette.sepia => const Color(0xFFE7D39B),
+    EpubReadingPalette.night => const Color(0xFF3C4968),
+  };
+
+  Color highlightForeground(BuildContext context) => switch (this) {
+    EpubReadingPalette.system =>
+        Theme.of(context).colorScheme.onPrimaryContainer,
+    EpubReadingPalette.sepia => const Color(0xFF302414),
+    EpubReadingPalette.night => const Color(0xFFF0F3FF),
+  };
+}
+
 /// Lazy, source-exact EPUB paragraph widget. No HTML WebView, network
 /// resources, external CSS, JavaScript or embedded assets are evaluated.
 /// Individual spoken spans remain tappable without rewriting source text.
@@ -13,12 +45,14 @@ class EpubParagraphTile extends StatefulWidget {
     required this.activeSegmentIndex,
     required this.fontSize,
     required this.onSelectSegment,
+    this.palette = EpubReadingPalette.system,
   });
 
   final EpubVisualBlock block;
   final int activeSegmentIndex;
   final double fontSize;
   final ValueChanged<int> onSelectSegment;
+  final EpubReadingPalette palette;
 
   @override
   State<EpubParagraphTile> createState() => _EpubParagraphTileState();
@@ -58,7 +92,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final palette = widget.palette;
     final heading = widget.block.heading;
     final size = widget.fontSize;
     final style = TextStyle(
@@ -66,7 +100,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
       fontSize: heading ? size + 5 : size,
       height: heading ? 1.35 : 1.75,
       fontWeight: heading ? FontWeight.w600 : FontWeight.w400,
-      color: scheme.onSurface,
+      color: palette.foreground(context),
     );
 
     return Center(
@@ -87,8 +121,8 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                       text: run.text,
                       style: run.segmentIndex == widget.activeSegmentIndex
                           ? TextStyle(
-                              backgroundColor: scheme.primaryContainer,
-                              color: scheme.onPrimaryContainer,
+                              backgroundColor: palette.highlight(context),
+                              color: palette.highlightForeground(context),
                             )
                           : null,
                       recognizer: run.segmentIndex == null
