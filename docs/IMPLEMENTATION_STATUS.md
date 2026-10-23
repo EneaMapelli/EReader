@@ -280,3 +280,15 @@ See [Complex Dialogue Turns](COMPLEX_DIALOGUE_TURNS.md), complementing the exist
 - Fully unlabeled **complete** turns have an explicit manual voice/narrator action. Existing LibraryStore.saveManualCastSpan enforces SHA-256, book ownership and no silently overwritten manual locks; partial/conflicted/unfinished turns remain review-only and are corrected via precise Passages editing.
 - Added **14 unexecuted domain tests** (test/domain/dialogue_turn_review_test.dart) and **3 unexecuted SQLite integration tests** (test/data/dialogue_turn_review_store_test.dart) covering punctuation, partial/switch/conflict distinctions, UTF-16, anchors, persistence, stale book source and locked-overlap rollback.
 - No schema migration or cloud call. Flutter tests, analyzer and native Windows/Android builds remain deferred until final integration as instructed.
+
+## M5 — cross-chunk TTS dialogue voice continuity (2026-10-23)
+
+Design and limitations: [Cross-Chunk TTS Casting](CROSS_CHUNK_TTS_CASTING.md).
+
+- Reworked the reader speech plan to preserve shared quotation-region IDs across underlying 400-character source chunks. Quotations spanning multiple chunk boundaries no longer rely on an exact whole-segment match to determine the voice.
+- Legacy whole-passage segment_cast labels are now verified as **source-hashed ranges**, optionally relocated using reading anchors, and split into per-chunk speaker choices alongside accepted locked fine-grained CastSpan annotations. Wrong-book IDs, missing roster entries, stale source and overlapping legacy assignments are discarded.
+- Fine-grained human voice/narrator overrides take priority. Disputed fine labels additionally suppress obsolete legacy fallback within contested source ranges. ReaderScreen no longer re-evaluates legacy exact-chunk labels after the plan has been prepared.
+- Sequential fragments are coalesced **only within the same quoted turn**, with an identical verified speaker/mask and whitespace-only gaps, and only when the resulting original source text is at most 400 UTF-16 units. This reduces synthesis hand-offs without merging different quoted turns or changing read-along source offsets.
+- ReaderPlayer already changes provider/native voice only when the voice key changes. The new mock playback test asserts continuity across several long-quote chunks and narrator restoration.
+- Added 12 unexecuted source-domain tests in test/domain/cross_chunk_cast_test.dart and one unexecuted mocked engine test in test/audio/reader_player_test.dart; no on-device audio or gapless waveform promises are made.
+- No SQLite migration, automatic cast inference, cloud request or consent change. Flutter analyzer/tests, Windows/Android compilation and audible TTS hand-off tests remain deferred until final integration.
