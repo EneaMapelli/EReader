@@ -13,6 +13,19 @@ typedef SegmentStarted = Future<void> Function(SpeechSegment segment);
 typedef SleepTimerScheduler = Timer Function(
     Duration duration, void Function() onElapsed);
 
+/// A deadline bounds how long UI and media controls wait for native Stop,
+/// NOT how long it is safe to assume the previous utterance has stopped.
+class SpeechStopTimeout implements Exception {
+  const SpeechStopTimeout(this.deadline);
+  final Duration deadline;
+
+  @override
+  String toString() =>
+      'Speech engine Stop did not confirm within '
+      '${deadline.inMilliseconds} ms; narration remains locked until '
+      'the native Stop completes successfully';
+}
+
 /// Serialized speech queue with session tokens to invalidate interrupted runs.
 /// Pause stops the current native utterance; resume RESTARTS that segment.
 /// Word-level timing and background sessions are not claimed in this milestone.
@@ -24,7 +37,9 @@ class ReaderPlayer extends ChangeNotifier {
     this.language = 'it-IT',
     this.engineProviderId = 'system',
     SleepTimerScheduler? timerScheduler,
-  }) : _engine = engine,
+    this.nativeStopTimeout = const Duration(seconds: 8),
+  }) : assert(nativeStopTimeout > Duration.zero),
+       _engine = engine,
        _segments = segments,
        _timerScheduler = timerScheduler ?? Timer.new;
 
@@ -33,6 +48,7 @@ class ReaderPlayer extends ChangeNotifier {
   final SegmentStarted onSegmentStarted;
   final String engineProviderId;
   final SleepTimerScheduler _timerScheduler;
+  final Duration nativeStopTimeout;
   Timer? _sleepTimer;
 
   /// This is a session-only wall-clock deadline. Pausing does not extend it.
@@ -228,7 +244,15 @@ class ReaderPlayer extends ChangeNotifier {
   int _navigationEpoch = 0;
   bool _resumeAfterNavigation = false;
   int _pendingNativeStops = 0;
+  bool _stopUnconfirmed = false;
+  bool _stopFailed = false;
   bool _disposed = false;
+
+  /// A timeout only ends the caller's wait, not the native stop itself.
+  /// Never start a second utterance while the first engine could still
+  /// be speaking; any failed stop requires a new player/engine instance.
+  bool get nativeStopUnconfirmed =>
+      _stopUnconfirmed || _stopFailed;
 
   /// Unlike !isPlaying, this is true only once native stop has settled
   /// and no seek/voice switch intends to resume the current book. Audio
@@ -236,7 +260,8 @@ class ReaderPlayer extends ChangeNotifier {
   /// state notification emitted during a serialized seek.
   bool get isSettledIdle =>
       !_disposed && !isPlaying &&
-      !_resumeAfterNavigation && _pendingNativeStops == 0;
+      !_resumeAfterNavigation && _pendingNativeStops == 0 &&
+      !nativeStopUnconfirmed;
   Future<void> _pendingStop = Future<void>.value();
   Future<void> _pendingVoiceChange = Future<void>.value();
   Object? lastError;
@@ -256,6 +281,11 @@ class ReaderPlayer extends ChangeNotifier {
 
   Future<void> play() async {
     if (_disposed || isPlaying || _segments.isEmpty) return;
+    if (nativeStopUnconfirmed) {
+      throw StateError(
+        'Cannot resume narration before the previous native Stop is '
+        'confirmed. Close and reopen the reader if the engine failed.');
+    }
     // A direct Play invalidates outstanding seeks after their awaited stop.
     _navigationEpoch++;
     _resumeAfterNavigation = false;
@@ -268,6 +298,10 @@ class ReaderPlayer extends ChangeNotifier {
       // A rapid pause/play must not synthesize before the old native
       // utterance has fully stopped, otherwise voices overlap.
       await _pendingStop;
+      if (nativeStopUnconfirmed) {
+        throw StateError('Native speech Stop could not be confirmed');
+      }
+      if (token != _session) return;
       // Wait out voice selection in flight before starting a new clip.
       try { await _pendingVoiceChange; } catch (_) {
         if (token == _session) rethrow;
@@ -344,27 +378,70 @@ class ReaderPlayer extends ChangeNotifier {
   // but each public navigation operation has a distinct supersession epoch.
   Future<void> _stopCurrent() async {
     _session++;
-    _pendingNativeStops++;
     isPlaying = false;
     activeSpeakerId = null;
     _notify();
+
+    // An existing unconfirmed stop cannot safely be overwritten or
+    // bypassed. The platform might still be outputting the old utterance.
+    if (nativeStopUnconfirmed) {
+      throw StateError('Native speech Stop is still unconfirmed');
+    }
+
+    _pendingNativeStops++;
     final priorStop = _pendingStop;
     final stopping = () async {
       try {
         await priorStop;
       } catch (_) {
-        // One failed native stop does not block the next safety stop.
+        // A failed prior stop is handled separately; never use its
+        // completion as proof that a new utterance may start.
+      }
+      if (_stopFailed) {
+        throw StateError('An earlier native speech Stop failed');
       }
       await _engine.stop();
     }();
     _pendingStop = stopping;
-    try {
-      await stopping;
-    } finally {
+
+    // Observe the ORIGINAL future, not only Future.timeout: the real
+    // platform callback may complete after the caller has timed out.
+    // Keep the unsafe flag until that late completion is confirmed.
+    unawaited(stopping.then((_) {
       _pendingNativeStops--;
-      // Even an engine stop error must not be mistaken for a still-running
-      // transient navigation. Listeners may now release focus/checkpoints.
+      if (_pendingNativeStops == 0) _stopUnconfirmed = false;
       _notify();
+    }, onError: (Object error, StackTrace stack) {
+      _pendingNativeStops--;
+      _stopFailed = true;
+      _stopUnconfirmed = true;
+      if (!_disposed) lastError = error;
+      _notify();
+    }));
+
+    try {
+      await stopping.timeout(nativeStopTimeout);
+    } on TimeoutException {
+      _stopUnconfirmed = true;
+      // A queued Play/Seek/voice change must never restart merely because
+      // the native callback eventually arrives after a timed-out Stop.
+      _session++;
+      _navigationEpoch++;
+      _resumeAfterNavigation = false;
+      isPlaying = false;
+      activeSpeakerId = null;
+      final failure = SpeechStopTimeout(nativeStopTimeout);
+      lastError = failure;
+      _notify();
+      throw failure;
+    } catch (error) {
+      _stopFailed = true;
+      _stopUnconfirmed = true;
+      _navigationEpoch++;
+      _resumeAfterNavigation = false;
+      lastError = error;
+      _notify();
+      rethrow;
     }
   }
 
