@@ -44,7 +44,9 @@ class ReaderMediaHandler extends BaseAudioHandler {
   int _bindingEpoch = 0;
   int _commandEpoch = 0;
   bool _closed = false;
-  Future<void> _pendingFocusRelease = Future<void>.value();
+  // All focus gains and releases are queued on one native operation chain.
+  // A delayed gain must never override a newer Pause/release.
+  Future<void> _focusOperation = Future<void>.value();
 
   bool get hasActiveBook => _player != null;
 
@@ -123,34 +125,41 @@ class ReaderMediaHandler extends BaseAudioHandler {
     ));
   }
 
-  Future<bool> _claimAudioFocus() async {
-    // Native release from the previous book/pause must finish BEFORE a
-    // new focus grant. Otherwise its late completion can revoke new audio.
-    await _pendingFocusRelease;
-    if (_requestFocus != null) return _requestFocus();
-    return await _session?.setActive(true) ?? true;
+  Future<bool> _claimAudioFocus() {
+    final previous = _focusOperation;
+    final settled = Completer<void>();
+    _focusOperation = settled.future;
+    return () async {
+      try {
+        await previous;
+        if (_requestFocus != null) return await _requestFocus!();
+        return await _session?.setActive(true) ?? true;
+      } finally {
+        settled.complete();
+      }
+    }();
   }
 
   Future<void> _releaseAudioFocus() {
-    final previous = _pendingFocusRelease;
-    final release = () async {
+    final previous = _focusOperation;
+    final settled = Completer<void>();
+    _focusOperation = settled.future;
+    return () async {
       try {
         await previous;
-      } catch (_) {
-        // Older release failure must never poison future sessions.
-      }
-      try {
-        if (_releaseFocusOverride != null) {
-          await _releaseFocusOverride();
-        } else {
-          await _session?.setActive(false);
+        try {
+          if (_releaseFocusOverride != null) {
+            await _releaseFocusOverride();
+          } else {
+            await _session?.setActive(false);
+          }
+        } catch (_) {
+          // Android may already have disposed the native audio session.
         }
-      } catch (_) {
-        // Native audio session may already be torn down by Android.
+      } finally {
+        settled.complete();
       }
     }();
-    _pendingFocusRelease = release;
-    return release;
   }
 
   @override
@@ -239,6 +248,6 @@ class ReaderMediaHandler extends BaseAudioHandler {
     _closed = true;
     await _interruption?.cancel();
     await _noisy?.cancel();
-    await _pendingFocusRelease;
+    await _focusOperation;
   }
 }
