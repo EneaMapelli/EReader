@@ -138,6 +138,26 @@ void main() {
     expect(prepared.speakerByStart, isEmpty);
   });
 
+  test('cast spans never break an emoji surrogate pair', () {
+    const text = 'a😀b';
+    expect(text.length, 4); // UTF-16; emoji occupies two code units
+    expect(CastSpan.validUtf16Range(text, 1, 3), isTrue);
+    expect(CastSpan.validUtf16Range(text, 1, 2), isFalse);
+    expect(CastSpan.validUtf16Range(text, 2, 4), isFalse);
+    final good = manual(text: text, start: 1, end: 3);
+    expect(good.matchesSource(text, (_) => null), isTrue);
+    final invalid = CastSpan(
+      id: 'surrogate-break', bookId: 'book-hash',
+      start: 1, end: 2,
+      sourceDigest: CastSpan.digest(text.substring(1, 2)),
+      speakerId: 'character-1',
+      origin: CastSpanOrigin.user,
+      status: CastSpanStatus.accepted,
+      lockedByUser: true,
+    );
+    expect(invalid.matchesSource(text, (_) => null), isFalse);
+  });
+
   test('invalid confidence cannot be mistaken for accepted authority', () {
     expect(() => CastSpan(
       id: 'invalid', bookId: 'book', start: 0, end: 4,
