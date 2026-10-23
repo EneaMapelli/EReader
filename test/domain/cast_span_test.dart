@@ -69,6 +69,22 @@ void main() {
     expect(prepared.speakerByStart, isEmpty);
   });
 
+  test('a deliberately unknown speaker masks inherited cast labels', () {
+    final start = source.indexOf('«');
+    final end = source.indexOf('»') + 1;
+    final prepared = prepareCastSpeech(
+      source: source,
+      base: [SpeechSegment(0, source.length, source)],
+      annotations: [
+        manual(text: source, start: start, end: end, speaker: null),
+      ],
+      offsetFromAnchor: (_) => null,
+    );
+    expect(prepared.speakerByStart.containsKey(start), isTrue);
+    expect(prepared.speakerByStart[start], isNull);
+    expect(prepared.segments[1].text, '«Ciao!»');
+  });
+
   test('source digest rejects stale annotations even if offsets still match',
       () {
     final original = manual(text: source, start: 0, end: 4);
