@@ -84,9 +84,12 @@ void main() {
   );
 
   ReaderPlayer playerFor(_SpeechEngine engine,
-      NarrationRecoveryBinding recovery) {
+      NarrationRecoveryBinding recovery, {
+      Duration nativeStopTimeout = const Duration(seconds: 8),
+      }) {
     final player = ReaderPlayer(
       engine: engine,
+      nativeStopTimeout: nativeStopTimeout,
       segments: const [
         SpeechSegment(0, 6, 'First.'),
         SpeechSegment(7, 14, 'Second.'),
@@ -255,6 +258,28 @@ void main() {
     await player.pause();
     expect(activeCheckpoints(), 0);
     recovery.dispose();
+    player.dispose();
+  });
+
+  test('uncertain native Stop retains recovery checkpoint after dispose',
+      () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final player = playerFor(engine, recovery,
+      nativeStopTimeout: const Duration(milliseconds: 15));
+    final reading = player.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.stopGate = Completer<void>();
+
+    await expectLater(player.pause(), throwsA(isA<SpeechStopTimeout>()));
+    expect(player.nativeStopUnconfirmed, isTrue);
+    recovery.dispose();
+    // Reader teardown is not proof that a hung plugin stopped outputting.
+    await restartStore();
+    expect(store.interruptedNarrationBook?.id, bookId);
+    expect(store.interruptedNarrationBook?.progressAnchor?.localOffset, 0);
+    engine.stopGate!.complete();
+    await reading;
     player.dispose();
   });
 
