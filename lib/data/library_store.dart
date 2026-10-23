@@ -764,16 +764,21 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       final bookId = rows.first['book_id'] as String;
       final candidates = listCharacterCandidates(bookId);
       final candidate = candidates.firstWhere((c) => c.id == candidateId);
-      if (candidate.status != CharacterCandidateStatus.proposed ||
-          !candidate.matchesSource(source)) {
-        throw StateError('Character suggestion is stale or already reviewed');
+      if (candidate.status != CharacterCandidateStatus.proposed) {
+        throw StateError('Character suggestion was already reviewed');
       }
+      // Stale, edited source is a reason to reject the candidate; it
+      // must never block the user from clearing an obsolete proposal.
       if (!approve) {
         _database.execute('''
           UPDATE character_candidates SET status = 'rejected'
           WHERE id = ? AND status = 'proposed'
         ''', [candidateId]);
         return;
+      }
+      if (!candidate.matchesSource(source)) {
+        throw const FormatException(
+            'Original character mention changed; cannot approve');
       }
       if (displayName == null || newCharacterId == null) {
         throw const FormatException('Approved person needs confirmed name/ID');
