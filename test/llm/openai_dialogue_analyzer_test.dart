@@ -206,6 +206,26 @@ void main() {
     analyzer.dispose();
   });
 
+  test('foreign-book or duplicated cast cannot enter model request', () {
+    final analyzer = OpenAiDialogueAnalyzer(
+        access: TestAccess(), vault: TestVault(),
+        transport: TestTransport());
+    final foreign = DialogueAnalysisWindow(
+      bookId: 'book',
+      scope: DialogueAnalysisScope(
+        id: 'chapter', title: 'Chapter',
+        start: 0, end: excerpt.length,
+      ),
+      segments: [SpeechSegment(0, excerpt.length, excerpt)],
+      cast: const [
+        CastCharacter(id: 'other-person',
+          bookId: 'other-book', name: 'Secret Future Character'),
+      ],
+    );
+    expect(() => analyzer.createRequest(foreign), throwsFormatException);
+    analyzer.dispose();
+  });
+
   test('transport adapter rejects a segment outside approved scope', () {
     final analyzer = OpenAiDialogueAnalyzer(
       access: TestAccess(), vault: TestVault(),
