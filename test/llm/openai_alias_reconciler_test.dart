@@ -143,7 +143,7 @@ void main() {
     const two = DialogueAnalysisWindow(
       bookId: 'book',
       scope: DialogueAnalysisScope(
-        id: 's', title: 's', start: 0, end: 40),
+        id: 's', title: 's', start: 0, end: 11),
       segments: [SpeechSegment(0, 11, 'The Captain')],
       cast: [
         CastCharacter(id: 'mira', bookId: 'book', name: 'Mira'),
@@ -177,11 +177,24 @@ void main() {
   });
 
   test('known name and existing alias are not suggested again', () {
+    const existingSource = 'Mira met The Navigator.';
+    final existingWindow = DialogueAnalysisWindow(
+      bookId: 'book',
+      scope: const DialogueAnalysisScope(
+        id: 'names', title: 'Names',
+        start: 0, end: existingSource.length,
+      ),
+      segments: [
+        SpeechSegment(0, existingSource.length, existingSource),
+      ],
+      cast: window.cast,
+    );
     final result = OpenAiAliasReconciler.parseCandidates(
       jsonResponse: response([
         proposal(alias: 'Mira', evidenceIndex: null, evidence: null),
+        proposal(alias: 'The Navigator', evidenceIndex: null, evidence: null),
       ]),
-      window: window, source: source, idPrefix: 'skip',
+      window: existingWindow, source: existingSource, idPrefix: 'skip',
     );
     expect(result, isEmpty);
   });
