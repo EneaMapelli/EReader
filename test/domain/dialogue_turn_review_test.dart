@@ -31,7 +31,7 @@ void main() {
     ReadingAnchor? anchor,
   }) {
     final at = text.indexOf(phrase);
-    expect(at, isNonNegative);
+    expect(at, greaterThanOrEqualTo(0));
     return CastSpan(
       id: phrase + (speaker ?? 'narrator'),
       bookId: sourceBook, start: at, end: at + phrase.length,
