@@ -122,6 +122,28 @@ void main() {
     player.dispose();
   });
 
+  test('queued Play before timeout is cancelled rather than resumed late',
+      () async {
+    final engine = _HeldStopEngine();
+    final player = _player(engine);
+    final first = player.play();
+    await _settle();
+    engine.stopGate = Completer<void>();
+    final pausing = player.pause();
+    final queuedPlay = player.play();
+    await expectLater(pausing, throwsA(isA<SpeechStopTimeout>()));
+    expect(player.nativeStopUnconfirmed, isTrue);
+    expect(engine.spoken, ['First']);
+
+    engine.stopGate!.complete();
+    await Future.wait([first, queuedPlay]);
+    await _settle();
+    expect(engine.spoken, ['First'],
+      reason: 'A previously queued Play is not fresh consent after timeout');
+    expect(player.isPlaying, isFalse);
+    player.dispose();
+  });
+
   test('repeated Pause while Stop hangs does not spawn another native Stop',
       () async {
     final engine = _HeldStopEngine();
