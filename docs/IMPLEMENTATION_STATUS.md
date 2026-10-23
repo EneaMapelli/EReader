@@ -303,4 +303,15 @@ Protocol: [Cloud TTS Prefetch](CLOUD_TTS_PREFETCH.md).
 - When the matching next clip is played, the engine consumes its prepared Future/result without re-requesting or re-reserving. A failed lookahead is surfaced on that next segment rather than automatically retrying at additional cost.
 - Pause, seek, stop and dispose invalidate generations and suppress stale future audio. Consent is rechecked before playing prepared bytes; revocation produces an error, not silent skipped narration. An HTTP request already submitted cannot be guaranteed cancelled or unbilled.
 - Added seven mocked tests (test/audio/cloud_prefetch_test.dart), **authored but not executed**, for default-deny, gated scheduling, different next character voice, network failure without paid retry, consent revocation, pause/seek and failed first clip.
-- `JustAudioMp3Output` still loads a private file per clip; this optimization overlaps HTTP synthesis but does **not** guarantee gapless device playback or eliminate OS/native TTS pauses. Windows/Android and Flutter integration remains deferred.
+- The initial cloud prebuffer overlapped HTTP synthesis; an additional dual-decoder increment now allows the next already-synthesized private MP3 file to load on an idle decoder. This still does **not** guarantee gapless Windows/Android playback or eliminate OS/native TTS pauses. Windows/Android and Flutter integration remains deferred.
+
+## M5 — dual MP3 decoder warm-up for shorter clip handoffs (2026-10-23)
+
+Protocol: [MP3 Decoder Preload](MP3_DECODER_PRELOAD.md).
+
+- Introduced an optional `PreloadableSynthesizedAudioOutput`: the existing cloud one-ahead render now also calls `prepareNext` on an idle local decoder with the identical already-synthesized MP3 bytes and next playback speed. This causes **no extra HTTP request or quota reservation**.
+- Refactored `JustAudioMp3Output` to two reusable `just_audio` players: one outputting the current clip, the other loading the immediately following file. Source stays in private temporary storage; two-player serial playback preserves the existing per-segment speaking, read-along and progress semantics.
+- A warm match uses the standby player without calling native `setFilePath` again. Unexpected text or speed invalidates its warm source, so later prefetches can resume. Pause, stop and dispose invalidate playback, stop native decoders and remove temporary files, with retry of Windows file-lock deletion.
+- Native system TTS does not change. The explicit **OFF-by-default** cloud prebuffer permission and warning about billable *unheard* text remain unchanged. No new consent, SQLite migration or hidden background job was added.
+- Authored **8 new unexecuted tests** in `test/audio/mp3_preload_test.dart`, using injected mock decoders/filesystem, plus extended 7 existing unexecuted cloud prefetch tests to assert that cloud MP3 bytes reach the decoder warm-up hook.
+- Native API support was reviewed against `just_audio` 0.10.x documentation, but source formatting, Flutter analyzer/tests, Windows/Android real builds, MP3 waveform boundaries, foreground/background transitions and Windows file locks are still unverified.
