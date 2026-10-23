@@ -171,11 +171,14 @@ void main() {
     final id = await book('privacy.txt', 'Sensitive words not for storage.');
     store.recordSpeechSegmentStart(id, 1);
     final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
-    final row = db.select('SELECT * FROM speech_recovery_marker').single;
-    expect(row.keys.toSet(), {'slot', 'book_id', 'started_at'});
+    final columns = db.select('PRAGMA table_info(speech_recovery_marker)')
+        .map((row) => row['name'] as String).toSet();
+    expect(columns, {'slot', 'book_id', 'started_at'});
+    final row = db.select(
+        'SELECT slot, book_id, started_at FROM speech_recovery_marker').single;
     expect(row['book_id'], id);
     expect(row['slot'], 1);
-    expect(row.values.join(' '), isNot(contains('Sensitive words')));
+    expect(row['started_at'] as String, isNot(contains('Sensitive words')));
     db.dispose();
   });
 }
