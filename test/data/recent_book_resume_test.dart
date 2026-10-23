@@ -96,7 +96,7 @@ void main() {
     await store.markBookOpened(bookId);
     expect(store.lastOpenedBook?.id, bookId);
     final migrated = sqlite3.open(p.join(root.path, 'library.sqlite'));
-    expect(migrated.select('PRAGMA user_version').first['user_version'], 14);
+    expect(migrated.select('PRAGMA user_version').first['user_version'], 16);
     migrated.dispose();
   });
 }
