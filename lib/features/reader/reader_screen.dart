@@ -17,6 +17,7 @@ import '../../domain/speech_segment.dart';
 import '../../domain/dialogue_segmenter.dart';
 import '../../domain/pronunciation_rule.dart';
 import '../../domain/voice_cast.dart';
+import '../../domain/cast_span.dart';
 import 'voice_cast_screen.dart';
 import 'pronunciation_screen.dart';
 import 'reading_tools.dart';
@@ -36,6 +37,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   DocumentContent? _document;
   List<PronunciationRule> _pronunciationRules = const [];
   Map<String, String> _castNames = const {};
+  Map<int, String> _fineSpeakerByStart = const {};
   String? _error;
   bool _loading = true;
   double _fontSize = 19;
@@ -66,7 +68,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
       if (!mounted) return;
       // Finer original-text spans allow manual dialogue casting without
       // assigning the surrounding narrator text to the character.
-      final chunks = splitQuotedSegments(segmentSpeech(document.text));
+      final baseChunks = splitQuotedSegments(segmentSpeech(document.text));
+      final prepared = prepareCastSpeech(
+        source: document.text,
+        base: baseChunks,
+        annotations: widget.store.listCastSpans(widget.book.id),
+        offsetFromAnchor: document.offsetOf,
+      );
+      final chunks = prepared.segments;
       final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
       final player = ReaderPlayer(
         engineProviderId: prefs.providerId,
@@ -95,6 +104,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
               original, _pronunciationRules, bookId: widget.book.id);
       await player.loadVoices();
       await player.applyPreferences(prefs);
+      _fineSpeakerByStart = prepared.speakerByStart;
       _configureVoiceCast(player, document);
       if (!mounted) {
         player.dispose();
@@ -124,30 +134,30 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   void _configureVoiceCast(ReaderPlayer player, DocumentContent document) {
     final people = widget.store.listCastCharacters(widget.book.id);
-    final turns = widget.store.listSegmentCast(widget.book.id);
-    final voiceProfiles = widget.store.listCastVoices(widget.book.id);
+    final legacy = widget.store.listSegmentCast(widget.book.id);
+    final voices = widget.store.listCastVoices(widget.book.id);
     _castNames = {for (final person in people) person.id: person.name};
-    if (turns.isEmpty) {
-      player.castVoiceForSegment = null;
-      player.castSpeakerForSegment = null;
-      return;
-    }
-    final resolver = VoiceCastResolver(
+    final legacyResolver = VoiceCastResolver(
       bookId: widget.book.id,
       providerId: player.currentPreferences.providerId,
-      attributions: turns,
-      voices: voiceProfiles,
+      attributions: legacy,
+      voices: voices,
       offsetFromAnchor: document.offsetOf,
     );
-    player.castSpeakerForSegment = resolver.speakerFor;
+    String? speakerForSegment(SpeechSegment segment) =>
+        _fineSpeakerByStart[segment.start] ??
+        legacyResolver.speakerFor(segment);
+    player.castSpeakerForSegment = speakerForSegment;
     player.castVoiceForSegment = (segment) {
-      final assignment = resolver.voiceFor(segment);
-      if (assignment == null) return null;
-      // Accept only voices returned by the *current* TTS engine.
-      for (final installed in player.availableVoices) {
-        if (installed.name == assignment.voiceName &&
-            installed.locale == assignment.voiceLocale) {
-          return installed;
+      final speaker = speakerForSegment(segment);
+      if (speaker == null) return null;
+      for (final castVoice in voices) {
+        if (castVoice.characterId != speaker ||
+            castVoice.providerId != player.engineProviderId) continue;
+        // Reject voices absent from the provider catalog; narrator fallback.
+        for (final installed in player.availableVoices) {
+          if (installed.name == castVoice.voiceName &&
+              installed.locale == castVoice.voiceLocale) return installed;
         }
       }
       return null;
@@ -173,9 +183,17 @@ class _ReaderScreenState extends State<ReaderScreen> {
       ),
     );
     if (!mounted || _player != player) return;
-    // Rebuild an immutable source-aligned snapshot after manual edits.
-    _configureVoiceCast(player, document);
-    setState(() {});
+    final index = (_visiblePositionIndex ?? player.currentIndex)
+        .clamp(0, player.segments.length - 1).toInt();
+    final segment = player.segments[index];
+    await widget.store.savePosition(
+      widget.book.id, segment.start,
+      anchor: document.anchorAt(widget.book.format, segment.start),
+    );
+    if (!mounted) return;
+    // Edits can add speech boundaries, so rebuild the segment list as well.
+    setState(() { _loading = true; _error = null; });
+    await _load();
   }
 
   void _onVisiblePositions() {
