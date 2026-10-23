@@ -46,8 +46,10 @@ next `play()` *before* publishing any spurious settled-idle interval.
 - On a long or failing native stop, playback has already been invalidated,
   but focus is not released and the crash marker is not cleared **until the
   stop Future settles**. If an Android plugin hangs forever, these operations
-  also remain pending; a bounded native-stop timeout is still a future
-  integration requirement, not a claim made here.
+  no longer block Pause indefinitely: an 8-second bounded wait produces
+  a fail-closed state while the native Future remains pending. New speech
+  is forbidden until a real successful confirmation. See
+  [Native Stop Timeout](NATIVE_STOP_TIMEOUT.md).
 - When a seek/voice switch is superseded by user Pause or a system audio
   interruption, resume intent is cancelled. After its last stop settles,
   normal idle cleanup and focus release occur.
