@@ -54,6 +54,9 @@ class _ReaderScreenState extends State<ReaderScreen>
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
   Timer? _saveVisualPositionTimer;
+  Timer? _savePdfPageTimer;
+  int? _pendingPdfPage;
+  late final int _initialPdfPage;
   int? _visiblePositionIndex;
   int _lastFollowedIndex = -1;
   Object? _lastReportedPlaybackError;
@@ -63,6 +66,9 @@ class _ReaderScreenState extends State<ReaderScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _itemPositionsListener.itemPositions.addListener(_onVisiblePositions);
+    _initialPdfPage = widget.book.format == BookFormat.pdf
+        ? widget.store.getPdfVisualPage(widget.book.id)
+        : 1;
     if (widget.book.format != BookFormat.pdf) {
       _load();
     } else {
@@ -220,6 +226,31 @@ class _ReaderScreenState extends State<ReaderScreen>
     // Edits can add speech boundaries, so rebuild the segment list as well.
     setState(() { _loading = true; _error = null; });
     await _load();
+  }
+
+  /// A PDF page is a visual bookmark, not an offset within extracted text.
+  /// Saving this must never overwrite a scanned PDF's null TTS anchor.
+  void _onPdfPageChanged(int? pageNumber) {
+    if (!mounted || widget.book.format != BookFormat.pdf ||
+        _pdfTextMode || pageNumber == null ||
+        pageNumber < 1 || pageNumber > 100000) return;
+    if (_pendingPdfPage == pageNumber) return;
+    _pendingPdfPage = pageNumber;
+    _savePdfPageTimer?.cancel();
+    _savePdfPageTimer = Timer(
+      const Duration(milliseconds: 350), _flushPdfPagePosition,
+    );
+  }
+
+  /// Called before unmount/background so a recent page turn isn't lost.
+  void _flushPdfPagePosition() {
+    _savePdfPageTimer?.cancel();
+    _savePdfPageTimer = null;
+    final pageNumber = _pendingPdfPage;
+    _pendingPdfPage = null;
+    if (pageNumber != null) {
+      widget.store.savePdfVisualPage(widget.book.id, pageNumber);
+    }
   }
 
   void _onVisiblePositions() {
@@ -450,6 +481,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // recorded by background audio. Leave Android narration running only
     // when a live media handler owns that player.
     _saveVisualPositionTimer?.cancel();
+    _flushPdfPagePosition();
     if (_player != null &&
         ReaderLifecyclePolicy.mustPauseOnBackground(
           state: state,
@@ -469,6 +501,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _saveVisualPositionTimer?.cancel();
+    _flushPdfPagePosition();
     _itemPositionsListener.itemPositions.removeListener(_onVisiblePositions);
     final player = _player;
     if (player != null) {
@@ -569,6 +602,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                           actions: [
                             TextButton.icon(
                               onPressed: () {
+                                _flushPdfPagePosition();
                                 setState(() {
                                   _pdfTextMode = true;
                                   _loading = true;
@@ -582,7 +616,13 @@ class _ReaderScreenState extends State<ReaderScreen>
                           ],
                         ),
                         Expanded(
-                          child: PdfViewer.file(widget.book.localPath),
+                          child: PdfViewer.file(
+                            widget.book.localPath,
+                            initialPageNumber: _initialPdfPage,
+                            params: PdfViewerParams(
+                              onPageChanged: _onPdfPageChanged,
+                            ),
+                          ),
                         ),
                       ],
                     )
