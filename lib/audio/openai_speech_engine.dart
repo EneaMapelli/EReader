@@ -107,7 +107,21 @@ class CloudSpeechException implements Exception {
 /// This speech API returns audio, not word timestamps. Model fidelity to
 /// exact book text, audio duration, pitch, and character voices all require
 /// separate testing. Pitch is currently NOT supported by this provider.
-class OpenAiSpeechEngine implements SpeechEngine {
+class _PreparedCloudClip {
+  const _PreparedCloudClip({
+    required this.key,
+    required this.generation,
+    required this.audio,
+  });
+  final String key;
+  final int generation;
+  final Future<Uint8List?> audio;
+}
+
+/// Paid audio may be prepared ONE chunk ahead, but only after a separate
+/// session toggle is enabled and playback has already started. Every remote
+/// render rechecks per-book permission, key and quota. No background chapters.
+class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
   OpenAiSpeechEngine({
     required this.bookId,
     required this.modelId,
@@ -145,6 +159,7 @@ class OpenAiSpeechEngine implements SpeechEngine {
   String _voice = 'marin';
   int _generation = 0;
   bool _disposed = false;
+  _PreparedCloudClip? _prepared;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => [
@@ -160,6 +175,111 @@ class OpenAiSpeechEngine implements SpeechEngine {
     _voice = voice.name;
   }
 
+  String _cacheKey(String voice, String text) => sha256.convert(
+        utf8.encode(modelId + '\u0000' + voice + '\u0000' + text),
+      ).toString();
+
+  bool _live(int token) => !_disposed && token == _generation;
+
+  Future<Uint8List?> _synthesize(
+      String text, String voice, int token) async {
+    final consent = access.getConsent(bookId, providerId);
+    if (!consent.allowed) {
+      throw const CloudSpeechBlocked(
+        'Enable cloud narration explicitly for this book first',
+      );
+    }
+    final key = _cacheKey(voice, text);
+    final cached = await _cache.read(bookId, key);
+    if (!_live(token)) return null;
+    if (cached != null) return cached;
+    if (consent.remainingCharacters < text.length) {
+      throw const CloudSpeechBlocked(
+        'Character budget exhausted for this book and provider',
+      );
+    }
+    final apiKey = await vault.readKey(providerId);
+    if (!_live(token)) return null;
+    if (apiKey == null || apiKey.trim().isEmpty) {
+      throw const CloudSpeechBlocked('OpenAI API key is not configured');
+    }
+
+    // This reservation happens before transmission, including prefetch.
+    // An interrupted request may still be billed and is not silently retried.
+    await access.reserveCharacters(bookId, providerId, text.length);
+    if (!_live(token)) return null;
+    final response = await _transport.requestSpeech(
+      apiKey: apiKey, model: modelId, voice: voice, input: text,
+    );
+    if (!_live(token)) return null;
+    if (response.statusCode != 200) {
+      throw CloudSpeechException(
+        'HTTP ' + response.statusCode.toString()
+            + '. Review credentials, model and account limits.',
+      );
+    }
+    if (response.bytes.isEmpty ||
+        response.bytes.length > 20 * 1024 * 1024) {
+      throw const CloudSpeechException('Empty or oversized audio response');
+    }
+    try {
+      await _cache.write(bookId, key, response.bytes);
+    } catch (_) {
+      // Missing storage should not discard a paid synthesis response.
+    }
+    if (!_live(token)) return null;
+    return response.bytes;
+  }
+
+  void _validateText(String text) {
+    if (_disposed) throw StateError('Cloud speech provider is disposed');
+    if (text.length > 4096) {
+      throw const FormatException('Speech chunk exceeds 4096 characters');
+    }
+  }
+
+  /// The next immutable voice is passed explicitly. Never change _voice
+  /// during the current spoken clip just to render the next one.
+  /// Errors are later surfaced by speak for the same prepared clip, rather
+  /// than causing an automatic paid retry on failure.
+  @override
+  Future<void> prepareSpeech(
+    String text, {
+    required SpeechVoice? voice,
+    required String language,
+    required double rate,
+    required double pitch,
+  }) async {
+    _validateText(text);
+    if (text.isEmpty) return;
+    final intended = voice?.name ?? _voice;
+    if (!supportedVoices.contains(intended)) {
+      throw const FormatException('Unsupported prefetched voice');
+    }
+    final token = _generation;
+    final key = _cacheKey(intended, text);
+    final existing = _prepared;
+    if (existing != null && existing.generation == token) {
+      // Bounded one ahead. Do not start more paid requests while one is
+      // already retained or in flight.
+      if (existing.key == key) await existing.audio;
+      return;
+    }
+    final clip = _PreparedCloudClip(
+      key: key,
+      generation: token,
+      audio: _synthesize(text, intended, token),
+    );
+    _prepared = clip;
+    try {
+      await clip.audio;
+    } catch (_) {
+      // Keep the failed clip for speak(), which surfaces the same error
+      // exactly once rather than automatically paying for another request.
+      rethrow;
+    }
+  }
+
   @override
   Future<void> speak(
     String text, {
@@ -167,80 +287,34 @@ class OpenAiSpeechEngine implements SpeechEngine {
     required double rate,
     required double pitch,
   }) async {
-    if (_disposed) throw StateError('Cloud speech provider is disposed');
+    _validateText(text);
     if (text.isEmpty) return;
-    if (text.length > 4096) {
-      throw const FormatException('Speech chunk exceeds 4096 characters');
-    }
     final token = _generation;
-    final consent = access.getConsent(bookId, providerId);
-    if (!consent.allowed) {
-      throw const CloudSpeechBlocked(
-        'Enable cloud narration explicitly for this book first',
-      );
+    final voice = _voice;
+    final key = _cacheKey(voice, text);
+    final prepared = _prepared;
+    Uint8List? audio;
+    if (prepared != null &&
+        prepared.key == key && prepared.generation == token) {
+      try {
+        audio = await prepared.audio;
+      } finally {
+        if (identical(_prepared, prepared)) _prepared = null;
+      }
+    } else {
+      // Any other prepared clip remains bounded at one until consumed or
+      // stopped. Normal playback does not wait for an unrelated lookahead.
+      audio = await _synthesize(text, voice, token);
     }
-    final cacheKey = sha256.convert(
-      utf8.encode(modelId + '\u0000' + _voice + '\u0000' + text),
-    ).toString();
-    final cached = await _cache.read(bookId, cacheKey);
-    if (token != _generation || _disposed) return;
-    if (cached != null) {
-      // No API request, quota consumption or key is needed on a cache hit.
-      await _output.play(cached,
-        speed: (rate / 0.5).clamp(0.5, 2.0).toDouble());
-      return;
-    }
-    if (consent.remainingCharacters < text.length) {
-      throw const CloudSpeechBlocked(
-        'Character budget exhausted for this book and provider',
-      );
-    }
-    final key = await vault.readKey(providerId);
-    if (token != _generation || _disposed) return;
-    if (key == null || key.trim().isEmpty) {
-      throw const CloudSpeechBlocked('OpenAI API key is not configured');
-    }
-
-    // Reserve attempted bytes even if an HTTP error occurs. This conservative
-    // local limit does NOT assert or estimate exact provider billing.
-    await access.reserveCharacters(bookId, providerId, text.length);
-    if (token != _generation || _disposed) return;
-
-    final result = await _transport.requestSpeech(
-      apiKey: key,
-      model: modelId,
-      voice: _voice,
-      input: text,
-    );
-    if (token != _generation || _disposed) return;
-    if (result.statusCode != 200) {
-      // Never include response body or secrets in exceptions/logs.
-      throw CloudSpeechException(
-        'HTTP ' + result.statusCode.toString()
-            + '. Review credentials, model and account limits.',
-      );
-    }
-    if (result.bytes.isEmpty || result.bytes.length > 20 * 1024 * 1024) {
-      throw const CloudSpeechException('Empty or oversized audio response');
-    }
-    // Cache errors must not throw away paid synthesis, but cache misses
-    // always consume quota. Only successful HTTP audio is cached.
-    try {
-      await _cache.write(bookId, cacheKey, result.bytes);
-    } catch (_) {
-      // Can still play when storage is full or external cleanup races us.
-    }
-    if (token != _generation || _disposed) return;
-    // rate=0.5 is nominal 1x in the system TTS reader. Cloud speed uses a
-    // local playback rate when the platform backend supports it. Cloud pitch
-    // is NOT claimed to work and is omitted from the API request.
+    if (!_live(token) || audio == null) return;
     final speed = (rate / 0.5).clamp(0.5, 2.0).toDouble();
-    await _output.play(result.bytes, speed: speed);
+    await _output.play(audio, speed: speed);
   }
 
   @override
   Future<void> stop() async {
     _generation++;
+    _prepared = null;
     await _output.stop();
   }
 
@@ -249,6 +323,7 @@ class OpenAiSpeechEngine implements SpeechEngine {
     if (_disposed) return;
     _disposed = true;
     _generation++;
+    _prepared = null;
     await _output.dispose();
     _transport.dispose();
   }
