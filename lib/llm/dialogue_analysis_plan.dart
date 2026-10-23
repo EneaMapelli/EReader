@@ -3,6 +3,7 @@ import '../domain/book.dart';
 import '../domain/cast_span.dart';
 import '../domain/speech_segment.dart';
 import '../domain/voice_cast.dart';
+import 'historical_character_mention.dart';
 
 /// A user-selected chapter, page or bounded TXT range.
 class DialogueAnalysisScope {
@@ -30,6 +31,7 @@ class DialogueAnalysisWindow {
     required this.segments,
     required this.cast,
     this.contextSegments = const [],
+    this.historicalMentions = const [],
     this.spoilerCeiling,
   });
 
@@ -37,12 +39,17 @@ class DialogueAnalysisWindow {
   final DialogueAnalysisScope scope;
   final List<SpeechSegment> segments;
   final List<SpeechSegment> contextSegments;
+  final List<HistoricalCharacterMention> historicalMentions;
   final List<CastCharacter> cast;
   final int? spoilerCeiling;
 
   String get excerpt => segments.map((s) => s.text).join('\n');
   String get contextExcerpt =>
       contextSegments.map((s) => s.text).join('\n');
+  String get historicalPreview =>
+      historicalMentions.map((m) =>
+          '[' + m.scopeId + ': ' + m.matchedName + '] ' + m.excerpt)
+          .join('\n');
   int get effectiveCeiling => spoilerCeiling ?? scope.end;
 }
 
