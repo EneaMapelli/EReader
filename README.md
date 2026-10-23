@@ -12,6 +12,7 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - Estrazione TXT/EPUB in ordine OPF spine con limiti ZIP/XML e mappatura dei capitoli alle posizioni del testo; **il renderer EPUB completo e gli anchor EPUB CFI persistenti non sono ancora implementati**.
 - Visualizzazione PDF tramite `pdfrx` e modalità sperimentale di lettura vocale per PDF con testo selezionabile (senza garanzia sull'ordine di colonne, note e tabelle).
 - Lettura vocale con voci di sistema Windows/Android, scelta e salvataggio di voce/lingua/pitch/rate per libro e come default globale, navigazione tra segmenti e Read Along con evidenziazione, auto-scroll disattivabile e ripresa della posizione.
+- **Sleep timer sessione:** stop automatico della lettura vocale dopo 10/15/30/45/60 minuti, annullabile o reimpostabile; il conteggio segue l'ora reale anche durante la pausa. Non è ancora una sessione audio in background Android.
 - Dizionario di pronuncia globale o per singolo libro (con anteprima), applicato soltanto al testo pronunciato e non alla copia originale.
 - **Motori TTS configurabili per libro:** voci gratuite del sistema oppure OpenAI Speech tramite API HTTPS; scelta del modello e delle voci del provider. Le altre API e le voci neurali offline sono previste nelle milestone successive.
 - Ricerca testuale offline all'interno del libro e segnalibri nominativi persistenti con navigazione all'ancora sorgente (EPUB spine, PDF pagina o TXT).
