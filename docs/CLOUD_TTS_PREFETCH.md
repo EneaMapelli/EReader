@@ -31,6 +31,10 @@ This increment adds **a single MP3 synthesis request ahead of playback** for the
 
 ## Release caveats
 
-Pre-rendering audio can move cost earlier in time and may leave paid clips unused after interruption. A local quota is not an exact financial cap. The current simple MP3 output writes a private temporary file and loads it for each new clip, so there may still be short device-specific gaps even with the next MP3 ready. Native OS TTS speech engines cannot be safely pre-rendered through this abstraction. These behaviors must be measured on actual Windows and Android devices before changing the default or advertising gapless audiobook playback.
+Pre-rendering audio can move cost earlier in time and may leave paid clips unused after interruption. A local quota is not an exact financial cap. The MP3 output can now load the next private temporary file on a second, idle native decoder while the current clip plays, if cloud prebuffering is enabled. This can shorten the native file-loading delay, but separate clips, audio-focus transitions, codec padding and driver behavior can still create audible gaps. Native OS TTS speech engines cannot be safely pre-rendered through this abstraction. These behaviors must be measured on actual Windows and Android devices before changing the default or advertising gapless audiobook playback.
 
 **Final integration remains pending:** Dart format/analyze/test; Windows/Android builds; mock race tests on a real runner; remote quota and consent UI smoke tests; actual multi-character audio handoff and pause/seeking timing.
+
+## Local MP3 decoder warm-up
+
+The same explicitly authorized, one-ahead cloud clip can now also be loaded into a second **idle native MP3 player** before it is heard, using the *already paid or cached bytes*. This does not reserve more quota or send any additional text to OpenAI. Playback remains one clip at a time. Pauses, seek and stop invalidate unused prepared audio, and files remain private temporary copies. Details and tests: [MP3 Decoder Preload](MP3_DECODER_PRELOAD.md). **Gapless audio is not yet demonstrated.**
