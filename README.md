@@ -13,6 +13,7 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - Visualizzazione PDF tramite `pdfrx` e modalità sperimentale di lettura vocale per PDF con testo selezionabile (senza garanzia sull'ordine di colonne, note e tabelle).
 - Lettura vocale con voci di sistema Windows/Android, scelta e salvataggio di voce/lingua/pitch/rate per libro e come default globale, navigazione tra segmenti e Read Along con evidenziazione, auto-scroll disattivabile e ripresa della posizione.
 - **Sleep timer sessione:** stop automatico della lettura vocale dopo 10/15/30/45/60 minuti, annullabile o reimpostabile; il conteggio segue l'ora reale anche durante la pausa. Non è ancora una sessione audio in background Android.
+- **Controlli media Android (codice, non ancora validato):** servizio audio con Play/Pausa/Stop/precedente/successivo in notifiche, schermata di blocco e cuffie, con pausa su chiamate/perdita focus/cuffie scollegate; mantenuto il consenso cloud anche per Play remoto. Manifest Android applicato dagli script bootstrap; Windows resta invariato. [Dettagli e limiti](docs/ANDROID_BACKGROUND_MEDIA.md).
 - Dizionario di pronuncia globale o per singolo libro (con anteprima), applicato soltanto al testo pronunciato e non alla copia originale.
 - **Motori TTS configurabili per libro:** voci gratuite del sistema oppure OpenAI Speech tramite API HTTPS; scelta del modello e delle voci del provider. Le altre API e le voci neurali offline sono previste nelle milestone successive.
 - Ricerca testuale offline all'interno del libro e segnalibri nominativi persistenti con navigazione all'ancora sorgente (EPUB spine, PDF pagina o TXT).
@@ -84,6 +85,7 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Prebuffering cloud a un chunk e gestione prudente della quota](docs/CLOUD_TTS_PREFETCH.md)
 - [Decoder MP3 doppio e preparazione locale del prossimo file](docs/MP3_DECODER_PRELOAD.md)
 - [Sicurezza delle sessioni TTS: Play, Pausa, Seek, voce e velocità](docs/PLAYBACK_SESSION_SAFETY.md)
+- [Controlli media Android, focus e servizio in background](docs/ANDROID_BACKGROUND_MEDIA.md)
 - [Riconoscimento assistito di nuovi personaggi e revisione](docs/CHARACTER_DISCOVERY.md)
 - [Riconciliazione alias, soprannomi e identità](docs/ALIAS_RECONCILIATION.md)
 - [Unificazione manuale di due personaggi e conservazione delle attribuzioni](docs/CAST_IDENTITY_MERGE.md)
