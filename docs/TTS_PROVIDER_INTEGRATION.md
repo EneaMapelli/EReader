@@ -52,3 +52,8 @@ Authored tests (NOT executed): OpenAI Speech transport and consent; budget, key 
 ## Cloud prebuffer implementation (2026-10-23)
 
 The optional `AheadOfTimeSpeechEngine` capability is implemented only by OpenAiSpeechEngine. ReaderScreen exposes a session-only **OFF by default** checkbox explaining that preparing the next cloud chunk can use the per-book quota even if never heard. Preparation is gated until the active audio has rendered successfully, limited to one future chunk, and uses the existing HTTPS consent/cache/key/reservation protocol with a separately captured next voice. The player still emits one MP3 clip at a time. `stop()` invalidates unfinished playback, but a submitted HTTP request may already have incurred billing. Full semantics, tests and limitations: [Cloud TTS Prefetch](CLOUD_TTS_PREFETCH.md). **No Flutter/native tests have run yet.**
+
+
+## Dual-player local MP3 preloading
+
+When the opt-in cloud prebuffer has prepared a future MP3, a second `just_audio` decoder can load that private file while the current clip plays. This is an **offline stage only**: no new API request, charge, consent or background chapter queue. Playback and per-segment read-along remain serialized; platform-specific latency must be measured. See [MP3 Decoder Preload](MP3_DECODER_PRELOAD.md). Flutter and native tests remain deferred by owner decision.
