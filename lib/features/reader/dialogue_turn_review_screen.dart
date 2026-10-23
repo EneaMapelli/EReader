@@ -80,7 +80,7 @@ class _DialogueTurnReviewScreenState extends State<DialogueTurnReviewScreen> {
                       labelText: 'Manually confirmed speaker'),
                     items: [
                       const DropdownMenuItem(
-                        value: 'narrator', child: Text('Narrator / unknown')),
+                        value: '', child: Text('Narrator / unknown')),
                       for (final person in people)
                         DropdownMenuItem(
                           value: person.id,
@@ -108,7 +108,7 @@ class _DialogueTurnReviewScreenState extends State<DialogueTurnReviewScreen> {
     if (!mounted || decision == null) return;
     setState(() => _saving = true);
     try {
-      final person = decision == 'narrator' ? null : decision;
+      final person = decision.isEmpty ? null : decision;
       final span = CastSpan(
         id: 'manual-turn-' +
             DateTime.now().microsecondsSinceEpoch.toString() + '-' +
