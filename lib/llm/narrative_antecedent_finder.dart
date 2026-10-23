@@ -62,7 +62,7 @@ class NarrativeAntecedentFinder {
 
   static const maxLookback = 900;
   static const maxCues = 5;
-  static const maxSnippet = 110;
+  static const maxSnippet = 160;
 
   static final RegExp _letter = RegExp(r'[\p{L}\p{N}_]', unicode: true);
 
@@ -82,6 +82,7 @@ class NarrativeAntecedentFinder {
   }
 
   NarrativeAntecedentInspection inspect({
+    required String bookId,
     required String source,
     required int scopeStart,
     required int referenceStart,
@@ -89,7 +90,7 @@ class NarrativeAntecedentFinder {
     required List<CastCharacter> cast,
     List<NarrativeReferenceCandidate> reviewedReferences = const [],
   }) {
-    if (scopeStart < 0 || referenceStart < scopeStart ||
+    if (bookId.isEmpty || scopeStart < 0 || referenceStart < scopeStart ||
         !CastSpan.validUtf16Range(
             source, referenceStart, referenceEnd)) {
       throw const FormatException('Invalid reference boundary');
@@ -106,6 +107,9 @@ class NarrativeAntecedentFinder {
     final people = <String, CastCharacter>{};
     for (final character in cast) {
       character.validate();
+      if (character.bookId != bookId) {
+        throw const FormatException('Foreign-book character in local cues');
+      }
       if (people.containsKey(character.id)) {
         throw const FormatException('Duplicate local character identifier');
       }
@@ -145,8 +149,9 @@ class NarrativeAntecedentFinder {
           source.codeUnitAt(contextEnd - 1) <= 0xDBFF) {
         contextEnd--;
       }
-      if (!CastSpan.validUtf16Range(
-          source, contextStart, contextEnd)) return;
+      if (contextEnd - contextStart > maxSnippet ||
+          !CastSpan.validUtf16Range(
+              source, contextStart, contextEnd)) return;
       final context = source.substring(contextStart, contextEnd);
       found.add(NarrativeAntecedentCue(
         characterId: characterId,
@@ -181,7 +186,8 @@ class NarrativeAntecedentFinder {
     }
 
     for (final reviewed in reviewedReferences) {
-      if (reviewed.status != NarrativeReferenceStatus.accepted ||
+      if (reviewed.bookId != bookId ||
+          reviewed.status != NarrativeReferenceStatus.accepted ||
           reviewed.approvedCharacterId == null ||
           !people.containsKey(reviewed.approvedCharacterId) ||
           reviewed.start < start || reviewed.end > referenceStart ||
