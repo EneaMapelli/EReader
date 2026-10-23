@@ -90,6 +90,34 @@ void main() {
     expect(rich.text.style?.fontSize, 24);
   });
 
+  testWidgets('warm paper and night palettes keep text and highlight readable',
+      (tester) async {
+    for (final palette in [
+      EpubReadingPalette.sepia,
+      EpubReadingPalette.night,
+    ]) {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(body: EpubParagraphTile(
+          block: spokenParagraph,
+          activeSegmentIndex: 1,
+          fontSize: 20,
+          palette: palette,
+          onSelectSegment: (_) {},
+        )),
+      ));
+      final context = tester.element(find.byType(EpubParagraphTile));
+      final rich = tester.widget<RichText>(find.descendant(
+        of: find.byType(EpubParagraphTile),
+        matching: find.byType(RichText),
+      ));
+      final spans = leafTextSpans(rich.text);
+      expect(rich.text.toPlainText(), 'Hello world');
+      expect(spans.last.style?.backgroundColor, palette.highlight(context));
+      expect(rich.text.style?.color, palette.foreground(context));
+      expect(palette.background(context), isNot(palette.foreground(context)));
+    }
+  });
+
   testWidgets('new paragraph data replaces stale tap recognizers', (tester) async {
     final tapped = <int>[];
     Widget frame(EpubVisualBlock block) => MaterialApp(
