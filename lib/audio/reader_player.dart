@@ -44,6 +44,37 @@ class ReaderPlayer extends ChangeNotifier {
   String? activeSpeakerId;
   String? _engineVoiceKey;
 
+  /// Deliberately session-only and OFF by default: an uncached cloud
+  /// lookahead can spend quota before the reader reaches that passage.
+  bool prefetchNextCloudChunk = false;
+
+  void setCloudPrefetch(bool enabled) {
+    if (engineProviderId != 'openai-speech') return;
+    prefetchNextCloudChunk = enabled;
+    // Disabling stops future scheduling. A previously paid lookahead may
+    // still finish and be reused for the next passage, avoiding a retry.
+    _notify();
+  }
+
+  SpeechVoice? _voiceFor(SpeechSegment segment) {
+    final chosen = castVoiceForSegment?.call(segment);
+    SpeechVoice? fallback = selectedVoice;
+    if (fallback == null && availableVoices.isNotEmpty) {
+      fallback = availableVoices.first;
+      if (engineProviderId == 'openai-speech') {
+        for (final voice in availableVoices) {
+          if (voice.name == 'marin') { fallback = voice; break; }
+        }
+      }
+    }
+    final requested = chosen ?? fallback;
+    if (requested == null) return null;
+    for (final voice in availableVoices) {
+      if (voice.key == requested.key) return voice;
+    }
+    return null;
+  }
+
 
   Future<void> loadVoices() async {
     try {
@@ -148,31 +179,7 @@ class ReaderPlayer extends ChangeNotifier {
         // Cast affects only synthesis voice, never text, offsets or order.
         // A narrator voice MUST be restored after a character's turn.
         if (castVoiceForSegment != null) {
-          final speakerVoice = castVoiceForSegment!(segment);
-          // Preserve the provider's default narrator timbre even after
-          // a character voice was temporarily selected.
-          SpeechVoice? fallback = selectedVoice;
-          if (fallback == null && availableVoices.isNotEmpty) {
-            fallback = availableVoices.first;
-            if (engineProviderId == 'openai-speech') {
-              for (final candidate in availableVoices) {
-                if (candidate.name == 'marin') {
-                  fallback = candidate;
-                  break;
-                }
-              }
-            }
-          }
-          final requested = speakerVoice ?? fallback;
-          SpeechVoice? installed;
-          if (requested != null) {
-            for (final voice in availableVoices) {
-              if (voice.key == requested.key) {
-                installed = voice;
-                break;
-              }
-            }
-          }
+          final installed = _voiceFor(segment);
           if (installed != null && installed.key != _engineVoiceKey) {
             await _engine.chooseVoice(installed);
             _engineVoiceKey = installed.key;
@@ -183,8 +190,29 @@ class ReaderPlayer extends ChangeNotifier {
         _notify();
         final spokenText =
             speechTextTransform?.call(segment.text) ?? segment.text;
-        await _engine.speak(spokenText,
+        final playing = _engine.speak(spokenText,
             language: language, rate: rate, pitch: pitch);
+        // The cloud implementation waits until current audio is ready
+        // before spending any quota on the next chunk. Only ONE future
+        // clip is prepared; actual audio output stays strictly serial.
+        if (prefetchNextCloudChunk &&
+            engineProviderId == 'openai-speech' &&
+            _engine is AheadOfTimeSpeechEngine &&
+            currentIndex + 1 < _segments.length) {
+          final next = _segments[currentIndex + 1];
+          final nextText =
+              speechTextTransform?.call(next.text) ?? next.text;
+          final cap = _engine as AheadOfTimeSpeechEngine;
+          unawaited(cap.prepareSpeech(
+            nextText,
+            voice: _voiceFor(next),
+            language: language, rate: rate, pitch: pitch,
+          ).catchError((Object _) {
+            // A failed prefetch is retained and surfaced by the next
+            // speak() without a second charged API request.
+          }));
+        }
+        await playing;
         if (token != _session) return;
         currentIndex++;
         _notify();
