@@ -6,9 +6,9 @@
 |---|---|---|
 | ER-001 Bootstrap | `pubspec.yaml`, Flutter entry point, bootstrap scripts | In progress |
 | ER-002 Book/anchors | BookRecord with source anchor + segment UTF-16 IDs; unit tests | Partial; stable spine/page anchors added, EPUB CFI not yet implemented |
-| ER-003 EPUB/TXT | OPF spine-based EPUB2/3 text extractor + TXT import | Partial; bounded ZIP/XML parsing, text-only, no rich XHTML layout |
+| ER-003 EPUB/TXT | OPF spine-based EPUB2/3 text extractor, XHTML heading chapter titles and reader directory; bounded ZIP/XML | Partial; spine items are not NAV/NCX, text-only renderer remains |
 | ER-004 PDF | PDF viewer + text-layer extraction; SQLite v15 independent visual-page recovery including scanned PDFs, 7 authored tests | Partial: page-only resume, no scroll/zoom bookmark, complex ordering/OCR pending |
-| ER-005 Reader | SQL source anchors, PDF text-mode, reader viewport, SQLite v14 recent-book shortcut (no auto-play) and 4 authored tests | Partial; source-anchor and page-level PDF visual resume authored, not device verified |
+| ER-005 Reader | Source-anchor text viewer with EPUB chapter directory/prev-next navigation, PDF text mode, recent-book shortcut | Partial; EPUB full XHTML layout, EPUB NAV/NCX and device verification open |
 | ER-006 TTS | OS/cloud speech adapters, voice/rate/pitch controls; 8-second bounded native Stop with no auto-replay | Partial; hung engine cannot be forcibly silenced by Dart alone |
 | ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow, viewport-to-audio start; no word marks | Partial |
 | ER-008 Android background | MediaSession, settled-idle focus, deduplicated Play and fail-closed Stop timeout | Source implemented; no process-death TTS restart; native validation pending |
@@ -385,3 +385,11 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - A late successful native Stop clears the unsafe flag but leaves narration paused until another explicit Play. A native Stop error permanently bars reuse of that player's failed engine.
 - Android MediaSession refuses remote Play before acquiring focus when native Stop is uncertain. Its focus lease and SQLite v16 crash marker remain held until Stop can be confirmed; `NarrationRecoveryBinding.dispose()` also preserves an uncertain marker when the reader is closed.
 - Added **8 authored but unexecuted tests** in `test/audio/native_stop_timeout_test.dart` and **1 new binding test** in `test/audio/narration_recovery_binding_test.dart` (8 tests in that file total). No native Flutter tests or binaries were run, as requested. See [Native Stop Timeout](NATIVE_STOP_TIMEOUT.md).
+
+## M1 — EPUB spine chapter navigation (2026-10-23)
+
+- The bounded EPUB extractor now surfaces per-item *display-only* chapter titles from body h1/h2/h3, with generic fallback and 120-character truncation. This does not change visible text, voice text, book hashes or source UTF-16 offsets.
+- `ReaderScreen` shows a navigable list of readable spine chapters, highlights the current chapter and provides previous/next navigation with a compact chapter indicator. An explicit chapter selection first pauses active narration and reuses the existing source-anchor persistence path; **it does not initiate billable TTS**.
+- `segmentEpubSpine` limits each segment to its own XHTML spine file, and `coalesceQuotedSpeech` accepts hard boundaries to prevent a long dialogue turn from inadvertently combining chunks from different chapters. Casting annotations remain validated against original source ranges. Chapter index construction is linear in the number of source segments.
+- Added **5 authored, unexecuted navigation tests** in `test/features/epub_chapter_navigation_test.dart` plus **2 EPUB heading/extraction tests** in `test/data/epub_text_extractor_test.dart`. No schema migration needed.
+- This is a **spine-item directory**, not a genuine nested EPUB3 NAV/EPUB2 NCX table of contents. Rich XHTML rendering, fonts, illustrations, table layout and EPUB CFI anchors are not yet implemented. Windows/Android compilation and live-device verification remain deferred. See [EPUB Chapter Navigation](EPUB_CHAPTER_NAVIGATION.md).
