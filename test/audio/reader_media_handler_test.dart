@@ -144,9 +144,9 @@ void main() {
     pending.attach(player, bookId: 'b', title: 'B');
     final remotePlay = pending.play();
     await Future<void>.delayed(Duration.zero);
-    await pending.pause();
+    final pausing = pending.pause();
     focusGate.complete(true);
-    await remotePlay;
+    await Future.wait([remotePlay, pausing]);
     expect(engine.spoken, isEmpty,
         reason: 'A late focus grant must not reverse a newer Pause');
     await pending.close();
@@ -179,6 +179,67 @@ void main() {
     expect(focusRequests, 1);
     expect(engine.spoken, ['First']);
     await handler.pause();
+    await handler.close();
+    player.dispose();
+  });
+
+  test('late focus grant is released after a superseding Pause', () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final granted = Completer<bool>();
+    var released = 0;
+    var acquired = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async {
+        acquired++;
+        return granted.future;
+      },
+      releaseFocus: () async { released++; },
+    );
+    handler.attach(player, bookId: 'b', title: 'Book');
+    final playing = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(acquired, 1);
+    final stopping = handler.pause();
+    granted.complete(true);
+    await Future.wait([playing, stopping]);
+    expect(player.isPlaying, isFalse);
+    expect(engine.spoken, isEmpty);
+    expect(released, greaterThanOrEqualTo(2),
+        reason: 'The queued native release must follow a delayed gain');
+    await handler.close();
+    player.dispose();
+  });
+
+  test('task removal stops and clears the media session', () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(player.isPlaying, isTrue);
+    await handler.onTaskRemoved();
+    expect(player.isPlaying, isFalse);
+    expect(handler.hasActiveBook, isFalse);
+    expect(handler.mediaItem.value, isNull);
+    expect(handler.playbackState.value.processingState,
+        AudioProcessingState.idle);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('notification removal pauses without forcing a new play', () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    await handler.onNotificationDeleted();
+    expect(player.isPlaying, isFalse);
+    expect(engine.spoken, ['First']);
+    expect(handler.hasActiveBook, isTrue);
     await handler.close();
     player.dispose();
   });
