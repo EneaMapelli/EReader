@@ -199,6 +199,21 @@ void main() {
     expect(result, isEmpty);
   });
 
+  test('a forged local excerpt is rejected before quota or HTTP', () async {
+    final permission = FakeAliasConsent()..allowed = true;
+    final transport = FakeAliasTransport();
+    final service = OpenAiAliasReconciler(
+      access: permission, vault: FakeAliasKey(), transport: transport);
+    await expectLater(service.reconcile(
+      window: window,
+      source: source.replaceFirst('Mira', 'Nora'),
+      idPrefix: 'forged',
+    ), throwsFormatException);
+    expect(permission.used, 0);
+    expect(transport.calls, 0);
+    service.dispose();
+  });
+
   test('missing key keeps budget untouched', () async {
     final policy = FakeAliasConsent()..allowed = true;
     final key = FakeAliasKey()..key = null;
