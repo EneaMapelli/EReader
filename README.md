@@ -20,6 +20,7 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - **Analisi dialoghi con LLM (facoltativa):** per capitolo EPUB, pagina PDF o intervallo TXT scelto; API OpenAI Responses con chiave e consenso specifici, quota di caratteri d'ingresso e conferma dell'estratto a ogni richiesta. I suggerimenti JSON sono verificati localmente e restano inattivi fino all'approvazione manuale. Il limite spoiler predefinito è la posizione di lettura salvata; contesto precedente e nomi dei personaggi sono inclusi solo dopo una selezione esplicita. Le prove citate dal modello sono ricollegate al testo originale.
 - **Continuità dei personaggi tra capitoli:** ricerca locale, disattivata di default, di brevi menzioni già conosciute negli ultimi capitoli precedenti; solo gli estratti verificati e mostrati nell'anteprima vengono opzionalmente inviati al modello, sempre entro il limite spoiler.
 - **Scoperta di nuovi personaggi:** modalità AI separata che propone solo nomi letteralmente presenti nel capitolo o estratto autorizzato. I candidati restano in una coda di revisione finché l'utente non ne conferma la creazione; nessuna voce o battuta viene assegnata automaticamente.
+- **Contesto dei dialoghi a più interlocutori:** durante la revisione dei pronomi mostra separatamente chi ha parlato nei passaggi precedenti con attribuzioni già approvate. Una battuta pronunciata non viene mai confusa con il personaggio a cui si riferisce il pronome.
 - **Indizi locali sugli antecedenti:** durante la revisione di pronomi e descrizioni mostra fino a cinque menzioni precedenti verificabili di nomi, alias e riferimenti già approvati. Non seleziona mai automaticamente il referente e non modifica le voci.
 - **Riferimenti indiretti ai personaggi:** quarta modalità AI per pronomi, titoli e descrizioni, con ipotesi esplicitamente revisionabili e conflitti lasciati irrisolti. L'approvazione aggiunge solo un collegamento narrativo, senza cambiare la voce di lettura.
 - **Riconciliazione dei soprannomi:** una terza modalità AI suggerisce collegamenti fra appellativi citati nel testo e personaggi già noti; ogni proposta viene verificata e approvata manualmente prima di aggiungere un alias. I riferimenti ambigui non vengono fusi automaticamente.
@@ -69,6 +70,7 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Contesto verificato dei personaggi dai capitoli precedenti](docs/HISTORICAL_CHARACTER_CONTEXT.md)
 - [Revisione dei riferimenti indiretti: pronomi e titoli](docs/INDIRECT_CHARACTER_REFERENCES.md)
 - [Indizi locali sugli antecedenti per la disambiguazione manuale](docs/LOCAL_ANTECEDENT_CUES.md)
+- [Interlocutori confermati vs riferimenti narrativi](docs/CONVERSATION_SPEAKER_CONTEXT.md)
 - [Riconoscimento assistito di nuovi personaggi e revisione](docs/CHARACTER_DISCOVERY.md)
 - [Riconciliazione alias, soprannomi e identità](docs/ALIAS_RECONCILIATION.md)
 - [Unificazione manuale di due personaggi e conservazione delle attribuzioni](docs/CAST_IDENTITY_MERGE.md)
