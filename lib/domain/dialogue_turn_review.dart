@@ -1,6 +1,6 @@
-import '../domain/cast_span.dart';
-import '../domain/reading_anchor.dart';
-import '../domain/voice_cast.dart';
+import 'cast_span.dart';
+import 'reading_anchor.dart';
+import 'voice_cast.dart';
 
 enum DialogueDelimiter { guillemets, curlyQuotes, doubleQuotes, dashLine }
 enum DialogueEnd { complete, interrupted, openOrTruncated }
