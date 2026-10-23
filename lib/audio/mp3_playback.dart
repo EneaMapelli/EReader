@@ -161,6 +161,24 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
     }
   }
 
+  Future<void> _discardPrepared() async {
+    final task = _preparing;
+    _pendingBytes = null;
+    _pendingSpeed = null;
+    _pendingSlot = null;
+    _preparing = null;
+    if (task != null) {
+      try { await task; } catch (_) {
+        // Cleanup is still required if decoder loading failed.
+      }
+    }
+    final slot = _standby;
+    if (slot != null) {
+      await slot.decoder.stop();
+      await _clearFile(slot);
+    }
+  }
+
   @override
   Future<void> play(Uint8List bytes, {required double speed}) async {
     _check(bytes, speed);
@@ -184,8 +202,10 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
       _pendingSlot = null;
       _preparing = null;
     } else {
-      // No usable standby; reuse the current decoder for a cold load.
-      // The pending standby remains reserved until it is explicitly stopped.
+      // A seek, voice/speed change or different cached clip must invalidate
+      // the stale warm slot. Otherwise it would block all future preloads.
+      if (_pendingBytes != null) await _discardPrepared();
+      if (_disposed || token != _generation) return;
       slot = _active!;
       await _load(slot, bytes, speed, token);
     }
