@@ -67,7 +67,7 @@ class TestTransport implements DialogueAnalysisTransport {
 
 void main() {
   const excerpt = '«Ciao!»';
-  final scope = const DialogueAnalysisScope(
+  final scope = DialogueAnalysisScope(
     id: 'chapter-one', title: 'First chapter',
     start: 0, end: excerpt.length,
   );
