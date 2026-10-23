@@ -8,6 +8,8 @@ import '../../data/library_store.dart';
 import '../../domain/book.dart';
 import '../../domain/speech_segment.dart';
 import '../../domain/voice_cast.dart';
+import '../../domain/cast_span.dart';
+import '../../domain/llm_cast_proposals.dart';
 
 /// User-curated characters, provider voice profiles and segment attribution.
 /// Never guesses speakers, modifies the source or sends text to an LLM.
@@ -35,6 +37,7 @@ class VoiceCastScreen extends StatefulWidget {
 class _VoiceCastScreenState extends State<VoiceCastScreen> {
   List<CastCharacter> _characters = const [];
   List<CastVoiceAssignment> _voices = const [];
+  List<CastSpan> _fine = const [];
   late VoiceCastResolver _resolver;
   final _search = TextEditingController();
 
@@ -47,6 +50,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
   void _reload() {
     _characters = widget.store.listCastCharacters(widget.book.id);
     _voices = widget.store.listCastVoices(widget.book.id);
+    _fine = widget.store.listCastSpans(widget.book.id);
     _resolver = VoiceCastResolver(
       bookId: widget.book.id,
       providerId: widget.providerId,
@@ -281,6 +285,257 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
     );
   }
 
+  Future<void> _annotateSelection(SpeechSegment segment) async {
+    final editor = TextEditingController(text: segment.text);
+    String? speaker = _characters.isEmpty ? null : _characters.first.id;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialog, refresh) => AlertDialog(
+          title: const Text('Assign selected text'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Select exactly the words spoken by this character '
+                    'inside the text field. Use a long press or mouse drag. '
+                    'Unselected narration keeps the narrator voice.',
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: editor,
+                    readOnly: true,
+                    showCursor: false,
+                    maxLines: 6,
+                    minLines: 3,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Select excerpt',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: speaker ?? '',
+                    decoration: const InputDecoration(labelText: 'Speaker'),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: '', child: Text('Narrator / unknown'),
+                      ),
+                      for (final person in _characters)
+                        DropdownMenuItem(
+                          value: person.id, child: Text(person.name),
+                        ),
+                    ],
+                    onChanged: (choice) =>
+                        refresh(() => speaker = choice ?? ''),
+                  ),
+                  const SizedBox(height: 8),
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: editor,
+                    builder: (context, value, child) {
+                      final selection = value.selection;
+                      final valid = selection.isValid &&
+                          !selection.isCollapsed &&
+                          selection.start >= 0 &&
+                          selection.end <= segment.text.length;
+                      return Text(valid
+                          ? 'Selected: ' + segment.text.substring(
+                              selection.start, selection.end)
+                          : 'Select a nonempty excerpt to enable Save');
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Cancel'),
+            ),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: editor,
+              builder: (context, value, child) {
+                final selection = value.selection;
+                final valid = selection.isValid &&
+                    !selection.isCollapsed && selection.start >= 0 &&
+                    selection.end <= segment.text.length;
+                return FilledButton(
+                  onPressed: !valid ? null : () async {
+                    final start = segment.start + selection.start;
+                    final end = segment.start + selection.end;
+                    final original = widget.document.text.substring(start, end);
+                    final span = CastSpan(
+                      id: 'manual-' +
+                          DateTime.now().microsecondsSinceEpoch.toString() +
+                          '-' + Random.secure().nextInt(1 << 30).toString(),
+                      bookId: widget.book.id,
+                      start: start,
+                      end: end,
+                      sourceDigest: CastSpan.digest(original),
+                      speakerId: speaker == null || speaker!.isEmpty
+                          ? null : speaker,
+                      origin: CastSpanOrigin.user,
+                      status: CastSpanStatus.accepted,
+                      lockedByUser: true,
+                      anchor: widget.document.anchorAt(
+                          widget.book.format, start),
+                    );
+                    try {
+                      await widget.store.saveManualCastSpan(
+                        span, widget.document.text);
+                      if (dialog.mounted) Navigator.pop(dialog, true);
+                    } catch (error) {
+                      if (dialog.mounted) {
+                        ScaffoldMessenger.of(dialog).showSnackBar(SnackBar(
+                          content: Text('Cannot save selection: ' +
+                              error.toString()),
+                        ));
+                      }
+                    }
+                  },
+                  child: const Text('Save selected excerpt'),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+    editor.dispose();
+    if (mounted && saved == true) _reload();
+  }
+
+  Future<void> _importProposals() async {
+    final input = TextEditingController();
+    final submitted = await showDialog<String>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Import structured speaker proposals'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580, maxHeight: 480),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text(
+              'For locally reviewed JSON annotations only. '
+              'Importing never contacts an LLM or applies the labels. '
+              'All suggestions appear as pending until explicitly accepted.',
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: input,
+              minLines: 6,
+              maxLines: 12,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Version 1 JSON proposal',
+              ),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, input.text),
+            child: const Text('Validate and import'),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    if (submitted == null || !mounted) return;
+    try {
+      final entries = const CastProposalParser().parse(
+        jsonPayload: submitted,
+        bookId: widget.book.id,
+        sourceText: widget.document.text,
+        knownSpeakerIds: {for (final c in _characters) c.id},
+      );
+      await widget.store.importCastProposals(
+          entries, widget.document.text);
+      if (mounted) _reload();
+    } catch (error) {
+      _error(error);
+    }
+  }
+
+  Future<void> _review(CastSpan span, {required bool approve}) async {
+    try {
+      await widget.store.reviewCastProposal(span.id, approve: approve);
+      if (mounted) _reload();
+    } catch (error) {
+      _error(error);
+    }
+  }
+
+  Widget _reviewTab() {
+    final pending = _fine.where(
+      (span) => span.status == CastSpanStatus.proposed,
+    ).toList();
+    final names = {
+      for (final character in _characters) character.id: character.name,
+    };
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+      children: [
+        const Text(
+          'Future LLM findings must be reviewed individually. '
+          'Manual character labels stay locked and take precedence. '
+          'You can import schema-validated JSON locally; no request '
+          'or cost is triggered by this screen.',
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.upload_file),
+          label: const Text('Import structured suggestions'),
+          onPressed: _importProposals,
+        ),
+        if (pending.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(20),
+            child: Text('There are no pending speaker suggestions.'),
+          ),
+        for (final span in pending)
+          Card(
+            child: ListTile(
+              title: Text(span.matchesSource(
+                    widget.document.text, widget.document.offsetOf)
+                  ? widget.document.text.substring(
+                      span.resolvedStart(widget.document.offsetOf)!,
+                      span.resolvedStart(widget.document.offsetOf)! +
+                          span.length)
+                  : '[Stale annotation: source text changed]',
+                maxLines: 3),
+              subtitle: Text(
+                'Speaker: ' + (names[span.speakerId] ?? 'Unknown') +
+                ' · confidence: ' +
+                (span.confidence?.toStringAsFixed(2) ?? '?'),
+              ),
+              trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+                IconButton(
+                  icon: const Icon(Icons.check),
+                  tooltip: 'Accept this suggestion',
+                  onPressed: span.matchesSource(
+                      widget.document.text, widget.document.offsetOf)
+                      ? () => _review(span, approve: true) : null,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Reject this suggestion',
+                  onPressed: () => _review(span, approve: false),
+                ),
+              ]),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _passagesTab() {
     final term = _search.text.toLowerCase().trim();
     final indices = <int>[];
@@ -325,8 +580,14 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
                 (speaker == null
                     ? 'Narrator' : (names[speaker] ?? 'Unknown')),
               ),
-              trailing: PopupMenuButton<String>(
-                tooltip: 'Assign speaker',
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                IconButton(
+                  tooltip: 'Assign a selected part of the passage',
+                  icon: const Icon(Icons.format_color_text),
+                  onPressed: () => _annotateSelection(segment),
+                ),
+                PopupMenuButton<String>(
+                tooltip: 'Assign whole segment',
                 onSelected: (value) => _setSpeaker(segment, value),
                 itemBuilder: (context) => [
                   const PopupMenuItem(
@@ -337,7 +598,8 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
                       value: person.id, child: Text(person.name),
                     ),
                 ],
-              ),
+                ),
+              ]),
             );
           },
         ),
@@ -347,16 +609,19 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-    length: 2,
+    length: 3,
     child: Scaffold(
       appBar: AppBar(
         title: const Text('Voice cast'),
         bottom: const TabBar(tabs: [
           Tab(icon: Icon(Icons.groups_outlined), text: 'Characters'),
           Tab(icon: Icon(Icons.format_quote), text: 'Passages'),
+          Tab(icon: Icon(Icons.fact_check_outlined), text: 'Review'),
         ]),
       ),
-      body: TabBarView(children: [_charactersTab(), _passagesTab()]),
+      body: TabBarView(children: [
+        _charactersTab(), _passagesTab(), _reviewTab(),
+      ]),
     ),
   );
 }
