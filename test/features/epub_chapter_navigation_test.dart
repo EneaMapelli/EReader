@@ -120,6 +120,25 @@ void main() {
       null, const SpeechSegment(0, 11, 'Chapter One')), isFalse);
   });
 
+  test('binary chapter lookup remains correct across 20000 sections',
+      () {
+    final chapters = List<EpubChapter>.generate(
+      20000,
+      (index) => EpubChapter(
+        idref: 'id$index', title: 'Chapter $index',
+        start: index * 17, end: (index + 1) * 17,
+        segmentIndex: index,
+      ),
+    );
+    for (final index in [0, 1, 10, 999, 12000, 19999]) {
+      expect(chapterIndexForOffset(chapters, index * 17), index);
+      expect(chapterIndexForOffset(chapters, index * 17 + 16), index);
+    }
+    expect(chapterIndexForOffset(chapters, -100), 0);
+    expect(chapterIndexForOffset(chapters, 999999), 19999);
+    expect(chapterIndexForOffset(const [], 0), -1);
+  });
+
   test('source fragment inside a long speech chunk maps to that chunk', () {
     const segments = [
       SpeechSegment(0, 9, 'Beginning'),
