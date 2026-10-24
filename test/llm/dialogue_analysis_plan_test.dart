@@ -177,7 +177,7 @@ void main() {
     final window = planner.makeWindow(
       bookId: 'book',
       content: const DocumentContent(title: 'Chronological', text: source),
-      scope: const DialogueAnalysisScope(
+      scope: DialogueAnalysisScope(
         id: 'scene', title: 'Scene', start: 0, end: source.length),
       segments: segments, cast: known, from: speechStart,
       contextChars: 200,
