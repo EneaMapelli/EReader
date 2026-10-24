@@ -1,15 +1,23 @@
 import '../../data/book_decoder.dart';
+import '../../data/epub_inline_style.dart';
 import '../../domain/speech_segment.dart';
 import 'epub_chapter_navigation.dart';
 
 /// An unmodified substring of the extracted EPUB text, optionally covered
 /// by one of the speech engine's original, source-aligned segments.
 class EpubVisualRun {
-  const EpubVisualRun(this.start, this.end, this.text, this.segmentIndex);
+  const EpubVisualRun(this.start, this.end, this.text, this.segmentIndex, {
+    this.bold = false,
+    this.italic = false,
+    this.headingLevel = 0,
+  });
   final int start;
   final int end;
   final String text;
   final int? segmentIndex;
+  final bool bold;
+  final bool italic;
+  final int headingLevel;
 }
 
 /// One paragraph-sized, text-only display unit. Reading anchors always
@@ -81,6 +89,16 @@ EpubVisualLayout buildEpubVisualLayout(
     throw ArgumentError.value(maxBlockChars, 'maxBlockChars');
   }
   final source = document.text;
+  final styles = document.epubInlineStyles;
+  var lastStyleEnd = 0;
+  for (final style in styles) {
+    if (style.start < lastStyleEnd || style.end <= style.start ||
+        style.end > source.length || style.headingLevel < 0 ||
+        style.headingLevel > 6) {
+      throw const FormatException('Invalid EPUB inline style ranges');
+    }
+    lastStyleEnd = style.end;
+  }
   var previousEnd = 0;
   for (final segment in segments) {
     if (segment.start < previousEnd || segment.end <= segment.start ||
@@ -94,6 +112,7 @@ EpubVisualLayout buildEpubVisualLayout(
   final blocks = <EpubVisualBlock>[];
   final mapping = List<int>.filled(segments.length, -1);
   var segmentCursor = 0;
+  var styleCursor = 0;
   var previousSpineEnd = 0;
   final headings = {for (final chapter in chapters) chapter.start: chapter};
   final doubleNewline = RegExp(r'\n[ \t]*\n+');
@@ -119,14 +138,42 @@ EpubVisualLayout buildEpubVisualLayout(
     int? firstSegment;
     void append(int from, int to, int? segmentIndex) {
       if (from >= to) return;
-      runs.add(EpubVisualRun(
-        from, to, source.substring(from, to), segmentIndex,
-      ));
       if (segmentIndex != null) {
         firstSegment ??= segmentIndex;
         if (mapping[segmentIndex] == -1) {
           mapping[segmentIndex] = blocks.length;
         }
+      }
+      // Preserve both the TTS run index and the semantic XHTML style. A
+      // bold/italic span can begin or end in the middle of one speech chunk.
+      // Since source and style offsets are sorted, all blocks are linear.
+      var offset = from;
+      while (offset < to) {
+        while (styleCursor < styles.length &&
+            styles[styleCursor].end <= offset) {
+          styleCursor++;
+        }
+        EpubInlineStyleSpan? style;
+        var until = to;
+        if (styleCursor < styles.length) {
+          final candidate = styles[styleCursor];
+          if (candidate.start > offset) {
+            if (candidate.start < until) until = candidate.start;
+          } else {
+            style = candidate;
+            if (candidate.end < until) until = candidate.end;
+          }
+        }
+        if (until <= offset) {
+          throw const FormatException('Non-progressing EPUB inline style');
+        }
+        runs.add(EpubVisualRun(
+          offset, until, source.substring(offset, until), segmentIndex,
+          bold: style?.bold ?? false,
+          italic: style?.italic ?? false,
+          headingLevel: style?.headingLevel ?? 0,
+        ));
+        offset = until;
       }
     }
 
@@ -154,12 +201,16 @@ EpubVisualLayout buildEpubVisualLayout(
     final chapter = headings[start];
     final normalized = source.substring(start, end)
         .replaceAll(RegExp(r'\s+'), ' ').trim();
+    final semanticHeading = runs.isNotEmpty &&
+        runs.every((run) =>
+            run.headingLevel > 0 || run.text.trim().isEmpty);
     blocks.add(EpubVisualBlock(
       start: start,
       end: end,
       runs: List.unmodifiable(runs),
       chapterStart: chapterStart,
-      heading: chapter != null && normalized == chapter.title,
+      heading: semanticHeading ||
+          (chapter != null && normalized == chapter.title),
       firstSegmentIndex: firstSegment,
     ));
   }
