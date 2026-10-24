@@ -12,6 +12,7 @@ Uint8List fixture({
   required String second,
   String? nav,
   String? ncx,
+  String? auxiliaryXhtml,
 }) {
   final archive = Archive()
     ..add(ArchiveFile.noCompress('mimetype',
@@ -23,6 +24,9 @@ Uint8List fixture({
     ..add(ArchiveFile.string('OPS/Text/second.xhtml', second));
   if (nav != null) archive.add(ArchiveFile.string('OPS/nav.xhtml', nav));
   if (ncx != null) archive.add(ArchiveFile.string('OPS/toc.ncx', ncx));
+  if (auxiliaryXhtml != null) {
+    archive.add(ArchiveFile.string('OPS/Text/notes.xhtml', auxiliaryXhtml));
+  }
   return ZipEncoder().encodeBytes(archive);
 }
 
@@ -155,6 +159,101 @@ void main() {
     expect(result.footnotePreviews, isEmpty);
     expect(result.links.single.isFootnote, isTrue);
     expect(result.text, contains(longNote));
+  });
+
+  test('manifest-declared non-spine note previews never join spoken source', () {
+    const auxiliaryOpf = '''
+<package version="3.0"><metadata><title>Auxiliary Notes</title></metadata>
+<manifest>
+  <item id="main" href="Text/first.xhtml" media-type="application/xhtml+xml"/>
+  <item id="notes" href="Text/notes.xhtml" media-type="application/xhtml+xml"/>
+</manifest><spine><itemref idref="main"/></spine></package>''';
+    const first = '<html><body><p>Main text '
+      '<a epub:type="noteref" href="notes.xhtml#fn1">[1]</a>.</p></body></html>';
+    const note = '<html><body><aside id="fn1" epub:type="footnote">'
+      '<p>Auxiliary explanatory text.</p></aside></body></html>';
+    final result = decoder.extract(fixture(
+      opf: auxiliaryOpf, first: first, second: '<html><body>Unused</body></html>',
+      auxiliaryXhtml: note,
+    ));
+    expect(result.text, 'Main text [1].');
+    expect(result.ranges.length, 1);
+    expect(result.links.length, 1);
+    final link = result.links.single;
+    expect(link.isFootnote, isTrue);
+    expect(link.targetOffset, isNull);
+    expect(link.auxiliaryFootnoteKey, 'OPS/Text/notes.xhtml#fn1');
+    expect(result.auxiliaryFootnotePreviews.length, 1);
+    expect(result.auxiliaryFootnotePreviews.single.key,
+        link.auxiliaryFootnoteKey);
+    expect(result.auxiliaryFootnotePreviews.single.text,
+        'Auxiliary explanatory text.');
+    expect(result.footnotePreviews, isEmpty);
+    expect(result.text, isNot(contains('Auxiliary explanatory text')));
+  });
+
+  test('unlisted non-spine note is not read or linked', () {
+    const opf = '''
+<package><metadata><title>X</title></metadata><manifest>
+ <item id="a" href="Text/first.xhtml" media-type="application/xhtml+xml"/>
+</manifest><spine><itemref idref="a"/></spine></package>''';
+    final result = decoder.extract(fixture(
+      opf: opf,
+      first: '<html><body><p><a epub:type="noteref" '
+          'href="notes.xhtml#fn1">[1]</a></p></body></html>',
+      second: '<html><body>Unused</body></html>',
+      auxiliaryXhtml: '<html><body><aside id="fn1" epub:type="footnote">'
+          'Should not load.</aside></body></html>',
+    ));
+    expect(result.links, isEmpty);
+    expect(result.auxiliaryFootnotePreviews, isEmpty);
+  });
+
+  test('nonsemantic, oversized, or missing auxiliary note fails closed', () {
+    const opf = '''
+<package><metadata><title>X</title></metadata><manifest>
+ <item id="a" href="Text/first.xhtml" media-type="application/xhtml+xml"/>
+ <item id="n" href="Text/notes.xhtml" media-type="application/xhtml+xml"/>
+</manifest><spine><itemref idref="a"/></spine></package>''';
+    const first = '<html><body><p>'
+        '<a epub:type="noteref" href="notes.xhtml#fn1">[1]</a> '
+        '<a epub:type="noteref" href="notes.xhtml#missing">[2]</a>'
+        '</p></body></html>';
+    final tooLong = List.filled(500, 'More details ').join();
+    for (final auxiliary in [
+      '<html><body><p id="fn1">Not a semantic footnote.</p></body></html>',
+      '<html><body><aside id="fn1" epub:type="footnote">'
+        '$tooLong</aside></body></html>',
+    ]) {
+      final result = decoder.extract(fixture(
+        opf: opf, first: first, second: 'unused',
+        auxiliaryXhtml: auxiliary,
+      ));
+      expect(result.auxiliaryFootnotePreviews, isEmpty);
+      expect(result.links, isEmpty);
+    }
+  });
+
+  test('auxiliary note cannot be obtained using external URL or path escape', () {
+    const opf = '''
+<package><metadata><title>X</title></metadata><manifest>
+ <item id="a" href="Text/first.xhtml" media-type="application/xhtml+xml"/>
+ <item id="n" href="Text/notes.xhtml" media-type="application/xhtml+xml"/>
+</manifest><spine><itemref idref="a"/></spine></package>''';
+    final result = decoder.extract(fixture(
+      opf: opf, second: 'unused',
+      first: '<html><body><p>'
+        '<a epub:type="noteref" href="https://other.test/note#fn1">A</a>'
+        '<a epub:type="noteref" href="../../../../notes.xhtml#fn1">B</a>'
+        '<a epub:type="noteref" href="notes.xhtml#fn1">C</a>'
+        '</p></body></html>',
+      auxiliaryXhtml: '<html><body><aside id="fn1" role="doc-footnote">'
+        'Safe note.</aside></body></html>',
+    ));
+    expect(result.auxiliaryFootnotePreviews.length, 1);
+    expect(result.links.length, 1);
+    expect(result.links.single.auxiliaryFootnoteKey,
+        'OPS/Text/notes.xhtml#fn1');
   });
 
   test('EPUB2 NCX navPoint nesting maps to the same source anchors', () {
