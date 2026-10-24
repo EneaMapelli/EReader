@@ -15,30 +15,38 @@ class EpubAnchorContext {
         offset < start || offset > end) {
       throw RangeError('Invalid EPUB anchor capture range');
     }
-    final before = <int>[];
-    for (var i = offset - 1; i >= start && before.length < contextUnits; i--) {
-      final unit = text.codeUnitAt(i);
-      if (!_space(unit)) before.add(unit);
-    }
-    final after = <int>[];
-    for (var i = offset; i < end && after.length < contextUnits; i++) {
-      final unit = text.codeUnitAt(i);
-      if (!_space(unit)) after.add(unit);
-    }
-    // Stable binary representation, including raw surrogate code units.
-    String digest(List<int> units, {required bool reversed}) {
-      final bytes = <int>[];
-      final values = reversed ? units.reversed : units;
-      for (final unit in values) {
-        bytes.add(unit >> 8);
-        bytes.add(unit & 255);
-      }
-      return sha256.convert(bytes).toString().substring(0, 32);
-    }
     return (
-      before: digest(before, reversed: true),
-      after: digest(after, reversed: false),
+      before: _sideDigest(text, start, end, offset, before: true),
+      after: _sideDigest(text, start, end, offset, before: false),
     );
+  }
+
+  /// Each side has an independently checkable v2 fingerprint. Checking
+  /// the preceding context first avoids hashing the following context at
+  /// essentially every wrong candidate in a very long chapter.
+  static String _sideDigest(String text, int start, int end, int offset,
+      {required bool before}) {
+    final units = <int>[];
+    if (before) {
+      for (var i = offset - 1; i >= start && units.length < contextUnits; i--) {
+        final unit = text.codeUnitAt(i);
+        if (!_space(unit)) units.add(unit);
+      }
+    } else {
+      for (var i = offset; i < end && units.length < contextUnits; i++) {
+        final unit = text.codeUnitAt(i);
+        if (!_space(unit)) units.add(unit);
+      }
+    }
+    // Keep the exact v2 byte order: before is reversed after scanning
+    // backwards, after is already in source order. No hash migration.
+    final bytes = <int>[];
+    final ordered = before ? units.reversed : units;
+    for (final unit in ordered) {
+      bytes.add(unit >> 8);
+      bytes.add(unit & 255);
+    }
+    return sha256.convert(bytes).toString().substring(0, 32);
   }
 
   static bool matches(String text, int start, int end,
@@ -46,8 +54,10 @@ class EpubAnchorContext {
     if (!anchor.hasContext || offset < start || offset > end ||
         _splitsSurrogate(text, offset) ||
         (offset < end && _space(text.codeUnitAt(offset)))) return false;
-    final c = capture(text, start, end, offset);
-    return c.before == anchor.contextBefore && c.after == anchor.contextAfter;
+    if (_sideDigest(text, start, end, offset, before: true) !=
+        anchor.contextBefore) return false;
+    return _sideDigest(text, start, end, offset, before: false) ==
+        anchor.contextAfter;
   }
 
   /// Return a location only when there is exactly ONE full fingerprint
@@ -64,10 +74,10 @@ class EpubAnchorContext {
       // actual glyphs (or item end) to avoid phantom ambiguity.
       if ((pos < end && _space(text.codeUnitAt(pos))) ||
           _splitsSurrogate(text, pos)) continue;
-      // Prefix check avoids hashing the suffix for most candidates.
-      final c = capture(text, start, end, pos);
-      if (c.before != anchor.contextBefore ||
-          c.after != anchor.contextAfter) continue;
+      if (_sideDigest(text, start, end, pos, before: true) !=
+          anchor.contextBefore) continue;
+      if (_sideDigest(text, start, end, pos, before: false) !=
+          anchor.contextAfter) continue;
       if (found != null) return null;
       found = pos;
     }
