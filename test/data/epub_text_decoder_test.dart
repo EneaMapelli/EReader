@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 Uint8List utf16Resource(String text, {required bool littleEndian,
     bool bom = true}) {
   final bytes = <int>[
-    if (bom) ...littleEndian ? [0xff, 0xfe] : [0xfe, 0xff],
+    if (bom) ...(littleEndian ? const [0xff, 0xfe] : const [0xfe, 0xff]),
   ];
   for (final unit in text.codeUnits) {
     if (littleEndian) {
