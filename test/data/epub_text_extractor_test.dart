@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:ereader/data/epub_text_extractor.dart';
+import 'package:ereader/data/epub_import_diagnostics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Uint8List makeEpub({
@@ -288,6 +289,50 @@ void main() {
     ));
     expect(result.images, isEmpty);
     expect(result.text, contains('Photo.'));
+  });
+
+  test('optional EPUB incompatibilities are summarized without failing text', () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><body><p>Read this.</p>'
+        '<a href="https://example.invalid/anything">Remote</a>'
+        '<a href="#nonexistent">Missing</a>'
+        '<img src="https://example.invalid/tracker.png" />'
+        '<img src="../Pictures/not-in-manifest.png" />'
+        '</body></html>',
+    ));
+    expect(result.text, contains('Read this.'));
+    expect(result.links, isEmpty);
+    expect(result.images, isEmpty);
+    final counts = {for (final d in result.diagnostics)
+      d.code: d.occurrences};
+    expect(counts[EpubDiagnosticCode.unresolvedInternalLink], 2);
+    expect(counts[EpubDiagnosticCode.rejectedImage], 2);
+    expect(counts[EpubDiagnosticCode.unreadableAuthorToc], 1);
+  });
+
+  test('empty XHTML in one spine item is recorded, not made into speech', () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><body><img src="illustration.png"/></body></html>',
+      second: '<html><body><p>Still readable.</p></body></html>',
+    ));
+    expect(result.text, 'Still readable.');
+    expect(result.ranges.length, 1);
+    expect(result.ranges.single.start, 0);
+    expect(result.diagnostics.any((item) =>
+        item.code == EpubDiagnosticCode.emptySpineItem &&
+        item.occurrences == 1), isTrue);
+  });
+
+  test('repeated spine idref is rejected to prevent ambiguous recovery anchor',
+      () {
+    const opf = '<package><manifest>'
+      '<item id="a" href="Text/first.xhtml" '
+      'media-type="application/xhtml+xml"/>'
+      '</manifest><spine>'
+      '<itemref idref="a"/><itemref idref="a"/>'
+      '</spine></package>';
+    expect(() => extractor.extract(makeEpub(opf: opf)),
+        throwsFormatException);
   });
 
   test('fails with missing XHTML resource instead of skipping a chapter', () {
