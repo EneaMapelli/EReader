@@ -51,6 +51,30 @@ void main() {
     expect(File(store.books.single.localPath).existsSync(), isTrue);
   });
 
+  test('v2 EPUB context survives existing SQLite progress-anchor JSON column',
+      () async {
+    final source = File(p.join(root.path, 'anchor.txt'));
+    await source.writeAsString('Local reading content');
+    final book = await store.importFile(source.path);
+    final before = List.filled(32, 'a').join();
+    final after = List.filled(32, 'b').join();
+    final anchor = ReadingAnchor(
+      kind: AnchorKind.epubSpine, sourceId: 'chapter-1',
+      localOffset: 7, contextBefore: before, contextAfter: after,
+    );
+    await store.savePosition(book.id, 7, anchor: anchor);
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    final loaded = store.getBook(book.id)!;
+    expect(loaded.progressOffset, 7);
+    expect(loaded.progressAnchor?.sourceId, 'chapter-1');
+    expect(loaded.progressAnchor?.localOffset, 7);
+    expect(loaded.progressAnchor?.hasContext, isTrue);
+    expect(loaded.progressAnchor?.contextBefore, before);
+    expect(loaded.progressAnchor?.contextAfter, after);
+  });
+
   test('rejects invalid extensions, signature and negative positions', () async {
     final source = File(p.join(root.path, 'fake.epub'));
     await source.writeAsString('Not a ZIP');
