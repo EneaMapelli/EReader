@@ -88,7 +88,7 @@ void main() {
       of: find.byType(EpubParagraphTile),
       matching: find.byType(RichText),
     ));
-    expect(rich.text.toPlainText(), 'Opening');
+    expect(rich.text.toPlainText(includeSemanticsLabels: false), 'Opening');
     expect(rich.text.style?.fontSize, 24);
   });
 
@@ -113,7 +113,7 @@ void main() {
         matching: find.byType(RichText),
       ));
       final spans = leafTextSpans(rich.text);
-      expect(rich.text.toPlainText(), 'Hello world');
+      expect(rich.text.toPlainText(includeSemanticsLabels: false), 'Hello world');
       expect(spans.last.style?.backgroundColor, palette.highlight(context));
       expect(rich.text.style?.color, palette.foreground(context));
       expect(palette.background(context), isNot(palette.foreground(context)));
@@ -146,7 +146,7 @@ void main() {
       matching: find.byType(RichText),
     ));
     final spans = leafTextSpans(rich.text);
-    expect(rich.text.toPlainText(), 'Alpha BETA gamma');
+    expect(rich.text.toPlainText(includeSemanticsLabels: false), 'Alpha BETA gamma');
     final boldSpan = spans.firstWhere((span) => span.text == 'BETA');
     final italicSpan = spans.firstWhere((span) => span.text == 'gamma');
     expect(boldSpan.style?.fontWeight, FontWeight.w700);
@@ -182,7 +182,7 @@ void main() {
       of: find.byType(EpubParagraphTile),
       matching: find.byType(RichText),
     ));
-    expect(rich.text.toPlainText(), 'Section');
+    expect(rich.text.toPlainText(includeSemanticsLabels: false), 'Section');
     expect(leafTextSpans(rich.text).single.style?.fontWeight,
         FontWeight.w700);
   });
@@ -246,7 +246,7 @@ void main() {
       matching: find.byType(RichText),
     ));
     final spans = leafTextSpans(rich.text);
-    expect(rich.text.toPlainText(), '[1] and open it');
+    expect(rich.text.toPlainText(includeSemanticsLabels: false), '[1] and open it');
     (spans.first.recognizer! as TapGestureRecognizer).onTap!();
     (spans.last.recognizer! as TapGestureRecognizer).onTap!();
     expect(noteTaps, [42]);
@@ -309,7 +309,7 @@ void main() {
       matching: find.byType(RichText),
     ));
     final spans = leafTextSpans(rich.text);
-    expect(rich.text.toPlainText(), 'Read [1]');
+    expect(rich.text.toPlainText(includeSemanticsLabels: false), 'Read [1]');
     expect(spans.last.style?.decoration, TextDecoration.underline);
     (spans.last.recognizer! as TapGestureRecognizer).onTap!();
     expect(previews, [key]);
@@ -355,7 +355,7 @@ void main() {
       of: find.byType(EpubParagraphTile),
       matching: find.byType(RichText),
     ).first);
-    expect(rich.text.toPlainText(), 'Caption',
+    expect(rich.text.toPlainText(includeSemanticsLabels: false), 'Caption',
         reason: 'TTS source remains present exactly once in the paragraph');
   });
 
@@ -383,6 +383,6 @@ void main() {
     final span = leafTextSpans(rich.text).single;
     (span.recognizer! as TapGestureRecognizer).onTap!();
     expect(tapped, [5]);
-    expect(rich.text.toPlainText(), 'Another');
+    expect(rich.text.toPlainText(includeSemanticsLabels: false), 'Another');
   });
 }
