@@ -90,9 +90,10 @@ offset. The manifest/path/size and semantic-note checks are detailed in
 
 ## Limits and subsequent work
 
-The popup supports semantic notes inside readable XHTML spine items and
-strictly bounded, manifest-declared auxiliary XHTML notes outside the spine,
-all with a verified ID.
+The popup supports semantic EPUB3 note blocks and the narrowly verified
+legacy EPUB2 note patterns described in [EPUB2 Legacy Footnotes](EPUB2_LEGACY_FOOTNOTES.md).
+Both readable-spine and strictly bounded, manifest-declared auxiliary
+XHTML notes require a verified original fragment destination.
 Non-linear auxiliary XHTML files are supported only as passive
 plain-text note popups when referenced from readable spine text, declared
 in the manifest and marked semantically. Mathematical formula/image-only
