@@ -703,6 +703,18 @@ class _ReaderScreenState extends State<ReaderScreen>
     _navigateToSourceOffset(sourceOffset, remember: true);
   }
 
+  Future<void> _previewAuxiliaryEpubFootnote(String key) async {
+    if (!mounted || widget.book.format != BookFormat.epub) return;
+    final document = _document;
+    if (document == null) return;
+    final previews = document.epubAuxiliaryFootnotePreviews
+        .where((note) => note.key == key);
+    if (previews.isEmpty) return; // Invalid/stale reference: fail closed.
+    // A non-spine note is read-only: do not call seek, savePosition,
+    // play/pause, cloud APIs, or add anything to the link return stack.
+    await showEpubAuxiliaryFootnotePreview(context, previews.first);
+  }
+
   void _openEpubLink(int sourceOffset) =>
       _navigateToSourceOffset(sourceOffset, remember: true);
 
@@ -1015,6 +1027,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                                         onOpenLink: _openEpubLink,
                                         onOpenFootnote: (offset) =>
                                             unawaited(_previewEpubFootnote(offset)),
+                                        onOpenAuxiliaryFootnote: (key) =>
+                                            unawaited(_previewAuxiliaryEpubFootnote(key)),
                                       );
                                     }
                                     final segment = player.segments[index];
