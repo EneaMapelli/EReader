@@ -1,6 +1,8 @@
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as parser;
 
+import 'epub_html_preprocess.dart';
+
 /// Pure presentation metadata, measured in UTF-16 code units of the
 /// *unchanged* EpubTextExtractor output. Does not change the TTS input.
 class EpubInlineStyleSpan {
@@ -28,13 +30,7 @@ class EpubInlineStyleSpan {
 /// No scripts, CSS, links, embedded resources or images are ever evaluated.
 List<EpubInlineStyleSpan> extractEpubInlineStyles(
     String xhtml, String expectedText) {
-  final prepared = xhtml
-      .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
-      .replaceAll(
-        RegExp(r'</(p|div|h[1-6]|li|blockquote|section)>',
-            caseSensitive: false),
-        '\n\n',
-      );
+  final prepared = preprocessEpubVisibleXhtml(xhtml);
   final parsed = parser.parse(prepared);
   for (final unwanted in parsed.querySelectorAll(
       'script,style,nav,svg,head,noscript')) {
