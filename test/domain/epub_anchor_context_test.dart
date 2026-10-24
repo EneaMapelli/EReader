@@ -27,6 +27,22 @@ void main() {
         isFalse);
   });
 
+  test('optimized per-side digest remains identical to persisted v2 hashes',
+      () {
+    const source = 'Private 📖 source text with an unusual paragraph.';
+    final offset = source.indexOf('unusual');
+    expect(offset, 31);
+    final fingerprint = EpubAnchorContext.capture(
+        source, 0, source.length, offset);
+    // Fixed legacy v2 digests. Changing these would invalidate older
+    // saved SQLite progress/bookmark fingerprints.
+    expect(fingerprint.before, '9425681be3a57c35b00d6644c95a9339');
+    expect(fingerprint.after, 'f3bc0de8f4b51db79b4f5a6d999c33a3');
+    final anchor = anchorAt(source, offset);
+    expect(EpubAnchorContext.matches(
+        source, 0, source.length, offset, anchor), isTrue);
+  });
+
   test('recovery tolerates inserted XHTML whitespace before a note', () {
     const original = 'Beginning. A stable note starts right here.';
     const current = 'Beginning.\n\nA stable note starts right here.';
