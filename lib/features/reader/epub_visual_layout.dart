@@ -104,6 +104,11 @@ EpubVisualLayout buildEpubVisualLayout(
   final source = document.text;
   final styles = document.epubInlineStyles;
   final links = document.epubLinks;
+  // Do not traverse all auxiliary previews for every hyperlink: books
+  // with thousands of note references would otherwise take O(L * N).
+  final auxiliaryKeys = <String>{
+    for (final note in document.epubAuxiliaryFootnotePreviews) note.key,
+  };
   var lastLinkEnd = 0;
   for (final link in links) {
     final target = link.targetOffset;
@@ -112,8 +117,7 @@ EpubVisualLayout buildEpubVisualLayout(
         target < source.length && auxiliary == null;
     final validAuxiliary = target == null && link.isFootnote &&
         auxiliary != null && auxiliary.isNotEmpty &&
-        document.epubAuxiliaryFootnotePreviews.any((note) =>
-            note.key == auxiliary);
+        auxiliaryKeys.contains(auxiliary);
     if (link.start < lastLinkEnd || link.end <= link.start ||
         link.end > source.length ||
         !(validSpineTarget || validAuxiliary)) {
