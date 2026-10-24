@@ -279,6 +279,44 @@ void main() {
     expect(ordinary, [21]);
   });
 
+  testWidgets('auxiliary note tap previews only, never navigates or seeks',
+      (tester) async {
+    const key = 'OPS/Text/notes.xhtml#fn1';
+    const block = EpubVisualBlock(
+      start: 0, end: 8, chapterStart: false,
+      heading: false, firstSegmentIndex: 0,
+      runs: [
+        EpubVisualRun(0, 5, 'Read ', 0),
+        EpubVisualRun(5, 8, '[1]', 0, isFootnote: true,
+            auxiliaryFootnoteKey: key),
+      ],
+    );
+    final previews = <String>[];
+    final positions = <int>[];
+    final spoken = <int>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: block,
+        activeSegmentIndex: 0,
+        fontSize: 18,
+        onSelectSegment: spoken.add,
+        onOpenLink: positions.add,
+        onOpenAuxiliaryFootnote: previews.add,
+      )),
+    ));
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    final spans = leafTextSpans(rich.text);
+    expect(rich.text.toPlainText(), 'Read [1]');
+    expect(spans.last.style?.decoration, TextDecoration.underline);
+    (spans.last.recognizer! as TapGestureRecognizer).onTap!();
+    expect(previews, [key]);
+    expect(positions, isEmpty);
+    expect(spoken, isEmpty);
+  });
+
   testWidgets('bounded local picture and ragged table preview appear safely',
       (tester) async {
     // Minimal real 1x1 PNG; the resource is passed as in-memory data.
