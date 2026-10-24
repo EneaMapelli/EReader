@@ -118,6 +118,73 @@ void main() {
     }
   });
 
+  testWidgets('author emphasis remains visible during TTS highlighting',
+      (tester) async {
+    const styled = EpubVisualBlock(
+      start: 0, end: 16, chapterStart: false, heading: false,
+      firstSegmentIndex: 0,
+      runs: [
+        EpubVisualRun(0, 6, 'Alpha ', 0),
+        EpubVisualRun(6, 10, 'BETA', 0, bold: true),
+        EpubVisualRun(10, 11, ' ', null),
+        EpubVisualRun(11, 16, 'gamma', 1, italic: true),
+      ],
+    );
+    final chosen = <int>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: styled,
+        activeSegmentIndex: 0,
+        fontSize: 20,
+        onSelectSegment: chosen.add,
+      )),
+    ));
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    final spans = leafTextSpans(rich.text);
+    expect(rich.text.toPlainText(), 'Alpha BETA gamma');
+    final boldSpan = spans.firstWhere((span) => span.text == 'BETA');
+    final italicSpan = spans.firstWhere((span) => span.text == 'gamma');
+    expect(boldSpan.style?.fontWeight, FontWeight.w700);
+    expect(boldSpan.style?.backgroundColor, isNotNull);
+    expect(italicSpan.style?.fontStyle, FontStyle.italic);
+    expect(italicSpan.style?.backgroundColor, isNull);
+    (boldSpan.recognizer! as TapGestureRecognizer).onTap!();
+    (italicSpan.recognizer! as TapGestureRecognizer).onTap!();
+    expect(chosen, [0, 1]);
+  });
+
+  testWidgets('semantic h2 is accessible even without a spine title match',
+      (tester) async {
+    const heading = EpubVisualBlock(
+      start: 0, end: 7, chapterStart: false,
+      heading: true, firstSegmentIndex: 0,
+      runs: [
+        EpubVisualRun(0, 7, 'Section', 0, headingLevel: 2),
+      ],
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: heading, activeSegmentIndex: -1,
+        fontSize: 18, onSelectSegment: (_) {},
+      )),
+    ));
+    final semantics = tester.widgetList<Semantics>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(Semantics),
+    ));
+    expect(semantics.any((value) => value.properties.header == true), isTrue);
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    expect(rich.text.toPlainText(), 'Section');
+    expect(leafTextSpans(rich.text).single.style?.fontWeight,
+        FontWeight.w700);
+  });
+
   testWidgets('new paragraph data replaces stale tap recognizers', (tester) async {
     final tapped = <int>[];
     Widget frame(EpubVisualBlock block) => MaterialApp(
