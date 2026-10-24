@@ -58,7 +58,11 @@ class EpubAnchorContext {
         start >= end || end - start > maxSearchUnits) return null;
     int? found;
     for (var pos = start; pos <= end; pos++) {
-      if (_splitsSurrogate(text, pos)) continue;
+      // Whitespace-insensitive fingerprints are identical at every
+      // position inside a run of spaces/newlines. Only test the start of
+      // actual glyphs (or item end) to avoid phantom ambiguity.
+      if ((pos < end && _space(text.codeUnitAt(pos))) ||
+          _splitsSurrogate(text, pos)) continue;
       // Prefix check avoids hashing the suffix for most candidates.
       final c = capture(text, start, end, pos);
       if (c.before != anchor.contextBefore ||
