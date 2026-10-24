@@ -11,10 +11,13 @@ class EpubRawImage {
 }
 
 class EpubRawLink {
-  const EpubRawLink(this.start, this.end, this.href);
+  const EpubRawLink(this.start, this.end, this.href, {
+    this.isFootnote = false,
+  });
   final int start;
   final int end;
   final String href;
+  final bool isFootnote;
 }
 
 class EpubRawTarget {
@@ -104,7 +107,13 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
     if (node.localName == 'a') {
       final href = node.attributes['href'];
       if (href != null && href.length <= 1024 && start < end) {
-        links.add(EpubRawLink(start, end, href));
+        final semanticType = node.attributes['epub:type'] ?? '';
+        final role = node.attributes['role'] ?? '';
+        final footnote = semanticType.split(RegExp(r'\s+'))
+                .contains('noteref') ||
+            role.split(RegExp(r'\s+')).contains('doc-noteref');
+        links.add(EpubRawLink(
+            start, end, href, isFootnote: footnote));
       }
     }
     if (node.localName == 'table' && start < end) {
@@ -182,7 +191,8 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
     links: List.unmodifiable([
       for (final item in links)
         if (project(item.start) < project(item.end))
-          EpubRawLink(project(item.start), project(item.end), item.href),
+          EpubRawLink(project(item.start), project(item.end), item.href,
+              isFootnote: item.isFootnote),
     ]),
     targets: List.unmodifiable([
       for (final item in targets)
