@@ -11,6 +11,7 @@ import 'epub_structural_markup.dart';
 import 'epub_embedded_content.dart';
 import 'epub_navigation.dart';
 import 'epub_text_decoder.dart';
+import 'epub_html_preprocess.dart';
 
 /// Stable ordering information for each EPUB OPF spine item. Text offsets are
 /// Dart String (UTF-16 code unit) offsets in the extracted document.
@@ -627,13 +628,7 @@ class EpubTextExtractor {
   static String _extractVisibleText(String xhtml) {
     // Keep paragraph boundaries before flattening DOM text. HTML parsing does
     // not run scripts, load CSS or follow image URLs.
-    final withBreaks = xhtml
-        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
-        .replaceAll(
-          RegExp(r'</(p|div|h[1-6]|li|blockquote|section)>',
-              caseSensitive: false),
-          '\n\n',
-        );
+    final withBreaks = preprocessEpubVisibleXhtml(xhtml);
     final dom = html_parser.parse(withBreaks);
     for (final unwanted in dom.querySelectorAll(
       'script,style,nav,svg,head,noscript',
