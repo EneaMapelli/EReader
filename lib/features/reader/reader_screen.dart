@@ -164,7 +164,13 @@ class _ReaderScreenState extends State<ReaderScreen>
       // An EPUB recovery fallback must never auto-play or inject offsets
       // into the TTS segments; the index is only a visual starting point.
       final savedIndex = chunks.indexWhere((chunk) => chunk.end > saved);
-      if (savedIndex >= 0) player.currentIndex = savedIndex;
+      if (savedIndex >= 0) {
+        player.currentIndex = savedIndex;
+      } else if (chunks.isNotEmpty && saved >= document.text.length) {
+        // An exact bookmark at EOF means "finished", not "restart from
+        // the opening segment" when no chunk ends beyond source.length.
+        player.currentIndex = chunks.length - 1;
+      }
       _pronunciationRules =
           widget.store.listPronunciationRules(bookId: widget.book.id);
       player.speechTextTransform = (original) =>
