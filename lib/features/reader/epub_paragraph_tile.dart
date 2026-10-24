@@ -119,12 +119,21 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                   for (final run in widget.block.runs)
                     TextSpan(
                       text: run.text,
-                      style: run.segmentIndex == widget.activeSegmentIndex
-                          ? TextStyle(
-                              backgroundColor: palette.highlight(context),
-                              color: palette.highlightForeground(context),
-                            )
-                          : null,
+                      style: TextStyle(
+                        fontWeight: run.bold || run.headingLevel > 0
+                            ? FontWeight.w700 : null,
+                        fontStyle: run.italic ? FontStyle.italic : null,
+                        // An internal h2/h3 must be recognizable even if
+                        // another text element shares this visual block.
+                        fontSize: run.headingLevel > 0 && !heading
+                            ? size + (7 - run.headingLevel).clamp(1, 6)
+                            : null,
+                        backgroundColor:
+                            run.segmentIndex == widget.activeSegmentIndex
+                                ? palette.highlight(context) : null,
+                        color: run.segmentIndex == widget.activeSegmentIndex
+                            ? palette.highlightForeground(context) : null,
+                      ),
                       recognizer: run.segmentIndex == null
                           ? null
                           : _tap(run.segmentIndex!),
