@@ -139,6 +139,9 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                   for (final run in widget.block.runs)
                     TextSpan(
                       text: run.text,
+                      semanticsLabel: run.isFootnote
+                          ? '${run.text}, footnote link'
+                          : null,
                       style: TextStyle(
                         fontWeight: run.bold || run.headingLevel > 0
                             ? FontWeight.w700 : null,
