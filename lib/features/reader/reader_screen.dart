@@ -26,6 +26,8 @@ import 'voice_cast_screen.dart';
 import 'pronunciation_screen.dart';
 import 'reading_tools.dart';
 import 'epub_chapter_navigation.dart';
+import 'epub_link_history.dart';
+import '../../data/epub_navigation.dart';
 import 'epub_visual_layout.dart';
 import 'epub_paragraph_tile.dart';
 
@@ -48,6 +50,8 @@ class _ReaderScreenState extends State<ReaderScreen>
   NarrationRecoveryBinding? _recoveryBinding;
   DocumentContent? _document;
   List<EpubChapter> _chapters = const [];
+  List<EpubNavigationEntry> _authorToc = const [];
+  final EpubLinkHistory _linkHistory = EpubLinkHistory();
   EpubVisualLayout _epubLayout = const EpubVisualLayout([], []);
   Map<int, EpubChapter> _chapterStarts = const {};
   List<PronunciationRule> _pronunciationRules = const [];
@@ -193,6 +197,8 @@ class _ReaderScreenState extends State<ReaderScreen>
         _recoveryBinding = recoveryBinding;
         _document = document;
         _chapters = chapters;
+        _authorToc = document.epubNavigation;
+        _linkHistory.clear();
         _epubLayout = visualLayout;
         _chapterStarts = {
           for (final chapter in chapters) chapter.segmentIndex: chapter,
@@ -407,7 +413,9 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   Future<void> _openChapterDirectory() async {
-    if (_chapters.isEmpty) return;
+    if (_chapters.isEmpty && _authorToc.isEmpty) return;
+    final authorial = _authorToc.isNotEmpty;
+    final entries = _authorToc;
     final current = _currentChapterIndex;
     final chosen = await showModalBottomSheet<int>(
       context: context,
@@ -415,14 +423,44 @@ class _ReaderScreenState extends State<ReaderScreen>
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: FractionallySizedBox(
-          heightFactor: 0.65,
+          heightFactor: 0.7,
           child: Column(
             children: [
-              const ListTile(title: Text('EPUB chapters')),
+              ListTile(title: Text(authorial
+                  ? 'Book table of contents' : 'EPUB spine sections')),
               Expanded(
                 child: ListView.builder(
-                  itemCount: _chapters.length,
+                  itemCount: authorial ? entries.length : _chapters.length,
                   itemBuilder: (_, index) {
+                    if (authorial) {
+                      final entry = entries[index];
+                      final currentSegment = _player == null ||
+                              _player!.segments.isEmpty ? 0 :
+                          _player!.segments[(_player!.isPlaying
+                              ? _player!.currentIndex
+                              : (_visiblePositionIndex ??
+                                  _player!.currentIndex)).clamp(
+                                  0, _player!.segments.length - 1).toInt()]
+                              .start;
+                      // TOC order is editorial rather than strict source
+                      // ordering; only highlight a resolved current section.
+                      final active = entry.offset <= currentSegment &&
+                          !entries.skip(index + 1).any(
+                            (other) => other.offset <= currentSegment &&
+                                other.offset >= entry.offset);
+                      return Padding(
+                        padding: EdgeInsets.only(
+                            left: (entry.depth.clamp(0, 12) * 14).toDouble()),
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(active
+                              ? Icons.menu_book : Icons.subdirectory_arrow_right),
+                          title: Text(entry.label),
+                          selected: active,
+                          onTap: () => Navigator.of(sheetContext).pop(index),
+                        ),
+                      );
+                    }
                     final chapter = _chapters[index];
                     return ListTile(
                       leading: index == current
@@ -430,7 +468,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                           : const Icon(Icons.article_outlined),
                       title: Text(chapter.title),
                       subtitle: Text(
-                          'Chapter ${index + 1} of ${_chapters.length}'),
+                          'Section ${index + 1} of ${_chapters.length}'),
                       selected: index == current,
                       onTap: () => Navigator.of(sheetContext).pop(index),
                     );
@@ -443,7 +481,11 @@ class _ReaderScreenState extends State<ReaderScreen>
       ),
     );
     if (!mounted || chosen == null) return;
-    await _jumpToChapterIndex(chosen);
+    if (authorial) {
+      _navigateToSourceOffset(entries[chosen].offset, remember: false);
+    } else {
+      await _jumpToChapterIndex(chosen);
+    }
   }
 
   Future<void> _searchInBook() async {
@@ -590,16 +632,65 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
-  void _openEpubLink(int sourceOffset) {
-    final player = _player;
-    if (widget.book.format != BookFormat.epub ||
-        player == null || player.segments.isEmpty) return;
-    // Only source offsets already verified against an in-book XHTML target
-    // reach here. Reuse explicit selection: pause, save spine anchor, no TTS.
-    var index = player.segments.indexWhere(
-        (segment) => segment.end > sourceOffset);
-    if (index < 0) index = player.segments.length - 1;
-    _selectFromVisualTap(index);
+  /// Internal EPUB links and notes are in-book source offsets only, never
+  /// arbitrary URLs. A return position is recorded after a successful seek.
+  void _navigateToSourceOffset(int sourceOffset, {required bool remember}) {
+    Future<void> navigate() async {
+      final player = _player;
+      final document = _document;
+      if (widget.book.format != BookFormat.epub || player == null ||
+          document == null || player.segments.isEmpty ||
+          sourceOffset < 0 || sourceOffset >= document.text.length) return;
+      final sourceIndex = (player.isPlaying ? player.currentIndex
+              : (_visiblePositionIndex ?? player.currentIndex))
+          .clamp(0, player.segments.length - 1).toInt();
+      final fromOffset = player.segments[sourceIndex].start;
+      var index = player.segments.indexWhere(
+          (segment) => segment.end > sourceOffset);
+      if (index < 0) index = player.segments.length - 1;
+      _saveVisualPositionTimer?.cancel();
+      if (!player.isSettledIdle) await player.pause();
+      if (!mounted || _player != player) return;
+      await _select(index);
+      if (!mounted || _player != player) return;
+      if (remember) {
+        _linkHistory.push(fromOffset, player.segments[index].start);
+        setState(() {});
+      }
+    }
+    unawaited(navigate().catchError((Object error, StackTrace stack) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot open EPUB destination: $error')),
+      );
+    }));
+  }
+
+  void _openEpubLink(int sourceOffset) =>
+      _navigateToSourceOffset(sourceOffset, remember: true);
+
+  void _returnFromEpubLink() {
+    Future<void> navigateBack() async {
+      final offset = _linkHistory.last;
+      final player = _player;
+      if (offset == null || player == null || player.segments.isEmpty) return;
+      var index = player.segments.indexWhere(
+          (segment) => segment.end > offset);
+      if (index < 0) index = player.segments.length - 1;
+      _saveVisualPositionTimer?.cancel();
+      if (!player.isSettledIdle) await player.pause();
+      if (!mounted || _player != player) return;
+      await _select(index);
+      if (!mounted || _player != player) return;
+      _linkHistory.commitReturn();
+      setState(() {});
+    }
+    unawaited(navigateBack().catchError((Object error, StackTrace stack) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot return from EPUB note: $error')),
+      );
+    }));
   }
 
   void _selectFromVisualTap(int index) {
@@ -714,9 +805,18 @@ class _ReaderScreenState extends State<ReaderScreen>
                 ),
               ],
             ),
-          if (widget.book.format == BookFormat.epub && _chapters.isNotEmpty)
+          if (widget.book.format == BookFormat.epub &&
+              _linkHistory.canReturn)
             IconButton(
-              tooltip: 'Table of contents: EPUB spine chapters',
+              tooltip: 'Return from note or internal link',
+              icon: const Icon(Icons.keyboard_return),
+              onPressed: _returnFromEpubLink,
+            ),
+          if (widget.book.format == BookFormat.epub &&
+              (_chapters.isNotEmpty || _authorToc.isNotEmpty))
+            IconButton(
+              tooltip: _authorToc.isNotEmpty
+                  ? 'Book table of contents' : 'EPUB spine sections',
               icon: const Icon(Icons.view_list),
               onPressed: _openChapterDirectory,
             ),
