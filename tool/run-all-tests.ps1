@@ -265,7 +265,7 @@ $analyzerIssues = New-Object System.Collections.ArrayList
 foreach ($path in @($analyze.Stdout,$analyze.Stderr)) {
   if (-not (Test-Path $path)) { continue }
   foreach ($line in [IO.File]::ReadLines($path)) {
-    if ($line -match '^\s*(error|warning|info)\s+[-•]' -or
+    if ($line -match '^\s*(error|warning|info)\s+[-\u2022]' -or
         $line -match 'issues? found') {
       [void]$analyzerIssues.Add((Redact $line))
       if ($analyzerIssues.Count -ge 200) { break }
