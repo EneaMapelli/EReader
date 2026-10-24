@@ -6,7 +6,7 @@
 |---|---|---|
 | ER-001 Bootstrap | `pubspec.yaml`, Flutter entry point, bootstrap scripts | In progress |
 | ER-002 Book/anchors | BookRecord with source anchor + segment UTF-16 IDs; unit tests | Partial; stable spine/page anchors added, EPUB CFI not yet implemented |
-| ER-003 EPUB/TXT | OPF spine extraction, chapter directory and lazy safe paragraph renderer with source-exact text/segment highlights | Partial; XHTML CSS/images/NAV/NCX fidelity incomplete |
+| ER-003 EPUB/TXT | OPF spine extraction, chapter directory, paragraph renderer, verified XHTML inline bold/italic/h1–h6 | Partial; author CSS, images, NAV/NCX fidelity incomplete |
 | ER-004 PDF | PDF viewer + text-layer extraction; SQLite v15 independent visual-page recovery including scanned PDFs, 7 authored tests | Partial: page-only resume, no scroll/zoom bookmark, complex ordering/OCR pending |
 | ER-005 Reader | EPUB paragraph layout, per-run tap and read-along highlight, theme palettes, source-anchor navigation, PDF view | Partial; EPUB full CSS/images/CFI and device verification open |
 | ER-006 TTS | OS/cloud speech adapters, voice/rate/pitch controls; 8-second bounded native Stop with no auto-replay | Partial; hung engine cannot be forcibly silenced by Dart alone |
@@ -402,3 +402,11 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - EPUB paragraph breaks are now hard boundaries for quoted speech coalescing; detection uses binary search on sorted source boundaries. An EPUB paragraph tap first pauses active or pending narration; no automatic TTS is triggered by a visual change, paragraph tap, theme selection or chapter jump.
 - Added **7 authored unexecuted layout regression tests** and **4 unexecuted Flutter widget tests** covering UTF-16/emoji, source fidelity, voice spans, malformed ranges, headings, theme contrast, callbacks and list recycling. All tests and builds remain intentionally unexecuted. See [EPUB Paragraph Renderer](EPUB_PARAGRAPH_RENDERER.md).
 - Not yet a full XHTML renderer: italics/strong, floats, inline images, embedded fonts, footnote jumps, true EPUB NAV/NCX, linked stylesheets and EPUB CFI persistence remain open.
+
+## M1 — original XHTML inline typography with exact speech positions (2026-10-24)
+
+- `EpubTextExtractor` now emits bounded `EpubInlineStyleSpan` metadata for XHTML `b/strong`, `i/em/cite/dfn`, and `h1..h6`, anchored to the **existing extracted UTF-16 string**. Safe text, OPF reading order and persistence are unchanged.
+- The extractor independently replays its own DOM whitespace normalization in `epub_inline_style.dart`; it confirms whole-text equality before exposing style intervals, so repeated words and removed whitespace cannot misalign marked spans. Script/nav/head/style/noscript/svg nodes remain excluded, with per-item/global style count limits and fail-to-unstyled fallback.
+- `DocumentContent` passes style metadata into `EpubVisualLayout`. Spoken runs are intersected with semantic style boundaries, preserving TTS highlighting and exact tap-to-source indices even when nested markup divides a single speech segment. The paragraph widget renders bold/italic/levelled headings with accessible header semantics.
+- Fixed an existing chapter-title whitespace regex so XHTML titles collapse multiple spaces correctly. Added **13 unexecuted authored tests** across extractor, dedicated inline parser, visual layout and paragraph widget. See [EPUB Inline Formatting](EPUB_INLINE_FORMATTING.md).
+- **Not** a complete CSS/XHTML renderer; images, tables, custom fonts, hyperlinks, footnotes, ruby, full EPUB NAV/NCX and CFI remain pending. Flutter analyzer, unit/widget tests and Windows/Android builds have not been executed.
