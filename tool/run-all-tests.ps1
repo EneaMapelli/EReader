@@ -214,7 +214,7 @@ $analyze = Execute 'flutter-analyze' $flutter @('analyze','--no-pub') $ToolTimeo
 $allFiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'test') -Recurse -File -Filter '*_test.dart' | Sort-Object FullName)
 $global = Execute 'flutter-test-all' $flutter @(
   'test','--reporter','json','--no-pub'
-) ([Math]::Max($TestTimeoutMinutes,90))
+) $TestTimeoutMinutes
 Collect-CompileLocations $global.Stdout '<full_suite>'
 Collect-CompileLocations $global.Stderr '<full_suite>'
 if ($global.ExitCode -eq 0) {
