@@ -12,6 +12,7 @@ class EpubVisualRun {
     this.italic = false,
     this.headingLevel = 0,
     this.linkTargetOffset,
+    this.isFootnote = false,
   });
   final int start;
   final int end;
@@ -21,6 +22,7 @@ class EpubVisualRun {
   final bool italic;
   final int headingLevel;
   final int? linkTargetOffset;
+  final bool isFootnote;
 }
 
 /// One paragraph-sized, text-only display unit. Reading anchors always
@@ -187,12 +189,14 @@ EpubVisualLayout buildEpubVisualLayout(
           linkCursor++;
         }
         int? linkTarget;
+        var isFootnote = false;
         if (linkCursor < links.length) {
           final link = links[linkCursor];
           if (link.start > offset) {
             if (link.start < until) until = link.start;
           } else {
             linkTarget = link.targetOffset;
+            isFootnote = link.isFootnote;
             if (link.end < until) until = link.end;
           }
         }
@@ -205,6 +209,7 @@ EpubVisualLayout buildEpubVisualLayout(
           italic: style?.italic ?? false,
           headingLevel: style?.headingLevel ?? 0,
           linkTargetOffset: linkTarget,
+          isFootnote: isFootnote,
         ));
         offset = until;
       }
