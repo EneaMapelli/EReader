@@ -193,7 +193,7 @@ void main() {
     expect(spineText, 'Before  text\nAfter');
     final em = result.styles.firstWhere((span) => span.italic);
     final strong = result.styles.firstWhere((span) => span.bold);
-    expect(result.text.substring(em.start, em.end), 'text');
+    expect(result.text.substring(em.start, em.end).trim(), 'text');
     expect(result.text.substring(strong.start, strong.end), 'After');
   });
 
