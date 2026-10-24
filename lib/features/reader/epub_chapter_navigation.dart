@@ -79,6 +79,24 @@ List<EpubChapter> buildEpubChapters(
   return List<EpubChapter>.unmodifiable(chapters);
 }
 
+/// Resolve a verified EPUB source target to the containing/next playable
+/// TTS segment. Sorted source-aligned segments make fragment jumps O(log N).
+/// The exact target offset itself is persisted separately by the reader.
+int speechSegmentIndexForOffset(List<SpeechSegment> segments, int offset) {
+  if (segments.isEmpty) return -1;
+  var low = 0;
+  var high = segments.length;
+  while (low < high) {
+    final mid = low + (high - low) ~/ 2;
+    if (segments[mid].end <= offset) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low < segments.length ? low : segments.length - 1;
+}
+
 int chapterIndexForOffset(List<EpubChapter> chapters, int offset) {
   if (chapters.isEmpty) return -1;
   for (var i = chapters.length - 1; i >= 0; i--) {
