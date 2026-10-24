@@ -20,6 +20,22 @@ class EpubNavigationEntry {
   final int depth;
 }
 
+/// Editorial directory order can differ from source-spine order.
+/// Pick the closest preceding source target, not the final TOC list item.
+int navigationIndexForOffset(List<EpubNavigationEntry> entries, int offset) {
+  if (entries.isEmpty) return -1;
+  var bestIndex = 0;
+  var bestOffset = -1;
+  for (var index = 0; index < entries.length; index++) {
+    final candidate = entries[index].offset;
+    if (candidate <= offset && candidate > bestOffset) {
+      bestIndex = index;
+      bestOffset = candidate;
+    }
+  }
+  return bestIndex;
+}
+
 String? _safeTitle(String text) {
   final label = text.replaceAll(RegExp(r'\s+'), ' ').trim();
   if (label.isEmpty) return null;
