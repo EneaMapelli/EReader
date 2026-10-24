@@ -1,5 +1,6 @@
 import '../../data/book_decoder.dart';
 import '../../data/epub_inline_style.dart';
+import '../../data/epub_embedded_content.dart';
 import '../../domain/speech_segment.dart';
 import 'epub_chapter_navigation.dart';
 
@@ -10,6 +11,7 @@ class EpubVisualRun {
     this.bold = false,
     this.italic = false,
     this.headingLevel = 0,
+    this.linkTargetOffset,
   });
   final int start;
   final int end;
@@ -18,6 +20,7 @@ class EpubVisualRun {
   final bool bold;
   final bool italic;
   final int headingLevel;
+  final int? linkTargetOffset;
 }
 
 /// One paragraph-sized, text-only display unit. Reading anchors always
@@ -30,6 +33,8 @@ class EpubVisualBlock {
     required this.chapterStart,
     required this.heading,
     required this.firstSegmentIndex,
+    this.images = const [],
+    this.tables = const [],
   });
 
   final int start;
@@ -38,6 +43,8 @@ class EpubVisualBlock {
   final bool chapterStart;
   final bool heading;
   final int? firstSegmentIndex;
+  final List<EpubEmbeddedImage> images;
+  final List<EpubTablePreview> tables;
 
   String get text => runs.map((run) => run.text).join();
 }
@@ -90,6 +97,16 @@ EpubVisualLayout buildEpubVisualLayout(
   }
   final source = document.text;
   final styles = document.epubInlineStyles;
+  final links = document.epubLinks;
+  var lastLinkEnd = 0;
+  for (final link in links) {
+    if (link.start < lastLinkEnd || link.end <= link.start ||
+        link.end > source.length ||
+        link.targetOffset < 0 || link.targetOffset > source.length) {
+      throw const FormatException('Invalid EPUB internal link ranges');
+    }
+    lastLinkEnd = link.end;
+  }
   var lastStyleEnd = 0;
   for (final style in styles) {
     if (style.start < lastStyleEnd || style.end <= style.start ||
@@ -113,6 +130,7 @@ EpubVisualLayout buildEpubVisualLayout(
   final mapping = List<int>.filled(segments.length, -1);
   var segmentCursor = 0;
   var styleCursor = 0;
+  var linkCursor = 0;
   var previousSpineEnd = 0;
   final headings = {for (final chapter in chapters) chapter.start: chapter};
   final doubleNewline = RegExp(r'\n[ \t]*\n+');
@@ -164,14 +182,29 @@ EpubVisualLayout buildEpubVisualLayout(
             if (candidate.end < until) until = candidate.end;
           }
         }
+        while (linkCursor < links.length &&
+            links[linkCursor].end <= offset) {
+          linkCursor++;
+        }
+        int? linkTarget;
+        if (linkCursor < links.length) {
+          final link = links[linkCursor];
+          if (link.start > offset) {
+            if (link.start < until) until = link.start;
+          } else {
+            linkTarget = link.targetOffset;
+            if (link.end < until) until = link.end;
+          }
+        }
         if (until <= offset) {
-          throw const FormatException('Non-progressing EPUB inline style');
+          throw const FormatException('Non-progressing EPUB visual metadata');
         }
         runs.add(EpubVisualRun(
           offset, until, source.substring(offset, until), segmentIndex,
           bold: style?.bold ?? false,
           italic: style?.italic ?? false,
           headingLevel: style?.headingLevel ?? 0,
+          linkTargetOffset: linkTarget,
         ));
         offset = until;
       }
@@ -267,8 +300,54 @@ EpubVisualLayout buildEpubVisualLayout(
     }
   }
 
+  // Resource overlays belong to the closest readable paragraph block.
+  // They do not insert characters, or shift any source/voice anchor.
+  // Only a small, bounded number of embedded assets is retained.
+  int findBlock(int offset) {
+    if (blocks.isEmpty) return -1;
+    var low = 0, high = blocks.length;
+    while (low < high) {
+      final mid = low + (high - low) ~/ 2;
+      if (blocks[mid].end < offset) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low < blocks.length ? low : blocks.length - 1;
+  }
+
+  final imageByBlock = <int, List<EpubEmbeddedImage>>{};
+  for (final image in document.epubImages) {
+    if (image.offset < 0 || image.offset > source.length) continue;
+    final block = findBlock(image.offset);
+    if (block >= 0) {
+      imageByBlock.putIfAbsent(block, () => []).add(image);
+    }
+  }
+  final tablesByBlock = <int, List<EpubTablePreview>>{};
+  for (final table in document.epubTables) {
+    if (table.start < 0 || table.end > source.length ||
+        table.start >= table.end) continue;
+    final block = findBlock(table.start);
+    if (block >= 0) {
+      tablesByBlock.putIfAbsent(block, () => []).add(table);
+    }
+  }
+  final enriched = [
+    for (var i = 0; i < blocks.length; i++)
+      EpubVisualBlock(
+        start: blocks[i].start, end: blocks[i].end,
+        runs: blocks[i].runs,
+        chapterStart: blocks[i].chapterStart,
+        heading: blocks[i].heading,
+        firstSegmentIndex: blocks[i].firstSegmentIndex,
+        images: List.unmodifiable(imageByBlock[i] ?? const []),
+        tables: List.unmodifiable(tablesByBlock[i] ?? const []),
+      ),
+  ];
   return EpubVisualLayout(
-    List.unmodifiable(blocks),
+    List.unmodifiable(enriched),
     List.unmodifiable(mapping),
   );
 }
