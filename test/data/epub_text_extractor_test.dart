@@ -245,6 +245,18 @@ void main() {
     expect(result.links.single.targetOffset, result.ranges[1].start);
   });
 
+  test('fragment after final text stays inside its source spine item', () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><body><p>First.</p><span id="end"></span></body></html>',
+      second: '<html><body><p><a href="first.xhtml#end">'
+          'Back to end</a></p></body></html>',
+    ));
+    expect(result.links.length, 1);
+    expect(result.links.single.targetOffset, result.ranges.first.end - 1);
+    expect(result.links.single.targetOffset,
+        lessThan(result.ranges.last.start));
+  });
+
   test('tables are preview metadata while the read-aloud text is unchanged',
       () {
     final result = extractor.extract(makeEpub(
