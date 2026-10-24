@@ -17,6 +17,7 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - **Indice editoriale EPUB3 NAV / EPUB2 NCX (codice, da validare):** mostra sezioni annidate del sommario dell'editore, con precedente/successivo secondo l'indice e fallback allo spine. I riferimenti alle note consentono di aprire sezioni dello stesso libro e tornare al testo precedente senza riavviare TTS o cloud; posizioni e contenuti rimangono invariati. [Dettagli](docs/EPUB_NAV_NCX_FOOTNOTES.md).
 - **Anteprima delle note EPUB (codice, da validare):** toccando un riferimento a una nota riconosciuta nello spine compare un popup testuale locale, selezionabile e scorrevole. Chiudere non cambia pagina, TTS, segnalibri o cronologia; aprire la nota completa richiede un comando separato. Note non disponibili o troppo lunghe conservano la navigazione interna quando la destinazione è supportata. [Specifiche](docs/EPUB_FOOTNOTE_PREVIEW.md).
 - **Note EPUB esterne allo spine (codice, da validare):** anteprima testuale passiva di file XHTML ausiliari dichiarati nel manifest e richiamati da veri noteref. Nessun testo aggiunto al TTS, nessun offset artificiale e nessun pulsante per navigare nel libro a una posizione inesistente. [Limiti e sicurezza](docs/EPUB_AUXILIARY_FOOTNOTES.md).
+- **Compatibilità note EPUB2 (codice, da validare):** supporta riferimenti in apice, classi legacy `footnote-ref`/`fnref` e note in contenitori o liste esplicitamente riconoscibili, incluse ancore `<a name>`. Il riferimento viene promosso a nota solo se anche la destinazione è verificata; niente falsi offset TTS né accesso a risorse non dichiarate. [Specifica](docs/EPUB2_LEGACY_FOOTNOTES.md).
 - Visualizzazione PDF tramite `pdfrx` e modalità sperimentale di lettura vocale per PDF con testo selezionabile (senza garanzia sull'ordine di colonne, note e tabelle).
 - **Ripresa visuale dei PDF, anche scansionati (codice, da validare):** salva per libro la pagina visualizzata e la ripristina alla riapertura, indipendentemente dalla posizione TTS. Migrazione SQLite v15; nessun OCR o sincronismo a livello di riga. [Specifica e test](docs/PDF_VISUAL_RESUME.md).
 - Lettura vocale con voci di sistema Windows/Android, scelta e salvataggio di voce/lingua/pitch/rate per libro e come default globale, navigazione tra segmenti e Read Along con evidenziazione, auto-scroll disattivabile e ripresa della posizione.
@@ -88,6 +89,7 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Indice editoriale EPUB3 NAV / EPUB2 NCX e ritorno dalle note](docs/EPUB_NAV_NCX_FOOTNOTES.md)
 - [Anteprima popup delle note EPUB senza modificare la lettura](docs/EPUB_FOOTNOTE_PREVIEW.md)
 - [Note EPUB ausiliarie fuori dallo spine: anteprime locali sicure](docs/EPUB_AUXILIARY_FOOTNOTES.md)
+- [Compatibilità note EPUB2 legacy: verifica incrociata di riferimenti e destinazioni](docs/EPUB2_LEGACY_FOOTNOTES.md)
 - [Architettura tecnica](docs/TECHNICAL_ARCHITECTURE.md)
 - [Casting dei personaggi e attribuzione dei dialoghi](docs/VOICE_CASTING_SPEC.md)
 - [Implementazione e test](docs/IMPLEMENTATION_STATUS.md)
