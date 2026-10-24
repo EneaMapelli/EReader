@@ -441,7 +441,7 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - `EpubTextExtractor` optionally looks up semantic footnote content in XHTML files **outside the readable spine**, but only when linked by an explicit in-spine `noteref`. It requires an exact manifest declaration and canonical local path+fragment and excludes the EPUB navigation document; at most 12 files (256 KiB each), 24 distinct references, 1,600 UTF-16 units per preview and 12,000 UTF-16 units total.
 - Auxiliary notes are keyed independently of source/voice anchors. `EpubInternalLink.targetOffset` is null for auxiliary references; verified `auxiliaryFootnoteKey` routes only to a passive popup. **There is no Open in book control** because auxiliary text has no in-spine position. No text duplication, SQLite progress write, speech seek, cloud request, external file or network fetch is introduced.
 - Added **9 authored unexecuted tests** across `test/data/epub_navigation_test.dart`, `test/features/epub_visual_layout_test.dart`, `test/features/epub_paragraph_tile_test.dart` and `test/features/epub_note_preview_sheet_test.dart`. Flutter analyzer, automated tests and Windows/Android native builds remain deferred. See [Auxiliary Footnotes](EPUB_AUXILIARY_FOOTNOTES.md).
-- Legacy nonsemantic EPUB2 notes, rich XHTML layout, inline figures and a separately navigable auxiliary-document viewer remain open.
+- A carefully restricted subset of legacy EPUB2 notes is now covered by the subsequent paired-reference increment. Unmarked publisher-specific notes, rich XHTML layout, inline figures and a separately navigable auxiliary-document viewer remain open.
 
 ## M1 — conservative EPUB2 legacy note recognition (2026-10-24)
 
