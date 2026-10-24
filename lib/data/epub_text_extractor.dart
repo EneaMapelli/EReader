@@ -274,6 +274,7 @@ class EpubTextExtractor {
     if (ranges.isEmpty) {
       throw const FormatException('No readable text found in EPUB spine');
     }
+    final fullSourceText = buffer.toString();
     // A popup may show only verified plain text already present in the
     // canonical book text. Long/empty/malformed notes are not previewed:
     // their source-validated links still work as ordinary navigation.
@@ -283,12 +284,12 @@ class EpubTextExtractor {
     for (final note in footnoteRefs) {
       final target = fragmentRefs['${note.path}#${note.id}'];
       if (target == null || target < note.start || target > note.end ||
-          note.start < 0 || note.end > buffer.length ||
+          note.start < 0 || note.end > fullSourceText.length ||
           note.start >= note.end ||
           note.end - note.start > maxPreviewChars) {
         continue;
       }
-      final original = buffer.toString().substring(note.start, note.end);
+      final original = fullSourceText.substring(note.start, note.end);
       final previewText = original.trim();
       if (previewText.isEmpty || !seenNoteTargets.add(target)) continue;
       previews.add(EpubFootnotePreview(target, previewText));
@@ -402,7 +403,7 @@ class EpubTextExtractor {
       }
     }
 
-    return EpubTextResult(title, buffer.toString(), ranges,
+    return EpubTextResult(title, fullSourceText, ranges,
         navigation: navigation,
         footnotePreviews: List.unmodifiable(previews),
         styles: List.unmodifiable(styles),
