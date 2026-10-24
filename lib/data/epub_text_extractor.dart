@@ -309,6 +309,7 @@ class EpubTextExtractor {
       final target = _localFragment(ref.source, ref.href);
       if (target == null || target.fragment.isEmpty ||
           !auxiliaryXhtmlPaths.contains(target.path) ||
+          target.path == navDocumentPath ||
           spinePaths.contains(target.path)) {
         continue;
       }
