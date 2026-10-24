@@ -97,10 +97,13 @@ tap recognizers when the list recycles a widget.
 This is a **safe paragraph renderer**, not yet a full CSS/XHTML EPUB engine.
 It now preserves source-verified semantic `<em>`/`<strong>` and
 `<h1>`–`<h6>` spans (see [EPUB Inline Formatting](EPUB_INLINE_FORMATTING.md)),
-but still does not restore author-defined fonts, embedded pictures,
-mathematical formulas, tables,
-indentation/floats, hyperlinks, footnotes, nested NAV/NCX semantics or
-full EPUB CFI coordinates. Very long paragraphs may have an extra
+and now displays bounded local PNG/JPEG pictures, source-verified
+internal anchors, and expandable table previews (see
+[EPUB Embedded Content](EPUB_EMBEDDED_CONTENT.md)).
+It still does not restore author-defined fonts, CSS positioning,
+SVG/image-only spine items, complex table layout (`colspan`/`rowspan`),
+mathematical formulas, external hyperlinks, footnote/backlink history,
+nested NAV/NCX semantics or full EPUB CFI coordinates. Very long paragraphs may have an extra
 non-semantic visual division for memory safety.
 
 Before release, run `flutter analyze`, `flutter test`, and real
