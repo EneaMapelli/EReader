@@ -97,10 +97,12 @@ footnote navigation*, not every EPUB spec feature:
 - Footnotes stored in XHTML **not included in the readable spine**,
   image-only note documents, scripted pop-ups and multi-document
   remote references are intentionally not rendered or opened.
-- Notes are opened by navigating in the document, with a return button;
-  there is not yet a standalone footnote preview popup, backlink
-  reconstruction from the publisher's markup, or a persisted browsing
-  history across app restarts.
+- Recognized semantic note bodies now support a **read-only local
+  preview popup**. An explicit **Open in book** command keeps the original
+  full-document navigation and return button. Rich XHTML/CSS note rendering,
+  backlink reconstruction from publisher markup and persistent browsing
+  history across restarts remain unavailable. See
+  [EPUB Footnote Preview](EPUB_FOOTNOTE_PREVIEW.md).
 - Editorial landmarks, page lists, multiple alternative navigation
   collections, `navPoint` playOrder semantics, RTL tree indentation,
   very deep hierarchies beyond 20 levels, duplicate-target editorial
@@ -110,8 +112,8 @@ footnote navigation*, not every EPUB spec feature:
   not been validated.
 
 Next practical step: targeted QA on a representative EPUB corpus,
-then footnote peek/popup, more accessibility work and release
-integration, keeping the agreed compilation/test gate.
+then richer note semantics, better accessibility and release integration,
+keeping the agreed compilation/test gate.
 
 Related: [EPUB Embedded Content](EPUB_EMBEDDED_CONTENT.md),
 [EPUB Chapter Navigation](EPUB_CHAPTER_NAVIGATION.md),
