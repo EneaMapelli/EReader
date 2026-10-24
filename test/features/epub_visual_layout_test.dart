@@ -184,11 +184,11 @@ void main() {
       text: source,
       epubSpineRanges: [
         EpubSpineRange(idref: 'a', href: 'a.xhtml',
-            start: 0, end: source.length),
+            start: 0, end: 28),
       ],
       epubInlineStyles: [
         EpubInlineStyleSpan(0, 10, headingLevel: 2),
-        EpubInlineStyleSpan(20, 26, italic: true),
+        EpubInlineStyleSpan(21, 27, italic: true),
       ],
     );
     final segments = segmentEpubSpine(document);
