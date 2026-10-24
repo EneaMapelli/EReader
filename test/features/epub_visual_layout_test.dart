@@ -42,7 +42,7 @@ void main() {
     final paragraphs = List<String>.generate(
       12000, (i) => 'Paragraph $i 📖 with words.',
     );
-    final source = paragraphs.join('\\n\\n');
+    final source = paragraphs.join('\n\n');
     final chunks = <SpeechSegment>[];
     var cursor = 0;
     for (final paragraph in paragraphs) {
@@ -70,9 +70,9 @@ void main() {
 
   test('paragraph regex at spine boundary does not consume next chapter',
       () {
-    const first = 'Alpha ends with break.\\n';
+    const first = 'Alpha ends with break.\n';
     const second = 'Beta begins.';
-    final source = '$first\\n\\n$second';
+    final source = '$first\n\n$second';
     final startSecond = first.length + 2;
     final doc = DocumentContent(
       title: 'Two chapters',
