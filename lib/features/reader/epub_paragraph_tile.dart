@@ -45,6 +45,7 @@ class EpubParagraphTile extends StatefulWidget {
     required this.activeSegmentIndex,
     required this.fontSize,
     required this.onSelectSegment,
+    this.onOpenLink,
     this.palette = EpubReadingPalette.system,
   });
 
@@ -52,6 +53,8 @@ class EpubParagraphTile extends StatefulWidget {
   final int activeSegmentIndex;
   final double fontSize;
   final ValueChanged<int> onSelectSegment;
+  /// Source offset of a verified internal EPUB fragment (never a URL).
+  final ValueChanged<int>? onOpenLink;
   final EpubReadingPalette palette;
 
   @override
@@ -60,6 +63,7 @@ class EpubParagraphTile extends StatefulWidget {
 
 class _EpubParagraphTileState extends State<EpubParagraphTile> {
   final Map<int, TapGestureRecognizer> _recognizers = {};
+  final Map<int, TapGestureRecognizer> _linkRecognizers = {};
 
   TapGestureRecognizer _tap(int index) {
     final recognizer = _recognizers.putIfAbsent(
@@ -69,11 +73,23 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
     return recognizer;
   }
 
+  TapGestureRecognizer _linkTap(int offset) {
+    final recognizer = _linkRecognizers.putIfAbsent(
+      offset, TapGestureRecognizer.new,
+    );
+    recognizer.onTap = () => widget.onOpenLink?.call(offset);
+    return recognizer;
+  }
+
   void _clearRecognizers() {
     for (final recognizer in _recognizers.values) {
       recognizer.dispose();
     }
     _recognizers.clear();
+    for (final recognizer in _linkRecognizers.values) {
+      recognizer.dispose();
+    }
+    _linkRecognizers.clear();
   }
 
   @override
@@ -111,11 +127,14 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
             8, widget.block.chapterStart ? 24 : 4,
             8, heading ? 18 : 17,
           ),
-          child: Semantics(
-            header: heading,
-            child: Text.rich(
-              TextSpan(
-                children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Semantics(
+                header: heading,
+                child: Text.rich(
+                  TextSpan(
+                    children: [
                   for (final run in widget.block.runs)
                     TextSpan(
                       text: run.text,
@@ -132,18 +151,78 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                             run.segmentIndex == widget.activeSegmentIndex
                                 ? palette.highlight(context) : null,
                         color: run.segmentIndex == widget.activeSegmentIndex
-                            ? palette.highlightForeground(context) : null,
+                            ? palette.highlightForeground(context)
+                            : run.linkTargetOffset != null
+                                ? Theme.of(context).colorScheme.primary
+                                : null,
+                        decoration: run.linkTargetOffset == null
+                            ? null : TextDecoration.underline,
                       ),
-                      recognizer: run.segmentIndex == null
-                          ? null
-                          : _tap(run.segmentIndex!),
+                      recognizer: run.linkTargetOffset != null &&
+                              widget.onOpenLink != null
+                          ? _linkTap(run.linkTargetOffset!)
+                          : run.segmentIndex == null
+                              ? null : _tap(run.segmentIndex!),
                     ),
-                ],
+                  ],
+                ),
+                  style: style,
+                  textAlign: heading ? TextAlign.start : TextAlign.justify,
+                  softWrap: true,
+                ),
               ),
-              style: style,
-              textAlign: heading ? TextAlign.start : TextAlign.justify,
-              softWrap: true,
-            ),
+              for (final image in widget.block.images)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Semantics(
+                    image: true,
+                    label: image.alt.isEmpty
+                        ? 'Embedded book illustration' : image.alt,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 440),
+                      child: Image.memory(
+                        image.bytes,
+                        fit: BoxFit.contain,
+                        cacheWidth: 1200,
+                        errorBuilder: (context, error, stack) =>
+                            const Text('Illustration unavailable'),
+                      ),
+                    ),
+                  ),
+                ),
+              for (final table in widget.block.tables)
+                ExpansionTile(
+                  title: Text('Table preview (${table.rows.length} rows)'),
+                  subtitle: const Text('Original spoken text remains above'),
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: table.rows.fold<int>(0, (max, row) =>
+                            row.length > max ? row.length : max) * 160.0,
+                        child: Table(
+                          border: TableBorder.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                          children: [
+                            for (final row in table.rows)
+                              TableRow(children: [
+                                for (final cell in row)
+                                  Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(cell,
+                                      style: TextStyle(
+                                        color: palette.foreground(context),
+                                      )),
+                                  ),
+                              ]),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
           ),
         ),
       ),
