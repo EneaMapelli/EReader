@@ -115,6 +115,17 @@ void main() {
     expect(result.shouldPersist, isFalse);
   });
 
+  test('valid end-of-book checkpoint stays at EOF, not opening chapter',
+      () {
+    const source = 'Final paragraph ends here.';
+    final doc = oneChapter(source);
+    final saved = doc.anchorAt(BookFormat.epub, source.length);
+    final result = resolveEpubReadingProgress(
+        doc, anchor: saved, legacyOffset: 0);
+    expect(result.status, EpubProgressRecoveryStatus.exact);
+    expect(result.offset, source.length);
+  });
+
   test('v1 anchors and offset-only old library entries remain compatible', () {
     final doc = oneChapter('Some legacy text is still readable.');
     final v1 = ReadingAnchor.fromJson({
