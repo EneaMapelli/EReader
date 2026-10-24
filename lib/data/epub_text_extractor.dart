@@ -251,7 +251,7 @@ class EpubTextExtractor {
     for (final heading in ['h1', 'h2', 'h3']) {
       for (final element in dom.body?.querySelectorAll(heading) ?? []) {
         final title = element.text
-            .replaceAll(RegExp(r'\\s+'), ' ')
+            .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
         if (title.isNotEmpty) {
           return title.length <= 120
