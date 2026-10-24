@@ -113,6 +113,90 @@ void main() {
       reason: 'Display-only TOC truncation must not rewrite book text');
   });
 
+  test('semantic XHTML styles map onto unchanged EPUB source text', () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><body><h1>Prelude</h1><p>A <em>soft '
+          '<strong>voice</strong></em> in the dark.</p></body></html>',
+      second: '<html><body><p>Second <b>bold</b>.</p></body></html>',
+    ));
+    final source = result.text;
+    expect(source, 'Prelude\n\nA soft voice in the dark.\n\nSecond bold.');
+    final heading = result.styles.firstWhere((span) =>
+        span.start <= source.indexOf('Prelude') &&
+        span.end >= 'Prelude'.length);
+    expect(heading.headingLevel, 1);
+
+    final softAt = source.indexOf('soft');
+    final soft = result.styles.firstWhere((span) =>
+        span.start <= softAt && span.end >= softAt + 4);
+    expect(soft.italic, isTrue);
+    expect(soft.bold, isFalse);
+    final voiceAt = source.indexOf('voice');
+    final voice = result.styles.firstWhere((span) =>
+        span.start <= voiceAt && span.end >= voiceAt + 5);
+    expect(voice.italic, isTrue);
+    expect(voice.bold, isTrue);
+
+    final lastBoldAt = source.lastIndexOf('bold');
+    final lastBold = result.styles.firstWhere((span) =>
+        span.start <= lastBoldAt && span.end >= lastBoldAt + 4);
+    expect(lastBold.bold, isTrue);
+    expect(lastBold.start, greaterThan(result.ranges.last.start));
+    for (final span in result.styles) {
+      expect(span.start, greaterThanOrEqualTo(0));
+      expect(span.end, lessThanOrEqualTo(source.length));
+      expect(span.end, greaterThan(span.start));
+    }
+  });
+
+  test('repeated words only style the actual tagged occurrence', () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><body><p>same <i>same</i> same</p></body></html>',
+    ));
+    final first = result.ranges.first;
+    expect(result.text.substring(first.start, first.end), 'same same same');
+    final matches = RegExp('same').allMatches(result.text).toList();
+    expect(matches.length, 3);
+    final italicStarts = result.styles
+        .where((span) => span.italic)
+        .map((span) => span.start).toList();
+    expect(italicStarts, [matches[1].start]);
+    expect(italicStarts, isNot(contains(matches[0].start)));
+    expect(italicStarts, isNot(contains(matches[2].start)));
+  });
+
+  test('scripts, NAV and metadata never become styled reading content', () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><head><h1>Secret title</h1></head><body>'
+          '<nav><h2>Fake navigation</h2></nav>'
+          '<style>strong{color:red}</style>'
+          '<script><h1>Danger</h1></script>'
+          '<p>Safe <strong>content</strong> only.</p>'
+          '</body></html>',
+    ));
+    expect(result.text, isNot(contains('Secret title')));
+    expect(result.text, isNot(contains('Fake navigation')));
+    expect(result.text, isNot(contains('Danger')));
+    final marked = result.styles.where((span) => span.bold).toList();
+    expect(marked.length, 1);
+    expect(result.text.substring(marked.single.start, marked.single.end),
+        'content');
+  });
+
+  test('normalization projects markup through stripped whitespace', () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><body><p>  Before  '
+          '<em>text   \n</em><strong>After</strong>  </p></body></html>',
+    ));
+    final spineText = result.text.substring(
+        result.ranges.first.start, result.ranges.first.end);
+    expect(spineText, 'Before  text\nAfter');
+    final em = result.styles.firstWhere((span) => span.italic);
+    final strong = result.styles.firstWhere((span) => span.bold);
+    expect(result.text.substring(em.start, em.end), 'text');
+    expect(result.text.substring(strong.start, strong.end), 'After');
+  });
+
   test('fails with missing XHTML resource instead of skipping a chapter', () {
     final zip = makeEpub(opf: '''
       <package><manifest>
