@@ -36,7 +36,8 @@ extension EpubReadingPaletteColors on EpubReadingPalette {
 }
 
 /// Lazy, source-exact EPUB paragraph widget. No HTML WebView, network
-/// resources, external CSS, JavaScript or embedded assets are evaluated.
+/// resources, external CSS or JavaScript are evaluated. Embedded raster
+/// assets have already passed manifest, MIME and dimension checks.
 /// Individual spoken spans remain tappable without rewriting source text.
 class EpubParagraphTile extends StatefulWidget {
   const EpubParagraphTile({
@@ -207,13 +208,19 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                           children: [
                             for (final row in table.rows)
                               TableRow(children: [
-                                for (final cell in row)
+                                for (var column = 0;
+                                    column < table.rows.fold<int>(0,
+                                        (max, cells) => cells.length > max
+                                            ? cells.length : max);
+                                    column++)
                                   Padding(
                                     padding: const EdgeInsets.all(8),
-                                    child: Text(cell,
+                                    child: Text(
+                                      column < row.length ? row[column] : '',
                                       style: TextStyle(
                                         color: palette.foreground(context),
-                                      )),
+                                      ),
+                                    ),
                                   ),
                               ]),
                           ],
