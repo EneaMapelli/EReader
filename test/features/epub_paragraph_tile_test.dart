@@ -255,7 +255,7 @@ void main() {
     final rich = tester.widget<RichText>(find.descendant(
       of: find.byType(EpubParagraphTile),
       matching: find.byType(RichText),
-    ));
+    ).first);
     expect(rich.text.toPlainText(), 'Caption',
         reason: 'TTS source remains present exactly once in the paragraph');
   });
