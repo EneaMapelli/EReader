@@ -94,9 +94,12 @@ Android build, Windows build or runtime verification executed.**
 This increment covers *usable hierarchical NAV/NCX and in-book
 footnote navigation*, not every EPUB spec feature:
 
-- Footnotes stored in XHTML **not included in the readable spine**,
-  image-only note documents, scripted pop-ups and multi-document
-  remote references are intentionally not rendered or opened.
+- Manifest-declared **non-spine XHTML footnotes** can now be opened
+  in **read-only local text previews** when referenced by a verified
+  `noteref`. Their text does not enter TTS and they have no synthetic
+  Open in book destination. Image-only notes, scripted popups and remote
+  references remain unsupported. See
+  [EPUB Auxiliary Footnotes](EPUB_AUXILIARY_FOOTNOTES.md).
 - Recognized semantic note bodies now support a **read-only local
   preview popup**. An explicit **Open in book** command keeps the original
   full-document navigation and return button. Rich XHTML/CSS note rendering,
