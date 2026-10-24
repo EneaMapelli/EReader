@@ -14,6 +14,7 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - **Formattazione originale EPUB (codice, da validare):** recupera grassetto, corsivo e intestazioni h1–h6 dai tag XHTML, usando intervalli verificati sul testo estratto per non alterare ancore o lettura vocale. Script, CSS, risorse esterne e stili ambigui non vengono eseguiti né indovinati. [Specifica e test](docs/EPUB_INLINE_FORMATTING.md).
 - **Risorse locali EPUB (codice, da validare):** immagini PNG/JPEG incorporate con limiti di dimensione, link verso sezioni dello stesso libro e anteprime espandibili delle tabelle. Nessuna apertura di URL esterni né modifica degli offset TTS; le immagini in capitoli solo illustrati e le tabelle HTML complesse restano incomplete. [Sicurezza e limiti](docs/EPUB_EMBEDDED_CONTENT.md).
 - **Navigazione EPUB per capitoli (codice, da validare):** titoli ricavati dalle intestazioni XHTML, indice navigabile, capitolo corrente e pulsanti precedente/successivo. Il salto salva un'ancora spine e mette in pausa il TTS senza avviare nuove sintesi. I segmenti vocali non attraversano i confini dello spine. Non equivale ancora a un indice EPUB3 NAV/NCX completo o a un renderer XHTML. [Specifica](docs/EPUB_CHAPTER_NAVIGATION.md).
+- **Indice editoriale EPUB3 NAV / EPUB2 NCX (codice, da validare):** mostra sezioni annidate del sommario dell'editore, con precedente/successivo secondo l'indice e fallback allo spine. I riferimenti alle note consentono di aprire sezioni dello stesso libro e tornare al testo precedente senza riavviare TTS o cloud; posizioni e contenuti rimangono invariati. [Dettagli](docs/EPUB_NAV_NCX_FOOTNOTES.md).
 - Visualizzazione PDF tramite `pdfrx` e modalità sperimentale di lettura vocale per PDF con testo selezionabile (senza garanzia sull'ordine di colonne, note e tabelle).
 - **Ripresa visuale dei PDF, anche scansionati (codice, da validare):** salva per libro la pagina visualizzata e la ripristina alla riapertura, indipendentemente dalla posizione TTS. Migrazione SQLite v15; nessun OCR o sincronismo a livello di riga. [Specifica e test](docs/PDF_VISUAL_RESUME.md).
 - Lettura vocale con voci di sistema Windows/Android, scelta e salvataggio di voce/lingua/pitch/rate per libro e come default globale, navigazione tra segmenti e Read Along con evidenziazione, auto-scroll disattivabile e ripresa della posizione.
@@ -82,6 +83,7 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Renderer EPUB per paragrafi, temi di lettura e sincronizzazione TTS](docs/EPUB_PARAGRAPH_RENDERER.md)
 - [Formattazione EPUB originale: corsivo, grassetto e titoli XHTML](docs/EPUB_INLINE_FORMATTING.md)
 - [Immagini EPUB locali, link interni e anteprime delle tabelle](docs/EPUB_EMBEDDED_CONTENT.md)
+- [Indice editoriale EPUB3 NAV / EPUB2 NCX e ritorno dalle note](docs/EPUB_NAV_NCX_FOOTNOTES.md)
 - [Architettura tecnica](docs/TECHNICAL_ARCHITECTURE.md)
 - [Casting dei personaggi e attribuzione dei dialoghi](docs/VOICE_CASTING_SPEC.md)
 - [Implementazione e test](docs/IMPLEMENTATION_STATUS.md)
