@@ -190,7 +190,8 @@ class EpubTextExtractor {
     const maxGlobalStyleRuns = 100000;
     final imageRefs = <({int offset, String src, String alt, String href})>[];
     final linkRefs = <({
-      int start, int end, String href, String source, bool footnote
+      int start, int end, String href, String source, bool footnote,
+      bool legacyCandidate
     })>[];
     final fragmentRefs = <String, int>{};
     final tables = <EpubTablePreview>[];
@@ -251,6 +252,7 @@ class EpubTextExtractor {
           start: start + link.start, end: start + link.end,
           href: link.href, source: href,
           footnote: link.isFootnote,
+          legacyCandidate: link.legacyNoteCandidate,
         ));
       }
       for (final note in structure.footnotes) {
@@ -305,7 +307,8 @@ class EpubTextExtractor {
     final auxRefs = <({String key, String path, String fragment})>[];
     final seenAux = <String>{};
     for (final ref in linkRefs) {
-      if (!ref.footnote || auxRefs.length >= 24) continue;
+      if (!(ref.footnote || ref.legacyCandidate) ||
+          auxRefs.length >= 24) continue;
       final target = _localFragment(ref.source, ref.href);
       if (target == null || target.fragment.isEmpty ||
           !auxiliaryXhtmlPaths.contains(target.path) ||
@@ -366,6 +369,17 @@ class EpubTextExtractor {
       acceptedAuxKeys.add(ref.key);
       remainingAuxChars -= body.length;
     }
+    // A legacy EPUB2 reference is a NOTE only when the resolved
+    // destination is itself a verified semantic/classified note body.
+    // Plain numeric links, superscripts and regular anchors remain links.
+    final recognizedNoteKeys = <String>{};
+    for (final note in footnoteRefs) {
+      final key = '${note.path}#${note.id}';
+      final target = fragmentRefs[key];
+      if (target != null && target >= note.start && target < note.end) {
+        recognizedNoteKeys.add(key);
+      }
+    }
     // Resolve only links inside the readable EPUB spine; no external
     // URLs, mailto schemes, scripts, remote assets, or implicit downloads.
     final links = <EpubInternalLink>[];
@@ -386,8 +400,12 @@ class EpubTextExtractor {
           ? ranges.firstWhere((entry) => entry.href == destination.path).start
           : fragmentRefs['${destination.path}#${destination.fragment}'];
       if (target == null) continue;
+      final resolvedKey = '${destination.path}#${destination.fragment}';
+      final recognizedLegacy = ref.legacyCandidate &&
+          destination.fragment.isNotEmpty &&
+          recognizedNoteKeys.contains(resolvedKey);
       links.add(EpubInternalLink(ref.start, ref.end, target,
-          isFootnote: ref.footnote));
+          isFootnote: ref.footnote || recognizedLegacy));
     }
     // Malformed nested anchors may create overlapping link ranges. Drop
     // ambiguous links instead of allowing them to reject an entire ebook
