@@ -7,32 +7,67 @@ class ReadingAnchor {
     required this.kind,
     required this.sourceId,
     required this.localOffset,
-  }) : assert(localOffset >= 0);
+    this.contextBefore,
+    this.contextAfter,
+  }) : assert(localOffset >= 0),
+       assert((contextBefore == null) == (contextAfter == null));
 
   final AnchorKind kind;
   final String sourceId;
   final int localOffset;
+  /// A version-2 EPUB source fingerprint. These are truncated SHA-256
+  /// digests, never clear-text excerpts, URLs or source file contents.
+  final String? contextBefore;
+  final String? contextAfter;
+  bool get hasContext => contextBefore != null && contextAfter != null;
 
   Map<String, Object> toJson() => {
-        'version': 1,
+        'version': hasContext ? 2 : 1,
         'kind': kind.name,
         'sourceId': sourceId,
         'localOffset': localOffset,
+        if (hasContext) 'contextBefore': contextBefore!,
+        if (hasContext) 'contextAfter': contextAfter!,
       };
 
   factory ReadingAnchor.fromJson(Map<String, dynamic> json) {
-    if (json['version'] != 1) {
+    final version = json['version'];
+    if (version != 1 && version != 2) {
       throw const FormatException('Unsupported reading anchor version');
     }
     final id = json['sourceId'];
     final offset = json['localOffset'];
-    if (id is! String || id.isEmpty || offset is! int || offset < 0) {
+    final kind = json['kind'];
+    if (id is! String || id.isEmpty || id.length > 256 ||
+        offset is! int || offset < 0 || kind is! String) {
       throw const FormatException('Malformed reading anchor');
     }
+    AnchorKind resolvedKind;
+    try {
+      resolvedKind = AnchorKind.values.byName(kind);
+    } on ArgumentError {
+      throw const FormatException('Unrecognized reading anchor kind');
+    }
+    String? before;
+    String? after;
+    if (version == 2) {
+      before = json['contextBefore'] as String?;
+      after = json['contextAfter'] as String?;
+      final digest = RegExp(r'^[0-9a-f]{32}
+}
+);
+      if (resolvedKind != AnchorKind.epubSpine ||
+          before == null || after == null ||
+          !digest.hasMatch(before) || !digest.hasMatch(after)) {
+        throw const FormatException('Malformed EPUB source fingerprint');
+      }
+    }
     return ReadingAnchor(
-      kind: AnchorKind.values.byName(json['kind'] as String),
+      kind: resolvedKind,
       sourceId: id,
       localOffset: offset,
+      contextBefore: before,
+      contextAfter: after,
     );
   }
 }
