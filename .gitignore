@@ -22,3 +22,8 @@ windows/flutter/ephemeral/
 .env.*
 *.jks
 *.keystore
+
+# Windows local test runner: full stdout/stderr never enters Git
+.local-test-results/
+# Generated test results under test-results/ are intentionally tracked,
+# after filtering. Do not ignore test-results/ globally.
