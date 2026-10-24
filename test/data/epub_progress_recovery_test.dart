@@ -72,7 +72,8 @@ void main() {
   });
 
   test('repeated equivalent context cannot choose arbitrary occurrence', () {
-    final snippet = 'A' * 80 + ' UNIQUE ' + 'B' * 80;
+    final snippet = List.filled(80, 'A').join() +
+        ' UNIQUE ' + List.filled(80, 'B').join();
     final oldText = 'Intro text. $snippet';
     final old = oneChapter(oldText);
     final saved = old.anchorAt(BookFormat.epub, oldText.indexOf('UNIQUE'));
