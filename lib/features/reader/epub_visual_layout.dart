@@ -410,9 +410,14 @@ EpubVisualLayout buildEpubVisualLayout(
 bool _sourceWhitespaceOnly(String source, int start, int end) {
   for (var i = start; i < end; i++) {
     final unit = source.codeUnitAt(i);
-    if (!_visualWhitespace(unit) && unit != 0x0b && unit != 0x0c) {
-      return false;
-    }
+    // Keep Dart trim-style Unicode whitespace semantics without making
+    // a substring for every run just to inspect heading boundaries.
+    final whitespace = _visualWhitespace(unit) ||
+        unit == 0x0b || unit == 0x0c || unit == 0x85 ||
+        unit == 0x1680 || (unit >= 0x2000 && unit <= 0x200a) ||
+        unit == 0x2028 || unit == 0x2029 || unit == 0x202f ||
+        unit == 0x205f || unit == 0x3000 || unit == 0xfeff;
+    if (!whitespace) return false;
   }
   return true;
 }
