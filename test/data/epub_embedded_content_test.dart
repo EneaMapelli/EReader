@@ -43,6 +43,25 @@ void main() {
     expect(result.links.single.href, '#top');
   });
 
+  test('EPUB3 and ARIA noteref tags preserve in-book note semantics', () {
+    const source = 'Text [1] and [2]';
+    final data = extractEpubStructure(
+      '<html><body><p>Text '
+      '<a epub:type="noteref" href="#n1">[1]</a> and '
+      '<a role="doc-noteref" href="#n2">[2]</a></p>'
+      '<aside id="n1" epub:type="footnote"></aside>'
+      '<aside id="n2" epub:type="footnote"></aside>'
+      '</body></html>',
+      source,
+    );
+    expect(data.links.length, 2);
+    expect(data.links.every((link) => link.isFootnote), isTrue);
+    expect(source.substring(data.links.first.start, data.links.first.end),
+        '[1]');
+    expect(source.substring(data.links.last.start, data.links.last.end),
+        '[2]');
+  });
+
   test('table rows are bounded and do not alter flattened TTS source', () {
     const text = 'Report\n\nNorth10South20';
     final info = extractEpubStructure(
