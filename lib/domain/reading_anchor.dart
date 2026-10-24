@@ -15,20 +15,21 @@ class ReadingAnchor {
   final AnchorKind kind;
   final String sourceId;
   final int localOffset;
-  /// A version-2 EPUB source fingerprint. These are truncated SHA-256
-  /// digests, never clear-text excerpts, URLs or source file contents.
+
+  /// Version-2 EPUB context fingerprints are truncated SHA-256 digests,
+  /// not saved excerpts. Legacy anchors remain version 1.
   final String? contextBefore;
   final String? contextAfter;
   bool get hasContext => contextBefore != null && contextAfter != null;
 
   Map<String, Object> toJson() => {
-        'version': hasContext ? 2 : 1,
-        'kind': kind.name,
-        'sourceId': sourceId,
-        'localOffset': localOffset,
-        if (hasContext) 'contextBefore': contextBefore!,
-        if (hasContext) 'contextAfter': contextAfter!,
-      };
+    'version': hasContext ? 2 : 1,
+    'kind': kind.name,
+    'sourceId': sourceId,
+    'localOffset': localOffset,
+    if (hasContext) 'contextBefore': contextBefore!,
+    if (hasContext) 'contextAfter': contextAfter!,
+  };
 
   factory ReadingAnchor.fromJson(Map<String, dynamic> json) {
     final version = json['version'];
@@ -51,16 +52,17 @@ class ReadingAnchor {
     String? before;
     String? after;
     if (version == 2) {
-      before = json['contextBefore'] as String?;
-      after = json['contextAfter'] as String?;
-      final digest = RegExp(r'^[0-9a-f]{32}
-}
-);
+      final rawBefore = json['contextBefore'];
+      final rawAfter = json['contextAfter'];
+      final digest = RegExp(r'^[0-9a-f]{32}');
       if (resolvedKind != AnchorKind.epubSpine ||
-          before == null || after == null ||
-          !digest.hasMatch(before) || !digest.hasMatch(after)) {
+          rawBefore is! String || rawAfter is! String ||
+          rawBefore.length != 32 || rawAfter.length != 32 ||
+          !digest.hasMatch(rawBefore) || !digest.hasMatch(rawAfter)) {
         throw const FormatException('Malformed EPUB source fingerprint');
       }
+      before = rawBefore;
+      after = rawAfter;
     }
     return ReadingAnchor(
       kind: resolvedKind,
