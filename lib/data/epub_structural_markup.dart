@@ -97,6 +97,24 @@ bool _legacyFootnoteBody(dom.Element element) {
   return _containsAny(_classTokens(parent), _legacyNoteListClasses);
 }
 
+/// Some older ebooks put <a name="fn1"></a> at the start of a note
+/// instead of an id on its enclosing block. Accept only a leading,
+/// empty, destination-only anchor inside an already classified note.
+String? _leadingNamedNoteAnchor(dom.Element block) {
+  if (!_legacyFootnoteBody(block)) return null;
+  for (final child in block.nodes) {
+    if (child is dom.Text && child.data.trim().isEmpty) continue;
+    if (child is dom.Element && child.localName == 'a' &&
+        !child.attributes.containsKey('href') && child.text.trim().isEmpty) {
+      final name = child.attributes['name'] ?? child.attributes['id'];
+      return name != null && name.isNotEmpty && name.length <= 256
+          ? name : null;
+    }
+    return null;
+  }
+  return null;
+}
+
 bool _legacyFootnoteReference(dom.Element link) {
   final uri = Uri.tryParse(link.attributes['href'] ?? '');
   if (uri == null || uri.fragment.isEmpty || uri.hasScheme ||
@@ -182,8 +200,9 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
                 _legacyFootnoteReference(node)));
       }
     }
-    if (start < end && id != null && id.isNotEmpty &&
-        id.length <= 256) {
+    final noteId = id ?? _leadingNamedNoteAnchor(node);
+    if (start < end && noteId != null && noteId.isNotEmpty &&
+        noteId.length <= 256) {
       final type = (node.attributes['epub:type'] ?? '')
           .split(RegExp(r'\s+'));
       final role = (node.attributes['role'] ?? '')
@@ -192,7 +211,7 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
           role.contains('doc-footnote') ||
           _legacyFootnoteBody(node);
       if (isNote && footnotes.length < 200) {
-        footnotes.add(EpubRawFootnote(id, start, end));
+        footnotes.add(EpubRawFootnote(noteId, start, end));
       }
     }
     if (node.localName == 'table' && start < end) {
