@@ -93,15 +93,16 @@ offset. The manifest/path/size and semantic-note checks are detailed in
 The popup supports semantic notes inside readable XHTML spine items and
 strictly bounded, manifest-declared auxiliary XHTML notes outside the spine,
 all with a verified ID.
-It cannot display notes in non-linear auxiliary files, mathematical
-formula/image-only notes, embedded media, rich CSS or links inside a
-note's preview. Popup text is plain, not HTML. A publisher's
+Non-linear auxiliary XHTML files are supported only as passive
+plain-text note popups when referenced from readable spine text, declared
+in the manifest and marked semantically. Mathematical formula/image-only
+notes, embedded media, rich CSS and links *inside* a note's preview
+are still unsupported. Popup text is plain, not HTML. Publisher
 footnote/backlink reconstruction is not attempted.
 
-Next steps include accessible footnote rich text, support for
-non-spine auxiliary notes within strict safety limits, repeated
-anchors/note references, and real-book/native Android/Windows
-integration tests. Do not claim release readiness until the
+Next steps include accessible footnote rich text, expansion to
+legacy nonsemantic footnotes only when reliably identifiable, handling
+repeated anchors, and real-book/native Android/Windows integration tests. Do not claim release readiness until the
 agreed analyzer, tests and platform builds have run.
 
 See [EPUB NAV/NCX and Footnotes](EPUB_NAV_NCX_FOOTNOTES.md) and
