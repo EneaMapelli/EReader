@@ -7,17 +7,33 @@ import 'epub_chapter_navigation.dart';
 /// An unmodified substring of the extracted EPUB text, optionally covered
 /// by one of the speech engine's original, source-aligned segments.
 class EpubVisualRun {
-  const EpubVisualRun(this.start, this.end, this.text, this.segmentIndex, {
+  /// Explicit text remains supported by existing fixtures and callers.
+  const EpubVisualRun(this.start, this.end, String text, this.segmentIndex, {
     this.bold = false,
     this.italic = false,
     this.headingLevel = 0,
     this.linkTargetOffset,
     this.auxiliaryFootnoteKey,
     this.isFootnote = false,
-  });
+  }) : _text = text, _source = null;
+
+  /// Keep source offsets rather than allocating thousands of overlapping
+  /// substring copies before a paragraph is shown on screen.
+  EpubVisualRun.fromSource(
+    this.start, this.end, String source, this.segmentIndex, {
+    this.bold = false,
+    this.italic = false,
+    this.headingLevel = 0,
+    this.linkTargetOffset,
+    this.auxiliaryFootnoteKey,
+    this.isFootnote = false,
+  }) : _source = source, _text = null;
+
   final int start;
   final int end;
-  final String text;
+  final String? _text;
+  final String? _source;
+  String get text => _text ?? _source!.substring(start, end);
   final int? segmentIndex;
   final bool bold;
   final bool italic;
@@ -221,8 +237,8 @@ EpubVisualLayout buildEpubVisualLayout(
         if (until <= offset) {
           throw const FormatException('Non-progressing EPUB visual metadata');
         }
-        runs.add(EpubVisualRun(
-          offset, until, source.substring(offset, until), segmentIndex,
+        runs.add(EpubVisualRun.fromSource(
+          offset, until, source, segmentIndex,
           bold: style?.bold ?? false,
           italic: style?.italic ?? false,
           headingLevel: style?.headingLevel ?? 0,
@@ -256,18 +272,20 @@ EpubVisualLayout buildEpubVisualLayout(
     }
 
     final chapter = headings[start];
-    final normalized = source.substring(start, end)
-        .replaceAll(RegExp(r'\s+'), ' ').trim();
+    // Do not materialize every spoken substring merely to check whether
+    // a block has semantic heading styling.
     final semanticHeading = runs.isNotEmpty &&
-        runs.every((run) =>
-            run.headingLevel > 0 || run.text.trim().isEmpty);
+        runs.every((run) => run.headingLevel > 0 ||
+            _sourceWhitespaceOnly(source, run.start, run.end));
+    final publisherHeading = chapter != null &&
+        source.substring(start, end)
+            .replaceAll(RegExp(r'\s+'), ' ').trim() == chapter.title;
     blocks.add(EpubVisualBlock(
       start: start,
       end: end,
       runs: List.unmodifiable(runs),
       chapterStart: chapterStart,
-      heading: semanticHeading ||
-          (chapter != null && normalized == chapter.title),
+      heading: semanticHeading || publisherHeading,
       firstSegmentIndex: firstSegment,
     ));
   }
@@ -387,6 +405,16 @@ EpubVisualLayout buildEpubVisualLayout(
     List.unmodifiable(enriched),
     List.unmodifiable(mapping),
   );
+}
+
+bool _sourceWhitespaceOnly(String source, int start, int end) {
+  for (var i = start; i < end; i++) {
+    final unit = source.codeUnitAt(i);
+    if (!_visualWhitespace(unit) && unit != 0x0b && unit != 0x0c) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool _visualWhitespace(int ch) =>
