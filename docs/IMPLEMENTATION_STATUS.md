@@ -6,7 +6,7 @@
 |---|---|---|
 | ER-001 Bootstrap | `pubspec.yaml`, Flutter entry point, bootstrap scripts | In progress |
 | ER-002 Book/anchors | BookRecord with source anchor + segment UTF-16 IDs; unit tests | Partial; stable spine/page anchors added, EPUB CFI not yet implemented |
-| ER-003 EPUB/TXT | OPF spine, safe local images/tables, EPUB3 NAV / EPUB2 NCX hierarchical TOC | Partial; NAV/NCX real-device coverage, image-only and full CSS open |
+| ER-003 EPUB/TXT | OPF spine, EPUB3 NAV / EPUB2 NCX, bounded images/tables and paired legacy EPUB2 note patterns | Partial; real-book compatibility, full CSS/image-only content and native verification open |
 | ER-004 PDF | PDF viewer + text-layer extraction; SQLite v15 independent visual-page recovery including scanned PDFs, 7 authored tests | Partial: page-only resume, no scroll/zoom bookmark, complex ordering/OCR pending |
 | ER-005 Reader | EPUB editorial TOC, in-spine note previews/returns, manifest-declared auxiliary note popup, PDF | Partial; full CSS/CFI, rich notes and native verification open |
 | ER-006 TTS | OS/cloud speech adapters, voice/rate/pitch controls; 8-second bounded native Stop with no auto-replay | Partial; hung engine cannot be forcibly silenced by Dart alone |
@@ -442,3 +442,11 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Auxiliary notes are keyed independently of source/voice anchors. `EpubInternalLink.targetOffset` is null for auxiliary references; verified `auxiliaryFootnoteKey` routes only to a passive popup. **There is no Open in book control** because auxiliary text has no in-spine position. No text duplication, SQLite progress write, speech seek, cloud request, external file or network fetch is introduced.
 - Added **9 authored unexecuted tests** across `test/data/epub_navigation_test.dart`, `test/features/epub_visual_layout_test.dart`, `test/features/epub_paragraph_tile_test.dart` and `test/features/epub_note_preview_sheet_test.dart`. Flutter analyzer, automated tests and Windows/Android native builds remain deferred. See [Auxiliary Footnotes](EPUB_AUXILIARY_FOOTNOTES.md).
 - Legacy nonsemantic EPUB2 notes, rich XHTML layout, inline figures and a separately navigable auxiliary-document viewer remain open.
+
+## M1 — conservative EPUB2 legacy note recognition (2026-10-24)
+
+- Added **paired source-and-target validation** for EPUB2 footnote markup. `EpubRawLink.legacyNoteCandidate` is provisional: exact class tokens (`footnote-ref`, `fnref`, `noteref`, etc.), `rel="footnote"` or short numeric/symbol superscripts qualify as *reference candidates only*. A candidate becomes a note only after the original fragment target is independently verified to be a semantic or explicitly classed footnote body, or an `li` in an explicitly classed footnotes/endnotes list.
+- Supports legacy leading empty `<a name="...">` anchors inside an identified note container, while refusing unrelated, late-position named anchors, generic prose, near-miss CSS classes and ordinary numbered links. Both in-spine note previews and manifest-declared non-spine auxiliary previews reuse the existing safe no-autoplay path.
+- Existing canonical text, speech chunks, EPUB UTF-16 anchors, cast attribution, SQLite progress and privacy behavior remain unchanged. No schema migration or cloud behavior change.
+- Added **10 authored, unexecuted EPUB2 integration fixtures** in `test/data/epub_legacy_notes_test.dart`, plus **4 structural parser cases** in `test/data/epub_embedded_content_test.dart`. See [EPUB2 Legacy Footnotes](EPUB2_LEGACY_FOOTNOTES.md). Flutter analyzer, all test runs and native Windows/Android builds remain intentionally deferred.
+- Not all publisher-specific footnote conventions are recognized; broad heuristic inference is intentionally avoided until supported by a validated real-book corpus.
