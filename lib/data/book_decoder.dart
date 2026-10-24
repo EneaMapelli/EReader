@@ -8,6 +8,7 @@ import '../domain/book.dart';
 import '../domain/reading_anchor.dart';
 import 'epub_text_extractor.dart';
 import 'epub_inline_style.dart';
+import 'epub_embedded_content.dart';
 
 class DocumentContent {
   const DocumentContent({
@@ -16,6 +17,9 @@ class DocumentContent {
     this.pdfPageRanges = const [],
     this.epubSpineRanges = const [],
     this.epubInlineStyles = const [],
+    this.epubImages = const [],
+    this.epubLinks = const [],
+    this.epubTables = const [],
   });
   final String text;
   final String title;
@@ -24,6 +28,10 @@ class DocumentContent {
   /// Pure visual EPUB annotations, measured against [text] and never stored
   /// as reading progress, voice text or user-attributed dialogue.
   final List<EpubInlineStyleSpan> epubInlineStyles;
+  /// Non-executable visual resources; none affect the persisted anchor or TTS.
+  final List<EpubEmbeddedImage> epubImages;
+  final List<EpubInternalLink> epubLinks;
+  final List<EpubTablePreview> epubTables;
 
   /// Converts the global reader offset to a document-relative source address.
   /// No anchoring to an EPUB TOC entry or PDF visual coordinate is implied.
@@ -130,6 +138,9 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
           text: content.text,
           epubSpineRanges: content.ranges,
           epubInlineStyles: content.styles,
+          epubImages: content.images,
+          epubLinks: content.links,
+          epubTables: content.tables,
         );
       case BookFormat.pdf:
         return _readPdfText(record);
