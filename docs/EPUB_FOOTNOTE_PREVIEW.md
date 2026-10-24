@@ -21,9 +21,9 @@ A recognized in-book EPUB footnote can now be read in a bottom-sheet popup
   uses the preexisting paused internal-link navigation, persisting the
   exact target source anchor and recording the previous position on the
   bounded in-session return stack.
-- If the target is missing, oversized, outside the readable spine or is
-  not explicitly a semantic footnote, the existing safe hyperlink
-  navigation remains available. Normal hyperlinks are not changed.
+- If a *resolved in-spine* target lacks an identifiable preview, the
+  existing safe hyperlink navigation remains available. Links to absent
+  or non-spine targets remain rejected by the prior EPUB link resolver. Normal hyperlinks are not changed.
 
 ## Strict source alignment
 
