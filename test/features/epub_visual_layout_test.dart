@@ -96,6 +96,43 @@ void main() {
     expect(epubParagraphHardBoundaries(doc), [startSecond]);
   });
 
+  test('thousands of local auxiliary link keys retain preview-only targets',
+      () {
+    const count = 1200;
+    final source = List.filled(count, '[1] ').join();
+    final doc = DocumentContent(
+      title: 'Reference collection',
+      text: source,
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'reference', href: 'reference.xhtml',
+            start: 0, end: source.length),
+      ],
+      epubAuxiliaryFootnotePreviews: [
+        for (var i = 0; i < count; i++)
+          EpubAuxiliaryFootnotePreview('notes.xhtml#n$i', 'Note $i'),
+      ],
+      epubLinks: [
+        for (var i = 0; i < count; i++)
+          EpubInternalLink(i * 4, i * 4 + 3, null,
+            isFootnote: true,
+            auxiliaryFootnoteKey: 'notes.xhtml#n$i'),
+      ],
+    );
+    final layout = buildEpubVisualLayout(doc, const [], const []);
+    expect(layout.blocks, isNotEmpty);
+    final marked = [
+      for (final block in layout.blocks)
+        for (final run in block.runs)
+          if (run.auxiliaryFootnoteKey != null) run,
+    ];
+    expect(marked.length, count);
+    expect(marked.first.auxiliaryFootnoteKey, 'notes.xhtml#n0');
+    expect(marked.last.auxiliaryFootnoteKey, 'notes.xhtml#n1199');
+    expect(marked.every((run) =>
+        run.linkTargetOffset == null && run.isFootnote), isTrue);
+    expect(marked.map((run) => run.text).join(), List.filled(count, '[1]').join());
+  });
+
   test('paragraph runs concatenate to exact source and locate spoken spans', () {
     const source =
         'Chapter One\n\nOne sentence. Another sentence.\n\nLast paragraph!';
