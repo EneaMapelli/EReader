@@ -46,6 +46,9 @@ Android build, Windows build or runtime verification executed.**
 - A **Return from note or internal link** toolbar action appears
   when an in-book link has been followed. Return positions use
   original UTF-16 offsets in a 20-entry session-only stack.
+  A fragment inside a longer spoken sentence saves its **exact verified
+  source position**, even though the audio engine seeks to the containing
+  segment. Segment lookup uses binary search for large books.
   Nested link visits may be unwound in reverse order. A return
   entry is removed **only after a successful navigation**, preventing
   native Stop errors or failed seeks from losing the back target.
