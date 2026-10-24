@@ -48,6 +48,7 @@ class EpubParagraphTile extends StatefulWidget {
     required this.onSelectSegment,
     this.onOpenLink,
     this.onOpenFootnote,
+    this.onOpenAuxiliaryFootnote,
     this.palette = EpubReadingPalette.system,
   });
 
@@ -60,6 +61,7 @@ class EpubParagraphTile extends StatefulWidget {
   /// A verified note reference requests a non-navigating preview first.
   /// The reader may fall back to ordinary navigation if no preview exists.
   final ValueChanged<int>? onOpenFootnote;
+  final ValueChanged<String>? onOpenAuxiliaryFootnote;
   final EpubReadingPalette palette;
 
   @override
@@ -69,6 +71,7 @@ class EpubParagraphTile extends StatefulWidget {
 class _EpubParagraphTileState extends State<EpubParagraphTile> {
   final Map<int, TapGestureRecognizer> _recognizers = {};
   final Map<(int, bool), TapGestureRecognizer> _linkRecognizers = {};
+  final Map<String, TapGestureRecognizer> _auxNoteRecognizers = {};
 
   TapGestureRecognizer _tap(int index) {
     final recognizer = _recognizers.putIfAbsent(
@@ -94,6 +97,14 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
     return recognizer;
   }
 
+  TapGestureRecognizer _auxiliaryNoteTap(String key) {
+    final recognizer = _auxNoteRecognizers.putIfAbsent(
+      key, TapGestureRecognizer.new,
+    );
+    recognizer.onTap = () => widget.onOpenAuxiliaryFootnote?.call(key);
+    return recognizer;
+  }
+
   void _clearRecognizers() {
     for (final recognizer in _recognizers.values) {
       recognizer.dispose();
@@ -103,6 +114,10 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
       recognizer.dispose();
     }
     _linkRecognizers.clear();
+    for (final recognizer in _auxNoteRecognizers.values) {
+      recognizer.dispose();
+    }
+    _auxNoteRecognizers.clear();
   }
 
   @override
@@ -168,17 +183,23 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                                 ? palette.highlight(context) : null,
                         color: run.segmentIndex == widget.activeSegmentIndex
                             ? palette.highlightForeground(context)
-                            : run.linkTargetOffset != null
+                            : run.linkTargetOffset != null ||
+                                    run.auxiliaryFootnoteKey != null
                                 ? Theme.of(context).colorScheme.primary
                                 : null,
-                        decoration: run.linkTargetOffset == null
+                        decoration: run.linkTargetOffset == null &&
+                                run.auxiliaryFootnoteKey == null
                             ? null : TextDecoration.underline,
                       ),
-                      recognizer: run.linkTargetOffset != null &&
+                      recognizer: run.auxiliaryFootnoteKey != null &&
+                              widget.onOpenAuxiliaryFootnote != null
+                          ? _auxiliaryNoteTap(run.auxiliaryFootnoteKey!)
+                          : run.linkTargetOffset != null &&
                               widget.onOpenLink != null
-                          ? _linkTap(run.linkTargetOffset!, run.isFootnote)
-                          : run.segmentIndex == null
-                              ? null : _tap(run.segmentIndex!),
+                              ? _linkTap(run.linkTargetOffset!,
+                                  run.isFootnote)
+                              : run.segmentIndex == null
+                                  ? null : _tap(run.segmentIndex!),
                     ),
                   ],
                 ),
