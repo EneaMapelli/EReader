@@ -120,6 +120,21 @@ void main() {
       null, const SpeechSegment(0, 11, 'Chapter One')), isFalse);
   });
 
+  test('source fragment inside a long speech chunk maps to that chunk', () {
+    const segments = [
+      SpeechSegment(0, 9, 'Beginning'),
+      SpeechSegment(11, 24, 'Secondphrase.'),
+      SpeechSegment(28, 35, 'Closing'),
+    ];
+    expect(speechSegmentIndexForOffset(segments, 0), 0);
+    expect(speechSegmentIndexForOffset(segments, 5), 0);
+    expect(speechSegmentIndexForOffset(segments, 9), 1);
+    expect(speechSegmentIndexForOffset(segments, 12), 1);
+    expect(speechSegmentIndexForOffset(segments, 27), 2);
+    expect(speechSegmentIndexForOffset(segments, 999), 2);
+    expect(speechSegmentIndexForOffset(const [], 5), -1);
+  });
+
   test('TXT fallback segmentation unchanged without EPUB spine', () {
     const source = 'A sentence. Another sentence.';
     const plain = DocumentContent(title: 'Text', text: source);
