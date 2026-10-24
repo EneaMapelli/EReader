@@ -312,6 +312,53 @@ void main() {
     }
   });
 
+  test('auxiliary note marker preserves source speech and has no target offset',
+      () {
+    const source = 'Read [1] now.';
+    const key = 'OPS/Text/notes.xhtml#fn1';
+    const doc = DocumentContent(
+      title: 'Note', text: source,
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'main', href: 'main.xhtml',
+            start: 0, end: source.length),
+      ],
+      epubAuxiliaryFootnotePreviews: [
+        EpubAuxiliaryFootnotePreview(key, 'Note only in auxiliary XHTML'),
+      ],
+      epubLinks: [
+        EpubInternalLink(5, 8, null,
+            isFootnote: true, auxiliaryFootnoteKey: key),
+      ],
+    );
+    final chunks = segmentEpubSpine(doc);
+    final layout = buildEpubVisualLayout(doc, chunks, const []);
+    expect(layout.blocks.single.text, source);
+    final note = layout.blocks.single.runs.singleWhere(
+        (run) => run.auxiliaryFootnoteKey != null);
+    expect(note.text, '[1]');
+    expect(note.linkTargetOffset, isNull);
+    expect(note.auxiliaryFootnoteKey, key);
+    expect(note.isFootnote, isTrue);
+    expect(note.segmentIndex, isNotNull);
+  });
+
+  test('unresolved auxiliary reference is rejected before rendering', () {
+    const source = 'Read [1] now.';
+    const doc = DocumentContent(
+      title: 'Note', text: source,
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'main', href: 'main.xhtml',
+            start: 0, end: source.length),
+      ],
+      epubLinks: [
+        EpubInternalLink(5, 8, null, isFootnote: true,
+            auxiliaryFootnoteKey: 'missing.xhtml#fn1'),
+      ],
+    );
+    expect(() => buildEpubVisualLayout(
+        doc, segmentEpubSpine(doc), const []), throwsFormatException);
+  });
+
   test('invalid or overlapping fragment links cannot redirect narration',
       () {
     const source = 'A single line';
