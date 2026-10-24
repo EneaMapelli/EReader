@@ -15,10 +15,13 @@ class EpubEmbeddedImage {
 }
 
 class EpubInternalLink {
-  const EpubInternalLink(this.start, this.end, this.targetOffset);
+  const EpubInternalLink(this.start, this.end, this.targetOffset, {
+    this.isFootnote = false,
+  });
   final int start;
   final int end;
   final int targetOffset;
+  final bool isFootnote;
 }
 
 class EpubTablePreview {
