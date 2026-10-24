@@ -22,6 +22,7 @@ class DocumentContent {
     this.epubLinks = const [],
     this.epubTables = const [],
     this.epubNavigation = const [],
+    this.epubFootnotePreviews = const [],
   });
   final String text;
   final String title;
@@ -35,6 +36,7 @@ class DocumentContent {
   final List<EpubInternalLink> epubLinks;
   final List<EpubTablePreview> epubTables;
   final List<EpubNavigationEntry> epubNavigation;
+  final List<EpubFootnotePreview> epubFootnotePreviews;
 
   /// Converts the global reader offset to a document-relative source address.
   /// No anchoring to an EPUB TOC entry or PDF visual coordinate is implied.
@@ -145,6 +147,7 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
           epubLinks: content.links,
           epubTables: content.tables,
           epubNavigation: content.navigation,
+          epubFootnotePreviews: content.footnotePreviews,
         );
       case BookFormat.pdf:
         return _readPdfText(record);
