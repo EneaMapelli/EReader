@@ -218,6 +218,67 @@ void main() {
     expect(speech, [0]);
   });
 
+  testWidgets('footnote and normal link to same target use separate taps',
+      (tester) async {
+    const block = EpubVisualBlock(
+      start: 0, end: 15, chapterStart: false, heading: false,
+      firstSegmentIndex: 0,
+      runs: [
+        EpubVisualRun(0, 3, '[1]', 0,
+            linkTargetOffset: 42, isFootnote: true),
+        EpubVisualRun(3, 8, ' and ', 0),
+        EpubVisualRun(8, 15, 'open it', 0,
+            linkTargetOffset: 42),
+      ],
+    );
+    final noteTaps = <int>[];
+    final ordinary = <int>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: block, activeSegmentIndex: 0, fontSize: 19,
+        onSelectSegment: (_) {},
+        onOpenFootnote: noteTaps.add,
+        onOpenLink: ordinary.add,
+      )),
+    ));
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    final spans = leafTextSpans(rich.text);
+    expect(rich.text.toPlainText(), '[1] and open it');
+    (spans.first.recognizer! as TapGestureRecognizer).onTap!();
+    (spans.last.recognizer! as TapGestureRecognizer).onTap!();
+    expect(noteTaps, [42]);
+    expect(ordinary, [42]);
+    expect(spans.first.semanticsLabel, contains('footnote link'));
+  });
+
+  testWidgets('footnote without a preview callback retains link navigation',
+      (tester) async {
+    const block = EpubVisualBlock(
+      start: 0, end: 3, chapterStart: false, heading: false,
+      firstSegmentIndex: 0,
+      runs: [EpubVisualRun(0, 3, '[1]', 0,
+          linkTargetOffset: 21, isFootnote: true)],
+    );
+    final ordinary = <int>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: block, activeSegmentIndex: 0, fontSize: 18,
+        onSelectSegment: (_) {},
+        onOpenLink: ordinary.add,
+      )),
+    ));
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    (leafTextSpans(rich.text).single.recognizer! as TapGestureRecognizer)
+        .onTap!();
+    expect(ordinary, [21]);
+  });
+
   testWidgets('bounded local picture and ragged table preview appear safely',
       (tester) async {
     // Minimal real 1x1 PNG; the resource is passed as in-memory data.
