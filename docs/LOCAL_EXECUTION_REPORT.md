@@ -46,3 +46,17 @@
 1. **Compilazione LLM:** Risolvere il metodo `.reverse()` non valido su `List<SpeechSegment>` in `dialogue_analysis_plan.dart` e correggere la sintassi in `openai_dialogue_analyzer.dart`.
 2. **Migrazioni SQLite:** Assicurare il reset pulito del database di test prima di ogni test di migrazione sequenziale in `library_store_test.dart`.
 3. **Asserzioni Test UI/Dominio:** Aggiornare le stringhe attese nei test di preview note e cast cross-chunk.
+
+## 4. Triage dei risultati locali e correzioni successive
+
+**Revisione del report:** 24 ottobre 2026. I risultati sopra provengono dal PC Windows; le modifiche sotto sono stati eseguite nel repository GitHub **dopo** quel test. Non implicano che la suite ora passi.
+
+| Area segnalata | Correzione preparata | Verifica ancora necessaria |
+| --- | --- | --- |
+| Errore Dart `List<SpeechSegment>.reverse()` | Ricostruzione del contesto con `earlier.reversed` e lista immutabile, preservando l'ordine originale delle evidenze. Test con più frasi di contesto. | Rilanciare `flutter analyze` e `flutter test test/llm/dialogue_analysis_plan_test.dart` |
+| SQLite: `duplicate column name` in migrazioni ripetute | Le migrazioni `ADD COLUMN` controllano `PRAGMA table_info` prima dell'aggiunta, senza eliminare dati o tabelle. Test con schema già dotato delle colonne e `user_version` retrocesso a v1/v8. | `flutter test test/data/library_store_test.dart` con SQLite nativo Windows |
+| Widget EPUB: testo non corrispondente | Le asserzioni confrontano `InlineSpan.toPlainText(includeSemanticsLabels: false)`, distinguendo il testo realmente visibile dalle etichette vocali accessibili `footnote link`. | `flutter test test/features/epub_paragraph_tile_test.dart` |
+
+**Limitazioni del report ricevuto:** non sono stati allegati il log console completo, i nomi dei singoli test falliti, il numero di test passati/falliti, l'output di `flutter analyze` o uno snapshot preciso dei test eseguiti. Questo documento **non conferma** il superamento della suite: le correzioni sono fondate sui problemi descritti, ma l'esito potrà essere accertato soltanto con una nuova esecuzione sul PC Windows.
+
+**Per il prossimo report locale:** includere il comando esatto, il commit SHA testato, gli exit code, il riepilogo per suite e almeno gli stack trace dei fallimenti. Non includere token, credenziali cloud, percorsi utente assoluti o testo di libri privati.
