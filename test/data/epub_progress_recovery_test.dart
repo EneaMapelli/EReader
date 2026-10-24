@@ -43,6 +43,23 @@ void main() {
     expect(next.offsetOf(refreshed), result.offset);
   });
 
+  test('old absolute offset in inserted whitespace is not an exact match',
+      () {
+    const oldSource = 'A story. The target passage is unique.';
+    const changed = 'A story.\n\nThe target passage is unique.';
+    final original = oneChapter(oldSource);
+    final current = oneChapter(changed);
+    final oldPosition = oldSource.indexOf('The');
+    final anchor = original.anchorAt(BookFormat.epub, oldPosition);
+    expect(changed.codeUnitAt(oldPosition), 10,
+        reason: 'Legacy integer offset now sits at an inserted newline');
+    final recovered = resolveEpubReadingProgress(
+      current, anchor: anchor, legacyOffset: oldPosition,
+    );
+    expect(recovered.status, EpubProgressRecoveryStatus.relocated);
+    expect(recovered.offset, changed.indexOf('The'));
+  });
+
   test('changes in a preceding chapter preserve later spine anchor', () {
     const old = DocumentContent(
       title: 'Book',
