@@ -92,8 +92,20 @@ class DocumentContent {
     if (anchor.kind == AnchorKind.epubSpine) {
       for (final entry in epubSpineRanges) {
         if (entry.idref == anchor.sourceId) {
-          return entry.start +
-              anchor.localOffset.clamp(0, entry.end - entry.start).toInt();
+          final length = entry.end - entry.start;
+          // A stale local offset must never be silently mapped to another
+          // character or to the next chapter's separator.
+          if (anchor.localOffset > length) return null;
+          final absolute = entry.start + anchor.localOffset;
+          if (absolute > 0 && absolute < text.length) {
+            final left = text.codeUnitAt(absolute - 1);
+            final right = text.codeUnitAt(absolute);
+            if (left >= 0xd800 && left <= 0xdbff &&
+                right >= 0xdc00 && right <= 0xdfff) {
+              return null;
+            }
+          }
+          return absolute;
         }
       }
     }
