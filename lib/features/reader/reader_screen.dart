@@ -662,8 +662,16 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (!mounted || _player != player) return;
       await _select(index);
       if (!mounted || _player != player) return;
+      // The chosen fragment can lie within a larger spoken segment.
+      // Persist the exact verified source anchor, not merely the beginning
+      // of the speech chunk used for playback/visual scrolling.
+      await widget.store.savePosition(
+        widget.book.id, sourceOffset,
+        anchor: document.anchorAt(BookFormat.epub, sourceOffset),
+      );
+      if (!mounted || _player != player) return;
       if (remember) {
-        _linkHistory.push(fromOffset, player.segments[index].start);
+        _linkHistory.push(fromOffset, sourceOffset);
         setState(() {});
       }
     }
@@ -690,6 +698,14 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player) return;
       await _select(index);
+      if (!mounted || _player != player) return;
+      final document = _document;
+      if (document != null && offset < document.text.length) {
+        await widget.store.savePosition(
+          widget.book.id, offset,
+          anchor: document.anchorAt(BookFormat.epub, offset),
+        );
+      }
       if (!mounted || _player != player) return;
       _linkHistory.commitReturn();
       setState(() {});
