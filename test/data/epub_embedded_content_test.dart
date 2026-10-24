@@ -90,6 +90,62 @@ void main() {
     expect(extractEpubStructure(xhtml, 'Changed').footnotes, isEmpty);
   });
 
+  test('EPUB2 candidate super/subscript link and classed note body are distinct metadata', () {
+    const text = 'See [1].\n\nLegacy note.';
+    final content = extractEpubStructure(
+      '<html><body><p>See <sup><a href="#fn1">[1]</a></sup>.</p>'
+      '<div id="fn1" class="footnote">Legacy note.</div></body></html>',
+      text,
+    );
+    expect(content.links.length, 1);
+    expect(content.links.single.legacyNoteCandidate, isTrue);
+    expect(content.links.single.isFootnote, isFalse,
+        reason: 'The extractor must verify the destination before promotion');
+    expect(content.footnotes.length, 1);
+    expect(content.footnotes.single.id, 'fn1');
+    expect(text.substring(content.footnotes.single.start,
+        content.footnotes.single.end), 'Legacy note.');
+  });
+
+  test('numbered superscript to arbitrary anchor is never recognized as note body',
+      () {
+    const text = 'Read 2.\n\nAnother chapter.';
+    final result = extractEpubStructure(
+      '<html><body><p>Read <sup><a href="#chapter2">2</a></sup>.</p>'
+      '<h2 id="chapter2">Another chapter.</h2></body></html>',
+      text,
+    );
+    expect(result.links.single.legacyNoteCandidate, isTrue);
+    expect(result.footnotes, isEmpty);
+  });
+
+  test('EPUB2 named anchor at beginning of classed note is accepted', () {
+    const text = 'A note with 📖.';
+    final result = extractEpubStructure(
+      '<html><body><p class="footnote"><a name="n1"></a>'
+      'A note with 📖.</p></body></html>',
+      text,
+    );
+    expect(result.footnotes.length, 1);
+    expect(result.footnotes.single.id, 'n1');
+    expect(result.targets.single.id, 'n1');
+    expect(result.targets.single.offset, 0);
+    expect(result.footnotes.single.start, 0);
+  });
+
+  test('unmarked list and class-token substring cannot create a footnote',
+      () {
+    const text = 'A simple item.Noteworthy paragraph.';
+    final result = extractEpubStructure(
+      '<html><body><ol><li id="fn1">A simple item.</li></ol>'
+      '<p class="footnoteish" id="fn2">Noteworthy paragraph.</p>'
+      '</body></html>',
+      text,
+    );
+    expect(result.footnotes, isEmpty);
+    expect(result.targets.length, 2);
+  });
+
   test('table rows are bounded and do not alter flattened TTS source', () {
     const text = 'Report\n\nNorth10South20';
     final info = extractEpubStructure(
