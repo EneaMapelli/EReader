@@ -1,4 +1,4 @@
-# Implementation status — 2026-10-23
+# Implementation status — 2026-10-24
 
 **Roadmap approved:** [DECISIONS.md](DECISIONS.md). Active branch: `feature/m0-flutter-foundation`.
 
@@ -6,9 +6,9 @@
 |---|---|---|
 | ER-001 Bootstrap | `pubspec.yaml`, Flutter entry point, bootstrap scripts | In progress |
 | ER-002 Book/anchors | BookRecord with source anchor + segment UTF-16 IDs; unit tests | Partial; stable spine/page anchors added, EPUB CFI not yet implemented |
-| ER-003 EPUB/TXT | OPF spine extraction, chapter directory, paragraph renderer, verified XHTML inline bold/italic/h1–h6 | Partial; author CSS, images, NAV/NCX fidelity incomplete |
+| ER-003 EPUB/TXT | OPF spine, semantic styling, local PNG/JPEG, cross-spine links, table previews | Partial; only limited raster/table rendering; author CSS and NAV/NCX open |
 | ER-004 PDF | PDF viewer + text-layer extraction; SQLite v15 independent visual-page recovery including scanned PDFs, 7 authored tests | Partial: page-only resume, no scroll/zoom bookmark, complex ordering/OCR pending |
-| ER-005 Reader | EPUB paragraph layout, per-run tap and read-along highlight, theme palettes, source-anchor navigation, PDF view | Partial; EPUB full CSS/images/CFI and device verification open |
+| ER-005 Reader | EPUB paragraph layout, internal fragment tap, inline image/table preview, voice highlight, PDF view | Partial; full CSS/image-only spine/CFI and native checks pending |
 | ER-006 TTS | OS/cloud speech adapters, voice/rate/pitch controls; 8-second bounded native Stop with no auto-replay | Partial; hung engine cannot be forcibly silenced by Dart alone |
 | ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow, viewport-to-audio start; no word marks | Partial |
 | ER-008 Android background | MediaSession, settled-idle focus, deduplicated Play and fail-closed Stop timeout | Source implemented; no process-death TTS restart; native validation pending |
@@ -410,3 +410,12 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - `DocumentContent` passes style metadata into `EpubVisualLayout`. Spoken runs are intersected with semantic style boundaries, preserving TTS highlighting and exact tap-to-source indices even when nested markup divides a single speech segment. The paragraph widget renders bold/italic/levelled headings with accessible header semantics.
 - Fixed an existing chapter-title whitespace regex so XHTML titles collapse multiple spaces correctly. Added **13 unexecuted authored tests** across extractor, dedicated inline parser, visual layout and paragraph widget. See [EPUB Inline Formatting](EPUB_INLINE_FORMATTING.md).
 - **Not** a complete CSS/XHTML renderer; images, tables, custom fonts, hyperlinks, footnotes, ruby, full EPUB NAV/NCX and CFI remain pending. Flutter analyzer, unit/widget tests and Windows/Android builds have not been executed.
+
+## M1 — embedded EPUB resources, internal links and table previews (2026-10-24)
+
+- `EpubTextExtractor` now collects source-verified presentation markers from the body: in-book fragment targets/links, `<img>` placements and table rows. The normalized, selectable source text and all TTS, anchor, cast and cloud-budget positions are unchanged.
+- Image resources load **only from local manifest-declared PNG/JPEG** with approved headers, dimensions ≤4096×4096, ≤8 million pixels, ≤2 MiB/item, ≤12 MiB total unique bytes and ≤32 placements. No external/data scheme/image.network fallback. OS decoder security and memory use remain unverified.
+- Internal-only resolved links navigate via `ReaderScreen._selectFromVisualTap`, pausing active narration first and saving the original EPUB spine anchor without automatic Play. Ambiguous overlapping links are dropped.
+- The paragraph renderer can display embedded illustrations with accessible alternative descriptions and optional expandable bounded table previews; the original table text remains available for read-aloud and search. Table column counts are padded for stable widget rendering, but this is not HTML `colspan`/`rowspan` fidelity.
+- Added authored but unexecuted tests in `test/data/epub_embedded_content_test.dart`, `test/data/epub_text_extractor_test.dart`, `test/features/epub_visual_layout_test.dart` and `test/features/epub_paragraph_tile_test.dart`. Refer to [EPUB Embedded Content](EPUB_EMBEDDED_CONTENT.md). No Flutter analyzer, tests, Android or Windows builds executed.
+- Image-only spine XHTML, linked SVG/WebP/GIF, exact CSS positioning, true nested TOC/footnote history, and full accessible table semantics remain open.
