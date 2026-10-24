@@ -6,6 +6,8 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:path/path.dart' as path;
 import 'package:xml/xml.dart';
 
+import 'epub_inline_style.dart';
+
 /// Stable ordering information for each EPUB OPF spine item. Text offsets are
 /// Dart String (UTF-16 code unit) offsets in the extracted document.
 class EpubSpineRange {
@@ -26,10 +28,14 @@ class EpubSpineRange {
 }
 
 class EpubTextResult {
-  const EpubTextResult(this.title, this.text, this.ranges);
+  const EpubTextResult(this.title, this.text, this.ranges, {
+    this.styles = const [],
+  });
   final String title;
   final String text;
   final List<EpubSpineRange> ranges;
+  /// Global source offsets; semantic markup cannot alter spoken text.
+  final List<EpubInlineStyleSpan> styles;
 }
 
 /// A limited, auditable EPUB2/EPUB3 text extractor.
@@ -141,6 +147,7 @@ class EpubTextExtractor {
 
     final buffer = StringBuffer();
     final ranges = <EpubSpineRange>[];
+    final styles = <EpubInlineStyleSpan>[];
     for (final idref in spine) {
       final href = manifest[idref];
       if (href == null) {
@@ -152,6 +159,15 @@ class EpubTextExtractor {
       final chapterTitle = _extractChapterTitle(html, ranges.length + 1);
       if (buffer.isNotEmpty) buffer.write('\n\n');
       final start = buffer.length;
+      // Annotate the SAME normalized source text as the old extractor.
+      // Mismatched DOM normalization safely yields no style spans.
+      for (final style in extractEpubInlineStyles(html, text)) {
+        styles.add(EpubInlineStyleSpan(
+          start + style.start, start + style.end,
+          bold: style.bold, italic: style.italic,
+          headingLevel: style.headingLevel,
+        ));
+      }
       buffer.write(text);
       if (buffer.length > maxTextLength) {
         throw const FormatException('EPUB text exceeds size limit');
@@ -164,7 +180,8 @@ class EpubTextExtractor {
     if (ranges.isEmpty) {
       throw const FormatException('No readable text found in EPUB spine');
     }
-    return EpubTextResult(title, buffer.toString(), ranges);
+    return EpubTextResult(title, buffer.toString(), ranges,
+        styles: List.unmodifiable(styles));
   }
 
   static XmlDocument _parseXml(String data) {
