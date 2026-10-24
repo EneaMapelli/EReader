@@ -179,13 +179,13 @@ class DialogueAnalysisPlanner {
         earlier.add(segment);
         previousSize = next;
       }
-      // Restore original book order for context provenance.
-      earlier.reverse();
     }
+    // Mutable Dart List has no reverse() method. Build an immutable
+    // chronology so model evidence indices follow the original book order.
     return DialogueAnalysisWindow(
       bookId: bookId, scope: scope, cast: List.unmodifiable(cast),
       segments: List.unmodifiable(included),
-      contextSegments: List.unmodifiable(earlier),
+      contextSegments: List.unmodifiable(earlier.reversed),
       spoilerCeiling: ceiling,
     );
   }
