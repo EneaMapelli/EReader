@@ -55,7 +55,7 @@ void verifyEpubSourceIntegrity({
   for (final link in links) {
     if (link.start < previousLinkEnd || link.start < 0 ||
         link.end <= link.start || link.end > text.length ||
-        !readable(link.start) || !readable(link.end - 1) ||
+        !readable(link.start) ||
         _splitsSurrogate(text, link.end) ||
         (link.target != null && !readable(link.target!))) {
       throw const FormatException('EPUB link source anchor integrity failure');
