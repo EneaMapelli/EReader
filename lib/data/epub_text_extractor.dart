@@ -12,6 +12,8 @@ import 'epub_embedded_content.dart';
 import 'epub_navigation.dart';
 import 'epub_text_decoder.dart';
 import 'epub_html_preprocess.dart';
+import 'epub_import_diagnostics.dart';
+import 'epub_anchor_integrity.dart';
 
 /// Stable ordering information for each EPUB OPF spine item. Text offsets are
 /// Dart String (UTF-16 code unit) offsets in the extracted document.
@@ -41,6 +43,7 @@ class EpubTextResult {
     this.navigation = const [],
     this.footnotePreviews = const [],
     this.auxiliaryFootnotePreviews = const [],
+    this.diagnostics = const [],
   });
   final String title;
   final String text;
@@ -55,6 +58,7 @@ class EpubTextResult {
   /// Verified in-spine note text; merely an overlay, not another chapter.
   final List<EpubFootnotePreview> footnotePreviews;
   final List<EpubAuxiliaryFootnotePreview> auxiliaryFootnotePreviews;
+  final List<EpubImportDiagnostic> diagnostics;
 }
 
 /// A limited, auditable EPUB2/EPUB3 text extractor.
@@ -185,6 +189,7 @@ class EpubTextExtractor {
       throw const FormatException('No readable EPUB spine');
     }
 
+    final diagnostics = EpubImportDiagnostics();
     final buffer = StringBuffer();
     final ranges = <EpubSpineRange>[];
     final styles = <EpubInlineStyleSpan>[];
@@ -208,7 +213,10 @@ class EpubTextExtractor {
       }
       final html = _readRequired(files, href, maxLength: maxEntrySize);
       final text = _extractVisibleText(html);
-      if (text.isEmpty) continue;
+      if (text.isEmpty) {
+        diagnostics.record(EpubDiagnosticCode.emptySpineItem);
+        continue;
+      }
       final chapterTitle = _extractChapterTitle(html, ranges.length + 1);
       if (buffer.isNotEmpty) buffer.write('\n\n');
       final start = buffer.length;
@@ -218,9 +226,14 @@ class EpubTextExtractor {
       // entire book falls back to unstyled but source-exact reading.
       if (!styleBudgetExceeded) {
         final itemStyles = extractEpubInlineStyles(html, text);
+        if (itemStyles.isEmpty && RegExp(r'<(?:em|strong|b|i|h[1-6])\\b',
+            caseSensitive: false).hasMatch(html)) {
+          diagnostics.record(EpubDiagnosticCode.droppedInlineStyle);
+        }
         if (itemStyles.length > maxGlobalStyleRuns - styles.length) {
           styles.clear();
           styleBudgetExceeded = true;
+          diagnostics.record(EpubDiagnosticCode.droppedInlineStyle);
         } else {
           for (final style in itemStyles) {
             styles.add(EpubInlineStyleSpan(
@@ -366,7 +379,10 @@ class EpubTextExtractor {
           note.start >= note.end ||
           note.end - note.start > maxAuxText) continue;
       final body = text.substring(note.start, note.end).trim();
-      if (body.isEmpty || body.length > remainingAuxChars) continue;
+      if (body.isEmpty || body.length > remainingAuxChars) {
+        diagnostics.record(EpubDiagnosticCode.unavailableFootnote);
+        continue;
+      }
       auxiliaryNotes.add(EpubAuxiliaryFootnotePreview(ref.key, body));
       acceptedAuxKeys.add(ref.key);
       remainingAuxChars -= body.length;
@@ -387,21 +403,34 @@ class EpubTextExtractor {
     final links = <EpubInternalLink>[];
     for (final ref in linkRefs) {
       final destination = _localFragment(ref.source, ref.href);
-      if (destination == null) continue;
+      if (destination == null) {
+        diagnostics.record(EpubDiagnosticCode.unresolvedInternalLink);
+        continue;
+      }
       if (!spinePaths.contains(destination.path)) {
-        if (ref.footnote && destination.fragment.isNotEmpty) {
+        if ((ref.footnote || ref.legacyCandidate) &&
+            destination.fragment.isNotEmpty) {
           final key = '${destination.path}#${destination.fragment}';
           if (acceptedAuxKeys.contains(key)) {
             links.add(EpubInternalLink(ref.start, ref.end, null,
                 isFootnote: true, auxiliaryFootnoteKey: key));
           }
         }
+        if (!acceptedAuxKeys.contains(
+            '${destination.path}#${destination.fragment}')) {
+          diagnostics.record(ref.footnote || ref.legacyCandidate
+              ? EpubDiagnosticCode.unavailableFootnote
+              : EpubDiagnosticCode.unresolvedInternalLink);
+        }
         continue;
       }
       final target = destination.fragment.isEmpty
           ? ranges.firstWhere((entry) => entry.href == destination.path).start
           : fragmentRefs['${destination.path}#${destination.fragment}'];
-      if (target == null) continue;
+      if (target == null) {
+        diagnostics.record(EpubDiagnosticCode.unresolvedInternalLink);
+        continue;
+      }
       final resolvedKey = '${destination.path}#${destination.fragment}';
       final recognizedLegacy = ref.legacyCandidate &&
           destination.fragment.isNotEmpty &&
@@ -416,7 +445,10 @@ class EpubTextExtractor {
     final nonOverlappingLinks = <EpubInternalLink>[];
     var lastLinkEnd = 0;
     for (final link in links) {
-      if (link.start < lastLinkEnd) continue;
+      if (link.start < lastLinkEnd) {
+        diagnostics.record(EpubDiagnosticCode.unresolvedInternalLink);
+        continue;
+      }
       nonOverlappingLinks.add(link);
       lastLinkEnd = link.end;
     }
@@ -428,17 +460,27 @@ class EpubTextExtractor {
     var imageByteBudget = 12 * 1024 * 1024;
     for (final ref in imageRefs) {
       final resource = _localResource(ref.href, ref.src);
-      if (resource == null) continue;
+      if (resource == null) {
+        diagnostics.record(EpubDiagnosticCode.rejectedImage);
+        continue;
+      }
       final type = imageManifest[resource];
       final entry = files[resource];
       if (type == null || entry == null || entry.size > 2 * 1024 * 1024) {
+        diagnostics.record(EpubDiagnosticCode.rejectedImage);
         continue;
       }
       var bytes = imageCache[resource];
       if (bytes == null) {
-        if (entry.size > imageByteBudget) continue;
+        if (entry.size > imageByteBudget) {
+          diagnostics.record(EpubDiagnosticCode.rejectedImage);
+          continue;
+        }
         final loaded = entry.readBytes();
-        if (loaded == null || !isSafeEpubRaster(loaded, type)) continue;
+        if (loaded == null || !isSafeEpubRaster(loaded, type)) {
+          diagnostics.record(EpubDiagnosticCode.rejectedImage);
+          continue;
+        }
         bytes = Uint8List.fromList(loaded);
         imageCache[resource] = bytes;
         imageByteBudget -= bytes.length;
