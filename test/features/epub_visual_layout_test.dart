@@ -1,5 +1,6 @@
 import 'package:ereader/data/book_decoder.dart';
 import 'package:ereader/data/epub_text_extractor.dart';
+import 'package:ereader/data/epub_inline_style.dart';
 import 'package:ereader/domain/book.dart';
 import 'package:ereader/domain/dialogue_segmenter.dart';
 import 'package:ereader/domain/speech_segment.dart';
@@ -141,6 +142,93 @@ void main() {
         'Hi there. | A second paragraph.');
     expect(layout.blocks.first.runs.any((r) => r.segmentIndex == null), isTrue);
     expect(layout.blocks.last.runs.any((r) => r.segmentIndex == null), isTrue);
+  });
+
+  test('inline emphasis divides a TTS segment without altering its index', () {
+    const source = 'Alpha BETA gamma.';
+    const document = DocumentContent(
+      title: 'Styled',
+      text: source,
+      epubSpineRanges: [
+        EpubSpineRange(
+          idref: 'a', href: 'a.xhtml', start: 0, end: 17,
+        ),
+      ],
+      epubInlineStyles: [
+        EpubInlineStyleSpan(6, 10, bold: true),
+        EpubInlineStyleSpan(11, 16, italic: true),
+      ],
+    );
+    const segments = [
+      SpeechSegment(0, 10, 'Alpha BETA'),
+      SpeechSegment(11, 17, 'gamma.'),
+    ];
+    final layout = buildEpubVisualLayout(
+        document, segments, buildEpubChapters(document, segments));
+    expect(layout.blocks.length, 1);
+    final runs = layout.blocks.single.runs;
+    expect(runs.map((r) => r.text).join(), source);
+    expect(runs.where((r) => r.bold).map((r) => r.text).join(), 'BETA');
+    expect(runs.where((r) => r.italic).map((r) => r.text).join(), 'gamma');
+    expect(runs.first.segmentIndex, 0);
+    expect(runs.firstWhere((r) => r.bold).segmentIndex, 0);
+    expect(runs.firstWhere((r) => r.italic).segmentIndex, 1);
+    expect(layout.blockForSegment(0), 0);
+    expect(layout.blockForSegment(1), 0);
+  });
+
+  test('semantic h2 and Unicode inline spans preserve original anchors', () {
+    const source = 'Opening 📖\n\nWords in italic.';
+    const document = DocumentContent(
+      title: 'Styled',
+      text: source,
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'a', href: 'a.xhtml',
+            start: 0, end: source.length),
+      ],
+      epubInlineStyles: [
+        EpubInlineStyleSpan(0, 10, headingLevel: 2),
+        EpubInlineStyleSpan(20, 26, italic: true),
+      ],
+    );
+    final segments = segmentEpubSpine(document);
+    final layout = buildEpubVisualLayout(
+        document, segments, buildEpubChapters(document, segments));
+    expect(layout.blocks.length, 2);
+    expect(layout.blocks.first.heading, isTrue);
+    expect(layout.blocks.first.text, 'Opening 📖');
+    expect(layout.blocks.first.runs.every((r) => r.headingLevel == 2),
+        isTrue);
+    expect(layout.blocks.last.text, 'Words in italic.');
+    final target = source.indexOf('italic');
+    final anchor = document.anchorAt(BookFormat.epub, target);
+    expect(document.offsetOf(anchor), target);
+  });
+
+  test('invalid overlapping or out-of-bounds typography fails closed', () {
+    const source = 'Hello world';
+    const base = [
+      EpubSpineRange(idref: 'a', href: 'a.xhtml',
+          start: 0, end: 11),
+    ];
+    const speech = [SpeechSegment(0, 11, source)];
+    expect(() => buildEpubVisualLayout(
+      const DocumentContent(title: 'X', text: source,
+        epubSpineRanges: base,
+        epubInlineStyles: [
+          EpubInlineStyleSpan(0, 6, bold: true),
+          EpubInlineStyleSpan(4, 10, italic: true),
+        ]),
+      speech, const [],
+    ), throwsFormatException);
+    expect(() => buildEpubVisualLayout(
+      const DocumentContent(title: 'X', text: source,
+        epubSpineRanges: base,
+        epubInlineStyles: [
+          EpubInlineStyleSpan(0, 12, bold: true),
+        ]),
+      speech, const [],
+    ), throwsFormatException);
   });
 
   test('source-mismatched and overlapping spoken chunks are rejected', () {
