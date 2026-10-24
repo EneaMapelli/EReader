@@ -7,6 +7,7 @@ import 'package:pdfrx/pdfrx.dart';
 import '../domain/book.dart';
 import '../domain/reading_anchor.dart';
 import 'epub_text_extractor.dart';
+import 'epub_inline_style.dart';
 
 class DocumentContent {
   const DocumentContent({
@@ -14,11 +15,15 @@ class DocumentContent {
     required this.title,
     this.pdfPageRanges = const [],
     this.epubSpineRanges = const [],
+    this.epubInlineStyles = const [],
   });
   final String text;
   final String title;
   final List<PdfPageRange> pdfPageRanges;
   final List<EpubSpineRange> epubSpineRanges;
+  /// Pure visual EPUB annotations, measured against [text] and never stored
+  /// as reading progress, voice text or user-attributed dialogue.
+  final List<EpubInlineStyleSpan> epubInlineStyles;
 
   /// Converts the global reader offset to a document-relative source address.
   /// No anchoring to an EPUB TOC entry or PDF visual coordinate is implied.
@@ -124,6 +129,7 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
           title: content.title,
           text: content.text,
           epubSpineRanges: content.ranges,
+          epubInlineStyles: content.styles,
         );
       case BookFormat.pdf:
         return _readPdfText(record);
