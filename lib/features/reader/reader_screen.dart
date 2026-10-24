@@ -15,6 +15,7 @@ import '../../audio/openai_speech_engine.dart';
 import '../../audio/secret_vault.dart';
 import 'speech_provider_screen.dart';
 import '../../data/book_decoder.dart';
+import '../../data/epub_progress_recovery.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
 import '../../domain/speech_segment.dart';
@@ -147,10 +148,21 @@ class _ReaderScreenState extends State<ReaderScreen>
         onSegmentStarted: recoveryBinding.onSegmentStarted,
       );
       final latestBook = widget.store.getBook(widget.book.id) ?? widget.book;
-      final saved = latestBook.progressAnchor == null
-          ? latestBook.progressOffset
-          : document.offsetOf(latestBook.progressAnchor!) ??
-              latestBook.progressOffset;
+      final EpubProgressRecovery? epubRecovery =
+          widget.book.format == BookFormat.epub
+              ? resolveEpubReadingProgress(
+                  document,
+                  anchor: latestBook.progressAnchor,
+                  legacyOffset: latestBook.progressOffset,
+                )
+              : null;
+      final saved = epubRecovery?.offset ??
+          (latestBook.progressAnchor == null
+              ? latestBook.progressOffset
+              : document.offsetOf(latestBook.progressAnchor!) ??
+                  latestBook.progressOffset);
+      // An EPUB recovery fallback must never auto-play or inject offsets
+      // into the TTS segments; the index is only a visual starting point.
       final savedIndex = chunks.indexWhere((chunk) => chunk.end > saved);
       if (savedIndex >= 0) player.currentIndex = savedIndex;
       _pronunciationRules =
@@ -194,6 +206,15 @@ class _ReaderScreenState extends State<ReaderScreen>
           ).allowed;
         },
       );
+      if (epubRecovery?.shouldPersist == true) {
+        // Only a uniquely relocated v2 fingerprint is eligible for an
+        // automatic checkpoint rewrite. Legacy/ambiguous progress is not.
+        await widget.store.savePosition(
+          widget.book.id, epubRecovery!.offset,
+          anchor: document.anchorAt(BookFormat.epub, epubRecovery.offset),
+        );
+        if (!mounted) return;
+      }
       setState(() {
         _player = player;
         _recoveryBinding = recoveryBinding;
@@ -207,6 +228,17 @@ class _ReaderScreenState extends State<ReaderScreen>
         };
         _loading = false;
       });
+      if (epubRecovery?.needsReview == true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text(
+              'Saved EPUB position could not be verified. '
+              'Opened the beginning of its chapter; choose where to resume.',
+            )),
+          );
+        });
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
