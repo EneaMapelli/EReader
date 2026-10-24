@@ -393,6 +393,27 @@ class _ReaderScreenState extends State<ReaderScreen>
     );
   }
 
+  int get _currentDirectoryIndex {
+    if (_authorToc.isEmpty) return _currentChapterIndex;
+    final player = _player;
+    if (player == null || player.segments.isEmpty) return -1;
+    final selected = player.isPlaying
+        ? player.currentIndex : (_visiblePositionIndex ?? player.currentIndex);
+    final cursor = selected.clamp(0, player.segments.length - 1).toInt();
+    return navigationIndexForOffset(
+        _authorToc, player.segments[cursor].start);
+  }
+
+  void _jumpDirectoryIndex(int index) {
+    if (_authorToc.isNotEmpty) {
+      if (index >= 0 && index < _authorToc.length) {
+        _navigateToSourceOffset(_authorToc[index].offset, remember: false);
+      }
+    } else {
+      unawaited(_jumpToChapterIndex(index));
+    }
+  }
+
   /// Chapter navigation never starts cloud TTS or auto-resumes interrupted
   /// playback. Persist a stable spine anchor through the existing _select.
   Future<void> _jumpToChapterIndex(int chapterIndex) async {
@@ -417,21 +438,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     final authorial = _authorToc.isNotEmpty;
     final entries = _authorToc;
     final current = _currentChapterIndex;
-    final player = _player;
-    final sourceCursor = player == null || player.segments.isEmpty ? 0 :
-        player.segments[(player.isPlaying ? player.currentIndex
-            : (_visiblePositionIndex ?? player.currentIndex))
-            .clamp(0, player.segments.length - 1).toInt()].start;
-    // One linear scan instead of quadratic work inside every list row.
-    var activeTocIndex = -1;
-    var activeTocOffset = -1;
-    for (var index = 0; index < entries.length; index++) {
-      final entry = entries[index];
-      if (entry.offset <= sourceCursor && entry.offset > activeTocOffset) {
-        activeTocIndex = index;
-        activeTocOffset = entry.offset;
-      }
-    }
+    final activeTocIndex = _currentDirectoryIndex;
     final chosen = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -1030,23 +1037,28 @@ class _ReaderScreenState extends State<ReaderScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_chapters.isNotEmpty) ...[
+              if (_chapters.isNotEmpty || _authorToc.isNotEmpty) ...[
                 Builder(builder: (context) {
-                  final index = _currentChapterIndex;
-                  if (index < 0) return const SizedBox.shrink();
+                  final index = _currentDirectoryIndex;
+                  final authorial = _authorToc.isNotEmpty;
+                  final total = authorial
+                      ? _authorToc.length : _chapters.length;
+                  if (index < 0 || index >= total) {
+                    return const SizedBox.shrink();
+                  }
+                  final label = authorial
+                      ? _authorToc[index].label : _chapters[index].title;
                   return Row(
                     children: [
                       IconButton(
-                        tooltip: 'Previous EPUB chapter',
+                        tooltip: 'Previous EPUB section',
                         onPressed: index > 0
-                            ? () => _jumpToChapterIndex(index - 1)
-                            : null,
+                            ? () => _jumpDirectoryIndex(index - 1) : null,
                         icon: const Icon(Icons.first_page),
                       ),
                       Expanded(
                         child: Text(
-                          '${_chapters[index].title} '
-                          '(${index + 1}/${_chapters.length})',
+                          '$label (${index + 1}/$total)',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
@@ -1054,10 +1066,9 @@ class _ReaderScreenState extends State<ReaderScreen>
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Next EPUB chapter',
-                        onPressed: index + 1 < _chapters.length
-                            ? () => _jumpToChapterIndex(index + 1)
-                            : null,
+                        tooltip: 'Next EPUB section',
+                        onPressed: index + 1 < total
+                            ? () => _jumpDirectoryIndex(index + 1) : null,
                         icon: const Icon(Icons.last_page),
                       ),
                     ],
