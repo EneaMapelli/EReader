@@ -162,6 +162,33 @@ void main() {
     expect(window.effectiveCeiling, spokenEnd);
   });
 
+  test('multiple earlier context segments retain chronological evidence order',
+      () {
+    const source = 'First. Second. «Now!»';
+    final firstEnd = source.indexOf('First.') + 'First.'.length;
+    final secondStart = source.indexOf('Second.');
+    final secondEnd = secondStart + 'Second.'.length;
+    final speechStart = source.indexOf('«Now!»');
+    final segments = [
+      SpeechSegment(0, firstEnd, 'First.'),
+      SpeechSegment(secondStart, secondEnd, 'Second.'),
+      SpeechSegment(speechStart, source.length, '«Now!»'),
+    ];
+    final window = planner.makeWindow(
+      bookId: 'book',
+      content: const DocumentContent(title: 'Chronological', text: source),
+      scope: const DialogueAnalysisScope(
+        id: 'scene', title: 'Scene', start: 0, end: source.length),
+      segments: segments, cast: known, from: speechStart,
+      contextChars: 200,
+    );
+    expect(window.contextSegments.map((e) => e.text),
+        ['First.', 'Second.']);
+    expect(window.contextSegments.first.start, lessThan(
+        window.contextSegments.last.start));
+    expect(window.contextExcerpt, 'First.\\nSecond.');
+  });
+
   test('reading position cap blocks future incomplete dialogue segment', () {
     const source = 'Anna entered. «Hello!»';
     const intro = 'Anna entered.';
