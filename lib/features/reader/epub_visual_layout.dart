@@ -78,9 +78,11 @@ List<int> epubParagraphHardBoundaries(DocumentContent document) {
       throw const FormatException('Invalid EPUB paragraph ranges');
     }
     if (range.start > 0) boundaries.add(range.start);
-    for (final match in newline.allMatches(
-        document.text.substring(range.start, range.end))) {
-      boundaries.add(range.start + match.end);
+    // Run the regex on the canonical source with a starting index.
+    // Copying each whole chapter first temporarily doubles text memory.
+    for (final match in newline.allMatches(document.text, range.start)) {
+      if (match.start >= range.end || match.end > range.end) break;
+      boundaries.add(match.end);
     }
   }
   return List.unmodifiable(boundaries);
@@ -304,14 +306,16 @@ EpubVisualLayout buildEpubVisualLayout(
     previousSpineEnd = spine.end;
     var cursor = spine.start;
     var isFirst = true;
-    for (final match in doubleNewline.allMatches(
-        source.substring(spine.start, spine.end))) {
-      final until = spine.start + match.start;
+    // Scan the existing string directly. Whole-spine substrings are
+    // expensive for large EPUB volumes and add no useful information.
+    for (final match in doubleNewline.allMatches(source, spine.start)) {
+      if (match.start >= spine.end || match.end > spine.end) break;
+      final until = match.start;
       if (until > cursor) {
         addBounded(cursor, until, isFirst);
         isFirst = false;
       }
-      cursor = spine.start + match.end;
+      cursor = match.end;
     }
     if (cursor < spine.end) {
       addBounded(cursor, spine.end, isFirst);
@@ -352,18 +356,29 @@ EpubVisualLayout buildEpubVisualLayout(
       tablesByBlock.putIfAbsent(block, () => []).add(table);
     }
   }
-  final enriched = [
-    for (var i = 0; i < blocks.length; i++)
-      EpubVisualBlock(
-        start: blocks[i].start, end: blocks[i].end,
-        runs: blocks[i].runs,
-        chapterStart: blocks[i].chapterStart,
-        heading: blocks[i].heading,
-        firstSegmentIndex: blocks[i].firstSegmentIndex,
-        images: List.unmodifiable(imageByBlock[i] ?? const []),
-        tables: List.unmodifiable(tablesByBlock[i] ?? const []),
-      ),
-  ];
+  // Most EPUBs have no eligible images/table previews. In that case,
+  // reuse the original block objects and avoid a second complete block
+  // graph. With overlays, only materialize changed paragraph objects.
+  if (imageByBlock.isEmpty && tablesByBlock.isEmpty) {
+    return EpubVisualLayout(
+      List.unmodifiable(blocks),
+      List.unmodifiable(mapping),
+    );
+  }
+  final enriched = List<EpubVisualBlock>.of(blocks);
+  final affected = <int>{...imageByBlock.keys, ...tablesByBlock.keys};
+  for (final index in affected) {
+    final block = blocks[index];
+    enriched[index] = EpubVisualBlock(
+      start: block.start, end: block.end,
+      runs: block.runs,
+      chapterStart: block.chapterStart,
+      heading: block.heading,
+      firstSegmentIndex: block.firstSegmentIndex,
+      images: List.unmodifiable(imageByBlock[index] ?? const []),
+      tables: List.unmodifiable(tablesByBlock[index] ?? const []),
+    );
+  }
   return EpubVisualLayout(
     List.unmodifiable(enriched),
     List.unmodifiable(mapping),
