@@ -79,10 +79,20 @@ settings, cloud consent, anchors or PDF/TXT paths are involved.
 - `test/features/epub_note_preview_sheet_test.dart`: widget-level
   Close, Open, modal dismissal and long-content scrolling.
 
+## Auxiliary XHTML notes (2026-10-24)
+
+Manifest-declared auxiliary XHTML notes outside the readable OPF spine now
+have a **preview-only** option when referenced by a verified semantic
+`noteref`. The popup can be read and closed but has no **Open in book**
+action because an auxiliary document has no valid persisted source/TTS
+offset. The manifest/path/size and semantic-note checks are detailed in
+[EPUB Auxiliary Footnotes](EPUB_AUXILIARY_FOOTNOTES.md).
+
 ## Limits and subsequent work
 
-The popup deliberately supports only notes **inside readable XHTML
-spine items**, with explicit semantic note markup and a verified ID.
+The popup supports semantic notes inside readable XHTML spine items and
+strictly bounded, manifest-declared auxiliary XHTML notes outside the spine,
+all with a verified ID.
 It cannot display notes in non-linear auxiliary files, mathematical
 formula/image-only notes, embedded media, rich CSS or links inside a
 note's preview. Popup text is plain, not HTML. A publisher's
