@@ -36,6 +36,15 @@ builds intentionally deferred.**
   character casting retain their preexisting behavior. No database
   migration is required.
 
+## Publisher navigation added (2026-10-24)
+
+An optional editorial EPUB3 NAV / EPUB2 NCX directory is now parsed and
+displayed with nesting where available. The index's previous/next controls
+follow publisher entries; the spine-chapter directory is retained as a
+fallback. See [EPUB NAV/NCX and Footnotes](EPUB_NAV_NCX_FOOTNOTES.md).
+The original source offsets, speech order and SQLite anchors remain
+based on OPF spine, not the publisher's separate TOC document.
+
 ## Anchors and constraints
 
 - A spine element is **not necessarily a semantic chapter**. Some EPUBs
