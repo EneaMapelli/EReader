@@ -5,7 +5,7 @@
 | Work item | Current evidence | Status |
 |---|---|---|
 | ER-001 Bootstrap | `pubspec.yaml`, Flutter entry point, bootstrap scripts | In progress |
-| ER-002 Book/anchors | BookRecord with source anchor + segment UTF-16 IDs; unit tests | Partial; stable spine/page anchors added, EPUB CFI not yet implemented |
+| ER-002 Book/anchors | Backward-compatible EPUB v2 context hashes + v1 spine/page anchors; bounded unique recovery | Partial; EPUB CFI and native parser-upgrade migration tests pending |
 | ER-003 EPUB/TXT | OPF spine, EPUB3 NAV / EPUB2 NCX, bounded images/tables and paired legacy EPUB2 note patterns | Partial; real-book compatibility, full CSS/image-only content and native verification open |
 | ER-004 PDF | PDF viewer + text-layer extraction; SQLite v15 independent visual-page recovery including scanned PDFs, 7 authored tests | Partial: page-only resume, no scroll/zoom bookmark, complex ordering/OCR pending |
 | ER-005 Reader | EPUB editorial TOC, in-spine note previews/returns, manifest-declared auxiliary note popup, PDF | Partial; full CSS/CFI, rich notes and native verification open |
@@ -467,3 +467,12 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Previously, a stale EPUB reading anchor beyond the source item was silently clamped. `DocumentContent.offsetOf` now returns null for such local offsets and half-surrogate positions. The existing fallback to absolute progress remains; explicit anchor migration for changed EPUB source remains a final integration risk.
 - Fixed the final auxiliary-note link resolution path for verified EPUB2 legacy references: recognized candidates can now open the preview-only auxiliary modal without inventing book/TTS positions.
 - Added **17 authored, unexecuted tests**: seven source integrity, three diagnostic collector, two report widget, three extractor warning/duplicate-ID integration, and two stale-anchor cases. See [EPUB Import Diagnostics](EPUB_IMPORT_DIAGNOSTICS.md). **No analyzer, Flutter test execution, Windows build or Android build performed**, per the agreed final gate.
+
+## M1 — EPUB progress continuity after source extraction changes (2026-10-24)
+
+- **EPUB anchor v2** retains `sourceId` and UTF-16 `localOffset` while storing two truncated SHA-256 digests of nearby non-whitespace UTF-16 context. Digest data is local-only, not original book excerpts or encryption. `ReadingAnchor.fromJson` remains backward compatible with v1. Existing SQLite JSON columns store v2 without schema migration.
+- `DocumentContent.anchorAt` creates v2 EPUB checkpoint/bookmark metadata. `offsetOf` declines an in-bounds v2 offset if its context changed, rather than trusting a number pointing to different words. TXT and PDF anchors remain unchanged.
+- Pure `resolveEpubReadingProgress` distinguishes exact, uniquely relocated, legacy-unverified and needs-review statuses. Relocation scans **only the original OPF spine item** and requires **exactly one** full two-sided context match; extra whitespace from a new `<br>` can be tolerated. Missing, out-of-range, too-long or repeated-text contexts lead to a chapter-start/manual-review warning, never a guessed cross-chapter jump or autoplay.
+- `ReaderScreen` selects the verified location before narration starts and saves a **fresh checkpoint only for an unambiguous relocation**; checkpoint save failure cannot prevent the reader opening. Unverifiable progress is not automatically overwritten. The EPUB bookmarks sheet independently verifies v2 metadata and disables jumps for ambiguous stale bookmarks instead of using unsafe raw absolute offsets.
+- Authored, **unexecuted** new tests: `test/data/epub_progress_recovery_test.dart` (9 scenarios), `test/domain/epub_anchor_context_test.dart` (6 scenarios) and an existing-SQLite-column restart case in `test/data/library_store_test.dart`. See [EPUB Progress Recovery](EPUB_PROGRESS_RECOVERY.md). **No Flutter analyzer, tests, Android or Windows builds performed**, per the agreed final integration gate.
+- Limits: legacy v1 anchors never had context, repeated prose cannot be disambiguated, non-whitespace wording changes within the context window prevent automatic recovery, and chapters above the bounded scan budget require manual review. No full EPUB CFI relocation or automatic cast-span rewriting yet.
