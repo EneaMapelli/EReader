@@ -250,6 +250,18 @@ class EpubTextExtractor {
       if (target == null) continue;
       links.add(EpubInternalLink(ref.start, ref.end, target));
     }
+    // Malformed nested anchors may create overlapping link ranges. Drop
+    // ambiguous links instead of allowing them to reject an entire ebook
+    // during visual layout construction.
+    links.sort((a, b) => a.start.compareTo(b.start));
+    final nonOverlappingLinks = <EpubInternalLink>[];
+    var lastLinkEnd = 0;
+    for (final link in links) {
+      if (link.start < lastLinkEnd) continue;
+      nonOverlappingLinks.add(link);
+      lastLinkEnd = link.end;
+    }
+
     // A local, manifest-declared PNG/JPEG must pass byte budget and
     // dimension checks before it can enter a Flutter Image.memory widget.
     final images = <EpubEmbeddedImage>[];
@@ -280,7 +292,7 @@ class EpubTextExtractor {
     return EpubTextResult(title, buffer.toString(), ranges,
         styles: List.unmodifiable(styles),
         images: List.unmodifiable(images),
-        links: List.unmodifiable(links),
+        links: List.unmodifiable(nonOverlappingLinks),
         tables: List.unmodifiable(tables));
   }
 
