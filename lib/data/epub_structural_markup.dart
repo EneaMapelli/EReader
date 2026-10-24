@@ -33,18 +33,29 @@ class EpubRawTable {
   final List<List<String>> rows;
 }
 
+/// A recognized, fully in-spine footnote body. Its original text and
+/// UTF-16 position are not synthesized, copied or inserted anywhere else.
+class EpubRawFootnote {
+  const EpubRawFootnote(this.id, this.start, this.end);
+  final String id;
+  final int start;
+  final int end;
+}
+
 class EpubStructure {
   const EpubStructure({
     this.images = const [],
     this.links = const [],
     this.targets = const [],
     this.tables = const [],
+    this.footnotes = const [],
   });
 
   final List<EpubRawImage> images;
   final List<EpubRawLink> links;
   final List<EpubRawTarget> targets;
   final List<EpubRawTable> tables;
+  final List<EpubRawFootnote> footnotes;
 }
 
 /// Parse body-only features without interpreting styles, executing code,
@@ -70,6 +81,7 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
   final links = <EpubRawLink>[];
   final targets = <EpubRawTarget>[];
   final tables = <EpubRawTable>[];
+  final footnotes = <EpubRawFootnote>[];
   var invalid = false;
   const maxNodeDepth = 256;
   const maxAnnotations = 3000;
@@ -77,8 +89,8 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
   void visit(dom.Node node, int depth) {
     if (invalid) return;
     if (depth > maxNodeDepth ||
-        images.length + links.length + targets.length + tables.length >
-            maxAnnotations) {
+        images.length + links.length + targets.length +
+            tables.length + footnotes.length > maxAnnotations) {
       invalid = true;
       return;
     }
@@ -114,6 +126,18 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
             role.split(RegExp(r'\s+')).contains('doc-noteref');
         links.add(EpubRawLink(
             start, end, href, isFootnote: footnote));
+      }
+    }
+    if (start < end && id != null && id.isNotEmpty &&
+        id.length <= 256) {
+      final type = (node.attributes['epub:type'] ?? '')
+          .split(RegExp(r'\s+'));
+      final role = (node.attributes['role'] ?? '')
+          .split(RegExp(r'\s+'));
+      final isNote = type.contains('footnote') ||
+          role.contains('doc-footnote');
+      if (isNote && footnotes.length < 200) {
+        footnotes.add(EpubRawFootnote(id, start, end));
       }
     }
     if (node.localName == 'table' && start < end) {
@@ -203,6 +227,12 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
         if (project(item.start) < project(item.end))
           EpubRawTable(
             project(item.start), project(item.end), item.rows),
+    ]),
+    footnotes: List.unmodifiable([
+      for (final item in footnotes)
+        if (project(item.start) < project(item.end))
+          EpubRawFootnote(item.id,
+              project(item.start), project(item.end)),
     ]),
   );
 }
