@@ -257,6 +257,26 @@ void main() {
         .every((r) => r.segmentIndex == 0), isTrue);
   });
 
+  test('footnote source markers keep TTS segment identity and target', () {
+    const source = 'Check [1] for details.';
+    const document = DocumentContent(
+      title: 'Note', text: source,
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'body', href: 'body.xhtml',
+            start: 0, end: 22),
+      ],
+      epubLinks: [EpubInternalLink(6, 9, 0, isFootnote: true)],
+    );
+    const spoken = [SpeechSegment(0, 22, source)];
+    final layout = buildEpubVisualLayout(document, spoken, const []);
+    final note = layout.blocks.single.runs.firstWhere(
+        (run) => run.isFootnote);
+    expect(note.text, '[1]');
+    expect(note.linkTargetOffset, 0);
+    expect(note.segmentIndex, 0);
+    expect(layout.blocks.single.text, source);
+  });
+
   test('image and table metadata attach without changing paragraph text',
       () {
     const source = 'Opening.\n\nImage caption.\n\nRow1Row2';
