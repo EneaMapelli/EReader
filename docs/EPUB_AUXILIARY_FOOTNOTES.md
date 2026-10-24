@@ -91,12 +91,23 @@ this workflow. There is no runtime network fetch.
 - `test/features/epub_note_preview_sheet_test.dart`: separate modal
   Close and barrier dismissal behavior, never offers Open in book.
 
+## Legacy EPUB2 note conventions added (2026-10-24)
+
+Auxiliary footnotes may also use explicitly identified EPUB2 markup:
+`footnote-ref`/`fnref` link classes, numeric superscript references,
+`div class="footnote"`, a classified endnotes list, or a leading
+`<a name="...">` inside a classified note body. Both ends of the
+link must independently identify a note; no reference is promoted
+on the basis of its label alone. The same manifest/path/byte budgets
+and strictly preview-only behavior apply. See
+[EPUB2 Legacy Footnotes](EPUB2_LEGACY_FOOTNOTES.md).
+
 ## Deliberate limitations
 
-Not all EPUB2 publishers mark footnotes semantically. Legacy
-`class="footnote"`, link-only `div` notes and dynamically generated
-popups are not inferred, to avoid mistaking arbitrary book content
-for auxiliary note text. Complex XHTML formatting, equations, images,
+Only a restricted subset of EPUB2 legacy classes, note lists and
+leading named anchors is now recognized after paired link/destination
+verification. Generic `class="note"`, unmarked prose, ambiguous
+links and dynamically generated popups are still not inferred. Complex XHTML formatting, equations, images,
 bi-directional rich text and embedded media are not displayed in the
 plain-text popup. Auxiliary note previews cannot be read aloud as
 part of the book narration; that would require a separate,
