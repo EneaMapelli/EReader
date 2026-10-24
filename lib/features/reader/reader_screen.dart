@@ -417,6 +417,21 @@ class _ReaderScreenState extends State<ReaderScreen>
     final authorial = _authorToc.isNotEmpty;
     final entries = _authorToc;
     final current = _currentChapterIndex;
+    final player = _player;
+    final sourceCursor = player == null || player.segments.isEmpty ? 0 :
+        player.segments[(player.isPlaying ? player.currentIndex
+            : (_visiblePositionIndex ?? player.currentIndex))
+            .clamp(0, player.segments.length - 1).toInt()].start;
+    // One linear scan instead of quadratic work inside every list row.
+    var activeTocIndex = -1;
+    var activeTocOffset = -1;
+    for (var index = 0; index < entries.length; index++) {
+      final entry = entries[index];
+      if (entry.offset <= sourceCursor && entry.offset > activeTocOffset) {
+        activeTocIndex = index;
+        activeTocOffset = entry.offset;
+      }
+    }
     final chosen = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -434,20 +449,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                   itemBuilder: (_, index) {
                     if (authorial) {
                       final entry = entries[index];
-                      final currentSegment = _player == null ||
-                              _player!.segments.isEmpty ? 0 :
-                          _player!.segments[(_player!.isPlaying
-                              ? _player!.currentIndex
-                              : (_visiblePositionIndex ??
-                                  _player!.currentIndex)).clamp(
-                                  0, _player!.segments.length - 1).toInt()]
-                              .start;
-                      // TOC order is editorial rather than strict source
-                      // ordering; only highlight a resolved current section.
-                      final active = entry.offset <= currentSegment &&
-                          !entries.skip(index + 1).any(
-                            (other) => other.offset <= currentSegment &&
-                                other.offset >= entry.offset);
+                      final active = index == activeTocIndex;
                       return Padding(
                         padding: EdgeInsets.only(
                             left: (entry.depth.clamp(0, 12) * 14).toDouble()),
