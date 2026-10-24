@@ -346,6 +346,67 @@ void main() {
     expect(store.listBookmarks(book.id), isEmpty);
   });
 
+  test('partially downgraded v8 schema skips already existing later columns',
+      () async {
+    final source = File(p.join(root.path, 'partial-upgrade.txt'));
+    await source.writeAsString('Resumable story');
+    final book = await store.importFile(source.path);
+    await store.savePosition(book.id, 8, anchor: const ReadingAnchor(
+        kind: AnchorKind.text, sourceId: 'body', localOffset: 8));
+    store.dispose();
+
+    final file = p.join(root.path, 'library.sqlite');
+    final old = sqlite3.open(file);
+    final castColumns = old.select('PRAGMA table_info(cast_spans)')
+        .map((row) => row['name']).toSet();
+    final bookColumns = old.select('PRAGMA table_info(books)')
+        .map((row) => row['name']).toSet();
+    expect(castColumns, contains('evidence_json'));
+    expect(bookColumns, containsAll(['progress_anchor',
+        'last_opened_at', 'pdf_visual_page']));
+    // Exercise recovery from a database whose version marker was
+    // rolled back after ADD COLUMN operations had already completed.
+    old.execute('PRAGMA user_version = 8');
+    old.dispose();
+
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getBook(book.id)!.progressOffset, 8);
+    expect(store.getBook(book.id)!.progressAnchor?.localOffset, 8);
+    store.dispose();
+
+    final upgraded = sqlite3.open(file);
+    expect(upgraded.select('PRAGMA user_version').single['user_version'],
+        16);
+    expect(upgraded.select('PRAGMA table_info(books)')
+        .where((row) => row['name'] == 'last_opened_at').length, 1);
+    expect(upgraded.select('PRAGMA table_info(cast_spans)')
+        .where((row) => row['name'] == 'evidence_json').length, 1);
+    upgraded.dispose();
+  });
+
+  test('legacy v1 version marker with present anchor column migrates once',
+      () async {
+    final source = File(p.join(root.path, 'partial-v1.txt'));
+    await source.writeAsString('Persist existing progress.');
+    final book = await store.importFile(source.path);
+    await store.savePosition(book.id, 6);
+    store.dispose();
+    final dbFile = p.join(root.path, 'library.sqlite');
+    final old = sqlite3.open(dbFile);
+    old.execute('PRAGMA user_version = 1');
+    old.dispose();
+
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getBook(book.id)!.progressOffset, 6);
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getBook(book.id)!.progressOffset, 6);
+    expect(store.books, hasLength(1));
+  });
+
   test('SQLite schema v3 migrates bookmarks without changing old data',
       () async {
     final input = File(p.join(root.path, 'legacy-v3.txt'));
