@@ -179,6 +179,24 @@ class _ReaderScreenState extends State<ReaderScreen>
         player.dispose();
         return;
       }
+      var recoveryWriteFailed = false;
+      if (epubRecovery?.shouldPersist == true) {
+        // Persist only an unambiguous recovered v2 anchor. Failure to
+        // write a checkpoint must not prevent the book from opening.
+        try {
+          await widget.store.savePosition(
+            widget.book.id, epubRecovery!.offset,
+            anchor: document.anchorAt(BookFormat.epub, epubRecovery.offset),
+          );
+        } catch (_) {
+          recoveryWriteFailed = true;
+        }
+        if (!mounted) {
+          recoveryBinding.dispose();
+          player.dispose();
+          return;
+        }
+      }
       final previous = _player;
       if (previous != null) {
         widget.mediaHandler?.detach(previous);
@@ -206,15 +224,6 @@ class _ReaderScreenState extends State<ReaderScreen>
           ).allowed;
         },
       );
-      if (epubRecovery?.shouldPersist == true) {
-        // Only a uniquely relocated v2 fingerprint is eligible for an
-        // automatic checkpoint rewrite. Legacy/ambiguous progress is not.
-        await widget.store.savePosition(
-          widget.book.id, epubRecovery!.offset,
-          anchor: document.anchorAt(BookFormat.epub, epubRecovery.offset),
-        );
-        if (!mounted) return;
-      }
       setState(() {
         _player = player;
         _recoveryBinding = recoveryBinding;
@@ -228,14 +237,14 @@ class _ReaderScreenState extends State<ReaderScreen>
         };
         _loading = false;
       });
-      if (epubRecovery?.needsReview == true) {
+      if (epubRecovery?.needsReview == true || recoveryWriteFailed) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text(
-              'Saved EPUB position could not be verified. '
-              'Opened the beginning of its chapter; choose where to resume.',
-            )),
+            SnackBar(content: Text(recoveryWriteFailed
+                ? 'Recovered EPUB position was found, but saving it failed.'
+                : 'Saved EPUB position could not be verified. '
+                  'Opened the beginning of its chapter; choose where to resume.')),
           );
         });
       }
