@@ -62,6 +62,34 @@ void main() {
         '[2]');
   });
 
+  test('only semantic in-spine note containers expose a bounded raw body', () {
+    const source = 'Text [1]\n\nNote with 📖 and details.';
+    final info = extractEpubStructure(
+      '<html><body><p>Text '
+      '<a epub:type="noteref" href="#n1">[1]</a></p>'
+      '<aside epub:type="footnote" id="n1">'
+      'Note with 📖 and details.</aside></body></html>',
+      source,
+    );
+    expect(info.footnotes.length, 1);
+    expect(info.footnotes.single.id, 'n1');
+    expect(source.substring(
+        info.footnotes.single.start, info.footnotes.single.end),
+        'Note with 📖 and details.');
+    expect(info.targets.any((t) =>
+        t.id == 'n1' && t.offset == info.footnotes.single.start), isTrue);
+  });
+
+  test('ordinary asides and source mismatch never create note previews', () {
+    const xhtml = '<html><body><aside id="one">Not a note.</aside>'
+        '<aside id="two" role="doc-footnote">Valid note.</aside>'
+        '</body></html>';
+    final data = extractEpubStructure(xhtml, 'Not a note.Valid note.');
+    expect(data.footnotes.length, 1);
+    expect(data.footnotes.single.id, 'two');
+    expect(extractEpubStructure(xhtml, 'Changed').footnotes, isEmpty);
+  });
+
   test('table rows are bounded and do not alter flattened TTS source', () {
     const text = 'Report\n\nNorth10South20';
     final info = extractEpubStructure(
