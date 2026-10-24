@@ -10,6 +10,7 @@ import 'epub_inline_style.dart';
 import 'epub_structural_markup.dart';
 import 'epub_embedded_content.dart';
 import 'epub_navigation.dart';
+import 'epub_text_decoder.dart';
 
 /// Stable ordering information for each EPUB OPF spine item. Text offsets are
 /// Dart String (UTF-16 code unit) offsets in the extracted document.
@@ -535,8 +536,7 @@ class EpubTextExtractor {
     if (bytes == null || bytes.length > maxLength) {
       throw const FormatException('Cannot read EPUB resource');
     }
-    final text = utf8.decode(bytes);
-    return text.startsWith('\uFEFF') ? text.substring(1) : text;
+    return decodeEpubTextResource(bytes, maxBytes: maxLength);
   }
 
   static String _safeZipName(String name) {
