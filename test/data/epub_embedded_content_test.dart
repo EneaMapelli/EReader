@@ -135,7 +135,7 @@ void main() {
 
   test('unmarked list and class-token substring cannot create a footnote',
       () {
-    const text = 'A simple item.Noteworthy paragraph.';
+    const text = 'A simple item.\n\nNoteworthy paragraph.';
     final result = extractEpubStructure(
       '<html><body><ol><li id="fn1">A simple item.</li></ol>'
       '<p class="footnoteish" id="fn2">Noteworthy paragraph.</p>'
