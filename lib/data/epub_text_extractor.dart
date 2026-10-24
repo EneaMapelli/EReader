@@ -226,7 +226,7 @@ class EpubTextExtractor {
       // entire book falls back to unstyled but source-exact reading.
       if (!styleBudgetExceeded) {
         final itemStyles = extractEpubInlineStyles(html, text);
-        if (itemStyles.isEmpty && RegExp(r'<(?:em|strong|b|i|h[1-6])\\b',
+        if (itemStyles.isEmpty && RegExp(r'<(?:em|strong|b|i|h[1-6])\b',
             caseSensitive: false).hasMatch(html)) {
           diagnostics.record(EpubDiagnosticCode.droppedInlineStyle);
         }
