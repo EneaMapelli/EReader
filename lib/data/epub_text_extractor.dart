@@ -544,7 +544,32 @@ class EpubTextExtractor {
       }
     }
 
+    if (navigation.isEmpty) {
+      diagnostics.record(navDocumentPath == null && ncxManifest.isEmpty
+          ? EpubDiagnosticCode.missingAuthorToc
+          : EpubDiagnosticCode.unreadableAuthorToc);
+    }
+    // Structural corruption is not a cosmetic compatibility warning.
+    // Reject it before any TTS, bookmark or SQLite source anchor is used.
+    verifyEpubSourceIntegrity(
+      text: fullSourceText,
+      spine: [
+        for (final item in ranges)
+          (id: item.idref, start: item.start, end: item.end),
+      ],
+      links: [
+        for (final link in nonOverlappingLinks)
+          (start: link.start, end: link.end, target: link.targetOffset),
+      ],
+      navigationTargets: [
+        for (final item in navigation) item.offset,
+      ],
+      noteTargets: [
+        for (final note in previews) note.targetOffset,
+      ],
+    );
     return EpubTextResult(title, fullSourceText, ranges,
+        diagnostics: diagnostics.items,
         navigation: navigation,
         footnotePreviews: List.unmodifiable(previews),
         auxiliaryFootnotePreviews: List.unmodifiable(auxiliaryNotes),
