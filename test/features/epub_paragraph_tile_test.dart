@@ -252,8 +252,12 @@ void main() {
     expect(find.text('Column A'), findsOneWidget);
     expect(find.text('Column B'), findsOneWidget);
     expect(find.text('Only A'), findsOneWidget);
-    expect(find.text('Caption'), findsNothing,
-        reason: 'Source words live inside one text span, not a duplicate card');
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    expect(rich.text.toPlainText(), 'Caption',
+        reason: 'TTS source remains present exactly once in the paragraph');
   });
 
   testWidgets('new paragraph data replaces stale tap recognizers', (tester) async {
