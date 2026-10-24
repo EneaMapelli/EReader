@@ -179,8 +179,15 @@ class DialogueAnalysisPlanner {
         earlier.add(segment);
         previousSize = next;
       }
-      // Restore original book order for context provenance.
-      earlier.reverse();
+      // Mutable Dart List has no reverse() method. Keep the original
+      // narration/source order before assigning provenance indices.
+      final chronologicalContext = earlier.reversed.toList(growable: false);
+      return DialogueAnalysisWindow(
+        bookId: bookId, scope: scope, cast: List.unmodifiable(cast),
+        segments: List.unmodifiable(included),
+        contextSegments: chronologicalContext,
+        spoilerCeiling: ceiling,
+      );
     }
     return DialogueAnalysisWindow(
       bookId: bookId, scope: scope, cast: List.unmodifiable(cast),
