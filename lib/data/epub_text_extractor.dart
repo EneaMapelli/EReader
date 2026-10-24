@@ -182,7 +182,9 @@ class EpubTextExtractor {
     var styleBudgetExceeded = false;
     const maxGlobalStyleRuns = 100000;
     final imageRefs = <({int offset, String src, String alt, String href})>[];
-    final linkRefs = <({int start, int end, String href, String source})>[];
+    final linkRefs = <({
+      int start, int end, String href, String source, bool footnote
+    })>[];
     final fragmentRefs = <String, int>{};
     final tables = <EpubTablePreview>[];
     const maxTables = 120;
@@ -238,6 +240,7 @@ class EpubTextExtractor {
         linkRefs.add((
           start: start + link.start, end: start + link.end,
           href: link.href, source: href,
+          footnote: link.isFootnote,
         ));
       }
       for (final table in structure.tables) {
@@ -271,7 +274,8 @@ class EpubTextExtractor {
           ? ranges.firstWhere((entry) => entry.href == destination.path).start
           : fragmentRefs['${destination.path}#${destination.fragment}'];
       if (target == null) continue;
-      links.add(EpubInternalLink(ref.start, ref.end, target));
+      links.add(EpubInternalLink(ref.start, ref.end, target,
+          isFootnote: ref.footnote));
     }
     // Malformed nested anchors may create overlapping link ranges. Drop
     // ambiguous links instead of allowing them to reject an entire ebook
