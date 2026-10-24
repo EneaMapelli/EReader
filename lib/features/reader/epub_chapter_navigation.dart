@@ -97,12 +97,21 @@ int speechSegmentIndexForOffset(List<SpeechSegment> segments, int offset) {
   return low < segments.length ? low : segments.length - 1;
 }
 
+/// Chapters are ordered by OPF spine source start. A binary lookup
+/// avoids rescanning thousands of navigation items during audio follow.
 int chapterIndexForOffset(List<EpubChapter> chapters, int offset) {
   if (chapters.isEmpty) return -1;
-  for (var i = chapters.length - 1; i >= 0; i--) {
-    if (offset >= chapters[i].start) return i;
+  var low = 0;
+  var high = chapters.length;
+  while (low < high) {
+    final mid = low + (high - low) ~/ 2;
+    if (chapters[mid].start <= offset) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
   }
-  return 0;
+  return low == 0 ? 0 : low - 1;
 }
 
 
