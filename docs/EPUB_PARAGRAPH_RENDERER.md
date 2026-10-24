@@ -86,11 +86,19 @@ scenarios: spoken-span tap mapping and in-line highlighting, accessible
 chapter headings, palette contrast/readability and safe replacement of
 tap recognizers when the list recycles a widget.
 
+## Original XHTML semantic inline styles (2026-10-24)
+
+- Source-aligned `EpubInlineStyleSpan` records preserve body `b/strong`, `i/em/cite/dfn`, and `h1..h6` tags across TTS run boundaries and display them as Flutter `TextSpan` typography.
+- The markup parser verifies entire normalized XHTML text matches the old extractor before trusting its styles, and rejects unsafe/oversized metadata. It does not evaluate author CSS or change the spoken source.
+- Source-exact visual run offsets and per-segment highlights remain authoritative. See [EPUB Inline Formatting](EPUB_INLINE_FORMATTING.md).
+
 ## Limitations and final acceptance
 
 This is a **safe paragraph renderer**, not yet a full CSS/XHTML EPUB engine.
-It does not restore author-defined fonts, typographic emphasis inside HTML
-(`<em>`/`<strong>`), embedded pictures, mathematical formulas, tables,
+It now preserves source-verified semantic `<em>`/`<strong>` and
+`<h1>`–`<h6>` spans (see [EPUB Inline Formatting](EPUB_INLINE_FORMATTING.md)),
+but still does not restore author-defined fonts, embedded pictures,
+mathematical formulas, tables,
 indentation/floats, hyperlinks, footnotes, nested NAV/NCX semantics or
 full EPUB CFI coordinates. Very long paragraphs may have an extra
 non-semantic visual division for memory safety.
