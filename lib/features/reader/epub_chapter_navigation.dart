@@ -35,14 +35,11 @@ List<SpeechSegment> segmentEpubSpine(DocumentContent document) {
         range.end > document.text.length) {
       throw const FormatException('Invalid EPUB spine text ranges');
     }
-    final chapterText = document.text.substring(range.start, range.end);
-    for (final part in segmentSpeech(chapterText)) {
-      result.add(SpeechSegment(
-        range.start + part.start,
-        range.start + part.end,
-        part.text,
-      ));
-    }
+    // Avoid a full second copy of each large XHTML spine item's text.
+    // segmentSpeechRange returns the same segments with global offsets.
+    result.addAll(segmentSpeechRange(
+      document.text, start: range.start, end: range.end,
+    ));
     lastEnd = range.end;
   }
   return result;
