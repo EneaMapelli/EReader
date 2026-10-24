@@ -85,6 +85,25 @@ These are deterministic functional fixtures, **not benchmark results**.
 They must run in the final integration suite before any speedup or memory
 usage claim can be made.
 
+## Additional EPUB narration improvement (2026-10-24)
+
+- `segmentSpeechRange(source, start:, end:)` splits a bounded global
+  UTF-16 range **directly** in the canonical book string. Each result
+  carries the original global start/end and extracts only the actual
+  short spoken segment string. It respects punctuation, decimals,
+  whitespace trimming, sentence limits and surrogate pairs.
+- `segmentEpubSpine` no longer allocates a full
+  `source.substring(range.start, range.end)` for every XHTML spine file
+  and then adds offsets to local segments. This removes another eager
+  whole-chapter text copy during EPUB opening, independently of visual
+  paragraph rendering.
+- Existing `segmentSpeech(source)` forwards to the new range routine,
+  keeping TXT/PDF behavior and defaults. The
+  `test/domain/speech_segment_test.dart` regressions compare the
+  range-based segments to the historical locally sliced equivalent,
+  reject half-emoji chapter boundaries and cover a synthetic
+  16,000-sentence source. **Tests authored but not run.**
+
 ## Remaining bottlenecks / next steps
 
 The app still decodes the EPUB, derives the canonical book source,
