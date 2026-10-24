@@ -10,6 +10,7 @@ Uint8List makeEpub({
   String? first,
   String? second,
   String? extraEntry,
+  Uint8List? pngBytes,
 }) {
   final archive = Archive()
     ..add(ArchiveFile.noCompress(
@@ -53,6 +54,10 @@ Uint8List makeEpub({
     ));
   if (extraEntry != null) {
     archive.add(ArchiveFile.string(extraEntry, 'unsafe'));
+  }
+  if (pngBytes != null) {
+    archive.add(ArchiveFile(
+      'OEBPS/Images/figure.png', pngBytes.length, pngBytes));
   }
   return ZipEncoder().encodeBytes(archive);
 }
@@ -195,6 +200,82 @@ void main() {
     final strong = result.styles.firstWhere((span) => span.bold);
     expect(result.text.substring(em.start, em.end).trim(), 'text');
     expect(result.text.substring(strong.start, strong.end), 'After');
+  });
+
+  test('only manifest-declared local raster assets are loaded', () {
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
+      'AAAAC0lEQVR42mP8/x8AAwMCAO1WlU0AAAAASUVORK5CYII=');
+    const opf = '''
+      <package><metadata><title>Picture</title></metadata>
+        <manifest>
+          <item id="a" href="Text/first.xhtml"
+            media-type="application/xhtml+xml"/>
+          <item id="picture" href="Images/figure.png"
+            media-type="image/png"/>
+        </manifest>
+        <spine><itemref idref="a"/></spine>
+      </package>''';
+    final result = extractor.extract(makeEpub(
+      opf: opf,
+      first: '<html><body><p>Picture caption.</p>'
+        '<img src="../Images/figure.png" alt="A small illustration"/>'
+        '<img src="https://tracker.example/remote.png" alt="Remote"/>'
+        '</body></html>',
+      pngBytes: png,
+    ));
+    expect(result.text, 'Picture caption.');
+    expect(result.images.length, 1);
+    expect(result.images.single.resourcePath, 'OEBPS/Images/figure.png');
+    expect(result.images.single.bytes, isNotEmpty);
+    expect(result.images.single.alt, 'A small illustration');
+  });
+
+  test('in-book fragment links resolve across different spine documents', () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><body><p><a href="second%20chapter.xhtml#scene">'
+          'Continue</a> <a href="https://tracker.example">Website</a>'
+          '</p></body></html>',
+      second: '<html><body><h2 id="scene">Scene title</h2>'
+          '<p>Another paragraph.</p></body></html>',
+    ));
+    expect(result.links.length, 1);
+    expect(result.text.substring(
+      result.links.single.start, result.links.single.end), 'Continue');
+    expect(result.links.single.targetOffset, result.ranges[1].start);
+  });
+
+  test('tables are preview metadata while the read-aloud text is unchanged',
+      () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><body><p>Measurements.</p>'
+          '<table><tr><th>Item</th><th>Value</th></tr>'
+          '<tr><td>One</td><td>10</td></tr>'
+          '<tr><td>Two</td></tr></table></body></html>',
+    ));
+    expect(result.tables.length, 1);
+    expect(result.tables.single.rows, [
+      ['Item', 'Value'], ['One', '10'], ['Two'],
+    ]);
+    expect(result.text, contains('ItemValueOne10Two'));
+    expect(result.tables.single.end,
+        lessThanOrEqualTo(result.text.length));
+  });
+
+  test('unlisted and invalid image paths never load archive assets', () {
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
+      'AAAAC0lEQVR42mP8/x8AAwMCAO1WlU0AAAAASUVORK5CYII=');
+    final result = extractor.extract(makeEpub(
+      first: '<html><body><p>Photo.</p>'
+          '<img src="../Images/figure.png" alt="Not in manifest"/>'
+          '<img src="../../../../outside.png" alt="Traversal"/>'
+          '<img src="data:image/png;base64,AAAA" alt="Inline"/>'
+          '</body></html>',
+      pngBytes: png,
+    ));
+    expect(result.images, isEmpty);
+    expect(result.text, contains('Photo.'));
   });
 
   test('fails with missing XHTML resource instead of skipping a chapter', () {
