@@ -7,6 +7,8 @@ import 'package:path/path.dart' as path;
 import 'package:xml/xml.dart';
 
 import 'epub_inline_style.dart';
+import 'epub_structural_markup.dart';
+import 'epub_embedded_content.dart';
 
 /// Stable ordering information for each EPUB OPF spine item. Text offsets are
 /// Dart String (UTF-16 code unit) offsets in the extracted document.
@@ -30,12 +32,18 @@ class EpubSpineRange {
 class EpubTextResult {
   const EpubTextResult(this.title, this.text, this.ranges, {
     this.styles = const [],
+    this.images = const [],
+    this.links = const [],
+    this.tables = const [],
   });
   final String title;
   final String text;
   final List<EpubSpineRange> ranges;
   /// Global source offsets; semantic markup cannot alter spoken text.
   final List<EpubInlineStyleSpan> styles;
+  final List<EpubEmbeddedImage> images;
+  final List<EpubInternalLink> links;
+  final List<EpubTablePreview> tables;
 }
 
 /// A limited, auditable EPUB2/EPUB3 text extractor.
@@ -115,6 +123,7 @@ class EpubTextExtractor {
     );
     String title = 'Untitled';
     final manifest = <String, String>{};
+    final imageManifest = <String, String>{};
     final spine = <String>[];
 
     for (final node in package.descendants.whereType<XmlElement>()) {
@@ -127,6 +136,10 @@ class EpubTextExtractor {
         final href = node.getAttribute('href');
         final mediaType = node.getAttribute('media-type') ?? '';
         if (id == null || href == null || id.isEmpty) continue;
+        if (mediaType == 'image/png' || mediaType == 'image/jpeg') {
+          imageManifest[_resolveOpfHref(opfPath, href)] = mediaType;
+          continue;
+        }
         if (mediaType != 'application/xhtml+xml' &&
             mediaType != 'text/html') continue;
         if (manifest.containsKey(id)) {
@@ -150,6 +163,11 @@ class EpubTextExtractor {
     final styles = <EpubInlineStyleSpan>[];
     var styleBudgetExceeded = false;
     const maxGlobalStyleRuns = 100000;
+    final imageRefs = <({int offset, String src, String alt, String href})>[];
+    final linkRefs = <({int start, int end, String href, String source})>[];
+    final fragmentRefs = <String, int>{};
+    final tables = <EpubTablePreview>[];
+    const maxTables = 120;
     for (final idref in spine) {
       final href = manifest[idref];
       if (href == null) {
@@ -180,6 +198,31 @@ class EpubTextExtractor {
           }
         }
       }
+      final structure = extractEpubStructure(html, text);
+      for (final img in structure.images) {
+        if (imageRefs.length >= 32) break;
+        imageRefs.add((
+          offset: start + img.offset, src: img.src,
+          alt: img.alt, href: href,
+        ));
+      }
+      for (final target in structure.targets) {
+        fragmentRefs.putIfAbsent('$href#${target.id}',
+            () => start + target.offset);
+      }
+      for (final link in structure.links) {
+        if (linkRefs.length >= 3000) break;
+        linkRefs.add((
+          start: start + link.start, end: start + link.end,
+          href: link.href, source: href,
+        ));
+      }
+      for (final table in structure.tables) {
+        if (tables.length >= maxTables) break;
+        tables.add(EpubTablePreview(
+          start + table.start, start + table.end, table.rows,
+        ));
+      }
       buffer.write(text);
       if (buffer.length > maxTextLength) {
         throw const FormatException('EPUB text exceeds size limit');
@@ -192,8 +235,53 @@ class EpubTextExtractor {
     if (ranges.isEmpty) {
       throw const FormatException('No readable text found in EPUB spine');
     }
+    // Resolve only links inside the readable EPUB spine; no external
+    // URLs, mailto schemes, scripts, remote assets, or implicit downloads.
+    final spinePaths = {for (final range in ranges) range.href};
+    final links = <EpubInternalLink>[];
+    for (final ref in linkRefs) {
+      final destination = _localFragment(ref.source, ref.href);
+      if (destination == null || !spinePaths.contains(destination.path)) {
+        continue;
+      }
+      final target = destination.fragment.isEmpty
+          ? ranges.firstWhere((entry) => entry.href == destination.path).start
+          : fragmentRefs['${destination.path}#${destination.fragment}'];
+      if (target == null) continue;
+      links.add(EpubInternalLink(ref.start, ref.end, target));
+    }
+    // A local, manifest-declared PNG/JPEG must pass byte budget and
+    // dimension checks before it can enter a Flutter Image.memory widget.
+    final images = <EpubEmbeddedImage>[];
+    final imageCache = <String, Uint8List>{};
+    var imageByteBudget = 12 * 1024 * 1024;
+    for (final ref in imageRefs) {
+      final resource = _localResource(ref.href, ref.src);
+      if (resource == null) continue;
+      final type = imageManifest[resource];
+      final entry = files[resource];
+      if (type == null || entry == null || entry.size > 2 * 1024 * 1024) {
+        continue;
+      }
+      var bytes = imageCache[resource];
+      if (bytes == null) {
+        if (entry.size > imageByteBudget) continue;
+        final loaded = entry.readBytes();
+        if (loaded == null || !isSafeEpubRaster(loaded, type)) continue;
+        bytes = Uint8List.fromList(loaded);
+        imageCache[resource] = bytes;
+        imageByteBudget -= bytes.length;
+      }
+      images.add(EpubEmbeddedImage(
+        offset: ref.offset, bytes: bytes,
+        alt: ref.alt, resourcePath: resource,
+      ));
+    }
     return EpubTextResult(title, buffer.toString(), ranges,
-        styles: List.unmodifiable(styles));
+        styles: List.unmodifiable(styles),
+        images: List.unmodifiable(images),
+        links: List.unmodifiable(links),
+        tables: List.unmodifiable(tables));
   }
 
   static XmlDocument _parseXml(String data) {
@@ -273,6 +361,41 @@ class EpubTextExtractor {
       }
     }
     return 'Chapter $fallbackNumber';
+  }
+
+  static ({String path, String fragment})? _localFragment(
+      String sourceHref, String destination) {
+    final uri = Uri.tryParse(destination);
+    if (uri == null || uri.hasScheme || uri.hasAuthority ||
+        uri.path.startsWith('/') || uri.query.isNotEmpty ||
+        uri.fragment.isEmpty && uri.path.isEmpty) {
+      return null;
+    }
+    try {
+      final targetPath = uri.path.isEmpty
+          ? sourceHref
+          : _safeZipName(path.posix.join(
+              path.posix.dirname(sourceHref),
+              Uri.decodeComponent(uri.path)));
+      return (path: targetPath, fragment: Uri.decodeComponent(uri.fragment));
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static String? _localResource(String sourceHref, String src) {
+    final uri = Uri.tryParse(src);
+    if (uri == null || uri.hasScheme || uri.hasAuthority ||
+        uri.path.isEmpty || uri.path.startsWith('/') ||
+        uri.query.isNotEmpty || uri.fragment.isNotEmpty) {
+      return null;
+    }
+    try {
+      return _safeZipName(path.posix.join(path.posix.dirname(sourceHref),
+          Uri.decodeComponent(uri.path)));
+    } on FormatException {
+      return null;
+    }
   }
 
   static String _extractVisibleText(String xhtml) {
