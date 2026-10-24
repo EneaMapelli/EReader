@@ -6,6 +6,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import '../domain/book.dart';
 import '../domain/reading_anchor.dart';
+import '../domain/epub_anchor_context.dart';
 import 'epub_text_extractor.dart';
 import 'epub_inline_style.dart';
 import 'epub_embedded_content.dart';
@@ -57,13 +58,22 @@ class DocumentContent {
         if (offset < entry.end) {
           final inside = (offset - entry.start)
               .clamp(0, entry.end - entry.start).toInt();
+          final absolute = entry.start + inside;
+          final fingerprint = EpubAnchorContext.capture(
+              text, entry.start, entry.end, absolute);
           return ReadingAnchor(kind: AnchorKind.epubSpine,
-              sourceId: entry.idref, localOffset: inside);
+              sourceId: entry.idref, localOffset: inside,
+              contextBefore: fingerprint.before,
+              contextAfter: fingerprint.after);
         }
       }
       final last = epubSpineRanges.last;
+      final fingerprint = EpubAnchorContext.capture(
+          text, last.start, last.end, last.end);
       return ReadingAnchor(kind: AnchorKind.epubSpine,
-          sourceId: last.idref, localOffset: last.end - last.start);
+          sourceId: last.idref, localOffset: last.end - last.start,
+          contextBefore: fingerprint.before,
+          contextAfter: fingerprint.after);
     }
     if (format == BookFormat.pdf && pdfPageRanges.isNotEmpty) {
       for (final entry in pdfPageRanges) {
@@ -104,6 +114,13 @@ class DocumentContent {
                 right >= 0xdc00 && right <= 0xdfff) {
               return null;
             }
+          }
+          if (anchor.hasContext &&
+              !EpubAnchorContext.matches(
+                  text, entry.start, entry.end, absolute, anchor)) {
+            // A valid integer offset can still point to the wrong sentence
+            // after newly recognized <br> tags or other parser changes.
+            return null;
           }
           return absolute;
         }
