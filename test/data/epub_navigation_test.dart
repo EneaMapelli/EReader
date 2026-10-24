@@ -143,7 +143,7 @@ void main() {
   });
 
   test('oversize note falls back to safe link navigation and preserves source', () {
-    final longNote = List.filled(300, 'word ').join();
+    final longNote = List.filled(500, 'word ').join();
     final source = '<html><body><aside id="big" epub:type="footnote">'
         '<p>$longNote</p></aside></body></html>';
     final result = decoder.extract(fixture(
