@@ -73,7 +73,7 @@ void main() {
   });
 
   test('structure projection accounts for removed pre-newline whitespace', () {
-    const original = 'Before\nAfter';
+    const original = 'Before\n\n\nAfter';
     final info = extractEpubStructure(
       '<html><body><p>Before  \n</p>'
       '<p id="after"><a href="#after">After</a></p></body></html>',
