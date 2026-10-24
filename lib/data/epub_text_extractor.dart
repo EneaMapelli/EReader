@@ -37,6 +37,7 @@ class EpubTextResult {
     this.links = const [],
     this.tables = const [],
     this.navigation = const [],
+    this.footnotePreviews = const [],
   });
   final String title;
   final String text;
@@ -48,6 +49,8 @@ class EpubTextResult {
   final List<EpubTablePreview> tables;
   /// Authorial NAV/NCX entries, resolved only to readable spine offsets.
   final List<EpubNavigationEntry> navigation;
+  /// Verified in-spine note text; merely an overlay, not another chapter.
+  final List<EpubFootnotePreview> footnotePreviews;
 }
 
 /// A limited, auditable EPUB2/EPUB3 text extractor.
@@ -187,6 +190,9 @@ class EpubTextExtractor {
     })>[];
     final fragmentRefs = <String, int>{};
     final tables = <EpubTablePreview>[];
+    final footnoteRefs = <({
+      String path, String id, int start, int end
+    })>[];
     const maxTables = 120;
     for (final idref in spine) {
       final href = manifest[idref];
@@ -243,6 +249,13 @@ class EpubTextExtractor {
           footnote: link.isFootnote,
         ));
       }
+      for (final note in structure.footnotes) {
+        if (footnoteRefs.length >= 200) break;
+        footnoteRefs.add((
+          path: href, id: note.id,
+          start: start + note.start, end: start + note.end,
+        ));
+      }
       for (final table in structure.tables) {
         if (tables.length >= maxTables) break;
         tables.add(EpubTablePreview(
@@ -260,6 +273,25 @@ class EpubTextExtractor {
     }
     if (ranges.isEmpty) {
       throw const FormatException('No readable text found in EPUB spine');
+    }
+    // A popup may show only verified plain text already present in the
+    // canonical book text. Long/empty/malformed notes are not previewed:
+    // their source-validated links still work as ordinary navigation.
+    final previews = <EpubFootnotePreview>[];
+    const maxPreviewChars = 1600;
+    final seenNoteTargets = <int>{};
+    for (final note in footnoteRefs) {
+      final target = fragmentRefs['${note.path}#${note.id}'];
+      if (target == null || target < note.start || target > note.end ||
+          note.start < 0 || note.end > buffer.length ||
+          note.start >= note.end ||
+          note.end - note.start > maxPreviewChars) {
+        continue;
+      }
+      final original = buffer.toString().substring(note.start, note.end);
+      final previewText = original.trim();
+      if (previewText.isEmpty || !seenNoteTargets.add(target)) continue;
+      previews.add(EpubFootnotePreview(target, previewText));
     }
     // Resolve only links inside the readable EPUB spine; no external
     // URLs, mailto schemes, scripts, remote assets, or implicit downloads.
@@ -372,6 +404,7 @@ class EpubTextExtractor {
 
     return EpubTextResult(title, buffer.toString(), ranges,
         navigation: navigation,
+        footnotePreviews: List.unmodifiable(previews),
         styles: List.unmodifiable(styles),
         images: List.unmodifiable(images),
         links: List.unmodifiable(nonOverlappingLinks),
