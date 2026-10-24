@@ -155,6 +155,20 @@ void main() {
     expect(parseEpub2Ncx('<ncx><navMap>'), isEmpty);
   });
 
+  test('current editorial section uses nearest preceding source offset', () {
+    const entries = [
+      EpubNavigationEntry('Later', 120, 0),
+      EpubNavigationEntry('Start', 0, 0),
+      EpubNavigationEntry('Middle', 40, 1),
+      EpubNavigationEntry('Duplicate', 40, 2),
+    ];
+    expect(navigationIndexForOffset(entries, 0), 1);
+    expect(navigationIndexForOffset(entries, 65), 2);
+    expect(navigationIndexForOffset(entries, 180), 0);
+    expect(navigationIndexForOffset(entries, -5), 0);
+    expect(navigationIndexForOffset(const [], 10), -1);
+  });
+
   test('path-only TOC anchors select the start of the target spine file', () {
     final custom = nav.replaceFirst('Text/second.xhtml#chapter',
         'Text/second.xhtml');
