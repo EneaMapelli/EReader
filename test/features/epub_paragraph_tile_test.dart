@@ -1,5 +1,7 @@
 import 'package:ereader/features/reader/epub_paragraph_tile.dart';
 import 'package:ereader/features/reader/epub_visual_layout.dart';
+import 'package:ereader/data/epub_embedded_content.dart';
+import 'dart:convert';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -183,6 +185,75 @@ void main() {
     expect(rich.text.toPlainText(), 'Section');
     expect(leafTextSpans(rich.text).single.style?.fontWeight,
         FontWeight.w700);
+  });
+
+  testWidgets('internal link acts on source target rather than speech',
+      (tester) async {
+    const block = EpubVisualBlock(
+      start: 0, end: 9, chapterStart: false,
+      heading: false, firstSegmentIndex: 0,
+      runs: [
+        EpubVisualRun(0, 4, 'Jump', 0, linkTargetOffset: 42),
+        EpubVisualRun(4, 9, ' next', 0),
+      ],
+    );
+    final links = <int>[];
+    final speech = <int>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: block, activeSegmentIndex: 0, fontSize: 18,
+        onSelectSegment: speech.add,
+        onOpenLink: links.add,
+      )),
+    ));
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    final spans = leafTextSpans(rich.text);
+    expect(spans.first.style?.decoration, TextDecoration.underline);
+    (spans.first.recognizer! as TapGestureRecognizer).onTap!();
+    (spans.last.recognizer! as TapGestureRecognizer).onTap!();
+    expect(links, [42]);
+    expect(speech, [0]);
+  });
+
+  testWidgets('bounded local picture and ragged table preview appear safely',
+      (tester) async {
+    // Minimal real 1x1 PNG; the resource is passed as in-memory data.
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
+      'AAAAC0lEQVR42mP8/x8AAwMCAO1WlU0AAAAASUVORK5CYII=');
+    final block = EpubVisualBlock(
+      start: 0, end: 7, chapterStart: false,
+      heading: false, firstSegmentIndex: 0,
+      runs: const [EpubVisualRun(0, 7, 'Caption', 0)],
+      images: [EpubEmbeddedImage(
+        offset: 7, bytes: png, alt: 'A diagram', resourcePath: 'diagram.png',
+      )],
+      tables: const [
+        EpubTablePreview(0, 7, [
+          ['Column A', 'Column B'], ['Only A'],
+        ]),
+      ],
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: SingleChildScrollView(
+        child: EpubParagraphTile(
+          block: block, activeSegmentIndex: 0, fontSize: 18,
+          onSelectSegment: (_) {},
+        ),
+      )),
+    ));
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.textContaining('Table preview'), findsOneWidget);
+    await tester.tap(find.textContaining('Table preview'));
+    await tester.pumpAndSettle();
+    expect(find.text('Column A'), findsOneWidget);
+    expect(find.text('Column B'), findsOneWidget);
+    expect(find.text('Only A'), findsOneWidget);
+    expect(find.text('Caption'), findsNothing,
+        reason: 'Source words live inside one text span, not a duplicate card');
   });
 
   testWidgets('new paragraph data replaces stale tap recognizers', (tester) async {
