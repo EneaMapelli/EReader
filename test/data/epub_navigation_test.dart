@@ -116,6 +116,47 @@ void main() {
         greaterThan(result.ranges[1].start));
   });
 
+  test('semantic in-spine footnote creates source-exact plain text preview', () {
+    final result = decoder.extract(fixture(
+      opf: epub3Opf, first: firstDoc, second: secondDoc,
+      nav: nav,
+    ));
+    expect(result.footnotePreviews.length, 1);
+    final note = result.footnotePreviews.single;
+    expect(note.targetOffset, result.links.single.targetOffset);
+    expect(note.text, 'Note explanation.');
+    expect(result.text.substring(note.targetOffset),
+        contains(note.text));
+    expect(result.links.single.isFootnote, isTrue);
+  });
+
+  test('ordinary internal link without semantic note offers no preview', () {
+    final result = decoder.extract(fixture(
+      opf: epub2Opf,
+      first: '<html><body><p>Read '
+        '<a href="second.xhtml#chapter">more</a>.</p></body></html>',
+      second: '<html><body><p id="chapter">A plain paragraph.</p></body></html>',
+    ));
+    expect(result.links.length, 1);
+    expect(result.links.single.isFootnote, isFalse);
+    expect(result.footnotePreviews, isEmpty);
+  });
+
+  test('oversize note falls back to safe link navigation and preserves source', () {
+    final longNote = List.filled(300, 'word ').join();
+    final source = '<html><body><aside id="big" epub:type="footnote">'
+        '<p>$longNote</p></aside></body></html>';
+    final result = decoder.extract(fixture(
+      opf: epub2Opf,
+      first: '<html><body><p>See '
+        '<a epub:type="noteref" href="second.xhtml#big">[1]</a>.</p></body></html>',
+      second: source,
+    ));
+    expect(result.footnotePreviews, isEmpty);
+    expect(result.links.single.isFootnote, isTrue);
+    expect(result.text, contains(longNote));
+  });
+
   test('EPUB2 NCX navPoint nesting maps to the same source anchors', () {
     final parsed = parseEpub2Ncx(ncx);
     expect(parsed.map((e) => e.label).toList(),
