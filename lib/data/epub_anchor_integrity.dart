@@ -36,7 +36,7 @@ void verifyEpubSourceIntegrity({
     throw const FormatException('EPUB source not covered by spine');
   }
 
-  bool readable(int offset) {
+  int spineIndexAt(int offset) {
     var low = 0, high = spine.length;
     while (low < high) {
       final mid = low + (high - low) ~/ 2;
@@ -46,10 +46,12 @@ void verifyEpubSourceIntegrity({
         high = mid;
       }
     }
-    return low < spine.length && offset >= spine[low].start &&
-        offset < spine[low].end &&
-        !_splitsSurrogate(text, offset);
+    return low < spine.length && offset >= spine[low].start
+        ? low : -1;
   }
+
+  bool readable(int offset) =>
+      spineIndexAt(offset) >= 0 && !_splitsSurrogate(text, offset);
 
   var previousLinkEnd = 0;
   for (final link in links) {
@@ -62,8 +64,7 @@ void verifyEpubSourceIntegrity({
     }
     // A source link must be wholly inside one spine file; otherwise it
     // would include synthetic separators never present in the XHTML.
-    if (!spine.any((item) =>
-        link.start >= item.start && link.end <= item.end)) {
+    if (spineIndexAt(link.start) != spineIndexAt(link.end - 1)) {
       throw const FormatException('EPUB link crosses spine files');
     }
     previousLinkEnd = link.end;
