@@ -12,6 +12,7 @@ class EpubVisualRun {
     this.italic = false,
     this.headingLevel = 0,
     this.linkTargetOffset,
+    this.auxiliaryFootnoteKey,
     this.isFootnote = false,
   });
   final int start;
@@ -22,6 +23,7 @@ class EpubVisualRun {
   final bool italic;
   final int headingLevel;
   final int? linkTargetOffset;
+  final String? auxiliaryFootnoteKey;
   final bool isFootnote;
 }
 
@@ -102,9 +104,17 @@ EpubVisualLayout buildEpubVisualLayout(
   final links = document.epubLinks;
   var lastLinkEnd = 0;
   for (final link in links) {
+    final target = link.targetOffset;
+    final auxiliary = link.auxiliaryFootnoteKey;
+    final validSpineTarget = target != null && target >= 0 &&
+        target < source.length && auxiliary == null;
+    final validAuxiliary = target == null && link.isFootnote &&
+        auxiliary != null && auxiliary.isNotEmpty &&
+        document.epubAuxiliaryFootnotePreviews.any((note) =>
+            note.key == auxiliary);
     if (link.start < lastLinkEnd || link.end <= link.start ||
         link.end > source.length ||
-        link.targetOffset < 0 || link.targetOffset > source.length) {
+        !(validSpineTarget || validAuxiliary)) {
       throw const FormatException('Invalid EPUB internal link ranges');
     }
     lastLinkEnd = link.end;
@@ -189,6 +199,7 @@ EpubVisualLayout buildEpubVisualLayout(
           linkCursor++;
         }
         int? linkTarget;
+        String? auxiliaryFootnoteKey;
         var isFootnote = false;
         if (linkCursor < links.length) {
           final link = links[linkCursor];
@@ -196,6 +207,7 @@ EpubVisualLayout buildEpubVisualLayout(
             if (link.start < until) until = link.start;
           } else {
             linkTarget = link.targetOffset;
+            auxiliaryFootnoteKey = link.auxiliaryFootnoteKey;
             isFootnote = link.isFootnote;
             if (link.end < until) until = link.end;
           }
@@ -209,6 +221,7 @@ EpubVisualLayout buildEpubVisualLayout(
           italic: style?.italic ?? false,
           headingLevel: style?.headingLevel ?? 0,
           linkTargetOffset: linkTarget,
+          auxiliaryFootnoteKey: auxiliaryFootnoteKey,
           isFootnote: isFootnote,
         ));
         offset = until;
