@@ -9,6 +9,7 @@ import 'package:xml/xml.dart';
 import 'epub_inline_style.dart';
 import 'epub_structural_markup.dart';
 import 'epub_embedded_content.dart';
+import 'epub_navigation.dart';
 
 /// Stable ordering information for each EPUB OPF spine item. Text offsets are
 /// Dart String (UTF-16 code unit) offsets in the extracted document.
@@ -35,6 +36,7 @@ class EpubTextResult {
     this.images = const [],
     this.links = const [],
     this.tables = const [],
+    this.navigation = const [],
   });
   final String title;
   final String text;
@@ -44,6 +46,8 @@ class EpubTextResult {
   final List<EpubEmbeddedImage> images;
   final List<EpubInternalLink> links;
   final List<EpubTablePreview> tables;
+  /// Authorial NAV/NCX entries, resolved only to readable spine offsets.
+  final List<EpubNavigationEntry> navigation;
 }
 
 /// A limited, auditable EPUB2/EPUB3 text extractor.
@@ -124,6 +128,9 @@ class EpubTextExtractor {
     String title = 'Untitled';
     final manifest = <String, String>{};
     final imageManifest = <String, String>{};
+    final ncxManifest = <String, String>{};
+    String? navDocumentPath;
+    String? spineTocId;
     final spine = <String>[];
 
     for (final node in package.descendants.whereType<XmlElement>()) {
@@ -131,17 +138,28 @@ class EpubTextExtractor {
         final candidate = node.innerText.trim();
         if (candidate.isNotEmpty) title = candidate;
       }
+      if (node.name.local == 'spine') {
+        spineTocId = node.getAttribute('toc');
+      }
       if (node.name.local == 'item') {
         final id = node.getAttribute('id');
         final href = node.getAttribute('href');
         final mediaType = node.getAttribute('media-type') ?? '';
         if (id == null || href == null || id.isEmpty) continue;
+        if (mediaType == 'application/x-dtbncx+xml') {
+          ncxManifest[id] = _resolveOpfHref(opfPath, href);
+          continue;
+        }
         if (mediaType == 'image/png' || mediaType == 'image/jpeg') {
           imageManifest[_resolveOpfHref(opfPath, href)] = mediaType;
           continue;
         }
         if (mediaType != 'application/xhtml+xml' &&
             mediaType != 'text/html') continue;
+        if ((node.getAttribute('properties') ?? '')
+            .split(RegExp(r'\s+')).contains('nav')) {
+          navDocumentPath ??= _resolveOpfHref(opfPath, href);
+        }
         if (manifest.containsKey(id)) {
           throw const FormatException('Duplicate OPF manifest identifier');
         }
@@ -207,6 +225,7 @@ class EpubTextExtractor {
         ));
       }
       for (final target in structure.targets) {
+        if (fragmentRefs.length >= 30000) break;
         // A fragment at the very end of its source item should stay in
         // that spine item rather than resolve into the next item's separator.
         final local = target.offset == text.length
@@ -293,7 +312,62 @@ class EpubTextExtractor {
         alt: ref.alt, resourcePath: resource,
       ));
     }
+    // Authorial navigation is a separate optional overlay; it MUST NOT
+    // replace OPF spine as the text/voice reading order. Reject targets
+    // outside actually readable spine resources and limit entries.
+    List<EpubNavigationEntry> resolveNavigation(
+        List<EpubRawNavigationEntry> items, String navSource) {
+      final resolved = <EpubNavigationEntry>[];
+      final seen = <String>{};
+      final byPath = {for (final range in ranges) range.href: range};
+      for (final item in items) {
+        final destination = _localFragment(navSource, item.href);
+        if (destination == null) continue;
+        final range = byPath[destination.path];
+        if (range == null) continue;
+        final offset = destination.fragment.isEmpty ? range.start :
+            fragmentRefs['${destination.path}#${destination.fragment}'];
+        if (offset == null || offset < range.start || offset >= range.end) {
+          continue;
+        }
+        final key = '${item.label}|$offset';
+        if (!seen.add(key)) continue;
+        resolved.add(EpubNavigationEntry(
+          item.label, offset, item.depth));
+        if (resolved.length >= 2000) break;
+      }
+      return List.unmodifiable(resolved);
+    }
+
+    List<EpubNavigationEntry> navigation = const [];
+    if (navDocumentPath != null) {
+      try {
+        final raw = _readRequired(
+            files, navDocumentPath!, maxLength: 2 * 1024 * 1024);
+        navigation = resolveNavigation(
+            parseEpub3Navigation(raw), navDocumentPath!);
+      } on FormatException {
+        // Missing, malicious or malformed optional TOC must not block
+        // an otherwise readable book.
+      }
+    }
+    if (navigation.isEmpty) {
+      final ncx = spineTocId == null
+          ? (ncxManifest.length == 1 ? ncxManifest.values.first : null)
+          : ncxManifest[spineTocId];
+      if (ncx != null) {
+        try {
+          final raw = _readRequired(
+              files, ncx, maxLength: 2 * 1024 * 1024);
+          navigation = resolveNavigation(parseEpub2Ncx(raw), ncx);
+        } on FormatException {
+          // Fall back to the existing XHTML spine headings.
+        }
+      }
+    }
+
     return EpubTextResult(title, buffer.toString(), ranges,
+        navigation: navigation,
         styles: List.unmodifiable(styles),
         images: List.unmodifiable(images),
         links: List.unmodifiable(nonOverlappingLinks),
