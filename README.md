@@ -57,6 +57,30 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 
 **Verifiche rinviate all'integrazione finale su richiesta del proprietario:** compilazione, test automatici effettivi, migrazioni SQLite reali e uso su Windows/Android. Gli ambienti Flutter/Dart e i toolchain Windows/Android non erano disponibili nel contesto di sviluppo. Le cartelle native `android/` e `windows/` devono ancora essere generate e versionate dopo il bootstrap.
 
+## Test completi Windows e report automatici (branch unico)
+
+Per eseguire analisi statica, formattazione non distruttiva e **tutti i
+test Flutter**, usando il branch di sviluppo e pubblicando automaticamente
+gli esiti filtrati nello stesso repository privato:
+
+```powershell
+git switch feature/m0-flutter-foundation
+git pull --ff-only origin feature/m0-flutter-foundation
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tool\run-all-tests.ps1
+```
+
+Al termine, i nuovi risultati sono consultabili in
+[`test-results/latest.md`](test-results/latest.md) e
+[`test-results/latest.json`](test-results/latest.json), con esiti per
+singolo test, cronologia e posizioni degli eventuali errori di compilazione.
+Lo script pubblica i report anche se i test falliscono. I log completi
+restano **esclusivamente sul PC** in `.local-test-results/`, esclusa da Git.
+
+**Non crea altri branch, non sovrascrive commit altrui e non esegue build.**
+Un push rifiutato da Git lascia i risultati locali per una pubblicazione
+sicura successiva. Per istruzioni e opzioni: [Windows test runner e
+report automatici](test-results/README.md).
+
 ## Avvio su Windows
 
 Prerequisiti: Flutter **3.47.7** con Dart **3.13.5** (versione CI di riferimento), Android SDK per Android, Visual Studio con carico di lavoro **Desktop development with C++** per Windows, Developer Mode Windows per i plugin che creano symlink.
