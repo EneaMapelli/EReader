@@ -102,7 +102,7 @@ but does not prevent reading.
   for unverified progress; no automatic TTS.
 - `lib/features/reader/reading_tools.dart`: safe EPUB bookmark
   navigation with visibly disabled unverifiable bookmarks.
-- `test/data/epub_progress_recovery_test.dart`: nine authored
+- `test/data/epub_progress_recovery_test.dart`: ten authored
   scenarios for exact, relocated, repeated, vanished, changed
   paragraph and legacy positions plus persisted JSON.
 - `test/domain/epub_anchor_context_test.dart`: six source-hash
