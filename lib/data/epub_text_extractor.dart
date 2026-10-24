@@ -38,6 +38,7 @@ class EpubTextResult {
     this.tables = const [],
     this.navigation = const [],
     this.footnotePreviews = const [],
+    this.auxiliaryFootnotePreviews = const [],
   });
   final String title;
   final String text;
@@ -51,6 +52,7 @@ class EpubTextResult {
   final List<EpubNavigationEntry> navigation;
   /// Verified in-spine note text; merely an overlay, not another chapter.
   final List<EpubFootnotePreview> footnotePreviews;
+  final List<EpubAuxiliaryFootnotePreview> auxiliaryFootnotePreviews;
 }
 
 /// A limited, auditable EPUB2/EPUB3 text extractor.
@@ -130,6 +132,7 @@ class EpubTextExtractor {
     );
     String title = 'Untitled';
     final manifest = <String, String>{};
+    final auxiliaryXhtmlPaths = <String>{};
     final imageManifest = <String, String>{};
     final ncxManifest = <String, String>{};
     String? navDocumentPath;
@@ -167,6 +170,7 @@ class EpubTextExtractor {
           throw const FormatException('Duplicate OPF manifest identifier');
         }
         manifest[id] = _resolveOpfHref(opfPath, href);
+        auxiliaryXhtmlPaths.add(manifest[id]!);
       }
       if (node.name.local == 'itemref' &&
           node.getAttribute('linear') != 'no') {
@@ -294,13 +298,87 @@ class EpubTextExtractor {
       if (previewText.isEmpty || !seenNoteTargets.add(target)) continue;
       previews.add(EpubFootnotePreview(target, previewText));
     }
+    // Only explicitly referenced, manifest-declared auxiliary XHTML
+    // is inspected. Never append its text to the spoken book/source.
+    // Each referenced file is read at most once within tight budgets.
+    final spinePaths = {for (final range in ranges) range.href};
+    final auxRefs = <({String key, String path, String fragment})>[];
+    final seenAux = <String>{};
+    for (final ref in linkRefs) {
+      if (!ref.footnote || auxRefs.length >= 24) continue;
+      final target = _localFragment(ref.source, ref.href);
+      if (target == null || target.fragment.isEmpty ||
+          !auxiliaryXhtmlPaths.contains(target.path) ||
+          spinePaths.contains(target.path)) {
+        continue;
+      }
+      final key = '${target.path}#${target.fragment}';
+      if (seenAux.add(key)) {
+        auxRefs.add((key: key, path: target.path,
+            fragment: target.fragment));
+      }
+    }
+    final auxiliaryNotes = <EpubAuxiliaryFootnotePreview>[];
+    final acceptedAuxKeys = <String>{};
+    const maxAuxBytesPerFile = 256 * 1024;
+    const maxAuxText = 1600;
+    const maxAuxTotalChars = 12000;
+    var remainingAuxChars = maxAuxTotalChars;
+    final cachedAux = <String, EpubStructure?>{};
+    final cachedAuxText = <String, String>{};
+    for (final ref in auxRefs) {
+      if (remainingAuxChars <= 0) break;
+      if (!cachedAux.containsKey(ref.path)) {
+        final entry = files[ref.path];
+        EpubStructure? parsed;
+        if (entry != null && entry.size >= 0 &&
+            entry.size <= maxAuxBytesPerFile &&
+            cachedAux.length < 12) {
+          try {
+            final html = _readText(entry, maxLength: maxAuxBytesPerFile);
+            final text = _extractVisibleText(html);
+            if (text.length <= maxAuxBytesPerFile) {
+              parsed = extractEpubStructure(html, text);
+              cachedAuxText[ref.path] = text;
+            }
+          } on FormatException {
+            // Optional auxiliary note is never allowed to break a book.
+          }
+        }
+        cachedAux[ref.path] = parsed;
+      }
+      final structure = cachedAux[ref.path];
+      final text = cachedAuxText[ref.path];
+      if (structure == null || text == null) continue;
+      // Only explicitly semantic containers may become note popups;
+      // random id fragments, nav content, and non-note prose are excluded.
+      final candidates = structure.footnotes.where(
+          (note) => note.id == ref.fragment);
+      if (candidates.length != 1) continue;
+      final note = candidates.single;
+      if (note.start < 0 || note.end > text.length ||
+          note.start >= note.end ||
+          note.end - note.start > maxAuxText) continue;
+      final body = text.substring(note.start, note.end).trim();
+      if (body.isEmpty || body.length > remainingAuxChars) continue;
+      auxiliaryNotes.add(EpubAuxiliaryFootnotePreview(ref.key, body));
+      acceptedAuxKeys.add(ref.key);
+      remainingAuxChars -= body.length;
+    }
     // Resolve only links inside the readable EPUB spine; no external
     // URLs, mailto schemes, scripts, remote assets, or implicit downloads.
-    final spinePaths = {for (final range in ranges) range.href};
     final links = <EpubInternalLink>[];
     for (final ref in linkRefs) {
       final destination = _localFragment(ref.source, ref.href);
-      if (destination == null || !spinePaths.contains(destination.path)) {
+      if (destination == null) continue;
+      if (!spinePaths.contains(destination.path)) {
+        if (ref.footnote && destination.fragment.isNotEmpty) {
+          final key = '${destination.path}#${destination.fragment}';
+          if (acceptedAuxKeys.contains(key)) {
+            links.add(EpubInternalLink(ref.start, ref.end, null,
+                isFootnote: true, auxiliaryFootnoteKey: key));
+          }
+        }
         continue;
       }
       final target = destination.fragment.isEmpty
@@ -406,6 +484,7 @@ class EpubTextExtractor {
     return EpubTextResult(title, fullSourceText, ranges,
         navigation: navigation,
         footnotePreviews: List.unmodifiable(previews),
+        auxiliaryFootnotePreviews: List.unmodifiable(auxiliaryNotes),
         styles: List.unmodifiable(styles),
         images: List.unmodifiable(images),
         links: List.unmodifiable(nonOverlappingLinks),
