@@ -71,7 +71,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       }
       if (version == 1) {
         _transaction(db, () {
-          db.execute('ALTER TABLE books ADD COLUMN progress_anchor TEXT');
+          if (!_hasSqliteColumn(db, 'books', 'progress_anchor')) {
+            db.execute('ALTER TABLE books ADD COLUMN progress_anchor TEXT');
+          }
           db.execute('PRAGMA user_version = 2');
         });
       }
@@ -232,7 +234,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       }
       if (version < 9) {
         _transaction(db, () {
-          db.execute('ALTER TABLE cast_spans ADD COLUMN evidence_json TEXT');
+          if (!_hasSqliteColumn(db, 'cast_spans', 'evidence_json')) {
+            db.execute('ALTER TABLE cast_spans ADD COLUMN evidence_json TEXT');
+          }
           db.execute('PRAGMA user_version = 9');
         });
       }
@@ -353,7 +357,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       // TTS authorization nor credentials and does not enable auto-play.
       if (version < 14) {
         _transaction(db, () {
-          db.execute('ALTER TABLE books ADD COLUMN last_opened_at TEXT');
+          if (!_hasSqliteColumn(db, 'books', 'last_opened_at')) {
+            db.execute('ALTER TABLE books ADD COLUMN last_opened_at TEXT');
+          }
           db.execute('PRAGMA user_version = 14');
         });
       }
@@ -361,9 +367,11 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       // source anchor. Scanned PDFs have no read-aloud position at all.
       if (version < 15) {
         _transaction(db, () {
-          db.execute('ALTER TABLE books ADD COLUMN pdf_visual_page INTEGER '
-              'CHECK(pdf_visual_page IS NULL OR '
-              '(pdf_visual_page >= 1 AND pdf_visual_page <= 100000))');
+          if (!_hasSqliteColumn(db, 'books', 'pdf_visual_page')) {
+            db.execute('ALTER TABLE books ADD COLUMN pdf_visual_page INTEGER '
+                'CHECK(pdf_visual_page IS NULL OR '
+                '(pdf_visual_page >= 1 AND pdf_visual_page <= 100000))');
+          }
           db.execute('PRAGMA user_version = 15');
         });
       }
@@ -2024,6 +2032,15 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       throw const FormatException('Invalid EPUB ZIP signature');
     }
   }
+
+  /// An older schema-version marker can coexist with already-added columns
+  /// after a partial migration or an intentionally downgraded test fixture.
+  /// Only fixed, internal table/column names are passed to this helper.
+  /// A missing table still fails the subsequent migration; it is not
+  /// silently treated as a successfully upgraded database.
+  static bool _hasSqliteColumn(Database db, String table, String column) =>
+      db.select('PRAGMA table_info($table)')
+          .any((row) => row['name'] == column);
 
   static T _transaction<T>(Database db, T Function() run) {
     db.execute('BEGIN IMMEDIATE');
