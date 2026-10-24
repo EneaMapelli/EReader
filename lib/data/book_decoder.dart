@@ -9,6 +9,7 @@ import '../domain/reading_anchor.dart';
 import 'epub_text_extractor.dart';
 import 'epub_inline_style.dart';
 import 'epub_embedded_content.dart';
+import 'epub_navigation.dart';
 
 class DocumentContent {
   const DocumentContent({
@@ -20,6 +21,7 @@ class DocumentContent {
     this.epubImages = const [],
     this.epubLinks = const [],
     this.epubTables = const [],
+    this.epubNavigation = const [],
   });
   final String text;
   final String title;
@@ -32,6 +34,7 @@ class DocumentContent {
   final List<EpubEmbeddedImage> epubImages;
   final List<EpubInternalLink> epubLinks;
   final List<EpubTablePreview> epubTables;
+  final List<EpubNavigationEntry> epubNavigation;
 
   /// Converts the global reader offset to a document-relative source address.
   /// No anchoring to an EPUB TOC entry or PDF visual coordinate is implied.
@@ -141,6 +144,7 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
           epubImages: content.images,
           epubLinks: content.links,
           epubTables: content.tables,
+          epubNavigation: content.navigation,
         );
       case BookFormat.pdf:
         return _readPdfText(record);
