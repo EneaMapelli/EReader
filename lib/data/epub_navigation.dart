@@ -91,7 +91,8 @@ List<EpubRawNavigationEntry> parseEpub2Ncx(String xml) {
   final XmlDocument doc;
   try {
     doc = XmlDocument.parse(xml);
-  } on XmlException {
+  } catch (_) {
+    // Malformed optional NCX never prevents normal spine reading.
     return const [];
   }
   final navMaps = doc.descendants.whereType<XmlElement>()
