@@ -23,6 +23,79 @@ DocumentContent documentOf(String text, {String title = 'Chapter One'}) =>
     );
 
 void main() {
+  test('lazy source-backed runs retain exact Unicode and old const API', () {
+    const source = 'Start 📖 middle.';
+    final lazy = EpubVisualRun.fromSource(
+      6, 8, source, 0, italic: true,
+    );
+    expect(lazy.text, '📖');
+    expect(lazy.start, 6);
+    expect(lazy.end, 8);
+    expect(lazy.segmentIndex, 0);
+    expect(lazy.italic, isTrue);
+    const old = EpubVisualRun(0, 5, 'Start', 0);
+    expect(old.text, 'Start');
+  });
+
+  test('large EPUB builds 12000 paragraph blocks with stable source mapping',
+      () {
+    final paragraphs = List<String>.generate(
+      12000, (i) => 'Paragraph $i 📖 with words.',
+    );
+    final source = paragraphs.join('\\n\\n');
+    final chunks = <SpeechSegment>[];
+    var cursor = 0;
+    for (final paragraph in paragraphs) {
+      chunks.add(SpeechSegment(
+        cursor, cursor + paragraph.length, paragraph));
+      cursor += paragraph.length + 2;
+    }
+    final document = documentOf(source, title: 'Not a paragraph');
+    final layout = buildEpubVisualLayout(document, chunks, const []);
+    expect(layout.blocks.length, paragraphs.length);
+    expect(layout.segmentToBlock.length, paragraphs.length);
+    expect(epubParagraphHardBoundaries(document).length,
+        paragraphs.length - 1);
+    for (final index in [0, 1, 500, 5999, 11999]) {
+      final block = layout.blocks[index];
+      expect(layout.blockForSegment(index), index);
+      expect(block.start, chunks[index].start);
+      expect(block.end, chunks[index].end);
+      expect(block.text, paragraphs[index]);
+      expect(block.runs.map((r) => r.text).join(), paragraphs[index]);
+    }
+    expect(layout.blocks.first.chapterStart, isTrue);
+    expect(layout.blocks.last.chapterStart, isFalse);
+  });
+
+  test('paragraph regex at spine boundary does not consume next chapter',
+      () {
+    const first = 'Alpha ends with break.\\n';
+    const second = 'Beta begins.';
+    final source = '$first\\n\\n$second';
+    final startSecond = first.length + 2;
+    final doc = DocumentContent(
+      title: 'Two chapters',
+      text: source,
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'first', href: 'first.xhtml',
+            start: 0, end: first.length),
+        EpubSpineRange(idref: 'second', href: 'second.xhtml',
+            start: startSecond, end: source.length),
+      ],
+    );
+    final pieces = [
+      SpeechSegment(0, first.length, first),
+      SpeechSegment(startSecond, source.length, second),
+    ];
+    final blocks = buildEpubVisualLayout(doc, pieces, const []).blocks;
+    expect(blocks.length, 2);
+    expect(blocks.first.text, 'Alpha ends with break.');
+    expect(blocks.last.text, second);
+    expect(blocks.last.chapterStart, isTrue);
+    expect(epubParagraphHardBoundaries(doc), [startSecond]);
+  });
+
   test('paragraph runs concatenate to exact source and locate spoken spans', () {
     const source =
         'Chapter One\n\nOne sentence. Another sentence.\n\nLast paragraph!';
