@@ -6,9 +6,9 @@
 |---|---|---|
 | ER-001 Bootstrap | `pubspec.yaml`, Flutter entry point, bootstrap scripts | In progress |
 | ER-002 Book/anchors | BookRecord with source anchor + segment UTF-16 IDs; unit tests | Partial; stable spine/page anchors added, EPUB CFI not yet implemented |
-| ER-003 EPUB/TXT | OPF spine, semantic styling, local PNG/JPEG, cross-spine links, table previews | Partial; only limited raster/table rendering; author CSS and NAV/NCX open |
+| ER-003 EPUB/TXT | OPF spine, safe local images/tables, EPUB3 NAV / EPUB2 NCX hierarchical TOC | Partial; NAV/NCX real-device coverage, image-only and full CSS open |
 | ER-004 PDF | PDF viewer + text-layer extraction; SQLite v15 independent visual-page recovery including scanned PDFs, 7 authored tests | Partial: page-only resume, no scroll/zoom bookmark, complex ordering/OCR pending |
-| ER-005 Reader | EPUB paragraph layout, internal fragment tap, inline image/table preview, voice highlight, PDF view | Partial; full CSS/image-only spine/CFI and native checks pending |
+| ER-005 Reader | EPUB chapter/editorial controls, in-book footnote back stack, safe images/table previews, PDF view | Partial; inline note popup, full CSS/CFI and native validation open |
 | ER-006 TTS | OS/cloud speech adapters, voice/rate/pitch controls; 8-second bounded native Stop with no auto-replay | Partial; hung engine cannot be forcibly silenced by Dart alone |
 | ER-007 Read along | Segment highlight, indexed auto-scroll, manual follow, viewport-to-audio start; no word marks | Partial |
 | ER-008 Android background | MediaSession, settled-idle focus, deduplicated Play and fail-closed Stop timeout | Source implemented; no process-death TTS restart; native validation pending |
@@ -419,3 +419,11 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - The paragraph renderer can display embedded illustrations with accessible alternative descriptions and optional expandable bounded table previews; the original table text remains available for read-aloud and search. Table column counts are padded for stable widget rendering, but this is not HTML `colspan`/`rowspan` fidelity.
 - Added authored but unexecuted tests in `test/data/epub_embedded_content_test.dart`, `test/data/epub_text_extractor_test.dart`, `test/features/epub_visual_layout_test.dart` and `test/features/epub_paragraph_tile_test.dart`. Refer to [EPUB Embedded Content](EPUB_EMBEDDED_CONTENT.md). No Flutter analyzer, tests, Android or Windows builds executed.
 - Image-only spine XHTML, linked SVG/WebP/GIF, exact CSS positioning, true nested TOC/footnote history, and full accessible table semantics remain open.
+
+## M1 — EPUB3 NAV, EPUB2 NCX and note returns (2026-10-24)
+
+- Added optional bounded `lib/data/epub_navigation.dart` parsers: hierarchical EPUB3 NAV `toc` and EPUB2 NCX `navMap/navPoint`, preserving publisher labels and depth. Resolve link destinations solely against verified readable `EpubSpineRange` offsets. NAV wins when useful; absent/broken NAV falls back to NCX, then the existing spine-chapter directory.
+- `ReaderScreen` now shows editorial TOC hierarchy and previous/next section controls. TOC presentation does **not** reorder original content or affect speech, manual voice casting, bookmarks or SQLite recovery anchors.
+- Source-verified `epub:type="noteref"` and `role="doc-noteref"` markers are accessible links. Following one pauses active TTS, saves its destination anchor and offers a **return** toolbar control. Return history is in-memory, bounded to 20 source offsets and removed only after a successful seek; it is not synced or persisted.
+- New unexecuted test suites: `test/data/epub_navigation_test.dart` (10 cases), `test/features/epub_link_history_test.dart` (4 cases), plus 1 note semantics test in `test/data/epub_embedded_content_test.dart` and 1 source-run note test in `test/features/epub_visual_layout_test.dart`. Flutter analyzer, test runner and Windows/Android builds remain intentionally deferred. See [EPUB NAV/NCX and Footnotes](EPUB_NAV_NCX_FOOTNOTES.md).
+- Remaining: popup note preview, out-of-spine footnote resources, richer NAV collections, true EPUB CFI, broad real-book corpus and native UX validation.
