@@ -486,6 +486,20 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Added **6 authored unexecuted tests**: large synthetic 12,000-paragraph rendering, 20,000-chapter lookup, 1,200 auxiliary note links, lazy Unicode-run compatibility, spine-boundary regex correctness and SHA v2 digest compatibility. See [EPUB Large Book Performance](EPUB_LARGE_BOOK_PERFORMANCE.md). No profiler benchmark, `flutter analyze`, Flutter tests or Windows/Android builds have run per agreement.
 - Model metadata and TTS segmentation remain eagerly allocated, ZIP decoding still keeps archive content in memory, and v2 fallback relocation still has a bounded linear scan. Device/real-corpus memory and latency profiling remains a mandatory final integration task; no measured speedup is claimed.
 
+## M1 — direct range-based EPUB speech segmentation (2026-10-24)
+
+- `segmentEpubSpine` no longer copies a complete XHTML chapter
+  substring before segmentation. The new
+  `segmentSpeechRange(source,start:,end:)` processes canonical UTF-16
+  text directly and returns global source-aligned speech chunks.
+- This removes a large temporary chapter allocation while retaining
+  sentence/decimal detection, speaker/quote boundaries, Unicode
+  surrogate safety and unchanged TXT/PDF behavior. Added three
+  authored but unexecuted tests for old/new local/global segmentation
+  equivalence, half-surrogate rejection and a 16,000-sentence source.
+- No Flutter analyzer, Windows/Android tests or benchmark executed;
+  measure actual opening latency/memory on the user's PC.
+
 ## M1 — Windows full test runner on the ONE development branch (2026-10-24)
 
 - Added the PowerShell 5.1-compatible `tool/run-all-tests.ps1` runner for Flutter/Dart versions, `flutter pub get`, read-only `dart format --set-exit-if-changed`, `flutter analyze --no-pub` and **every Flutter test**. If the combined suite fails/times out, it retries every `test/**/*_test.dart` individually with a bounded per-file timeout and gathers JSON machine events for each case.
