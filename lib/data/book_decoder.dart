@@ -10,6 +10,7 @@ import 'epub_text_extractor.dart';
 import 'epub_inline_style.dart';
 import 'epub_embedded_content.dart';
 import 'epub_navigation.dart';
+import 'epub_import_diagnostics.dart';
 
 class DocumentContent {
   const DocumentContent({
@@ -24,6 +25,7 @@ class DocumentContent {
     this.epubNavigation = const [],
     this.epubFootnotePreviews = const [],
     this.epubAuxiliaryFootnotePreviews = const [],
+    this.epubDiagnostics = const [],
   });
   final String text;
   final String title;
@@ -40,6 +42,7 @@ class DocumentContent {
   final List<EpubFootnotePreview> epubFootnotePreviews;
   /// Local-only auxiliary note text, with *no* position in the TTS spine.
   final List<EpubAuxiliaryFootnotePreview> epubAuxiliaryFootnotePreviews;
+  final List<EpubImportDiagnostic> epubDiagnostics;
 
   /// Converts the global reader offset to a document-relative source address.
   /// No anchoring to an EPUB TOC entry or PDF visual coordinate is implied.
@@ -153,6 +156,7 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
           epubFootnotePreviews: content.footnotePreviews,
           epubAuxiliaryFootnotePreviews:
               content.auxiliaryFootnotePreviews,
+          epubDiagnostics: content.diagnostics,
         );
       case BookFormat.pdf:
         return _readPdfText(record);
