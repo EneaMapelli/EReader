@@ -44,7 +44,8 @@ class EpubAnchorContext {
   static bool matches(String text, int start, int end,
       int offset, ReadingAnchor anchor) {
     if (!anchor.hasContext || offset < start || offset > end ||
-        _splitsSurrogate(text, offset)) return false;
+        _splitsSurrogate(text, offset) ||
+        (offset < end && _space(text.codeUnitAt(offset)))) return false;
     final c = capture(text, start, end, offset);
     return c.before == anchor.contextBefore && c.after == anchor.contextAfter;
   }
