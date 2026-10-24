@@ -47,6 +47,7 @@ class EpubParagraphTile extends StatefulWidget {
     required this.fontSize,
     required this.onSelectSegment,
     this.onOpenLink,
+    this.onOpenFootnote,
     this.palette = EpubReadingPalette.system,
   });
 
@@ -56,6 +57,9 @@ class EpubParagraphTile extends StatefulWidget {
   final ValueChanged<int> onSelectSegment;
   /// Source offset of a verified internal EPUB fragment (never a URL).
   final ValueChanged<int>? onOpenLink;
+  /// A verified note reference requests a non-navigating preview first.
+  /// The reader may fall back to ordinary navigation if no preview exists.
+  final ValueChanged<int>? onOpenFootnote;
   final EpubReadingPalette palette;
 
   @override
@@ -64,7 +68,7 @@ class EpubParagraphTile extends StatefulWidget {
 
 class _EpubParagraphTileState extends State<EpubParagraphTile> {
   final Map<int, TapGestureRecognizer> _recognizers = {};
-  final Map<int, TapGestureRecognizer> _linkRecognizers = {};
+  final Map<(int, bool), TapGestureRecognizer> _linkRecognizers = {};
 
   TapGestureRecognizer _tap(int index) {
     final recognizer = _recognizers.putIfAbsent(
@@ -74,11 +78,19 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
     return recognizer;
   }
 
-  TapGestureRecognizer _linkTap(int offset) {
+  TapGestureRecognizer _linkTap(int offset, bool footnote) {
+    // Different kinds of link with the same target must never share a
+    // mutable callback when widgets are recycled in the lazy EPUB list.
     final recognizer = _linkRecognizers.putIfAbsent(
-      offset, TapGestureRecognizer.new,
+      (offset, footnote), TapGestureRecognizer.new,
     );
-    recognizer.onTap = () => widget.onOpenLink?.call(offset);
+    recognizer.onTap = () {
+      if (footnote && widget.onOpenFootnote != null) {
+        widget.onOpenFootnote!(offset);
+      } else {
+        widget.onOpenLink?.call(offset);
+      }
+    };
     return recognizer;
   }
 
@@ -164,7 +176,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                       ),
                       recognizer: run.linkTargetOffset != null &&
                               widget.onOpenLink != null
-                          ? _linkTap(run.linkTargetOffset!)
+                          ? _linkTap(run.linkTargetOffset!, run.isFootnote)
                           : run.segmentIndex == null
                               ? null : _tap(run.segmentIndex!),
                     ),
