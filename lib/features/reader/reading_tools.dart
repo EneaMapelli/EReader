@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../data/book_decoder.dart';
+import '../../data/epub_progress_recovery.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
 import '../../domain/book_bookmark.dart';
@@ -96,6 +97,9 @@ Future<int?> showBookBookmarks({
   required int currentOffset,
   required String currentExcerpt,
 }) {
+  // Resolving v2 fingerprinted bookmarks may scan one bounded spine item.
+  // Cache results for this sheet instead of rescanning at every widget build.
+  final bookmarkRecovery = <String, EpubProgressRecovery>{};
   return showModalBottomSheet<int>(
     context: context,
     isScrollControlled: true,
@@ -196,17 +200,29 @@ Future<int?> showBookBookmarks({
                       itemCount: bookmarks.length,
                       itemBuilder: (context, index) {
                         final mark = bookmarks[index];
-                        final restored = mark.anchor == null
-                            ? mark.globalOffset
-                            : document.offsetOf(mark.anchor!) ??
-                                mark.globalOffset;
+                        final recovery = book.format == BookFormat.epub
+                            ? bookmarkRecovery.putIfAbsent(
+                                mark.id, () => resolveEpubReadingProgress(
+                                  document, anchor: mark.anchor,
+                                  legacyOffset: mark.globalOffset,
+                                ))
+                            : null;
+                        final verified = recovery?.needsReview != true;
+                        final restored = recovery?.offset ??
+                            (mark.anchor == null
+                                ? mark.globalOffset
+                                : document.offsetOf(mark.anchor!) ??
+                                    mark.globalOffset);
                         return ListTile(
-                          leading: const Icon(Icons.bookmark),
+                          leading: Icon(verified
+                              ? Icons.bookmark : Icons.warning_amber_outlined),
                           title: Text(mark.title),
-                          subtitle: Text(
-                            'Position ' + restored.toString(),
-                          ),
-                          onTap: () => Navigator.pop(sheetContext, restored),
+                          subtitle: Text(verified
+                              ? 'Position ' + restored.toString()
+                              : 'Saved EPUB location changed; review needed'),
+                          onTap: verified
+                              ? () => Navigator.pop(sheetContext, restored)
+                              : null,
                           trailing: IconButton(
                             tooltip: 'Delete bookmark',
                             icon: const Icon(Icons.delete_outline),
