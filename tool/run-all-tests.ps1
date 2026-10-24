@@ -39,6 +39,8 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 $stages = New-Object System.Collections.ArrayList
 $cases = New-Object System.Collections.ArrayList
 $failures = New-Object System.Collections.ArrayList
+$fileRuns = New-Object System.Collections.ArrayList
+$compilerLocations = New-Object System.Collections.ArrayList
 $startedUtc = [DateTime]::UtcNow
 $publishResult = 'disabled'
 
@@ -104,6 +106,32 @@ function Redact([string]$value) {
   if ($s.Length -gt 220) { $s = $s.Substring(0,220) }
   return $s
 }
+function Collect-CompileLocations([string]$path, [string]$testFile) {
+  # Extract ONLY file:line:column and a fixed failure kind. Never push
+  # exception body, Expected/Actual text, URLs, credentials or local paths.
+  if (-not (Test-Path -LiteralPath $path)) { return }
+  $seen = @{}
+  foreach ($line in [IO.File]::ReadLines($path)) {
+    foreach ($match in [regex]::Matches(
+      $line, '(?i)(?<![a-z0-9_])((?:lib|test)[/\\][a-z0-9_./\\-]+\.dart):(\d+):(\d+)')) {
+      $relative = $match.Groups[1].Value.Replace('\','/')
+      if ($relative.Contains('..') -or $relative.Length -gt 180) { continue }
+      $lineNumber = [int]$match.Groups[2].Value
+      $columnNumber = [int]$match.Groups[3].Value
+      if ($lineNumber -lt 1 -or $columnNumber -lt 1) { continue }
+      $key = $relative + ':' + $lineNumber + ':' + $columnNumber
+      if ($seen.ContainsKey($key)) { continue }
+      $seen[$key] = $true
+      [void]$script:compilerLocations.Add([ordered]@{
+        testFile=(Redact $testFile);file=$relative
+        line=$lineNumber;column=$columnNumber
+        kind='compile_or_load_location'
+      })
+      if ($seen.Count -ge 80) { return }
+    }
+  }
+}
+
 function Read-TestEvents([string]$log, [string]$defaultFile,
                          [string]$runLabel) {
   $suites = @{}
@@ -187,6 +215,8 @@ $allFiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'test') -Recurse -File
 $global = Execute 'flutter-test-all' $flutter @(
   'test','--reporter','json','--no-pub'
 ) ([Math]::Max($TestTimeoutMinutes,90))
+Collect-CompileLocations $global.Stdout '<full_suite>'
+Collect-CompileLocations $global.Stderr '<full_suite>'
 if ($global.ExitCode -eq 0) {
   Read-TestEvents $global.Stdout '' 'full_suite'
 } else {
@@ -200,7 +230,14 @@ if ($global.ExitCode -eq 0) {
     ) $TestTimeoutMinutes
     $before = $cases.Count
     Read-TestEvents $one.Stdout $relative $name
-    if ($cases.Count -eq $before) {
+    Collect-CompileLocations $one.Stdout $relative
+    Collect-CompileLocations $one.Stderr $relative
+    $parsed = $cases.Count - $before
+    [void]$fileRuns.Add([ordered]@{
+      file=$relative;exitCode=$one.ExitCode;timedOut=$one.TimedOut
+      parsedCases=$parsed
+    })
+    if ($parsed -eq 0) {
       $record = [ordered]@{
         file=$relative;name='<suite could not load>'
         status='error'
@@ -219,7 +256,8 @@ $errorCount = @($cases | Where-Object {
 }).Count
 $skipped = @($cases | Where-Object { $_.status -eq 'skipped' }).Count
 $brokenStages = @($stages | Where-Object { $_.exitCode -ne 0 }).Count
-$outcome = if ($brokenStages -gt 0 -or $fail -gt 0 -or $errorCount -gt 0) {
+$outcome = if ($allFiles.Count -eq 0 -or $cases.Count -eq 0 -or
+    $brokenStages -gt 0 -or $fail -gt 0 -or $errorCount -gt 0) {
   'FAIL'
 } else { 'PASS' }
 # Analyzer lines publish only diagnostic headers; full stdout/stderr is local.
@@ -243,6 +281,8 @@ $summary = [ordered]@{
   startedUtc=$startedUtc.ToString('o')
   completedUtc=[DateTime]::UtcNow.ToString('o')
   result=$outcome;totals=$totals;stages=@($stages.ToArray())
+  isolatedFileRuns=@($fileRuns.ToArray())
+  compileLocations=@($compilerLocations.ToArray())
   analyzerIssues=@($analyzerIssues.ToArray())
   localOnlyRawLogDirectory='.local-test-results/' + $id
   note='Raw logs are local-only; no user file contents or secrets are published.'
@@ -269,6 +309,14 @@ $md.Add('| Test file | Test case | Type |')
 $md.Add('|---|---|---|')
 foreach ($row in @($failures.ToArray()) | Select-Object -First 120) {
   $md.Add(('| {0} | {1} | {2} |' -f $row.file,$row.name,$row.issue))
+}
+$md.Add('')
+$md.Add('## Source locations of compilation/load errors (safe metadata)')
+$md.Add('| Test file | Source file | Line | Column |')
+$md.Add('|---|---|---:|---:|')
+foreach ($loc in @($compilerLocations.ToArray()) | Select-Object -First 100) {
+  $md.Add(('| {0} | {1} | {2} | {3} |' -f
+    $loc.testFile,$loc.file,$loc.line,$loc.column))
 }
 $md.Add('')
 $md.Add('## Analyzer diagnostics')
@@ -307,7 +355,9 @@ if (-not $NoPublish) {
       "test-results/runs/$id-cases.json",
       "test-results/runs/$id-failures.json",
       'test-results/latest.md',
-      'test-results/latest.json'
+      'test-results/latest.json',
+      'test-results/latest-cases.json',
+      'test-results/latest-failures.json'
     )
     Write-Text (Join-Path $runFolder ($id + '.md')) $markdown
     Write-Text (Join-Path $runFolder ($id + '.json')) $metaJson
@@ -315,6 +365,8 @@ if (-not $NoPublish) {
     Write-Text (Join-Path $runFolder ($id + '-failures.json')) $failJson
     Write-Text (Join-Path $published 'latest.md') $markdown
     Write-Text (Join-Path $published 'latest.json') $metaJson
+    Write-Text (Join-Path $published 'latest-failures.json') $failJson
+    Write-Text (Join-Path $published 'latest-cases.json') $caseJson
     & $git add -- @rel
     if ($LASTEXITCODE -ne 0) { throw 'Could not stage report files' }
     & $git commit -m ("test(results): Windows $outcome $id")
