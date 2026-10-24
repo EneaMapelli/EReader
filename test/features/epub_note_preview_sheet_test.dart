@@ -72,8 +72,9 @@ void main() {
     ));
     await tester.tap(find.text('Peek'));
     await tester.pumpAndSettle();
-    await tester.binding.handlePopRoute();
+    await tester.tapAt(const Offset(3, 3)); // modal barrier
     await tester.pumpAndSettle();
+    expect(find.text('Footnote'), findsNothing);
     expect(decision, isNull);
   });
 
