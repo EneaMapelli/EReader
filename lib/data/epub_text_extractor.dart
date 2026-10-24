@@ -148,6 +148,8 @@ class EpubTextExtractor {
     final buffer = StringBuffer();
     final ranges = <EpubSpineRange>[];
     final styles = <EpubInlineStyleSpan>[];
+    var styleBudgetExceeded = false;
+    const maxGlobalStyleRuns = 100000;
     for (final idref in spine) {
       final href = manifest[idref];
       if (href == null) {
@@ -161,12 +163,22 @@ class EpubTextExtractor {
       final start = buffer.length;
       // Annotate the SAME normalized source text as the old extractor.
       // Mismatched DOM normalization safely yields no style spans.
-      for (final style in extractEpubInlineStyles(html, text)) {
-        styles.add(EpubInlineStyleSpan(
-          start + style.start, start + style.end,
-          bold: style.bold, italic: style.italic,
-          headingLevel: style.headingLevel,
-        ));
+      // Bound the metadata independently of text length; on overflow, the
+      // entire book falls back to unstyled but source-exact reading.
+      if (!styleBudgetExceeded) {
+        final itemStyles = extractEpubInlineStyles(html, text);
+        if (itemStyles.length > maxGlobalStyleRuns - styles.length) {
+          styles.clear();
+          styleBudgetExceeded = true;
+        } else {
+          for (final style in itemStyles) {
+            styles.add(EpubInlineStyleSpan(
+              start + style.start, start + style.end,
+              bold: style.bold, italic: style.italic,
+              headingLevel: style.headingLevel,
+            ));
+          }
+        }
       }
       buffer.write(text);
       if (buffer.length > maxTextLength) {
