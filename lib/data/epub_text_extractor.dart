@@ -207,8 +207,12 @@ class EpubTextExtractor {
         ));
       }
       for (final target in structure.targets) {
+        // A fragment at the very end of its source item should stay in
+        // that spine item rather than resolve into the next item's separator.
+        final local = target.offset == text.length
+            ? text.length - 1 : target.offset;
         fragmentRefs.putIfAbsent('$href#${target.id}',
-            () => start + target.offset);
+            () => start + local);
       }
       for (final link in structure.links) {
         if (linkRefs.length >= 3000) break;
