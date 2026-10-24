@@ -17,11 +17,15 @@ class EpubEmbeddedImage {
 class EpubInternalLink {
   const EpubInternalLink(this.start, this.end, this.targetOffset, {
     this.isFootnote = false,
+    this.auxiliaryFootnoteKey,
   });
   final int start;
   final int end;
-  final int targetOffset;
+  /// Non-null only for a real, readable OPF-spine destination.
+  final int? targetOffset;
   final bool isFootnote;
+  /// A verified, referenced, non-spine note has no book/TTS offset.
+  final String? auxiliaryFootnoteKey;
 }
 
 /// Plain-text preview of a verified semantic footnote already present in
@@ -29,6 +33,14 @@ class EpubInternalLink {
 class EpubFootnotePreview {
   const EpubFootnotePreview(this.targetOffset, this.text);
   final int targetOffset;
+  final String text;
+}
+
+/// An auxiliary note deliberately has no source offset: opening it must
+/// never insert text into the EPUB spine or change TTS/SQLite progress.
+class EpubAuxiliaryFootnotePreview {
+  const EpubAuxiliaryFootnotePreview(this.key, this.text);
+  final String key;
   final String text;
 }
 
