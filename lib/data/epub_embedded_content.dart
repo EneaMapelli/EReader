@@ -24,6 +24,14 @@ class EpubInternalLink {
   final bool isFootnote;
 }
 
+/// Plain-text preview of a verified semantic footnote already present in
+/// the original EPUB speech text. There is no HTML, CSS or network payload.
+class EpubFootnotePreview {
+  const EpubFootnotePreview(this.targetOffset, this.text);
+  final int targetOffset;
+  final String text;
+}
+
 class EpubTablePreview {
   const EpubTablePreview(this.start, this.end, this.rows);
   final int start;
