@@ -590,6 +590,18 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
+  void _openEpubLink(int sourceOffset) {
+    final player = _player;
+    if (widget.book.format != BookFormat.epub ||
+        player == null || player.segments.isEmpty) return;
+    // Only source offsets already verified against an in-book XHTML target
+    // reach here. Reuse explicit selection: pause, save spine anchor, no TTS.
+    var index = player.segments.indexWhere(
+        (segment) => segment.end > sourceOffset);
+    if (index < 0) index = player.segments.length - 1;
+    _selectFromVisualTap(index);
+  }
+
   void _selectFromVisualTap(int index) {
     Future<void> navigate() async {
       final player = _player;
@@ -856,6 +868,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                         fontSize: _fontSize,
                                         palette: _epubPalette,
                                         onSelectSegment: _selectFromVisualTap,
+                                        onOpenLink: _openEpubLink,
                                       );
                                     }
                                     final segment = player.segments[index];
