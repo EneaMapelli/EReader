@@ -34,6 +34,44 @@ void main() {
     ), isNull);
   });
 
+  test('stale EPUB anchor offset beyond its spine item fails closed', () {
+    const doc = DocumentContent(
+      title: 'Book',
+      text: 'Short\n\nAnother',
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'first', href: 'first.xhtml',
+            start: 0, end: 5),
+        EpubSpineRange(idref: 'second', href: 'second.xhtml',
+            start: 7, end: 14),
+      ],
+    );
+    expect(doc.offsetOf(const ReadingAnchor(
+      kind: AnchorKind.epubSpine, sourceId: 'first', localOffset: 999,
+    )), isNull);
+    expect(doc.offsetOf(const ReadingAnchor(
+      kind: AnchorKind.epubSpine, sourceId: 'first', localOffset: 5,
+    )), 5);
+    expect(doc.offsetOf(const ReadingAnchor(
+      kind: AnchorKind.epubSpine, sourceId: 'second', localOffset: 1,
+    )), 8);
+  });
+
+  test('EPUB anchor may not resume in the middle of a surrogate pair', () {
+    const doc = DocumentContent(
+      title: 'Book', text: 'A 📖!',
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'only', href: 'one.xhtml',
+            start: 0, end: 5),
+      ],
+    );
+    expect(doc.offsetOf(const ReadingAnchor(
+      kind: AnchorKind.epubSpine, sourceId: 'only', localOffset: 3,
+    )), isNull);
+    expect(doc.offsetOf(const ReadingAnchor(
+      kind: AnchorKind.epubSpine, sourceId: 'only', localOffset: 2,
+    )), 2);
+  });
+
   test('PDF page anchor retains local offset', () {
     const data = DocumentContent(
       title: 'PDF',
