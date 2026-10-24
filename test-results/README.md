@@ -31,9 +31,8 @@ or publishing will be refused (tests may still run).
    If this fails or times out, run **every** `test/**/*_test.dart`
    individually to identify failures and isolate suites that cannot
    load. The runner continues after errors, including compiler errors
-   and file timeouts. Its global run has a 90-minute cap; each isolated
-   test file defaults to 20 minutes. You can override the file limit
-   with `-TestTimeoutMinutes 30`.
+   and file timeouts. The full suite and each isolated file default to
+   a 20-minute limit; override both with `-TestTimeoutMinutes 30`.
 
 **No APK, Windows executable, Android device or release build is
 performed by this script.** Those are separate integration gates.
