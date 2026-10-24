@@ -31,6 +31,7 @@ import 'epub_note_preview_sheet.dart';
 import '../../data/epub_navigation.dart';
 import 'epub_visual_layout.dart';
 import 'epub_paragraph_tile.dart';
+import 'epub_diagnostics_sheet.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -839,6 +840,15 @@ class _ReaderScreenState extends State<ReaderScreen>
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
+          if (widget.book.format == BookFormat.epub &&
+              (_document?.epubDiagnostics.isNotEmpty ?? false))
+            IconButton(
+              icon: const Icon(Icons.report_problem_outlined),
+              tooltip: 'EPUB compatibility report',
+              onPressed: () => showEpubImportDiagnostics(
+                context, _document!.epubDiagnostics,
+              ),
+            ),
           if (widget.book.format == BookFormat.epub)
             PopupMenuButton<EpubReadingPalette>(
               tooltip: 'EPUB reading colors',
