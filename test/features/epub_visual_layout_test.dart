@@ -1,6 +1,8 @@
 import 'package:ereader/data/book_decoder.dart';
 import 'package:ereader/data/epub_text_extractor.dart';
 import 'package:ereader/data/epub_inline_style.dart';
+import 'package:ereader/data/epub_embedded_content.dart';
+import 'dart:typed_data';
 import 'package:ereader/domain/book.dart';
 import 'package:ereader/domain/dialogue_segmenter.dart';
 import 'package:ereader/domain/speech_segment.dart';
@@ -228,6 +230,89 @@ void main() {
           EpubInlineStyleSpan(0, 12, bold: true),
         ]),
       speech, const [],
+    ), throwsFormatException);
+  });
+
+  test('in-book link splits visual run without losing spoken segment ID',
+      () {
+    const source = 'Chapter links are source exact.';
+    const doc = DocumentContent(
+      title: 'Book', text: source,
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'a', href: 'a.xhtml',
+            start: 0, end: 31),
+      ],
+      epubLinks: [EpubInternalLink(8, 13, 0)],
+    );
+    const segments = [
+      SpeechSegment(0, 31, source),
+    ];
+    final layout = buildEpubVisualLayout(doc, segments, const []);
+    expect(layout.blocks.length, 1);
+    final runs = layout.blocks.single.runs;
+    expect(runs.map((r) => r.text).join(), source);
+    expect(runs.where((r) => r.linkTargetOffset != null)
+        .map((r) => r.text).join(), source.substring(8, 13));
+    expect(runs.where((r) => r.linkTargetOffset == 0)
+        .every((r) => r.segmentIndex == 0), isTrue);
+  });
+
+  test('image and table metadata attach without changing paragraph text',
+      () {
+    const source = 'Opening.\n\nImage caption.\n\nRow1Row2';
+    final image = EpubEmbeddedImage(
+      offset: source.indexOf('Image'),
+      bytes: Uint8List.fromList([1, 2, 3]),
+      alt: 'Illustration', resourcePath: 'img.png',
+    );
+    final doc = DocumentContent(
+      title: 'Book', text: source,
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'a', href: 'a.xhtml',
+            start: 0, end: source.length),
+      ],
+      epubImages: [image],
+      epubTables: [
+        EpubTablePreview(
+          source.indexOf('Row1'), source.length,
+          const [['First', 'Second'], ['One']],
+        ),
+      ],
+    );
+    final segments = segmentEpubSpine(doc);
+    final layout = buildEpubVisualLayout(
+        doc, segments, buildEpubChapters(doc, segments));
+    expect(layout.blocks.length, 3);
+    expect(layout.blocks.map((b) => b.text).toList(),
+        ['Opening.', 'Image caption.', 'Row1Row2']);
+    expect(layout.blocks[1].images.single.resourcePath, 'img.png');
+    expect(layout.blocks[2].tables.single.rows.length, 2);
+    for (final block in layout.blocks) {
+      expect(source.substring(block.start, block.end), block.text);
+    }
+  });
+
+  test('invalid or overlapping fragment links cannot redirect narration',
+      () {
+    const source = 'A single line';
+    const base = [
+      EpubSpineRange(idref: 'x', href: 'x.xhtml', start: 0, end: 13),
+    ];
+    const spoken = [SpeechSegment(0, 13, source)];
+    expect(() => buildEpubVisualLayout(
+      const DocumentContent(title: 'X', text: source,
+        epubSpineRanges: base,
+        epubLinks: [
+          EpubInternalLink(0, 5, 2),
+          EpubInternalLink(3, 7, 4),
+        ]),
+      spoken, const [],
+    ), throwsFormatException);
+    expect(() => buildEpubVisualLayout(
+      const DocumentContent(title: 'X', text: source,
+        epubSpineRanges: base,
+        epubLinks: [EpubInternalLink(0, 3, 99)]),
+      spoken, const [],
     ), throwsFormatException);
   });
 
