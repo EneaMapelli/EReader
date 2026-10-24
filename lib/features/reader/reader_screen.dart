@@ -654,9 +654,8 @@ class _ReaderScreenState extends State<ReaderScreen>
               : (_visiblePositionIndex ?? player.currentIndex))
           .clamp(0, player.segments.length - 1).toInt();
       final fromOffset = player.segments[sourceIndex].start;
-      var index = player.segments.indexWhere(
-          (segment) => segment.end > sourceOffset);
-      if (index < 0) index = player.segments.length - 1;
+      final index = speechSegmentIndexForOffset(
+          player.segments, sourceOffset);
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player) return;
@@ -691,9 +690,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       final offset = _linkHistory.last;
       final player = _player;
       if (offset == null || player == null || player.segments.isEmpty) return;
-      var index = player.segments.indexWhere(
-          (segment) => segment.end > offset);
-      if (index < 0) index = player.segments.length - 1;
+      final index = speechSegmentIndexForOffset(
+          player.segments, offset);
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player) return;
