@@ -716,3 +716,15 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Technical description: [Speech sentence boundaries](SPEECH_SENTENCE_BOUNDARIES.md).
   No updated execution claim: the 549/556 manually summarized Windows
   run predates this feature and its per-case results are still missing.
+
+## M2 — common Unicode grapheme-safe bounded speech chunks (2026-10-25)
+
+- Hard TTS chunk splits now avoid breaking combining accents, emoji
+  variation sequences, zero-width-joiner sequences, skin-tone modifiers
+  and regional-indicator flag pairs, in addition to UTF-16 surrogate
+  pairs. These guards preserve original source-aligned text, never raise
+  the provider character cap and fail closed on a cluster longer than
+  the cap rather than silently dropping content.
+- Added source-exact no-loss and oversized-cluster regression tests.
+  This deliberately does not claim full Unicode grapheme compliance.
+  Windows/Android tests are pending for the new segmentation code.

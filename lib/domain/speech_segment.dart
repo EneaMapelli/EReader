@@ -92,19 +92,25 @@ List<SpeechSegment> segmentSpeechRange(
       chunkEnd = firstSentenceEnd;
     } else if (limit < end && lastWhitespace > chunkStart) {
       chunkEnd = lastWhitespace;
-    } else if (limit < end &&
-        _isLowSurrogate(source.codeUnitAt(limit)) &&
-        _isHighSurrogate(source.codeUnitAt(limit - 1))) {
-      chunkEnd = limit - 1;
     }
 
+    // A hard input cap must not split a decomposed accent or a common
+    // multi-code-point emoji sequence. Backtrack by code points until
+    // a safe break; never silently drop a code unit to make progress.
+    while (chunkEnd > chunkStart &&
+        _splitsCommonGrapheme(source, chunkEnd)) {
+      chunkEnd -= _isLowSurrogate(source.codeUnitAt(chunkEnd - 1)) &&
+              chunkEnd >= 2 &&
+              _isHighSurrogate(source.codeUnitAt(chunkEnd - 2))
+          ? 2 : 1;
+    }
     while (chunkEnd > chunkStart &&
         _isWhitespace(source.codeUnitAt(chunkEnd - 1))) {
       chunkEnd--;
     }
     if (chunkEnd <= chunkStart) {
-      cursor = limit;
-      continue;
+      throw const FormatException(
+          'A Unicode text cluster exceeds the TTS chunk limit');
     }
     result.add(SpeechSegment(
       chunkStart,
@@ -133,3 +139,69 @@ bool _isSentenceClosingDelimiter(int c) =>
 bool _isDigit(int c) => c >= 48 && c <= 57;
 bool _isHighSurrogate(int c) => c >= 0xD800 && c <= 0xDBFF;
 bool _isLowSurrogate(int c) => c >= 0xDC00 && c <= 0xDFFF;
+
+// Read only the code point adjacent to a prospective UTF-16 boundary.
+// Full grapheme segmentation is intentionally outside this bounded TTS
+// chunker; these rules cover frequent decomposed accents/emoji clusters.
+int _codePointAt(String text, int index) {
+  final first = text.codeUnitAt(index);
+  if (_isHighSurrogate(first) && index + 1 < text.length) {
+    final second = text.codeUnitAt(index + 1);
+    if (_isLowSurrogate(second)) {
+      return 0x10000 + ((first - 0xD800) << 10) + second - 0xDC00;
+    }
+  }
+  return first;
+}
+
+int _codePointBefore(String text, int index) {
+  final last = text.codeUnitAt(index - 1);
+  if (_isLowSurrogate(last) && index >= 2) {
+    final first = text.codeUnitAt(index - 2);
+    if (_isHighSurrogate(first)) {
+      return 0x10000 + ((first - 0xD800) << 10) + last - 0xDC00;
+    }
+  }
+  return last;
+}
+
+bool _combiningOrModifier(int c) =>
+    (c >= 0x0300 && c <= 0x036F) ||
+    (c >= 0x1AB0 && c <= 0x1AFF) ||
+    (c >= 0x1DC0 && c <= 0x1DFF) ||
+    (c >= 0x20D0 && c <= 0x20FF) ||
+    (c >= 0xFE20 && c <= 0xFE2F) ||
+    (c >= 0xFE00 && c <= 0xFE0F) ||
+    (c >= 0x1F3FB && c <= 0x1F3FF) ||
+    (c >= 0xE0020 && c <= 0xE007F);
+
+bool _regionalIndicator(int c) => c >= 0x1F1E6 && c <= 0x1F1FF;
+
+bool _splitsCommonGrapheme(String text, int offset) {
+  if (offset <= 0 || offset >= text.length) return false;
+  final afterUnit = text.codeUnitAt(offset);
+  if (_isLowSurrogate(afterUnit) &&
+      _isHighSurrogate(text.codeUnitAt(offset - 1))) {
+    return true;
+  }
+  final after = _codePointAt(text, offset);
+  final before = _codePointBefore(text, offset);
+  if (_combiningOrModifier(after) ||
+      after == 0x200D || before == 0x200D) return true;
+  if (_regionalIndicator(before) && _regionalIndicator(after)) {
+    // Pair regional indicator letters into flag clusters. A boundary
+    // after an odd number of consecutive indicators is unsafe.
+    var count = 0;
+    var cursor = offset;
+    while (cursor > 0 && _regionalIndicator(
+        _codePointBefore(text, cursor))) {
+      count++;
+      cursor -= _isLowSurrogate(text.codeUnitAt(cursor - 1)) &&
+              cursor >= 2 &&
+              _isHighSurrogate(text.codeUnitAt(cursor - 2))
+          ? 2 : 1;
+    }
+    return count.isOdd;
+  }
+  return false;
+}

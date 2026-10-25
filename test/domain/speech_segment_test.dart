@@ -19,6 +19,35 @@ void main() {
     expect(chunks.skip(1).map((s) => s.text).join(), '😀' + 'b' * 20);
   });
 
+  test('hard TTS boundaries do not cut decomposed accents or ZWJ emoji',
+      () {
+    final samples = [
+      'a' * 15 + 'e\u0301' + 'b' * 36,
+      'a' * 13 + '👩‍🚀' + 'b' * 36,
+      'a' * 16 + '🇮🇹' + 'b' * 36,
+      'a' * 15 + '👍🏽' + 'b' * 36,
+    ];
+    for (final source in samples) {
+      final chunks = segmentSpeech(source, maxChars: 18);
+      expect(chunks, isNotEmpty);
+      expect(chunks.map((s) => s.text).join(), source,
+          reason: 'Hard chunk boundaries must never lose source characters');
+      expect(chunks.every((s) => s.text.length <= 18), isTrue);
+      for (final segment in chunks) {
+        expect(source.substring(segment.start, segment.end), segment.text);
+      }
+      expect(chunks.first.text.endsWith('a'), isTrue,
+          reason: 'The first hard split must precede the joined cluster');
+    }
+  });
+
+  test('overlong single emoji cluster fails closed rather than dropping text',
+      () {
+    final combined = 'e' + List.filled(20, '\u0301').join();
+    expect(() => segmentSpeech(combined, maxChars: 16),
+        throwsFormatException);
+  });
+
   test('handles empty and whitespace-only books', () {
     expect(segmentSpeech(''), isEmpty);
     expect(segmentSpeech('   \n\t  '), isEmpty);

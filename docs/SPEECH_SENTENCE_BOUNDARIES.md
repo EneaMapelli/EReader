@@ -41,3 +41,21 @@ decoder output truly gapless or add word-level TTS timing.
 validation for this change is still pending. The last manually reported
 Windows run (549/556) predates this change, and its detailed failure
 files have not yet been published.
+
+## Unicode clusters at provider chunk boundaries
+
+A hard `maxChars` cutoff now also backtracks to avoid cutting a common
+multi-code-point grapheme cluster: decomposed combining accents,
+variation selectors, skin-tone modifiers, zero-width-joiner emoji and
+paired regional indicator flags. The original UTF-16 code-unit source
+text remains unchanged; no code units are discarded or copied between
+segments. A single exceptionally long cluster that cannot fit the
+provider limit fails closed with a `FormatException` rather than
+silently omitting characters or violating the size limit.
+
+These are intentionally limited, deterministic boundary guards rather
+than full Unicode grapheme-break conformance. More extensive tests on
+real-world scripts and complex combining/Indic sequences remain needed.
+Added unexecuted source-exact tests for e + combining acute, joined
+astronaut emoji, national flag and skin-tone emoji, and oversized
+combining sequences.
