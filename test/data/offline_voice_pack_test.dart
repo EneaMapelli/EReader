@@ -301,6 +301,39 @@ void main() {
     expect(await folderContents(), [manifest.id]);
   });
 
+
+  test('local catalog distinguishes verified voices from corrupt folders',
+      () async {
+    await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input, modelsDirectory: installed,
+    );
+    await Directory(p.join(installed.path, 'broken-voice')).create();
+    await Directory(p.join(installed.path, '.install-unfinished')).create();
+    final scan = await inspectOfflineVoicePacks(modelsDirectory: installed);
+    expect(scan.map((x) => x.id), ['broken-voice', manifest.id]);
+    expect(scan.map((x) => x.ready), [false, true]);
+    expect(scan.first.installed, isNull);
+    expect(scan.last.installed?.manifest.modelSha256,
+        manifest.modelSha256);
+    expect(await Directory(p.join(installed.path, 'broken-voice')).exists(),
+        isTrue, reason: 'Inspection must never delete a damaged model');
+  });
+
+  test('catalog bounds model count and never loads an unknown pack',
+      () async {
+    await Directory(p.join(installed.path, 'voice-a')).create(recursive: true);
+    await Directory(p.join(installed.path, 'voice-b')).create(recursive: true);
+    await expectLater(inspectOfflineVoicePacks(
+      modelsDirectory: installed, maxEntries: 1,
+    ), throwsFormatException);
+    await expectLater(inspectOfflineVoicePacks(
+      modelsDirectory: installed, maxEntries: 0,
+    ), throwsArgumentError);
+    expect(await inspectOfflineVoicePacks(
+      modelsDirectory: Directory(p.join(root.path, 'not-installed')),
+    ), isEmpty);
+  });
+
   test('invalid IDs and untrusted manifest data never create installation',
       () async {
     for (final id in ['../escape', 'UPPER', 'a/b', '.hidden']) {
