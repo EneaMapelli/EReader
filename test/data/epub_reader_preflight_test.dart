@@ -97,6 +97,56 @@ void main() {
     }
   });
 
+  test('preflight timing report records nonnegative stages and safe counts',
+      () async {
+    final path = await writeEpub();
+    final prepared = await prepareEpubReader(path);
+    final metrics = prepared.timings;
+    final values = metrics.toJson();
+    expect(values.values.every((value) => value >= 0), isTrue);
+    expect(metrics.workerTotalUs, greaterThanOrEqualTo(
+        metrics.archiveReadUs + metrics.xhtmlExtractionUs +
+        metrics.speechSegmentationUs + metrics.quoteGroupingUs +
+        metrics.paragraphBoundariesUs));
+    expect(metrics.compressedBytes, greaterThan(0));
+    expect(metrics.spineItems, 2);
+    expect(metrics.sourceCodeUnits, prepared.document.text.length);
+    expect(metrics.speechSegments, greaterThan(0));
+    expect(values.keys, isNot(contains('localPath')));
+    expect(values.keys, isNot(contains('bookText')));
+    expect(values.keys, isNot(contains('apiKey')));
+  });
+
+  test('cancel while worker spawn is in flight settles future exactly once',
+      () async {
+    final path = await writeEpub();
+    final task = startEpubReaderPreflight(path);
+    final cancelled = expectLater(
+        task.result, throwsA(isA<EpubPreflightCancelled>()));
+    task.cancel();
+    task.cancel();
+    expect(task.isFinished, isTrue);
+    await cancelled;
+    // The immediately cancelled spawn may still complete asynchronously;
+    // its eventual isolate must be killed instead of leaking CPU work.
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    final fresh = await prepareEpubReader(path);
+    expect(fresh.document.text, contains('Chapter One'));
+  });
+
+  test('independent preflights cannot cancel each other', () async {
+    final path = await writeEpub();
+    final cancelled = startEpubReaderPreflight(path);
+    final survivor = startEpubReaderPreflight(path);
+    final outcome = expectLater(cancelled.result,
+        throwsA(isA<EpubPreflightCancelled>()));
+    cancelled.cancel();
+    await outcome;
+    final prepared = await survivor.result;
+    expect(prepared.document.epubSpineRanges.length, 2);
+    expect(survivor.isFinished, isTrue);
+  });
+
   test('worker fails closed on missing or invalid input', () async {
     final missing = p.join(temporary.path, 'missing.epub');
     await expectLater(prepareEpubReader(missing),
