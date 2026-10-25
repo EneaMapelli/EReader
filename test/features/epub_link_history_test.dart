@@ -2,6 +2,38 @@ import 'package:ereader/features/reader/epub_link_history.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('links remember visible EPUB source position when narration is paused',
+      () {
+    const captionStart = 32;
+    const nearestSpeechStart = 84;
+    const noteTarget = 411;
+    final returnOffset = epubSourceOffsetForLinkReturn(
+      speechOffset: nearestSpeechStart,
+      narrationActive: false,
+      visualOffset: captionStart,
+    );
+    expect(returnOffset, captionStart);
+    final history = EpubLinkHistory()
+      ..push(returnOffset, noteTarget);
+    expect(history.last, captionStart,
+        reason: 'Returning from a note must not jump to future narration');
+
+    expect(epubSourceOffsetForLinkReturn(
+      speechOffset: nearestSpeechStart,
+      narrationActive: true,
+      visualOffset: captionStart,
+    ), nearestSpeechStart);
+    expect(epubSourceOffsetForLinkReturn(
+      speechOffset: nearestSpeechStart,
+      narrationActive: false,
+    ), nearestSpeechStart);
+    expect(epubSourceOffsetForLinkReturn(
+      speechOffset: nearestSpeechStart,
+      narrationActive: false,
+      visualOffset: -1,
+    ), nearestSpeechStart);
+  });
+
   test('note navigation can return through multiple source anchors', () {
     final history = EpubLinkHistory();
     history.push(18, 202);

@@ -893,3 +893,18 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   longer falls through to a speech selection.
 - Authored widget regressions for a 20-row ragged table and isolated
   footnote previews. These tests still require local Flutter execution.
+
+## M2 — precise EPUB link return addresses and single checkpoint writes (2026-10-25)
+
+- Fixed EPUB internal note/link history to remember the actual visual
+  paragraph UTF-16 offset while narration is paused, rather than the
+  start of a possibly distant playable TTS segment. While narration is
+  active, the current spoken chunk remains the authoritative return point.
+- Tracks visual source offsets independently across restored checkpoints,
+  manual scrolling, explicit seeks, and active playback. Internal link
+  navigation and return each persist their verified source anchor once,
+  directly from the shared `_select` method, instead of first writing
+  a coarse TTS start and then overwriting it with a precise location.
+- Added a deterministic link-history regression for unspoken captions,
+  narration in progress, and missing/invalid visual offsets.
+  No local Flutter/Windows run is available for these changes yet.

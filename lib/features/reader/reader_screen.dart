@@ -89,6 +89,10 @@ class _ReaderScreenState extends State<ReaderScreen>
   int? _pendingPdfPage;
   late int _displayPdfPage;
   int? _visiblePositionIndex;
+  // Actual EPUB source offset on screen, independent of the TTS cursor.
+  // Needed to return to a footnote opened from an unspoken caption or
+  // from the middle of a long audio segment.
+  int? _currentEpubVisualSourceOffset;
   int? _lastVisibleEpubBlockIndex;
   // An EPUB link/footnote/verified bookmark may target unspoken text
   // inside a paragraph. Keep that exact visual source coordinate until
@@ -281,6 +285,8 @@ class _ReaderScreenState extends State<ReaderScreen>
               : visualLayout.blockForSourceOffset(_visualCheckpoint.offset!))
           : player.currentIndex;
       _visiblePositionIndex = player.currentIndex;
+      _currentEpubVisualSourceOffset = widget.book.format == BookFormat.epub
+          ? saved : null;
       _lastVisibleEpubBlockIndex = widget.book.format == BookFormat.epub
           ? _lastFollowedIndex : null;
       recoveryBinding.attach(player);
@@ -472,6 +478,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       // Comparing just its speech index would miss real visual scrolling.
       if (firstItem == _lastVisibleEpubBlockIndex) return;
       _lastVisibleEpubBlockIndex = firstItem;
+      _currentEpubVisualSourceOffset = sourceOffset;
     } else {
       index = firstItem.clamp(0, player.segments.length - 1).toInt();
       sourceOffset = player.segments[index].start;
@@ -516,6 +523,10 @@ class _ReaderScreenState extends State<ReaderScreen>
       // manual visual scrolling occurred during the previous utterance.
       _visiblePositionIndex = player.currentIndex
           .clamp(0, player.segments.length - 1).toInt();
+      if (widget.book.format == BookFormat.epub) {
+        _currentEpubVisualSourceOffset =
+            player.segments[_visiblePositionIndex!].start;
+      }
     }
     if (player != null && player.segments.isNotEmpty && _autoFollow) {
       final segmentIndex = player.currentIndex
@@ -797,6 +808,12 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (player == null) return;
     await player.seekTo(player.currentIndex + delta);
     if (player.segments.isNotEmpty) {
+      _visiblePositionIndex = player.currentIndex;
+      if (widget.book.format == BookFormat.epub) {
+        _visualCheckpoint.clear();
+        _currentEpubVisualSourceOffset =
+            player.segments[player.currentIndex].start;
+      }
       await widget.store.savePosition(
         widget.book.id,
         player.segments[player.currentIndex].start,
@@ -818,21 +835,20 @@ class _ReaderScreenState extends State<ReaderScreen>
       final sourceIndex = (player.isPlaying ? player.currentIndex
               : (_visiblePositionIndex ?? player.currentIndex))
           .clamp(0, player.segments.length - 1).toInt();
-      final fromOffset = player.segments[sourceIndex].start;
+      final fromOffset = epubSourceOffsetForLinkReturn(
+        speechOffset: player.segments[sourceIndex].start,
+        narrationActive: player.isPlaying,
+        visualOffset: _currentEpubVisualSourceOffset,
+      );
       final index = speechSegmentIndexForOffset(
           player.segments, sourceOffset);
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player) return;
+      // _select persists the exact source offset once. A second write of
+      // the same position after seeking is unnecessary and can race with
+      // user scrolls or turn a failed checkpoint into a partial jump.
       await _select(index, visualSourceOffset: sourceOffset);
-      if (!mounted || _player != player) return;
-      // The chosen fragment can lie within a larger spoken segment.
-      // Persist the exact verified source anchor, not merely the beginning
-      // of the speech chunk used for playback/visual scrolling.
-      await widget.store.savePosition(
-        widget.book.id, sourceOffset,
-        anchor: document.anchorAt(BookFormat.epub, sourceOffset),
-      );
       if (!mounted || _player != player) return;
       if (remember) {
         _linkHistory.push(fromOffset, sourceOffset);
@@ -886,21 +902,16 @@ class _ReaderScreenState extends State<ReaderScreen>
     Future<void> navigateBack() async {
       final offset = _linkHistory.last;
       final player = _player;
-      if (offset == null || player == null || player.segments.isEmpty) return;
+      final document = _document;
+      if (offset == null || player == null || player.segments.isEmpty ||
+          document == null || offset < 0 ||
+          offset >= document.text.length) return;
       final index = speechSegmentIndexForOffset(
           player.segments, offset);
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player) return;
       await _select(index, visualSourceOffset: offset);
-      if (!mounted || _player != player) return;
-      final document = _document;
-      if (document != null && offset < document.text.length) {
-        await widget.store.savePosition(
-          widget.book.id, offset,
-          anchor: document.anchorAt(BookFormat.epub, offset),
-        );
-      }
       if (!mounted || _player != player) return;
       _linkHistory.commitReturn();
       setState(() {});
@@ -942,12 +953,19 @@ class _ReaderScreenState extends State<ReaderScreen>
       return;
     }
     await player.seekTo(index);
+    // A verified EPUB link may point inside the current audio segment
+    // or into a paragraph without any speech. Save that exact source
+    // position, rather than saving a coarse TTS start and then rewriting.
+    final sourceOffset = widget.book.format == BookFormat.epub &&
+            visualSourceOffset != null
+        ? visualSourceOffset : player.segments[index].start;
     await widget.store.savePosition(
-      widget.book.id,
-      player.segments[index].start,
-      anchor: _document?.anchorAt(widget.book.format, player.segments[index].start),
+      widget.book.id, sourceOffset,
+      anchor: _document?.anchorAt(widget.book.format, sourceOffset),
     );
     _visiblePositionIndex = index;
+    _currentEpubVisualSourceOffset = widget.book.format == BookFormat.epub
+        ? sourceOffset : null;
     _visualCheckpoint.hold(widget.book.format == BookFormat.epub
         ? visualSourceOffset : null, awaitTarget: visualSourceOffset != null);
     final visualIndex = widget.book.format == BookFormat.epub

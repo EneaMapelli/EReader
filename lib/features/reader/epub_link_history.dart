@@ -1,3 +1,20 @@
+/// Select the precise location to remember before following an EPUB link.
+///
+/// While narration is active, the current spoken phrase is authoritative.
+/// Otherwise the paragraph actually visible to the reader is authoritative,
+/// even if it has no speech segment of its own. Never infer the return
+/// address from the next playable TTS segment in a silent illustration.
+int epubSourceOffsetForLinkReturn({
+  required int speechOffset,
+  required bool narrationActive,
+  int? visualOffset,
+}) {
+  if (!narrationActive && visualOffset != null && visualOffset >= 0) {
+    return visualOffset;
+  }
+  return speechOffset;
+}
+
 /// A bounded, in-memory back stack for EPUB footnotes and internal links.
 /// Stores original source offsets, not visual indices, speech indices,
 /// web URLs or generated EPUB CFI values.

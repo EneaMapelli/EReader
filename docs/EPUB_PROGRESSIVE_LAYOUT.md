@@ -223,3 +223,15 @@ pending jumps, with no asynchronous timer or database rewrite.
 A new deterministic regression configures a zero-duration pending
 window and checks both failed-jump release and a successfully visible
 target. Device validation remains outstanding.
+
+## Footnote back-stack source preservation (2026-10-25)
+
+The on-screen EPUB source coordinate is now tracked separately from the
+audio segment index. Following a footnote while paused remembers the
+actual reading location (including caption-only paragraphs) for the
+return action. During playback, the active spoken segment remains the
+return point. Verified internal links and returns save the precise
+source anchor once during seek rather than performing a temporary
+write of the speech segment's earlier or later starting offset.
+An isolated regression covers both modes and invalid/missing visual
+positions. No model casting, text transformation or cloud request changes.
