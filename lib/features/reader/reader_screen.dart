@@ -110,12 +110,13 @@ class _ReaderScreenState extends State<ReaderScreen>
     final stopwatch = Stopwatch()..start();
     ReaderPlayer? provisionalPlayer;
     NarrationRecoveryBinding? provisionalBinding;
+    CancellableEpubPreflight? task;
     var adoptedPlayer = false;
     try {
       // On EPUB, the background isolate prepares the immutable source,
       // initial speech chunks, quote group markers and paragraph boundaries
       // together. Only user-specific cast resolution stays in this isolate.
-      final task = widget.book.format == BookFormat.epub
+      task = widget.book.format == BookFormat.epub
           ? startEpubReaderPreflight(widget.book.localPath)
           : null;
       _activeEpubTask = task;
@@ -287,6 +288,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         _loading = false;
       });
     } finally {
+      if (identical(_activeEpubTask, task)) _activeEpubTask = null;
       if (!adoptedPlayer) {
         provisionalBinding?.dispose();
         provisionalPlayer?.dispose();
