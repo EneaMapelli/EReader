@@ -1084,3 +1084,19 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   the same `21.0 ms` measurement can also appear in the slowest-raster row.
 - Pending a new full `tool/run-all-tests.ps1` Windows execution; do not
   claim that any previously reported test errors are resolved yet.
+
+## Local test report exit statuses and bounded EPUB search layout (2026-10-25)
+
+- Fixed `tool/run-all-tests.ps1` on Windows PowerShell so each command's
+  actual process exit code is captured by a local, ignored `.cmd` wrapper
+  and an exit-status sidecar. The previous report incorrectly showed 125 for
+  every command, even while parsing 589 successful cases. Raw logs, wrapper
+  scripts and sidecars remain exclusively under `.local-test-results/`;
+  only integer exit codes enter the published sanitized summary.
+- The EPUB full-source search dialog now gives its lazy results ListView a
+  bounded vertical viewport independent of intrinsic AlertDialog sizing,
+  rather than nesting a shrink-wrapped list inside a Flexible in a min-sized
+  column. Added an explicit first-pump, query and close widget regression
+  that checks for Flutter exceptions and 100-result pagination.
+- No new local execution has occurred for these changes. The old report
+  cannot prove the new dialog or runner is green; rerun the Windows harness.

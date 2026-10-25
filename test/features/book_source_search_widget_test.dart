@@ -134,6 +134,31 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+
+  testWidgets('EPUB search dialog has a bounded scrollable results viewport',
+      (tester) async {
+    final text = List<String>.generate(
+        140, (i) => 'line $i.').join('\n');
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(builder: (context) => TextButton(
+        onPressed: () => showBookSourceSearch(context, text),
+        child: const Text('Find in big source'),
+      ))),
+    ));
+    await tester.tap(find.text('Find in big source'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.enterText(find.byType(TextField), 'line');
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(Scrollable), findsWidgets);
+    expect(find.text('Matches 1–100 (more available)'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('closed search dialog never navigates or starts playback',
       (tester) async {
     const book = 'Visible text and a quiet illustration.';

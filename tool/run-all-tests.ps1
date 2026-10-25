@@ -74,23 +74,41 @@ function Execute([string]$label, [string]$exe, [string[]]$arguments,
   try {
     $command = (Quote-Argument $exe) + ' ' +
       (($arguments | ForEach-Object { Quote-Argument $_ }) -join ' ')
-    $cmdLine = '"' + $command + '"'
+    # PowerShell 5.1 sometimes reports null for the exit code of a
+    # redirected Start-Process cmd.exe even after WaitForExit(). A tiny
+    # local-only cmd wrapper writes the ACTUAL child exit status to a
+    # sidecar. This is vital: zero passed cases vs a failed process must
+    # never be confused with the runner's unknown-status sentinel 125.
+    $exitPath = Join-Path $script:raw ($name + '.exit-code')
+    $wrapper = Join-Path $script:raw ($name + '.cmd')
+    $quotedExitPath = Quote-Argument $exitPath
+    $wrapperBody = @(
+      '@echo off'
+      ('call ' + $command)
+      'set "child_exit=%ERRORLEVEL%"'
+      ('> ' + $quotedExitPath + ' echo %child_exit%')
+      'exit /b %child_exit%'
+    ) -join "`r`n"
+    Write-Text $wrapper ($wrapperBody + "`r`n")
     $p = Start-Process -FilePath $env:ComSpec -ArgumentList @(
-      '/d','/s','/c',$cmdLine
+      '/d','/s','/c',(Quote-Argument $wrapper)
     ) -WorkingDirectory $script:root -RedirectStandardOutput $out -RedirectStandardError $err -PassThru -WindowStyle Hidden
     if (-not $p.WaitForExit($timeout * 60000)) {
       $timedOut = $true
       & taskkill.exe /F /T /PID $p.Id 2>$null | Out-Null
       $exitCode = 124
     } else {
-      # Windows PowerShell can surface an unrefreshed/null ExitCode from
-      # Start-Process -PassThru even after WaitForExit. Never serialize null
-      # as success or ignore a command that failed to report its status.
-      $p.Refresh()
-      if ($null -eq $p.ExitCode) {
-        $exitCode = 125
+      # Prefer the child's sidecar exit code, not an unreliable process
+      # handle property. The sidecar and wrapper stay under the ignored
+      # .local-test-results directory; only the integer is published.
+      $value = 0
+      if ((Test-Path -LiteralPath $exitPath) -and
+          [int]::TryParse(([IO.File]::ReadAllText($exitPath)).Trim(),
+            [ref]$value)) {
+        $exitCode = $value
       } else {
-        $exitCode = [int]$p.ExitCode
+        $p.Refresh()
+        if ($null -ne $p.ExitCode) { $exitCode = [int]$p.ExitCode }
       }
     }
   } catch {

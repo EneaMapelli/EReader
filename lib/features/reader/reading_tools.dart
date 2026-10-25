@@ -171,12 +171,16 @@ Future<BookSourceMatch?> showBookSourceSearch(BuildContext context, String sourc
                     style: TextStyle(fontSize: 12),
                   ),
                 const SizedBox(height: 8),
-                Flexible(
+                // Explicitly bound the results viewport: a shrink-wrapped
+                // lazy ListView inside a flex/intrinsic AlertDialog can fail
+                // during the first pump on Flutter desktop/test layouts.
+                SizedBox(
+                  height: (MediaQuery.sizeOf(dialogContext).height -
+                          MediaQuery.viewInsetsOf(dialogContext).bottom - 240)
+                      .clamp(100.0, 250.0).toDouble(),
                   child: ListView.builder(
-                    // A new result page must begin at the first hit, not
-                    // inherit the previous page's deep scroll position.
+                    // A new result page begins at the first hit.
                     key: ValueKey('epub-search:$searchTerm:$page'),
-                    shrinkWrap: true,
                     itemCount: matches.length,
                     itemBuilder: (context, index) {
                       final hit = matches[index];
