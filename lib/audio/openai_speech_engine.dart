@@ -375,7 +375,12 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
     _generation++;
     _prepared = null;
     _cancelCurrentAudioReadiness();
-    await _output.dispose();
-    _transport.dispose();
+    try {
+      await _output.dispose();
+    } finally {
+      // Native decoder cleanup can fail on Windows/Android. Always close
+      // the HTTP client (and its open sockets) even in that failure path.
+      _transport.dispose();
+    }
   }
 }

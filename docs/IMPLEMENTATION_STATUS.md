@@ -690,3 +690,14 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - The manual report remains 549/556 and the structured reports are
   still missing from the repository until the existing local run is
   explicitly published.
+
+## M2 — fail-safe HTTP transport disposal (2026-10-25)
+
+- `OpenAiSpeechEngine.dispose()` now releases its HTTP transport inside
+  `finally`, so a native MP3 decoder disposal error cannot leave an
+  active HTTP client/socket behind. The original decoder failure still
+  propagates to the caller; cleanup is not falsely marked successful.
+- Added a deterministic, **unexecuted** test using a decoder whose
+  `dispose()` throws, asserting that the transport is nevertheless
+  closed. This improves teardown correctness independently of the
+  seven unknown failures from the manually summarized Windows run.

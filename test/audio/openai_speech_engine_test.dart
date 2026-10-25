@@ -47,6 +47,7 @@ class FakeAccess implements CloudSpeechAccess {
 }
 
 class FakeTransport implements SpeechHttpTransport {
+  bool disposed = false;
   int requests = 0;
   String? receivedInput;
   String? receivedModel;
@@ -73,7 +74,7 @@ class FakeTransport implements SpeechHttpTransport {
   }
 
   @override
-  void dispose() {}
+  void dispose() { disposed = true; }
 }
 
 class FakeSpeechCache implements SpeechAudioCache {
@@ -99,6 +100,7 @@ class FakeSpeechCache implements SpeechAudioCache {
 class FakeAudioOutput implements SynthesizedAudioOutput {
   int plays = 0;
   int stops = 0;
+  bool failDispose = false;
   double? lastSpeed;
   @override
   Future<void> play(Uint8List audio, {required double speed}) async {
@@ -108,7 +110,11 @@ class FakeAudioOutput implements SynthesizedAudioOutput {
   @override
   Future<void> stop() async { stops++; }
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() async {
+    if (failDispose) {
+      throw StateError('simulated decoder disposal failure');
+    }
+  }
 }
 
 void main() {
@@ -252,6 +258,14 @@ void main() {
     ));
     await active;
     expect(output.plays, 0);
+  });
+
+  test('HTTP transport is closed even when native decoder disposal fails',
+      () async {
+    output.failDispose = true;
+    await expectLater(engine.dispose(), throwsStateError);
+    expect(transport.disposed, isTrue,
+        reason: 'Decoder errors must not leak the HTTP client');
   });
 
   test('HTTP adapter uses fixed HTTPS host and never leaks key in JSON', () async {
