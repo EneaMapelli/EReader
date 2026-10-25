@@ -4,6 +4,14 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+/// One strictly relative phonemizer file. Directories/ZIP extraction are
+/// never trusted: each allowed asset is copied independently and hashed.
+class OfflineVoiceResource {
+  const OfflineVoiceResource({required this.relativePath, required this.sha256});
+  final String relativePath;
+  final String sha256;
+}
+
 /// Describes a VITS/Piper model explicitly approved by the user.
 ///
 /// Hashes are a *consistency check against the supplied manifest*, not proof
@@ -17,6 +25,7 @@ class OfflineVoicePackManifest {
     required this.licenseId,
     required this.modelSha256,
     required this.tokensSha256,
+    this.phonemizerResources = const [],
   });
 
   final String id;
@@ -25,6 +34,7 @@ class OfflineVoicePackManifest {
   final String licenseId;
   final String modelSha256;
   final String tokensSha256;
+  final List<OfflineVoiceResource> phonemizerResources;
 
   void validate() {
     if (!RegExp(r'^[a-z0-9][a-z0-9_-]{1,63}$').hasMatch(id)) {
@@ -45,6 +55,21 @@ class OfflineVoicePackManifest {
     if (!digest.hasMatch(modelSha256) || !digest.hasMatch(tokensSha256)) {
       throw const FormatException('Expected lowercase SHA-256 file digests');
     }
+    if (phonemizerResources.length > 2048) {
+      throw const FormatException('Excessive offline phonemizer file count');
+    }
+    final names = <String>{};
+    for (final asset in phonemizerResources) {
+      final name = asset.relativePath;
+      final parts = name.split('/');
+      if (name.length > 180 || parts.length < 2 ||
+          parts.first != 'espeak-ng-data' ||
+          parts.any((part) => part.isEmpty || part == '.' ||
+              part == '..' || !RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(part)) ||
+          !names.add(name.toLowerCase()) || !digest.hasMatch(asset.sha256)) {
+        throw const FormatException('Unsafe offline phonemizer manifest entry');
+      }
+    }
   }
 }
 
@@ -58,9 +83,14 @@ class InstalledOfflineVoicePack {
   final OfflineVoicePackManifest manifest;
   final String modelPath;
   final String tokensPath;
+
+  /// Only explicit SHA-verified resources live under this phonemizer tree.
+  /// An empty manifest means the runtime must not assume eSpeak is present.
+  String? get phonemizerDataDir => manifest.phonemizerResources.isEmpty
+      ? null : p.join(p.dirname(modelPath), 'espeak-ng-data');
 }
 
-Future<void> _copyVerifiedFile(
+Future<int> _copyVerifiedFile(
   File source,
   File destination, {
   required String expectedDigest,
@@ -102,14 +132,15 @@ Future<void> _copyVerifiedFile(
     if (written < 1 || digest.toString() != expectedDigest) {
       throw const FormatException('Offline voice SHA-256 mismatch');
     }
+    return written;
   } catch (_) {
     await out.close();
     rethrow;
   }
 }
 
-/// Stages exactly two user-provided local assets for a VITS/Piper model:
-/// model.onnx and tokens.txt. The native sherpa-onnx runtime is NOT started
+/// Stages the two required VITS model files and any explicitly listed,
+/// SHA-verified phonemizer files. The native sherpa runtime is NOT started
 /// here and the model is NOT shown as a selectable TTS provider.
 ///
 /// Installation is all-or-nothing inside [modelsDirectory]: no unverified
@@ -122,17 +153,54 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
   required Directory modelsDirectory,
   int maxModelBytes = 600 * 1024 * 1024,
   int maxTokensBytes = 4 * 1024 * 1024,
+  int maxPhonemizerBytes = 64 * 1024 * 1024,
 }) async {
   manifest.validate();
   if (maxModelBytes < 1 || maxModelBytes > 600 * 1024 * 1024 ||
-      maxTokensBytes < 1 || maxTokensBytes > 4 * 1024 * 1024) {
+      maxTokensBytes < 1 || maxTokensBytes > 4 * 1024 * 1024 ||
+      maxPhonemizerBytes < 1 ||
+      maxPhonemizerBytes > 64 * 1024 * 1024) {
     throw const FormatException('Invalid offline model byte budgets');
   }
   await modelsDirectory.create(recursive: true);
   final target = Directory(p.join(modelsDirectory.path, manifest.id));
+
+  Future<void> copyPhonemizerResources(Directory from, Directory to) async {
+    var totalBytes = 0;
+    for (final resource in manifest.phonemizerResources) {
+      final parts = resource.relativePath.split('/');
+      var parent = from.path;
+      // Refuse symlinked parents, not just symlinked regular files.
+      for (final folder in parts.take(parts.length - 1)) {
+        parent = p.join(parent, folder);
+        if (await FileSystemEntity.type(parent, followLinks: false) !=
+            FileSystemEntityType.directory) {
+          throw const FormatException('Invalid phonemizer source directory');
+        }
+      }
+      final source = File(p.joinAll([from.path, ...parts]));
+      final destination = File(p.joinAll([to.path, ...parts]));
+      await destination.parent.create(recursive: true);
+      final remaining = maxPhonemizerBytes - totalBytes;
+      if (remaining < 1) {
+        throw const FormatException('Offline phonemizer budget exhausted');
+      }
+      totalBytes += await _copyVerifiedFile(
+        source, destination,
+        expectedDigest: resource.sha256,
+        maxBytes: remaining < 8 * 1024 * 1024
+            ? remaining : 8 * 1024 * 1024,
+      );
+    }
+  }
+
   Future<InstalledOfflineVoicePack> verify(Directory where) async {
     // Reuse the same size/hash checks on installed files. The recheck uses a
     // private ephemeral verification directory and does not alter the pack.
+    if (await FileSystemEntity.type(where.path, followLinks: false) !=
+        FileSystemEntityType.directory) {
+      throw const FormatException('Offline voice pack directory is unsafe');
+    }
     final verifyDir = await modelsDirectory.createTemp('.check-');
     try {
       await _copyVerifiedFile(
@@ -147,6 +215,7 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
         expectedDigest: manifest.tokensSha256,
         maxBytes: maxTokensBytes,
       );
+      await copyPhonemizerResources(where, verifyDir);
       return InstalledOfflineVoicePack(
         manifest: manifest,
         modelPath: p.join(where.path, 'model.onnx'),
@@ -159,7 +228,10 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
     }
   }
 
-  if (await target.exists()) return verify(target);
+  if (await FileSystemEntity.type(target.path, followLinks: false) !=
+      FileSystemEntityType.notFound) {
+    return verify(target);
+  }
   final temporary = await modelsDirectory.createTemp('.install-');
   try {
     await _copyVerifiedFile(
@@ -174,9 +246,11 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
       expectedDigest: manifest.tokensSha256,
       maxBytes: maxTokensBytes,
     );
+    await copyPhonemizerResources(sourceDirectory, temporary);
     // Atomic within the same models directory. Do not replace a previously
     // installed model even if another installation raced this operation.
-    if (await target.exists()) {
+    if (await FileSystemEntity.type(target.path, followLinks: false) !=
+        FileSystemEntityType.notFound) {
       return verify(target);
     }
     await temporary.rename(target.path);
