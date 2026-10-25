@@ -105,6 +105,43 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
     return recognizer;
   }
 
+  /// EPUB table preview metadata is already bounded by the extractor.
+  /// Compute the rectangular visual width ONCE per table, not once for
+  /// every row and cell (which becomes costly for large ragged tables).
+  Widget _tablePreview(BuildContext context, EpubTablePreview table) {
+    final columns = table.rows.fold<int>(0, (max, row) =>
+        row.length > max ? row.length : max);
+    final foreground = widget.palette.foreground(context);
+    return ExpansionTile(
+      title: Text('Table preview (${table.rows.length} rows)'),
+      subtitle: const Text('Original spoken text remains above'),
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: columns * 160.0,
+            child: Table(
+              border: TableBorder.all(color: Theme.of(context).dividerColor),
+              children: [
+                for (final row in table.rows)
+                  TableRow(children: [
+                    for (var column = 0; column < columns; column++)
+                      Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Text(
+                          column < row.length ? row[column] : '',
+                          style: TextStyle(color: foreground),
+                        ),
+                      ),
+                  ]),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _clearRecognizers() {
     for (final recognizer in _recognizers.values) {
       recognizer.dispose();
@@ -195,7 +232,9 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                               widget.onOpenAuxiliaryFootnote != null
                           ? _auxiliaryNoteTap(run.auxiliaryFootnoteKey!)
                           : run.linkTargetOffset != null &&
-                              widget.onOpenLink != null
+                              (widget.onOpenLink != null ||
+                                  run.isFootnote &&
+                                      widget.onOpenFootnote != null)
                               ? _linkTap(run.linkTargetOffset!,
                                   run.isFootnote)
                               : run.segmentIndex == null
@@ -228,43 +267,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                   ),
                 ),
               for (final table in widget.block.tables)
-                ExpansionTile(
-                  title: Text('Table preview (${table.rows.length} rows)'),
-                  subtitle: const Text('Original spoken text remains above'),
-                  children: [
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: table.rows.fold<int>(0, (max, row) =>
-                            row.length > max ? row.length : max) * 160.0,
-                        child: Table(
-                          border: TableBorder.all(
-                            color: Theme.of(context).dividerColor,
-                          ),
-                          children: [
-                            for (final row in table.rows)
-                              TableRow(children: [
-                                for (var column = 0;
-                                    column < table.rows.fold<int>(0,
-                                        (max, cells) => cells.length > max
-                                            ? cells.length : max);
-                                    column++)
-                                  Padding(
-                                    padding: const EdgeInsets.all(8),
-                                    child: Text(
-                                      column < row.length ? row[column] : '',
-                                      style: TextStyle(
-                                        color: palette.foreground(context),
-                                      ),
-                                    ),
-                                  ),
-                              ]),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                _tablePreview(context, table),
             ],
           ),
         ),

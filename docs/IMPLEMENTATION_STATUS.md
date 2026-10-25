@@ -881,3 +881,15 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   jumps retain exact source anchors until the user actually moves away.
 - Added a deterministic timeout and successful-arrival regression
   without sleeping or triggering timers. Windows/Android run pending.
+
+## M2 — EPUB table preview performance and isolated note callbacks (2026-10-25)
+
+- Rectangular table-column count is now calculated once per preview
+  rather than once per row/column during `EpubParagraphTile.build`.
+  Ragged tables still render padded empty cells, keep horizontally
+  scrollable overlays, and do not change any spoken book source.
+- An EPUB footnote remains tap-to-preview when the host supplies only
+  `onOpenFootnote` without a generic internal-link callback; it no
+  longer falls through to a speech selection.
+- Authored widget regressions for a 20-row ragged table and isolated
+  footnote previews. These tests still require local Flutter execution.

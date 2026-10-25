@@ -279,6 +279,38 @@ void main() {
     expect(ordinary, [21]);
   });
 
+  testWidgets('footnote remains previewable without ordinary link callback',
+      (tester) async {
+    const block = EpubVisualBlock(
+      start: 0, end: 3, chapterStart: false,
+      heading: false, firstSegmentIndex: 0,
+      runs: [
+        EpubVisualRun(0, 3, '[1]', 0,
+            linkTargetOffset: 17, isFootnote: true),
+      ],
+    );
+    final previews = <int>[];
+    final narrated = <int>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: block,
+        activeSegmentIndex: 0,
+        fontSize: 19,
+        onSelectSegment: narrated.add,
+        onOpenFootnote: previews.add,
+      )),
+    ));
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    final textSpan = leafTextSpans(rich.text).single;
+    expect(textSpan.recognizer, isA<TapGestureRecognizer>());
+    (textSpan.recognizer! as TapGestureRecognizer).onTap!();
+    expect(previews, [17]);
+    expect(narrated, isEmpty);
+  });
+
   testWidgets('auxiliary note tap previews only, never navigates or seeks',
       (tester) async {
     const key = 'OPS/Text/notes.xhtml#fn1';
@@ -357,6 +389,39 @@ void main() {
     ).first);
     expect(rich.text.toPlainText(includeSemanticsLabels: false), 'Caption',
         reason: 'TTS source remains present exactly once in the paragraph');
+  });
+
+  testWidgets('ragged table preview uses one consistent rectangular width',
+      (tester) async {
+    final rows = <List<String>>[
+      ['A', 'B', 'C', 'D'],
+      for (var i = 0; i < 18; i++) ['Entry $i'],
+      ['Final', 'last'],
+    ];
+    final block = EpubVisualBlock(
+      start: 0, end: 5, chapterStart: false,
+      heading: false, firstSegmentIndex: 0,
+      runs: const [EpubVisualRun(0, 5, 'Intro', 0)],
+      tables: [EpubTablePreview(0, 5, rows)],
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: SingleChildScrollView(
+        child: EpubParagraphTile(
+          block: block, activeSegmentIndex: 0,
+          fontSize: 18, onSelectSegment: (_) {},
+        ),
+      )),
+    ));
+    await tester.tap(find.textContaining('Table preview'));
+    await tester.pumpAndSettle();
+    final displayed = tester.widget<Table>(find.byType(Table));
+    expect(displayed.children.length, rows.length);
+    expect(displayed.children.every((row) => row.children.length == 4),
+        isTrue, reason: 'Ragged data must map to rectangular HTML-free cells');
+    expect(find.text('Entry 0'), findsOneWidget);
+    expect(find.text('Final'), findsOneWidget);
+    expect(find.text('Intro'), findsOneWidget,
+        reason: 'Table overlay must never replace the actual TTS source');
   });
 
   testWidgets('new paragraph data replaces stale tap recognizers', (tester) async {
