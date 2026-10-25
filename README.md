@@ -163,3 +163,13 @@ Priorità di sviluppo funzionale (senza bloccare ogni incremento sulla compilazi
 ## Privacy e licenza
 
 Per impostazione predefinita l'app funziona in locale. L'utente può configurare volontariamente chiavi OpenAI e approvare **separatamente** l'invio di singoli estratti del libro per TTS oppure analisi LLM; **nessuna richiesta cloud è consentita in assenza del relativo consenso per quello specifico libro**. Il codice cloud non è ancora stato collaudato con chiavi reali. I libri e gli MP3 generati vengono conservati in una directory privata dell'app. EPUB DRM non supportati. Licenza del progetto [MIT](LICENSE); i modelli vocali e i pacchetti di terze parti mantengono licenze autonome.
+
+### Segmentazione più naturale nei dialoghi (M2)
+
+Il separatore deterministico delle frasi ora riconosce anche la
+punteggiatura di fine frase seguita da virgolette e parentesi di chiusura,
+per esempio `«Ciao!» Poi…`. Questo riduce le divisioni innaturali
+durante la lettura vocale, senza modificare gli offset UTF-16 del libro,
+le voci attribuite ai personaggi, i limiti TTS o il consenso cloud.
+[Dettagli e test](docs/SPEECH_SENTENCE_BOUNDARIES.md). La modifica
+richiede ancora una verifica locale aggiornata.

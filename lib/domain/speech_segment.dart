@@ -72,7 +72,15 @@ List<SpeechSegment> segmentSpeechRange(
             _isDigit(source.codeUnitAt(i - 1)) &&
             _isDigit(source.codeUnitAt(i + 1));
         if (decimalDot) continue;
-        final next = i + 1;
+        // A sentence-final mark is often enclosed by closing quotes
+        // or brackets in novels: «Hello!» Next speaker. Consume those
+        // closers as part of the SAME spoken sentence, but never step
+        // beyond maxChars or cut a surrogate pair.
+        var next = i + 1;
+        while (next < limit &&
+            _isSentenceClosingDelimiter(source.codeUnitAt(next))) {
+          next++;
+        }
         if (next >= end || _isWhitespace(source.codeUnitAt(next))) {
           firstSentenceEnd = next;
           break;
@@ -112,6 +120,16 @@ bool _isWhitespace(int c) =>
     c == 32 || c == 9 || c == 10 || c == 13 || c == 0xA0;
 bool _isPunctuation(int c) => c == 46 || c == 33 ||
     c == 63 || c == 0x2026;
+// Common quotation and parenthetical closing marks only. Apostrophes
+// within words are unaffected: this is used solely AFTER punctuation.
+bool _isSentenceClosingDelimiter(int c) =>
+    c == 0x00BB || // »
+    c == 0x201D || // ”
+    c == 0x2019 || // ’
+    c == 0x0022 || // "
+    c == 0x0027 || // '
+    c == 0x0029 || // )
+    c == 0x005D;   // ]
 bool _isDigit(int c) => c >= 48 && c <= 57;
 bool _isHighSurrogate(int c) => c >= 0xD800 && c <= 0xDBFF;
 bool _isLowSurrogate(int c) => c >= 0xDC00 && c <= 0xDFFF;

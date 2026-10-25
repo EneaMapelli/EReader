@@ -24,6 +24,49 @@ void main() {
     expect(segmentSpeech('   \n\t  '), isEmpty);
   });
 
+  test('sentence-ending punctuation keeps closing dialogue quotes', () {
+    const sources = <String, List<String>>{
+      'Anna disse: «Ciao!» Poi sorrise.':
+          ['Anna disse: «Ciao!»', 'Poi sorrise.'],
+      'He asked: “Really?” Then left.':
+          ['He asked: “Really?”', 'Then left.'],
+      'She said: "Why?!" and paused.':
+          ['She said: "Why?!"', 'and paused.'],
+      'He replied ("Done.") After that he left.':
+          ['He replied ("Done.")', 'After that he left.'],
+      'The note [ends here.] Next sentence.':
+          ['The note [ends here.]', 'Next sentence.'],
+    };
+    for (final entry in sources.entries) {
+      final result = segmentSpeech(entry.key, maxChars: 100);
+      expect(result.map((segment) => segment.text).toList(),
+          entry.value, reason: entry.key);
+      for (final segment in result) {
+        expect(entry.key.substring(segment.start, segment.end),
+            segment.text);
+      }
+    }
+  });
+
+  test('bounded quoted sentence never crosses the provider input cap',
+      () {
+    const source = '«Hello 🐉 friend!» This continues after the quotation.';
+    final chunks = segmentSpeech(source, maxChars: 23);
+    expect(chunks, isNotEmpty);
+    expect(chunks.first.text, '«Hello 🐉 friend!»');
+    expect(chunks.every((segment) => segment.text.length <= 23), isTrue);
+    for (final segment in chunks) {
+      expect(source.substring(segment.start, segment.end), segment.text);
+      if (segment.end < source.length) {
+        final last = source.codeUnitAt(segment.end - 1);
+        final next = source.codeUnitAt(segment.end);
+        expect(last >= 0xD800 && last <= 0xDBFF &&
+            next >= 0xDC00 && next <= 0xDFFF, isFalse,
+            reason: 'Never split an emoji surrogate pair');
+      }
+    }
+  });
+
   test('keeps decimal numbers in one utterance', () {
     const text = 'La cifra è 3.14 e non 3.15. Seconda frase.';
     final chunks = segmentSpeech(text, maxChars: 100);

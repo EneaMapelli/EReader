@@ -701,3 +701,18 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   `dispose()` throws, asserting that the transport is nevertheless
   closed. This improves teardown correctness independently of the
   seven unknown failures from the manually summarized Windows run.
+
+## M2 — natural dialogue sentence boundaries (2026-10-25)
+
+- Extended the deterministic UTF-16 source-aligned TTS segmenter to
+  consider a closing guillemet/curly quote/ASCII quote/parenthesis or
+  bracket after terminal punctuation part of the same sentence.
+  Sentence breaks are recognized only if whitespace or the source end
+  follows the closers; the `maxChars` cap and decimal handling remain.
+- Added source-alignment, Unicode, provider-cap and multi-quote speaker
+  group tests. The enhancement does not infer character identities,
+  alter user-approved casting, enable cloud requests or guarantee
+  acoustically gapless output.
+- Technical description: [Speech sentence boundaries](SPEECH_SENTENCE_BOUNDARIES.md).
+  No updated execution claim: the 549/556 manually summarized Windows
+  run predates this feature and its per-case results are still missing.

@@ -26,6 +26,26 @@ void main() {
     }
   });
 
+  test('sentence-aware quoted chunks retain speaker turn boundaries', () {
+    const source = 'Anna: «Ciao!» Poi rispose: “Va bene?” Fine.';
+    final segmented = segmentSpeech(source, maxChars: 100);
+    expect(segmented.map((s) => s.text).toList(), [
+      'Anna: «Ciao!»', 'Poi rispose: “Va bene?”', 'Fine.',
+    ]);
+    final quotes = splitQuotedSegmentsWithRegions(segmented);
+    final dialogue = quotes.where((s) => s.quoteGroup != null).toList();
+    expect(dialogue.map((s) => s.segment.text), [
+      '«Ciao!»', '“Va bene?”',
+    ]);
+    expect(dialogue.map((s) => s.quoteGroup), [0, 1]);
+    expect(quotes.where((s) => s.quoteGroup == null)
+        .map((s) => s.segment.text), ['Anna:', 'Poi rispose:', 'Fine.']);
+    for (final part in quotes) {
+      expect(source.substring(part.segment.start, part.segment.end),
+          part.segment.text);
+    }
+  });
+
   test('supports ASCII double quotes without rewriting Unicode text', () {
     const source = 'A: "Hello 😀" then "bye".';
     final pieces = splitQuotedSegments([
