@@ -46,6 +46,10 @@ class JustAudioMp3Decoder implements Mp3Decoder {
   Future<void> dispose() => _player.dispose();
 }
 
+Future<void> _deletePrivateMp3File(File file) async {
+  if (await file.exists()) await file.delete();
+}
+
 class _Mp3Slot {
   _Mp3Slot(this.decoder);
   final Mp3Decoder decoder;
@@ -69,11 +73,20 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
   JustAudioMp3Output({
     Mp3Decoder Function()? decoderFactory,
     Future<Directory> Function()? temporaryDirectory,
+    Future<void> Function(File file)? deleteTemporaryFile,
   })  : _createDecoder = decoderFactory ?? JustAudioMp3Decoder.new,
-        _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory;
+        _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory,
+        _deleteTemporaryFile =
+            deleteTemporaryFile ?? _deletePrivateMp3File;
 
   final Mp3Decoder Function() _createDecoder;
   final Future<Directory> Function() _temporaryDirectory;
+  final Future<void> Function(File file) _deleteTemporaryFile;
+  // Deletion may fail transiently while Windows holds a native file handle.
+  // Keep the path even if the decoder slot is reused; retry on disposal.
+  final Set<File> _deferredDeletions = <File>{};
+  static const int _maxDeferredDeletions = 64;
+  Future<void>? _disposeFuture;
   _Mp3Slot? _active;
   _Mp3Slot? _standby;
   Future<void>? _preparing;
@@ -97,17 +110,28 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
     return _standby ??= _Mp3Slot(_createDecoder());
   }
 
+  Future<void> _tryDelete(File file) async {
+    try {
+      await _deleteTemporaryFile(file);
+      _deferredDeletions.remove(file);
+    } on FileSystemException {
+      // Do not discard the path when a Windows decoder still holds it.
+      // An unrelated new clip can replace slot.file in the meantime.
+      _deferredDeletions.add(file);
+    }
+  }
+
   Future<void> _clearFile(_Mp3Slot slot, {File? expected}) async {
     final file = slot.file;
     if (file == null ||
         (expected != null && !identical(file, expected))) return;
     slot.file = null;
-    try {
-      if (await file.exists()) await file.delete();
-    } on FileSystemException {
-      // A stale cleanup may not claim a newer session's file. Retry only
-      // while this slot is not already pointing to another temp MP3.
-      if (slot.file == null) slot.file = file;
+    await _tryDelete(file);
+  }
+
+  Future<void> _retryDeferredDeletions() async {
+    for (final file in _deferredDeletions.toList()) {
+      await _tryDelete(file);
     }
   }
 
@@ -121,6 +145,11 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
         // A failed former load should not poison later sessions.
       }
       if (_disposed || generation != _generation) return;
+      // Persistent filesystem failures must not create an unbounded
+      // collection of undeletable temporary MP3 files.
+      if (_deferredDeletions.length >= _maxDeferredDeletions) {
+        throw StateError('Too many MP3 files awaiting cleanup');
+      }
       slot.loadingInFlight = true;
       try {
         await slot.decoder.stop();
@@ -187,21 +216,24 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
     }
   }
 
-  Future<void> _discardPrepared() async {
+  Future<void> _discardPrepared(int generation) async {
     final task = _preparing;
-    _pendingBytes = null;
-    _pendingSpeed = null;
-    _pendingSlot = null;
-    _preparing = null;
+    final slot = _pendingSlot;
+    // Retain the pending marker across awaits so a concurrent prefetch
+    // cannot reuse the same slot before the obsolete load is stopped.
     if (task != null) {
       try { await task; } catch (_) {
         // Cleanup is still required if decoder loading failed.
       }
     }
-    final slot = _standby;
-    if (slot != null) {
-      await slot.decoder.stop();
-      await _clearFile(slot);
+    if (_disposed || generation != _generation) return;
+    if (slot != null) await _stopSlot(slot);
+    if (_disposed || generation != _generation) return;
+    if (identical(_pendingSlot, slot)) {
+      _pendingBytes = null;
+      _pendingSpeed = null;
+      _pendingSlot = null;
+      _preparing = null;
     }
   }
 
@@ -230,7 +262,7 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
     } else {
       // A seek, voice/speed change or different cached clip must invalidate
       // the stale warm slot. Otherwise it would block all future preloads.
-      if (_pendingBytes != null) await _discardPrepared();
+      if (_pendingBytes != null) await _discardPrepared(token);
       if (_disposed || token != _generation) return;
       slot = _active!;
       await _load(slot, bytes, speed, token);
@@ -303,8 +335,9 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
   }
 
   @override
-  Future<void> dispose() async {
-    if (_disposed) return;
+  Future<void> dispose() => _disposeFuture ??= _disposeAll();
+
+  Future<void> _disposeAll() async {
     _disposed = true;
     final slots = <_Mp3Slot>{
       if (_active != null) _active!,
@@ -330,6 +363,8 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
         await Future.wait([
           for (final slot in slots) _clearFile(slot),
         ]);
+        // Retry orphaned files only after BOTH decoders have been released.
+        await _retryDeferredDeletions();
         _active = null;
         _standby = null;
       }

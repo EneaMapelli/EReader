@@ -13,6 +13,7 @@ class MockMp3Decoder implements Mp3Decoder {
   bool disposed = false;
   bool loadingNative = false;
   int stopsDuringNativeLoad = 0;
+  bool failNextLoad = false;
   Completer<void>? delayedLoad;
   Completer<void>? playbackReturnGate;
 
@@ -21,6 +22,10 @@ class MockMp3Decoder implements Mp3Decoder {
     loadedPaths.add(file);
     speeds.add(speed);
     expect(await File(file).exists(), isTrue);
+    if (failNextLoad) {
+      failNextLoad = false;
+      throw StateError('simulated MP3 decoder load failure');
+    }
     loadingNative = true;
     try {
       if (delayedLoad != null) await delayedLoad!.future;
@@ -73,21 +78,35 @@ void main() {
   late JustAudioMp3Output output;
   Completer<void>? nextLoadGate;
   Completer<void>? firstLoadGate;
+  int failFileDeletions = 0;
+  bool failStandbyFirstLoad = false;
 
   setUp(() async {
     nextLoadGate = null;
     firstLoadGate = null;
+    failFileDeletions = 0;
+    failStandbyFirstLoad = false;
     temp = await Directory.systemTemp.createTemp('ereader-mp3-warm-');
     decoders = [];
     output = JustAudioMp3Output(
       decoderFactory: () {
         final decoder = MockMp3Decoder();
         if (decoders.isEmpty) decoder.delayedLoad = firstLoadGate;
-        if (decoders.length == 1) decoder.delayedLoad = nextLoadGate;
+        if (decoders.length == 1) {
+          decoder.delayedLoad = nextLoadGate;
+          decoder.failNextLoad = failStandbyFirstLoad;
+        }
         decoders.add(decoder);
         return decoder;
       },
       temporaryDirectory: () async => temp,
+      deleteTemporaryFile: (file) async {
+        if (failFileDeletions > 0) {
+          failFileDeletions--;
+          throw const FileSystemException('simulated transient file lock');
+        }
+        if (await file.exists()) await file.delete();
+      },
     );
   });
 
@@ -283,6 +302,71 @@ void main() {
     expect(await File(decoders[1].loadedPaths.last).exists(), isTrue);
     decoders[0].finish();
     await current;
+  });
+
+  test('transient locked MP3 is retried after decoder disposal',
+      () async {
+    failFileDeletions = 1;
+    final playing = output.play(Uint8List.fromList([1]), speed: 1);
+    await until(() => decoders.isNotEmpty &&
+        decoders[0].playing.isNotEmpty);
+    decoders[0].finish();
+    await playing;
+    expect(temp.listSync(), hasLength(1),
+        reason: 'Transient deletion failures need a retained file path');
+
+    await output.dispose();
+    expect(decoders[0].disposed, isTrue);
+    expect(temp.listSync(), isEmpty,
+        reason: 'The orphan must be retried after native decoder disposal');
+  });
+
+  test('failed warm decoder load does not poison the next prebuffer',
+      () async {
+    failStandbyFirstLoad = true;
+    final first = output.play(Uint8List.fromList([1]), speed: 1);
+    await until(() => decoders.isNotEmpty &&
+        decoders[0].playing.isNotEmpty);
+    await expectLater(
+      output.prepareNext(Uint8List.fromList([2]), speed: 1),
+      throwsStateError,
+    );
+    expect(temp.listSync(), hasLength(1),
+        reason: 'Failed warm load must clean up its private file');
+    await output.prepareNext(Uint8List.fromList([3]), speed: 1);
+    expect(decoders[1].loadedPaths, hasLength(2));
+    expect(decoders[1].playing, isEmpty);
+    decoders[0].finish();
+    await first;
+    final warmed = output.play(
+        // Reuse the same immutable byte list as the prepared clip below.
+        Uint8List.fromList([4]), speed: 1);
+    await until(() => decoders[0].playing.length == 2);
+    decoders[0].finish();
+    await warmed;
+  });
+
+  test('concurrent disposal callers await the same native cleanup',
+      () async {
+    nextLoadGate = Completer<void>();
+    final playing = output.play(Uint8List.fromList([1]), speed: 1);
+    await until(() => decoders.isNotEmpty &&
+        decoders[0].playing.isNotEmpty);
+    final preparing = output.prepareNext(
+        Uint8List.fromList([2]), speed: 1);
+    await until(() => decoders.length == 2 &&
+        decoders[1].loadedPaths.isNotEmpty);
+
+    final first = output.dispose();
+    final second = output.dispose();
+    expect(identical(first, second), isTrue);
+    var completed = false;
+    second.then((_) => completed = true);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(completed, isFalse);
+    nextLoadGate!.complete();
+    await Future.wait([first, second, preparing, playing]);
+    expect(temp.listSync(), isEmpty);
   });
 
   test('invalid clip size or rate fails before creating temporary files',

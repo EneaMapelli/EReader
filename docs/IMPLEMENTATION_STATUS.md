@@ -594,3 +594,17 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - A production interleaving was identified: `stop()` could call native Stop and delete the private MP3 while the same standby decoder was still inside `setFilePath`. Serialized per-slot native operations and file cleanup behind the existing `loading` future; the audible decoder's Stop remains independent from a blocked idle warm load. Decoder disposal waits for all deferred cleanup and retries deletion after native disposal.
 - Added three unexecuted test assertions/cases covering Stop with a held standby load, Stop with a held **active** decoder load and Dispose with a held standby load. See [MP3 Decoder Stop Serialization](MP3_DECODER_STOP_SERIALIZATION.md).
 - No cloud, source text, cache, consent, quota or paid-prefetch policy changed. The Windows/Android analyzer, tests and runtime remain **NOT_RUN** after this commit.
+
+## M2 — MP3 cleanup retries and concurrent teardown (2026-10-25)
+
+- Preserved paths for temporary MP3 files that fail deletion due to OS
+  locks and retried them after native decoders are fully disposed. File
+  generation fails closed above 64 pending failed deletions to avoid
+  unbounded temporary storage in a persistently broken environment.
+- Routed mismatch-prebuffer discard through the same serialized Stop
+  mechanism as normal playback; generation checks prevent stale discards
+  from interrupting a newly requested clip. Concurrent calls to Dispose
+  await one shared Future instead of reporting premature completion.
+- Authored three unexecuted failure/regression tests with injected
+  deletion failure, warm-load failure, and concurrent Dispose callers.
+  No assertion of green tests or real Windows/Android validation.

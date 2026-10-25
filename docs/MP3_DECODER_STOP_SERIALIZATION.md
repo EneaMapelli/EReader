@@ -51,3 +51,28 @@ cases are retained.
 **Not yet executed on Windows or Android:** the published current test
 report remains `NOT_RUN`. Re-run `tool/run-all-tests.ps1` after pulling
 the latest branch; native behavior additionally requires device validation.
+
+## Deferred deletion and invalidated prebuffers (2026-10-25)
+
+If the OS refuses private MP3 deletion with a `FileSystemException`, the
+path now moves into an in-memory deferred-deletion set instead of being
+lost when the decoder slot starts another clip. After disposing **both**
+native players, the output retries the pending deletions. A limit of 64
+previously locked files blocks new loads rather than allowing an
+unbounded local-file buildup; files already in an active slot can add a
+small constant to this bound. Persistent filesystem errors cannot be
+magically overridden by Dart and still require OS cleanup.
+
+Discarding a mismatched prebuffer now routes through the exact same
+serialized per-decoder Stop and file cleanup used by normal playback,
+and checks its generation before acting. A concurrent new prefetch
+cannot acquire the slot while the discard is pending. Multiple callers
+of `dispose()` now receive the same cleanup Future rather than
+mistaking a started disposal for completed native teardown.
+
+The MP3 deletion adapter is injectable exclusively for deterministic
+filesystem-lock regression tests; production uses the ordinary private
+file deletion API. New unexecuted tests cover failed deletion recovery,
+failed warm-load followed by another warm-load, and concurrent disposal.
+No changes to TTS network requests, user consent, or quotas. Current
+Windows/Android build and test validation remains **NOT_RUN**.
