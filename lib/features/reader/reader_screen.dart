@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'dart:ui' show FrameTiming;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
@@ -36,6 +38,7 @@ import 'epub_progressive_layout.dart';
 import 'epub_paragraph_tile.dart';
 import 'epub_diagnostics_sheet.dart';
 import 'epub_opening_performance_sheet.dart';
+import 'epub_frame_sampler.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -71,6 +74,9 @@ class _ReaderScreenState extends State<ReaderScreen>
   int? _epubVoiceSetupUs;
   int? _epubTotalOpenUs;
   int? _epubFirstFrameUs;
+  EpubFrameSampler? _activeFrameSampler;
+  EpubFrameProfile? _frameProfile;
+  Timer? _frameCaptureTimer;
   double _fontSize = 19;
   EpubReadingPalette _epubPalette = EpubReadingPalette.system;
   bool _pdfTextMode = false;
@@ -107,6 +113,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     final epoch = ++_loadEpoch;
     _activeEpubTask?.cancel();
     _activeEpubTask = null;
+    _stopFrameCapture(discard: true);
+    _frameProfile = null;
     final stopwatch = Stopwatch()..start();
     ReaderPlayer? provisionalPlayer;
     NarrationRecoveryBinding? provisionalBinding;
@@ -920,9 +928,52 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
+  void _recordEpubFrames(List<FrameTiming> frames) {
+    final sampler = _activeFrameSampler;
+    if (sampler == null) return;
+    for (final frame in frames) {
+      sampler.record(
+        buildUs: frame.buildDuration.inMicroseconds,
+        rasterUs: frame.rasterDuration.inMicroseconds,
+        totalUs: frame.totalSpan.inMicroseconds,
+      );
+    }
+  }
+
+  void _startFrameCapture() {
+    if (!mounted || widget.book.format != BookFormat.epub ||
+        _loading || _player == null || _activeFrameSampler != null) return;
+    _frameProfile = null;
+    _activeFrameSampler = EpubFrameSampler();
+    SchedulerBinding.instance.addTimingsCallback(_recordEpubFrames);
+    _frameCaptureTimer = Timer(const Duration(seconds: 12), () {
+      _stopFrameCapture();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Reader frame sample finished. Open the '
+              'EPUB performance report to inspect it.'),
+        ));
+      }
+    });
+    setState(() {});
+  }
+
+  void _stopFrameCapture({bool discard = false, bool notify = true}) {
+    final sampler = _activeFrameSampler;
+    if (sampler == null) return;
+    _frameCaptureTimer?.cancel();
+    _frameCaptureTimer = null;
+    SchedulerBinding.instance.removeTimingsCallback(_recordEpubFrames);
+    _activeFrameSampler = null;
+    _frameProfile = discard ? null : sampler.snapshot();
+    if (notify && mounted) setState(() {});
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!ReaderLifecyclePolicy.backgroundTransition(state)) return;
+    // Do not attribute background, other-app or resume frames to this book.
+    _stopFrameCapture(discard: true);
     // A deferred viewport write must never replace the segment anchor
     // recorded by background audio. Leave Android narration running only
     // when a live media handler owns that player.
@@ -945,6 +996,7 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   @override
   void dispose() {
+    _stopFrameCapture(discard: true, notify: false);
     ++_loadEpoch;
     _activeEpubTask?.cancel();
     _activeEpubTask = null;
@@ -981,6 +1033,10 @@ class _ReaderScreenState extends State<ReaderScreen>
                 voiceSetupUs: _epubVoiceSetupUs!,
                 totalOpenUs: _epubTotalOpenUs!,
                 firstFrameUs: _epubFirstFrameUs,
+                frameProfile: _frameProfile,
+                frameCaptureActive: _activeFrameSampler != null,
+                onStartFrameCapture: _startFrameCapture,
+                onStopFrameCapture: _stopFrameCapture,
               ),
             ),
           if (widget.book.format == BookFormat.epub &&

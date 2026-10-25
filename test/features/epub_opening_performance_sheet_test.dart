@@ -1,5 +1,6 @@
 import 'package:ereader/data/epub_reader_preflight.dart';
 import 'package:ereader/features/reader/epub_opening_performance_sheet.dart';
+import 'package:ereader/features/reader/epub_frame_sampler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -88,5 +89,64 @@ void main() {
         find.text('0 bytes'), 120,
         scrollable: find.byType(Scrollable).last);
     expect(find.text('0 bytes'), findsOneWidget);
+  });
+  testWidgets('frame capture starts only by explicit action, and report '
+      'shows bounded numeric timings', (tester) async {
+    var started = 0;
+    final collector = EpubFrameSampler(maxFrames: 4)
+      ..record(buildUs: 19000, rasterUs: 2000, totalUs: 24000)
+      ..record(buildUs: 7000, rasterUs: 21000, totalUs: 30000);
+    final report = collector.snapshot();
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(builder: (context) => TextButton(
+        onPressed: () => showEpubOpeningPerformance(
+          context,
+          worker: worker,
+          castLayoutUs: 100,
+          voiceSetupUs: 100,
+          totalOpenUs: 300,
+          frameProfile: report,
+          onStartFrameCapture: () => started++,
+        ),
+        child: const Text('Inspect frames'),
+      ))),
+    ));
+    await tester.tap(find.text('Inspect frames'));
+    await tester.pumpAndSettle();
+    expect(started, 0);
+    await tester.scrollUntilVisible(
+      find.text('On-demand reader frame sample'), 140,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('2 / 2'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('P95 frame raster'), 140,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('21.0 ms'), findsOneWidget);
+    await tester.tap(find.text('Sample frames for 12 seconds'));
+    await tester.pumpAndSettle();
+    expect(started, 1);
+    expect(find.text('EPUB opening performance'), findsNothing);
+  });
+
+  testWidgets('active capture can be stopped from report', (tester) async {
+    var stopped = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(builder: (context) => TextButton(
+        onPressed: () => showEpubOpeningPerformance(
+          context, worker: worker,
+          castLayoutUs: 0, voiceSetupUs: 0, totalOpenUs: 0,
+          frameCaptureActive: true,
+          onStopFrameCapture: () => stopped++,
+        ),
+        child: const Text('Inspect active'),
+      ))),
+    ));
+    await tester.tap(find.text('Inspect active'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Stop frame sample'));
+    await tester.pumpAndSettle();
+    expect(stopped, 1);
   });
 }

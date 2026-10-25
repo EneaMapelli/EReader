@@ -129,6 +129,7 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Apertura EPUB in background, ZIP con budget e ancore indicizzate](docs/EPUB_BACKGROUND_PREPARATION.md)
 - [Annullamento worker EPUB, protezione dai caricamenti precedenti e tempi locali](docs/EPUB_CANCELLATION_TIMINGS.md)
 - [Ripresa EPUB verificata nel worker annullabile con checkpoint anti-race](docs/EPUB_BACKGROUND_PROGRESS_RECOVERY.md)
+- [Campionamento locale dei frame EPUB durante lo scorrimento](docs/EPUB_FRAME_SAMPLING.md)
 - [Architettura tecnica](docs/TECHNICAL_ARCHITECTURE.md)
 - [Casting dei personaggi e attribuzione dei dialoghi](docs/VOICE_CASTING_SPEC.md)
 - [Implementazione e test](docs/IMPLEMENTATION_STATUS.md)
