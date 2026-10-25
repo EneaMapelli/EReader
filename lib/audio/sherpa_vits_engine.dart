@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
-
 import '../data/offline_voice_pack.dart';
 import 'speech_engine.dart';
+import 'sherpa_vits_worker.dart';
 
 /// A separate audio boundary makes model synthesis testable with no native
 /// ONNX library, sound output, model download or network permissions.
@@ -57,14 +55,8 @@ typedef OfflineWaveSynthesizer = Future<void> Function({
   required double speed,
 });
 
-/// Native calls stay wholly inside a worker isolate so ONNX inference does
-/// not freeze Flutter's build/raster thread. FFI bindings must be initialized
-/// separately in the worker isolate. VITS output is written to an app-private
-/// WAV file; the large Float32List never crosses isolate boundaries.
-///
-/// Each call currently initializes and frees a model. This intentionally
-/// prioritizes correctness over latency until a persistent cancellable
-/// sherpa worker and device memory benchmarks are available.
+/// Compatibility helper for one native utterance. Production playback
+/// retains its [VitsWaveJob] handle so Stop may also request cancellation.
 Future<void> synthesizeVitsWave({
   required String text,
   required String modelPath,
@@ -72,56 +64,30 @@ Future<void> synthesizeVitsWave({
   required String dataDir,
   required String wavPath,
   required double speed,
-}) async {
-  await Isolate.run(() {
-    sherpa.initBindings();
-    final config = sherpa.OfflineTtsConfig(
-      model: sherpa.OfflineTtsModelConfig(
-        vits: sherpa.OfflineTtsVitsModelConfig(
-          model: modelPath,
-          tokens: tokensPath,
-          dataDir: dataDir,
-        ),
-        numThreads: 2,
-        provider: 'cpu',
-      ),
-    );
-    final tts = sherpa.OfflineTts(config);
-    try {
-      final generated = tts.generate(text: text, speed: speed);
-      if (generated.sampleRate < 8000 ||
-          generated.sampleRate > 96000 ||
-          generated.samples.isEmpty ||
-          generated.samples.length > generated.sampleRate * 90) {
-        throw const FormatException('Invalid offline generated audio duration');
-      }
-      final written = sherpa.writeWave(
-        filename: wavPath,
-        samples: generated.samples,
-        sampleRate: generated.sampleRate,
-      );
-      if (!written) throw StateError('Offline wave writer failed');
-    } finally {
-      tts.free();
-    }
-  });
-}
+}) => VitsWaveJob(VitsWaveRequest(
+  text: text,
+  modelPath: modelPath,
+  tokensPath: tokensPath,
+  dataDir: dataDir,
+  wavPath: wavPath,
+  speed: speed,
+)).result;
 
 /// Prototype local VITS engine using the same SpeechEngine contract as
 /// OS TTS/cloud. Not registered in the user-selectable provider registry
 /// until the device and model-asset gates have been passed.
 ///
 /// Unlike cloud providers, this never accesses API keys, quotas or network.
-/// Stop never starts playback of an already canceled synthesis. Native ONNX
-/// computation may continue until its bounded chunk finishes; a persistent
-/// worker with hard cancellation is a later native milestone.
+/// Stop requests immediate worker-isolate termination and suppresses delayed
+/// WAV playback. Dart cannot guarantee instantaneous preemption of a native
+/// blocking FFI call; physical device testing remains mandatory.
 class SherpaVitsSpeechEngine implements SpeechEngine {
   static const providerId = 'sherpa-vits';
 
   SherpaVitsSpeechEngine({
     required this.pack,
     this.dataDir = '',
-    OfflineWaveSynthesizer synthesizer = synthesizeVitsWave,
+    OfflineWaveSynthesizer? synthesizer,
     OfflineWaveOutput? output,
     Future<Directory> Function()? temporaryDirectory,
   })  : _synthesizer = synthesizer,
@@ -132,7 +98,9 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
 
   final InstalledOfflineVoicePack pack;
   final String dataDir;
-  final OfflineWaveSynthesizer _synthesizer;
+  /// Optional mock synthesizer; production uses a cancellable isolate job.
+  final OfflineWaveSynthesizer? _synthesizer;
+  VitsWaveJob? _nativeJob;
   final OfflineWaveOutput _output;
   final Future<Directory> Function() _temporaryDirectory;
 
@@ -190,14 +158,40 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
     final wavPath = '${staging.path}${Platform.pathSeparator}speech.wav';
     try {
       if (_disposed || token != _generation) return;
-      await _synthesizer(
-        text: text,
-        modelPath: pack.modelPath,
-        tokensPath: pack.tokensPath,
-        dataDir: dataDir,
-        wavPath: wavPath,
-        speed: (rate / 0.5).clamp(0.4, 2.0).toDouble(),
-      );
+      final speed = (rate / 0.5).clamp(0.4, 2.0).toDouble();
+      final mock = _synthesizer;
+      if (mock != null) {
+        // Keep unit tests entirely independent of native ONNX binaries.
+        await mock(
+          text: text,
+          modelPath: pack.modelPath,
+          tokensPath: pack.tokensPath,
+          dataDir: dataDir,
+          wavPath: wavPath,
+          speed: speed,
+        );
+      } else {
+        // A previous utterance must be finished or explicitly stopped.
+        if (_nativeJob != null) {
+          throw StateError('Offline synthesis is already running');
+        }
+        final job = VitsWaveJob(VitsWaveRequest(
+          text: text,
+          modelPath: pack.modelPath,
+          tokensPath: pack.tokensPath,
+          dataDir: dataDir,
+          wavPath: wavPath,
+          speed: speed,
+        ));
+        _nativeJob = job;
+        try {
+          await job.result;
+        } on VitsWaveCancelled {
+          return; // Stop/Dispose cancelled this job; never play its WAV.
+        } finally {
+          if (identical(_nativeJob, job)) _nativeJob = null;
+        }
+      }
       if (_disposed || token != _generation) return;
       if (!await File(wavPath).exists()) {
         throw StateError('Offline TTS generated no WAV file');
@@ -219,6 +213,8 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
   @override
   Future<void> stop() async {
     _generation++;
+    _nativeJob?.cancel();
+    _nativeJob = null;
     await _output.stop();
   }
 
@@ -227,6 +223,8 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
     if (_disposed) return;
     _disposed = true;
     _generation++;
+    _nativeJob?.cancel();
+    _nativeJob = null;
     await _output.dispose();
   }
 }
