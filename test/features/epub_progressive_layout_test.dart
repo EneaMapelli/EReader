@@ -225,6 +225,31 @@ void main() {
     expect(lazy.materializations, 1);
   });
 
+  test('link target in a wholly unspoken paragraph stays visual',
+      () {
+    const source = 'Opening.\n\nImage caption without speech.\n\nNarrated ending.';
+    final captionStart = source.indexOf('Image caption');
+    final endingStart = source.indexOf('Narrated ending.');
+    final doc = chapter(source);
+    final speech = [
+      SpeechSegment(endingStart, source.length, 'Narrated ending.'),
+    ];
+    final progressive = buildProgressiveEpubVisualLayout(
+        doc, speech, const []);
+    final eager = buildEpubVisualLayout(doc, speech, const []);
+    final lazy = progressive.blocks as ProgressiveEpubBlocks;
+
+    expect(progressive.blockForSegment(0), 2,
+        reason: 'The only TTS segment is in the last paragraph');
+    expect(progressive.blockForSourceOffset(captionStart), 1);
+    expect(eager.blockForSourceOffset(captionStart), 1);
+    expect(progressive.blockForSourceOffset(captionStart + 9), 1);
+    expect(lazy.materializations, 0);
+    expect(progressive.blocks[1].text, 'Image caption without speech.');
+    expect(lazy.materializations, 1);
+    expect(progressive.blocks[1].firstSegmentIndex, isNull);
+  });
+
   test('monotonic segment cursor matches eager layout across many blocks',
       () {
     final source = List.filled(120, 'One segment spans several blocks. ')

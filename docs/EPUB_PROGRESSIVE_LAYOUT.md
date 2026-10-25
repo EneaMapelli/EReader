@@ -98,3 +98,8 @@ comparison. TTS selection and persisted source anchors are unchanged.
 The 12,000-paragraph cache regression now requests seven distinct blocks
 before checking eviction from a six-slot LRU (previously only six).
 Added an unexecuted source-gap and no-materialization lookup regression.
+
+A further authored test covers a wholly unspoken caption paragraph:
+its internal source link must map to that caption, even though the only
+TTS segment belongs to a later paragraph. This directly protects the
+reader's link-navigation behavior without cloud synthesis.
