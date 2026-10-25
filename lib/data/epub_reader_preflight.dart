@@ -165,16 +165,19 @@ Future<EpubReaderPreflight> prepareEpubReader(String localPath) =>
 /// talks to network providers, accesses Flutter plugins or starts narration.
 /// The result and fixed error codes are ordinary isolate-sendable objects.
 void _workerMain((SendPort, String) message) {
+  Object response;
   try {
-    final result = _prepareEpubFile(message.$2);
-    message.$1.send([0, result]);
+    response = [0, _prepareEpubFile(message.$2)];
   } on FormatException {
-    message.$1.send([1, 'format']);
+    response = [1, 'format'];
   } on FileSystemException {
-    message.$1.send([1, 'file']);
+    response = [1, 'file'];
   } catch (_) {
-    message.$1.send([1, 'other']);
+    response = [1, 'other'];
   }
+  // The isolate is done with the large source model: exit and transfer
+  // ownership of the result, avoiding an extra deep copy of the entire EPUB.
+  Isolate.exit(message.$1, response);
 }
 
 EpubReaderPreflight _prepareEpubFile(String localPath) {
