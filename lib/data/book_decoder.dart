@@ -8,6 +8,7 @@ import '../domain/book.dart';
 import '../domain/reading_anchor.dart';
 import '../domain/epub_anchor_context.dart';
 import 'epub_text_extractor.dart';
+import 'epub_bounded_file.dart';
 import 'epub_inline_style.dart';
 import 'epub_embedded_content.dart';
 import 'epub_navigation.dart';
@@ -167,7 +168,7 @@ DocumentContent documentFromExtractedEpub(EpubTextResult content) =>
 /// Worker-side only: no Flutter widgets/plugins, SQLite connection, network,
 /// TTS engine or user-specific credentials cross the isolate boundary.
 EpubTextResult _extractEpubFile(String localPath) {
-  final bytes = File(localPath).readAsBytesSync();
+  final bytes = readBoundedEpubFile(localPath);
   return const EpubTextExtractor().extract(bytes);
 }
 
