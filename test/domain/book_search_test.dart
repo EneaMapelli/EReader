@@ -17,7 +17,7 @@ void main() {
 
   test('source search finds unspoken caption and keeps exact UTF-16 offset',
       () {
-    const source = 'Narrated.\\n\\nA silent 📖 caption.\\n\\nNarrated again.';
+    const source = 'Narrated.\n\nA silent 📖 caption.\n\nNarrated again.';
     final matches = findSourceTextMatches(source, 'CAPTION');
     expect(matches.length, 1);
     expect(matches.single.start, source.indexOf('caption'));
@@ -31,8 +31,8 @@ void main() {
       () {
     const source = 'a.b? (alpha) a.b? [note]';
     final literal = findSourceTextMatches(source, 'a.b?');
-    expect(literal.map((hit) => hit.start).toList(), [0, 15]);
-    expect(findSourceTextMatches(source, '[note]').single.start, 20);
+    expect(literal.map((hit) => hit.start).toList(), [0, 13]);
+    expect(findSourceTextMatches(source, '[note]').single.start, 18);
     expect(findSourceTextMatches(source, 'missing'), isEmpty);
   });
 
@@ -43,9 +43,16 @@ void main() {
     final match = matches.single;
     expect(source.substring(match.start, match.end), 'needle');
     expect(match.start, source.indexOf('needle'));
-    expect(match.excerpt, 're needle📖 a');
+    expect(match.excerpt, 're needle📖');
     final aroundEmoji = findSourceTextMatches(source, 'after', contextChars: 1);
-    expect(aroundEmoji.single.excerpt, '📖 after📚');
+    expect(aroundEmoji.single.excerpt, 'after📚');
+  });
+
+  test('excerpt normalizes newlines but keeps source match location', () {
+    const source = 'Alpha.\n\nBeta is here.';
+    final hits = findSourceTextMatches(source, 'Beta');
+    expect(hits.single.start, source.indexOf('Beta'));
+    expect(hits.single.excerpt, 'Alpha. Beta is here.');
   });
 
   test('source search is bounded and never indexes a hidden network service',

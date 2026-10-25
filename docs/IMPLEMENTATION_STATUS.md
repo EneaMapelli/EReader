@@ -951,3 +951,12 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Added unit regressions for silent captions, regex-literal punctuation,
   Unicode/emoji source indices, bounded matches and invalid limits.
   These newly authored tests have not been executed in Flutter.
+
+## M2 — EPUB full-text search fixture and preview corrections (2026-10-25)
+
+- Corrected the new escaped-whitespace preview expression to collapse
+  actual whitespace rather than the literal characters `\\s`.
+- Corrected test fixture offsets for literal punctuation and the expected
+  Unicode excerpt boundaries. Added a regression for newline-normalized
+  previews with an unchanged source UTF-16 hit offset.
+- No claim of a passing Windows suite; these fixtures need Dart execution.

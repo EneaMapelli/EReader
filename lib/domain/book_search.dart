@@ -65,7 +65,7 @@ List<BookSourceMatch> findSourceTextMatches(
         _sourceLowSurrogate(source.codeUnitAt(end)) &&
         _sourceHighSurrogate(source.codeUnitAt(end - 1))) end++;
     final excerpt = source.substring(start, end)
-        .replaceAll(RegExp(r'\\s+'), ' ').trim();
+        .replaceAll(RegExp(r'\s+'), ' ').trim();
     results.add(BookSourceMatch(hit.start, hit.end, excerpt));
     if (results.length >= maxResults) break;
   }
