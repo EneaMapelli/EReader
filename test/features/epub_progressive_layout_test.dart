@@ -363,6 +363,28 @@ void main() {
         reason: 'Explicit narration/seek cancellation always wins');
   });
 
+  test('failed jump releases stale viewport protection after deadline',
+      () {
+    const text = 'First.\n\nSecond.\n\nThird.';
+    final layout = buildProgressiveEpubVisualLayout(
+        chapter(text), const [], const []);
+    final target = text.indexOf('Third.');
+    final guard = EpubVisualSourceCheckpoint(
+        pendingTargetTimeout: Duration.zero)
+      ..hold(target, awaitTarget: true);
+    expect(guard.offset, target);
+    // A failed jump never makes the target visible; the initial
+    // protection must not permanently suppress manual reading progress.
+    expect(guard.preserveOnVisibleBlocks([0], layout), isFalse);
+    expect(guard.offset, isNull);
+    guard.hold(target, awaitTarget: true);
+    // Success still wins even when a hypothetical timeout has elapsed.
+    expect(guard.preserveOnVisibleBlocks([2], layout), isTrue);
+    expect(guard.offset, target);
+    expect(guard.preserveOnVisibleBlocks([0], layout), isFalse);
+    expect(guard.offset, isNull);
+  });
+
   test('visible unspoken paragraph persists its own source offset',
       () {
     const text = 'An opening.\n\nUnspoken illustration.\n\nThe narrated end.';

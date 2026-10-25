@@ -140,6 +140,14 @@ class EpubVisualLayout {
 /// Only a DIFFERENT visible paragraph or explicit speech playback releases
 /// the guard. This object never stores text or mutates SQLite.
 class EpubVisualSourceCheckpoint {
+  EpubVisualSourceCheckpoint({
+    this.pendingTargetTimeout = const Duration(seconds: 5),
+  }) : assert(!pendingTargetTimeout.isNegative);
+
+  /// A failed/stale jump must not suppress genuine manual scrolling forever.
+  /// Stopwatch is monotonic and runs only while awaiting the first target.
+  final Duration pendingTargetTimeout;
+  final Stopwatch _targetWait = Stopwatch();
   int? _offset;
   bool _awaitingTarget = false;
 
@@ -151,11 +159,18 @@ class EpubVisualSourceCheckpoint {
   void hold(int? sourceOffset, {bool awaitTarget = false}) {
     _offset = sourceOffset;
     _awaitingTarget = sourceOffset != null && awaitTarget;
+    _targetWait
+      ..stop()
+      ..reset();
+    if (_awaitingTarget) _targetWait.start();
   }
 
   void clear() {
     _offset = null;
     _awaitingTarget = false;
+    _targetWait
+      ..stop()
+      ..reset();
   }
 
   /// Preserve a precise checkpoint while its target paragraph is visible,
@@ -169,9 +184,15 @@ class EpubVisualSourceCheckpoint {
     final targetBlock = layout.blockForSourceOffset(held);
     if (visibleBlocks.contains(targetBlock)) {
       _awaitingTarget = false;
+      _targetWait.stop();
       return true;
     }
-    if (_awaitingTarget) return true;
+    if (_awaitingTarget &&
+        _targetWait.elapsed < pendingTargetTimeout) {
+      return true;
+    }
+    // The jump target is no longer visible, or never arrived within
+    // the bounded grace period. Real scrolling must be allowed again.
     clear();
     return false;
   }

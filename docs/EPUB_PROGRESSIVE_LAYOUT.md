@@ -208,3 +208,18 @@ confusing Flutter cache/preload entries with visible content.
 Added deterministic source-only regression for stale viewport events,
 short target paragraphs, normal scrolling and clearing, with zero
 rich-run hydration. Native widget validation is still required.
+
+## Failed-jump recovery (2026-10-25)
+
+The precise EPUB visual checkpoint now has a monotonic, five-second
+upper bound while it awaits the destination paragraph for the first
+time. This prevents a missing/cancelled virtual-list jump from
+suppressing genuine manual scroll checkpoints indefinitely. A target
+that arrives in time preserves its source offset exactly as before;
+after the target has been seen, normal scroll-away behavior still
+applies. The protection uses a lightweight `Stopwatch` only during
+pending jumps, with no asynchronous timer or database rewrite.
+
+A new deterministic regression configures a zero-duration pending
+window and checks both failed-jump release and a successfully visible
+target. Device validation remains outstanding.

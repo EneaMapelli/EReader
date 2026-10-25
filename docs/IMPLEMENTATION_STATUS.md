@@ -872,3 +872,12 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   viewport edges no longer count as visible positions.
 - Added isolated pending-jump and short-paragraph regression tests.
   Changes remain unverified by a fresh Windows/Android run.
+
+## M2 — bounded recovery from an unfulfilled EPUB jump (2026-10-25)
+
+- An exact bookmark jump waiting for its paragraph to become visible
+  now has a monotonic five-second grace period. If a jump never settles,
+  manual scroll updates are no longer blocked indefinitely; successful
+  jumps retain exact source anchors until the user actually moves away.
+- Added a deterministic timeout and successful-arrival regression
+  without sleeping or triggering timers. Windows/Android run pending.
