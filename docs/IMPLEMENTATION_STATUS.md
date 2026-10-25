@@ -836,3 +836,14 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   large speech segment. Speech seek remains tied to playable chunks.
 - Added `EpubVisibleReadingPosition` and a synthetic unspoken-caption
   eager/progressive regression. Real widget/Windows testing remains open.
+
+## M2 — shared Unicode-safe visual paragraph boundaries (2026-10-25)
+
+- The eager and progressive EPUB paragraph renderers now use the same
+  bounded source-aligned Unicode boundary helper as TTS. Hard breaks
+  avoid splitting combining accents, common ZWJ emoji, variation and
+  skin-tone modifiers, and paired flag indicators. The existing
+  surrogate-pair behavior and `maxBlockChars` cap remain enforced.
+- Added render-equivalence and source-loss regression cases, including
+  a fail-closed oversized cluster. Full Unicode grapheme rules,
+  device display and Windows regression execution remain open.

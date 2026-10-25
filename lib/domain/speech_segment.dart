@@ -97,13 +97,8 @@ List<SpeechSegment> segmentSpeechRange(
     // A hard input cap must not split a decomposed accent or a common
     // multi-code-point emoji sequence. Backtrack by code points until
     // a safe break; never silently drop a code unit to make progress.
-    while (chunkEnd > chunkStart &&
-        _splitsCommonGrapheme(source, chunkEnd)) {
-      chunkEnd -= _isLowSurrogate(source.codeUnitAt(chunkEnd - 1)) &&
-              chunkEnd >= 2 &&
-              _isHighSurrogate(source.codeUnitAt(chunkEnd - 2))
-          ? 2 : 1;
-    }
+    chunkEnd = backtrackCommonGraphemeBoundary(
+        source, start: chunkStart, end: chunkEnd);
     while (chunkEnd > chunkStart &&
         _isWhitespace(source.codeUnitAt(chunkEnd - 1))) {
       chunkEnd--;
@@ -120,6 +115,36 @@ List<SpeechSegment> segmentSpeechRange(
     cursor = chunkEnd;
   }
   return result;
+}
+
+/// Return the nearest usable UTF-16 boundary at or before [end] without
+/// splitting the common combining sequences supported by this reader.
+///
+/// The caller must impose its own character budget. Backtracking does not
+/// rewrite or drop the underlying source: subsequent chunks restart at the
+/// returned index. A single cluster longer than the budget is rejected rather
+/// than silently cut into malformed speech/visual chunks.
+///
+/// This protects common accent and emoji clusters; full Unicode grapheme
+/// segmentation (including complex Indic rules) remains a separate goal.
+int backtrackCommonGraphemeBoundary(String source, {
+  required int start,
+  required int end,
+}) {
+  if (start < 0 || end <= start || end > source.length) {
+    throw RangeError('Invalid UTF-16 chunk bounds');
+  }
+  var boundary = end;
+  while (boundary > start && _splitsCommonGrapheme(source, boundary)) {
+    boundary -= boundary >= 2 &&
+            _isLowSurrogate(source.codeUnitAt(boundary - 1)) &&
+            _isHighSurrogate(source.codeUnitAt(boundary - 2))
+        ? 2 : 1;
+  }
+  if (boundary <= start) {
+    throw const FormatException('Unicode text cluster exceeds chunk limit');
+  }
+  return boundary;
 }
 
 bool _isWhitespace(int c) =>

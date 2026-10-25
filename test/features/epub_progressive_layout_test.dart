@@ -160,6 +160,53 @@ void main() {
     expect(progressive.blocks.map((b) => b.text).join(), source);
   });
 
+  test('both EPUB renderers preserve combined accents and emoji on hard cuts',
+      () {
+    final samples = <String>[
+      'a' * 15 + 'e\u0301' + 'b' * 36,
+      'a' * 15 + '👩‍🚀' + 'b' * 36,
+      'a' * 16 + '🇮🇹' + 'b' * 36,
+      'a' * 15 + '👍🏽' + 'b' * 36,
+    ];
+    for (final text in samples) {
+      final document = chapter(text);
+      final eager = buildEpubVisualLayout(
+          document, const [], const [], maxBlockChars: 18);
+      final progressive = buildProgressiveEpubVisualLayout(
+          document, const [], const [], maxBlockChars: 18);
+      compareLayouts(eager, progressive, const []);
+      final bounds = [
+        for (final block in progressive.blocks) (block.start, block.end),
+      ];
+      expect(progressive.blocks.map((block) => block.text).join(), text);
+      expect(bounds.length, greaterThan(1));
+      for (var i = 0; i < bounds.length; i++) {
+        final (start, end) = bounds[i];
+        expect(end - start, lessThanOrEqualTo(18));
+        expect(text.substring(start, end),
+            progressive.blocks[i].text);
+        if (i > 0) expect(start, bounds[i - 1].$2);
+      }
+      final commonCluster = text.contains('👩‍🚀') ? '👩‍🚀'
+          : text.contains('🇮🇹') ? '🇮🇹'
+          : text.contains('👍🏽') ? '👍🏽' : 'e\u0301';
+      expect(progressive.blocks
+          .where((block) => block.text.contains(commonCluster)).length, 1,
+          reason: 'A composed character must remain in one display block');
+    }
+  });
+
+  test('oversized visual Unicode cluster fails closed, not split', () {
+    final source = 'e' + List.filled(20, '\u0301').join() + 'more text';
+    final doc = chapter(source);
+    expect(() => buildEpubVisualLayout(
+        doc, const [], const [], maxBlockChars: 16),
+        throwsFormatException);
+    expect(() => buildProgressiveEpubVisualLayout(
+        doc, const [], const [], maxBlockChars: 16),
+        throwsFormatException);
+  });
+
   test('12000 paragraphs index without constructing any rich runs', () {
     final paragraphs = List<String>.generate(
         12000, (i) => 'Entry $i: novel paragraph 📖.');

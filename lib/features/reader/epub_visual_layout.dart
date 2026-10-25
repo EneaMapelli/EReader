@@ -374,8 +374,8 @@ EpubVisualLayout buildEpubVisualLayout(
         addBlock(cursor, end, first);
         return;
       }
-      // Prefer to break before the limit without splitting a UTF-16
-      // surrogate pair, so all visible chunks remain source-exact.
+      // Prefer a whitespace break, then backtrack away from a compound
+      // Unicode character. Shared with TTS and the progressive renderer.
       var split = target;
       for (var j = target; j > cursor + maxBlockChars ~/ 2; j--) {
         if (_visualWhitespace(source.codeUnitAt(j - 1))) {
@@ -383,12 +383,8 @@ EpubVisualLayout buildEpubVisualLayout(
           break;
         }
       }
-      if (split < end &&
-          _lowSurrogate(source.codeUnitAt(split)) &&
-          _highSurrogate(source.codeUnitAt(split - 1))) {
-        split--;
-      }
-      if (split <= cursor) split = target;
+      split = backtrackCommonGraphemeBoundary(
+          source, start: cursor, end: split);
       addBlock(cursor, split, first);
       first = false;
       cursor = split;
@@ -499,5 +495,4 @@ bool _sourceWhitespaceOnly(String source, int start, int end) {
 
 bool _visualWhitespace(int ch) =>
     ch == 32 || ch == 9 || ch == 10 || ch == 13 || ch == 0xa0;
-bool _highSurrogate(int ch) => ch >= 0xd800 && ch <= 0xdbff;
-bool _lowSurrogate(int ch) => ch >= 0xdc00 && ch <= 0xdfff;
+

@@ -186,11 +186,8 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
           break;
         }
       }
-      if (split < end && _low(source.codeUnitAt(split)) &&
-          _high(source.codeUnitAt(split - 1))) {
-        split--;
-      }
-      if (split <= cursor) split = target;
+      split = backtrackCommonGraphemeBoundary(
+          source, start: cursor, end: split);
       indexBlock(cursor, split, first);
       first = false;
       cursor = split;
@@ -411,9 +408,6 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
 bool _white(int unit) =>
     unit == 0x20 || unit == 0x09 || unit == 0x0a ||
     unit == 0x0d || unit == 0xa0;
-bool _low(int unit) => unit >= 0xdc00 && unit <= 0xdfff;
-bool _high(int unit) => unit >= 0xd800 && unit <= 0xdbff;
-
 bool _sourceWhitespaceOnly(String source, int start, int end) {
   for (var i = start; i < end; i++) {
     final unit = source.codeUnitAt(i);

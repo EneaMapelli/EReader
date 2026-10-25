@@ -147,3 +147,24 @@ continues to protect the original exact offset during initial restore.
 A synthetic unspoken-caption regression compares eager/progressive
 behavior and source offsets, ensuring the model materializes only the
 visible blocks. Windows/Android execution remains outstanding.
+
+## Hard visual splits protect common Unicode clusters (2026-10-25)
+
+The eager and progressive EPUB paragraph renderers previously checked
+only UTF-16 surrogate pairs at the maximum-block-length cutoff. Accents
+formed with combining codepoints, ZWJ emoji (such as an astronaut),
+skin-tone modifiers and paired flag indicators could be split across
+visual blocks, despite the TTS chunker already protecting those sequences.
+
+Both renderers now use the same pure bounded helper
+`backtrackCommonGraphemeBoundary` from `speech_segment.dart`. Breaks
+are backed up to a common-cluster boundary without moving source offsets,
+expanding a block beyond `maxBlockChars`, changing markup/voice spans
+or creating a second copy of the EPUB text. An exceptional cluster longer
+than the configured block limit fails closed rather than rendering a
+broken partial character. This is deliberately a **limited** Unicode
+guard, not full UAX #29 grapheme-break compliance.
+
+Added unexecuted eager-versus-progressive regressions for decomposed
+acute accents, a ZWJ astronaut emoji, the Italian flag sequence,
+skin-tone modifiers and an overlong combining sequence.
