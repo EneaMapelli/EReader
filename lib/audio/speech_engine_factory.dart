@@ -13,7 +13,6 @@ class SpeechEngineFactory {
   const SpeechEngineFactory({
     required this.vault,
     this.offlineVoicePack,
-    this.offlineVoiceDataDir = '',
   });
   final SpeechSecretVault vault;
 
@@ -21,7 +20,6 @@ class SpeechEngineFactory {
   /// the experimental native adapter. UI discovery remains disabled pending
   /// Windows/Android voice, license, stop and background benchmarks.
   final InstalledOfflineVoicePack? offlineVoicePack;
-  final String offlineVoiceDataDir;
 
   SpeechEngine create({
     required SpeechPreferences preferences,
@@ -47,7 +45,8 @@ class SpeechEngineFactory {
         }
         return SherpaVitsSpeechEngine(
           pack: pack,
-          dataDir: offlineVoiceDataDir,
+          // Only manifest-verified phonemizer assets may reach native FFI.
+          dataDir: pack.phonemizerDataDir ?? '',
         );
       case OpenAiSpeechEngine.providerId:
         return OpenAiSpeechEngine(
