@@ -1120,3 +1120,24 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   imports of the same TXT source produce one managed book, retain its saved
   reading checkpoint, preserve the original title, and leave no private
   staging directory after import.
+
+## M1 — library search, format filters and sorting (2026-10-25)
+
+- Added purely local, case-insensitive title search, All/EPUB/PDF/TXT
+  selection and deterministic import-date/title/format ordering to the
+  library screen. Filtered views leave stored progress and imported books
+  unchanged; the interruption and latest-book shortcuts are still visible.
+- Added `lib/domain/library_catalog.dart` with immutable filtering/sorting
+  and unit tests; added SQLite-backed widget tests for live title filtering,
+  reset/no-results behavior, format switching and alphabetical order.
+- Native analyzer, Windows/Android build and full test rerun are pending.
+  The last published Windows suite is still the earlier 589-pass / 5-error
+  run against SHA `946fc7b9` and cannot validate these changes.
+
+## Roadmap status snapshot (2026-10-25)
+
+- See [ROADMAP_PROGRESS.md](ROADMAP_PROGRESS.md) for an evidence-based
+  milestone-by-milestone comparison with the original 2026-10-22 M0–M6
+  exit criteria, approximate implementation percentages, acceptance gates
+  and priority sequence. An authored code feature is not considered a
+  completed platform milestone without the relevant native evidence.
