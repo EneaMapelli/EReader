@@ -33,7 +33,7 @@ Future<EpubReaderPreflight> prepareEpubReader(String localPath) =>
     );
 
 EpubReaderPreflight _prepareEpubFile(String localPath) {
-  final bytes = File(localPath).readAsBytesSync();
+  final bytes = readBoundedEpubFile(localPath);
   final extracted = const EpubTextExtractor().extract(bytes);
   final document = documentFromExtractedEpub(extracted);
   final base = segmentEpubSpine(document);
