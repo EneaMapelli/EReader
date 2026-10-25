@@ -311,6 +311,11 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
         FileSystemEntityType.directory) {
       throw const FormatException('Offline voice pack directory is unsafe');
     }
+    final stored = await _readPersistedVoiceManifest(where);
+    if (jsonEncode(stored.toJson()) != jsonEncode(manifest.toJson())) {
+      throw const FormatException('Installed voice manifest does not match');
+    }
+    await _verifyPackContents(where, manifest);
     final verifyDir = await modelsDirectory.createTemp('.check-');
     try {
       await _copyVerifiedFile(
@@ -357,6 +362,9 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
       maxBytes: maxTokensBytes,
     );
     await copyPhonemizerResources(sourceDirectory, temporary);
+    await File(p.join(temporary.path, _voiceManifestFile))
+        .writeAsString(jsonEncode(manifest.toJson()), flush: true);
+    await _verifyPackContents(temporary, manifest);
     // Atomic within the same models directory. Do not replace a previously
     // installed model even if another installation raced this operation.
     if (await FileSystemEntity.type(target.path, followLinks: false) !=
@@ -372,4 +380,33 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
   } finally {
     if (await temporary.exists()) await temporary.delete(recursive: true);
   }
+}
+
+/// Reopen a previously installed voice after process restart. The embedded
+/// manifest is read from the application's private directory, and every
+/// model, token and phonemizer asset is rehashed before it is returned.
+///
+/// [packId] is validated before it becomes part of a filesystem path; no
+/// model is downloaded, loaded into FFI, or made automatically selectable.
+Future<InstalledOfflineVoicePack> loadInstalledOfflineVoicePack({
+  required String packId,
+  required Directory modelsDirectory,
+}) async {
+  if (!RegExp(r'^[a-z0-9][a-z0-9_-]{1,63}$').hasMatch(packId)) {
+    throw const FormatException('Invalid offline voice ID');
+  }
+  final target = Directory(p.join(modelsDirectory.path, packId));
+  if (await FileSystemEntity.type(target.path, followLinks: false) !=
+      FileSystemEntityType.directory) {
+    throw const FormatException('Offline voice pack is not installed');
+  }
+  final manifest = await _readPersistedVoiceManifest(target);
+  if (manifest.id != packId) {
+    throw const FormatException('Voice pack identity changed');
+  }
+  return installOfflineVoicePack(
+    manifest: manifest,
+    sourceDirectory: target,
+    modelsDirectory: modelsDirectory,
+  );
 }
