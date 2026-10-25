@@ -199,7 +199,7 @@ void main() {
       styles: const [EpubInlineStyleSpan(0, 30, bold: true)]);
     final corruptLink = chapter(source,
       links: const [EpubInternalLink(0, 5, 999)]);
-    final segment = const [SpeechSegment(0, 12, source)];
+    const segment = [SpeechSegment(0, 13, source)];
     expect(() => buildProgressiveEpubVisualLayout(
         corruptStyle, segment, const []), throwsFormatException);
     expect(() => buildProgressiveEpubVisualLayout(
