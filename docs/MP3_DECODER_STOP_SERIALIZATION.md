@@ -76,3 +76,26 @@ file deletion API. New unexecuted tests cover failed deletion recovery,
 failed warm-load followed by another warm-load, and concurrent disposal.
 No changes to TTS network requests, user consent, or quotas. Current
 Windows/Android build and test validation remains **NOT_RUN**.
+
+## Non-blocking obsolete prebuffer discard (2026-10-25)
+
+Previously a mismatched `play()` awaited the entire pending standby
+`prepareNext()` before loading the actual requested clip on the active
+decoder. A stuck native warm `setFilePath` therefore stalled unrelated
+foreground narration even though its prepared bytes could never be reused.
+
+A mismatched Play now **synchronously invalidates** the stale pending
+clip, enqueues its Stop and temporary-file cleanup on the standby
+slot's serialized operation chain, and immediately continues on the
+active decoder. Any *new* prefetch on that same standby slot is queued
+behind the older native load/cleanup, so decoder ownership is retained
+without blocking current playback. Explicit `stop()` and `dispose()`
+still enforce their prior completion and safety semantics.
+
+The new unexecuted regression holds the original warm-load gate while
+starting a different clip, then schedules a fresh prefetch on the same
+physical decoder and verifies ordered loading, no native Stop/load
+overlap, no stale playback, and eventual private-file deletion.
+
+No additional HTTP synthesis, cloud billing or quota authorization is
+introduced. Actual native Windows and Android validation is pending.

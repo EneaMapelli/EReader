@@ -636,3 +636,17 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   closing narrator tail against voice inheritance. No production
   casting algorithm was changed: all source/speaker behavior was already
   consistent with bounded segmentation. Tests have not been executed.
+
+## M2 — obsolete MP3 warm loads do not block a new clip (2026-10-25)
+
+- Found a foreground liveness bug: playing different bytes after a
+  chapter seek/rate change waited for a stale standby decoder load,
+  possibly forever. `_discardPrepared` now invalidates the old clip
+  synchronously and queues its Stop/file cleanup on that physical
+  decoder without awaiting it before current playback.
+- New lookahead on the same standby decoder still waits for prior
+  load/Stop/cleanup via `slot.loading`, so the current clip can play
+  on the active decoder with no native overlap or stale MP3 playback.
+- Added one unexecuted regression for the blocked warm-load/foreground
+  Play interleaving, re-warming on the same standby decoder, and file
+  cleanup. The published test status remains NOT_RUN.

@@ -216,25 +216,23 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
     }
   }
 
-  Future<void> _discardPrepared(int generation) async {
-    final task = _preparing;
+  void _discardPrepared() {
     final slot = _pendingSlot;
-    // Retain the pending marker across awaits so a concurrent prefetch
-    // cannot reuse the same slot before the obsolete load is stopped.
-    if (task != null) {
-      try { await task; } catch (_) {
-        // Cleanup is still required if decoder loading failed.
-      }
-    }
-    if (_disposed || generation != _generation) return;
-    if (slot != null) await _stopSlot(slot);
-    if (_disposed || generation != _generation) return;
-    if (identical(_pendingSlot, slot)) {
-      _pendingBytes = null;
-      _pendingSpeed = null;
-      _pendingSlot = null;
-      _preparing = null;
-    }
+    // A mismatched new clip plays on the active decoder and must not be
+    // blocked by an obsolete warm load stalled on the *other* decoder.
+    // Drop the pending identity synchronously so it cannot be played.
+    _pendingBytes = null;
+    _pendingSpeed = null;
+    _pendingSlot = null;
+    _preparing = null;
+    if (slot == null) return;
+    // _stopSlot appends cleanup to slot.loading immediately. Later warm
+    // requests on this physical decoder therefore queue AFTER the stale
+    // decoder load and its Stop, rather than racing either operation.
+    unawaited(_stopSlot(slot).catchError((Object _) {
+      // Any native cleanup error is isolated from the new audible clip;
+      // dispose() still waits for and cleans the old physical slot.
+    }));
   }
 
   @override
@@ -262,7 +260,7 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
     } else {
       // A seek, voice/speed change or different cached clip must invalidate
       // the stale warm slot. Otherwise it would block all future preloads.
-      if (_pendingBytes != null) await _discardPrepared(token);
+      if (_pendingBytes != null) _discardPrepared();
       if (_disposed || token != _generation) return;
       slot = _active!;
       await _load(slot, bytes, speed, token);

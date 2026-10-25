@@ -157,6 +157,48 @@ void main() {
     await active;
   });
 
+  test('mismatched Play does not await an obsolete stalled warm load',
+      () async {
+    nextLoadGate = Completer<void>();
+    final first = output.play(Uint8List.fromList([1]), speed: 1);
+    await until(() => decoders.isNotEmpty &&
+        decoders[0].playing.isNotEmpty);
+
+    final stale = output.prepareNext(Uint8List.fromList([2]), speed: 1);
+    await until(() => decoders.length == 2 &&
+        decoders[1].loadedPaths.isNotEmpty);
+    expect(nextLoadGate!.isCompleted, isFalse);
+
+    decoders[0].finish();
+    await first;
+
+    // Seek to a different byte sequence; it must not stall until the
+    // abandoned standby setFilePath completes on another decoder.
+    final current = output.play(Uint8List.fromList([3]), speed: 1);
+    await until(() => decoders[0].playing.length == 2);
+    expect(nextLoadGate!.isCompleted, isFalse);
+    expect(decoders[1].playing, isEmpty);
+    expect(decoders[1].stopsDuringNativeLoad, 0);
+
+    // A subsequent warm request on that same standby decoder is queued
+    // after the old load and its Stop; it may not overlap native calls.
+    final incoming = Uint8List.fromList([4]);
+    final futureWarm = output.prepareNext(incoming, speed: 1);
+    expect(decoders[1].loadedPaths, hasLength(1));
+    nextLoadGate!.complete();
+    await Future.wait([stale, futureWarm]);
+    expect(decoders[1].loadedPaths, hasLength(2));
+    expect(decoders[1].stopsDuringNativeLoad, 0);
+    decoders[0].finish();
+    await current;
+
+    final warmed = output.play(incoming, speed: 1);
+    await until(() => decoders[1].playing.isNotEmpty);
+    decoders[1].finish();
+    await warmed;
+    expect(temp.listSync(), isEmpty);
+  });
+
   test('different rate must not use previously decoded speed settings',
       () async {
     final incoming = Uint8List.fromList([2]);
