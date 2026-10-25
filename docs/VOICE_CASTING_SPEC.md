@@ -177,3 +177,8 @@ Metriche per ogni opera e complessive:
 - M5.3: screening full-book opzionale, multilingua, local LLM benchmark e personalizzazione prosodica per battuta.
 
 **Open questions:** politica spoiler, disponibilità delle voci IT, differenza tra voce sintetica e impersonazione, livelli predefiniti di pitch, supporto di lettere/interruzioni e strumenti di valutazione umana.
+
+
+## Incremento implementato — continuità di voce tra chunk (23/10/2026)
+
+La pipeline di playback ora tiene un ID di gruppo per ogni citazione attraverso i chunk di testo originali, risolve attribuzioni legacy e precise sul testo immutato (SHA-256/anchor) e può unire frammenti vicini della stessa battuta con identico speaker fino a 400 caratteri UTF-16. Non fonde citazioni differenti, non applica indovinelli ai personaggi e non sovrascrive le correzioni manuali: gli intervalli contestati restano narratore. Riduce chiamate TTS superflue senza promettere audio gapless oltre i limiti del provider. I test sono scritti, non eseguiti, e le build sono rinviate alla fase di integrazione. Vedi [Cross-Chunk TTS Casting](CROSS_CHUNK_TTS_CASTING.md).

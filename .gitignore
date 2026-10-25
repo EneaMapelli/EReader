@@ -1,0 +1,29 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+.pub-cache/
+build/
+coverage/
+*.iml
+.idea/
+.vscode/
+# Platform-generated local files
+android/.gradle/
+android/local.properties
+android/key.properties
+android/**/key.properties
+android/captures/
+windows/flutter/ephemeral/
+# Local sensitive data
+.env
+.env.*
+*.jks
+*.keystore
+
+# Windows local test runner: full stdout/stderr never enters Git
+.local-test-results/
+# Generated test results under test-results/ are intentionally tracked,
+# after filtering. Do not ignore test-results/ globally.

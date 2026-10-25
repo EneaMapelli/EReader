@@ -1,0 +1,187 @@
+import 'package:ereader/features/reader/reading_tools.dart';
+import 'package:ereader/domain/book_search.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  testWidgets('EPUB source search navigates to silent caption source offset',
+      (tester) async {
+    const text = 'Narrated intro.\n\n'
+        'Unspoken caption with 🐉 and diagrams.\n\nNarrated ending.';
+    BookSourceMatch? selected;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () async {
+            selected = await showBookSourceSearch(context, text);
+          },
+          child: const Text('Open source search'),
+        ),
+      )),
+    ));
+    await tester.tap(find.text('Open source search'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Search in EPUB'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'CAPTION');
+    await tester.pump(const Duration(milliseconds: 190));
+    await tester.pumpAndSettle();
+    expect(find.text('Matches: 1'), findsOneWidget);
+    expect(find.textContaining('Unspoken caption with'), findsOneWidget);
+
+    await tester.tap(find.textContaining('Unspoken caption with'));
+    await tester.pumpAndSettle();
+    expect(selected?.start, text.indexOf('caption'));
+    expect(selected?.end, text.indexOf('caption') + 7);
+  });
+
+  testWidgets('EPUB search begins near reading position before wrapping',
+      (tester) async {
+    const text = 'echo one.\n\necho two.\n\necho three.';
+    final last = text.lastIndexOf('echo');
+    BookSourceMatch? selected;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () async {
+            selected = await showBookSourceSearch(
+                context, text, startOffset: last);
+          },
+          child: const Text('Find near me'),
+        ),
+      )),
+    ));
+    await tester.tap(find.text('Find near me'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'echo');
+    await tester.pump(const Duration(milliseconds: 190));
+    await tester.pumpAndSettle();
+    expect(find.text('From reading position, then from the beginning'),
+        findsOneWidget);
+    final firstResult = find.byType(ListTile).first;
+    expect(find.descendant(of: firstResult,
+        matching: find.text('Source offset $last')), findsOneWidget);
+    await tester.tap(firstResult);
+    await tester.pumpAndSettle();
+    expect(selected?.start, last);
+  });
+
+
+  testWidgets('EPUB full-source search can open page three and return',
+      (tester) async {
+    final source = List<String>.generate(
+        235, (i) => 'echo item $i.').join('\n');
+    BookSourceMatch? selected;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(builder: (context) => ElevatedButton(
+        onPressed: () async {
+          selected = await showBookSourceSearch(context, source);
+        },
+        child: const Text('Search long EPUB'),
+      ))),
+    ));
+    await tester.tap(find.text('Search long EPUB'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'echo');
+    await tester.pump(const Duration(milliseconds: 190));
+    await tester.pumpAndSettle();
+    expect(find.text('Matches 1–100 (more available)'), findsOneWidget);
+    await tester.tap(find.text('Next 100'));
+    await tester.pumpAndSettle();
+    expect(find.text('Matches 101–200 (more available)'), findsOneWidget);
+    expect(find.text('Source offset ${source.indexOf('echo item 100.')}'),
+        findsOneWidget);
+    await tester.tap(find.text('Next 100'));
+    await tester.pumpAndSettle();
+    expect(find.text('Matches 201–235'), findsOneWidget);
+    expect(find.text('Source offset ${source.indexOf('echo item 200.')}'),
+        findsOneWidget);
+    await tester.tap(find.text('Previous 100'));
+    await tester.pumpAndSettle();
+    expect(find.text('Matches 101–200 (more available)'), findsOneWidget);
+    await tester.tap(find.text('Source offset ${source.indexOf('echo item 100.')}'));
+    await tester.pumpAndSettle();
+    expect(selected?.start, source.indexOf('echo item 100.'));
+  });
+
+
+  testWidgets('changing EPUB search query resets the result page',
+      (tester) async {
+    final source = List<String>.generate(
+        205, (i) => 'echo entry $i').join('\n');
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(builder: (context) => ElevatedButton(
+        onPressed: () => showBookSourceSearch(context, source),
+        child: const Text('Search EPUB pages'),
+      ))),
+    ));
+    await tester.tap(find.text('Search EPUB pages'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'echo');
+    await tester.pump(const Duration(milliseconds: 190));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next 100'));
+    await tester.pumpAndSettle();
+    expect(find.text('Matches 101–200 (more available)'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'entry 204');
+    await tester.pump(const Duration(milliseconds: 190));
+    await tester.pumpAndSettle();
+    expect(find.text('Matches: 1'), findsOneWidget);
+    expect(find.text('Source offset ${source.indexOf('entry 204')}'),
+        findsOneWidget);
+    expect(find.text('Next 100'), findsNothing);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+  });
+
+
+  testWidgets('EPUB search dialog has a bounded scrollable results viewport',
+      (tester) async {
+    final text = List<String>.generate(
+        140, (i) => 'line $i.').join('\n');
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(builder: (context) => TextButton(
+        onPressed: () => showBookSourceSearch(context, text),
+        child: const Text('Find in big source'),
+      ))),
+    ));
+    await tester.tap(find.text('Find in big source'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.enterText(find.byType(TextField), 'line');
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(Scrollable), findsWidgets);
+    expect(find.text('Matches 1–100 (more available)'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('closed search dialog never navigates or starts playback',
+      (tester) async {
+    const book = 'Visible text and a quiet illustration.';
+    BookSourceMatch? selected;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () async {
+            selected = await showBookSourceSearch(context, book);
+          },
+          child: const Text('Search'),
+        ),
+      )),
+    ));
+    await tester.tap(find.text('Search'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'quiet');
+    await tester.pump(const Duration(milliseconds: 190));
+    await tester.pumpAndSettle();
+    expect(find.text('Matches: 1'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(selected, isNull);
+    expect(find.text('Search in EPUB'), findsNothing);
+  });
+}
