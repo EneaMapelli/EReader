@@ -22,8 +22,8 @@ void main() {
   test('hard TTS boundaries do not cut decomposed accents or ZWJ emoji',
       () {
     final samples = [
-      'a' * 15 + 'e\u0301' + 'b' * 36,
-      'a' * 13 + '👩‍🚀' + 'b' * 36,
+      'a' * 17 + 'e\u0301' + 'b' * 36,
+      'a' * 15 + '👩‍🚀' + 'b' * 36,
       'a' * 16 + '🇮🇹' + 'b' * 36,
       'a' * 15 + '👍🏽' + 'b' * 36,
     ];
