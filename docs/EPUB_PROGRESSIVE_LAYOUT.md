@@ -187,3 +187,24 @@ the reference implementation.
 The authored regressions assert zero materializations for deep positions
 in a 12,000-paragraph EPUB and unspoken captions. Accessing an actual
 visible tile still hydrates just that tile. Pending Flutter validation.
+
+## Stale viewport events during exact EPUB jumps (2026-10-25)
+
+Immediately after a programmatic link/TOC jump or bookmarked restore,
+Flutter's virtual scrolling list can briefly report the viewport from
+*before* the jump. The previous single-first-item guard interpreted this
+as real user scrolling and could allow the old position to overwrite the
+new exact SQLite checkpoint after its debounce.
+
+`EpubVisualSourceCheckpoint` now supports a pending-target phase:
+old viewport events are ignored until the target paragraph is observed;
+a viewport containing that paragraph counts as settled even if the
+paragraph is too short to be the first item near the end of a book.
+Afterward it releases the checkpoint only once the paragraph is fully
+outside the visible viewport. Explicit playback/seek clears the guard.
+The list excludes items outside the actual screen bounds, rather than
+confusing Flutter cache/preload entries with visible content.
+
+Added deterministic source-only regression for stale viewport events,
+short target paragraphs, normal scrolling and clearing, with zero
+rich-run hydration. Native widget validation is still required.

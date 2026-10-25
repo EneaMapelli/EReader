@@ -274,7 +274,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       }
       _visualCheckpoint.hold(widget.book.format == BookFormat.epub
           && chunks.isNotEmpty && saved >= 0 && saved <= document.text.length
-          ? saved : null);
+          ? saved : null, awaitTarget: true);
       _lastFollowedIndex = widget.book.format == BookFormat.epub
           ? (_visualCheckpoint.offset == null
               ? visualLayout.blockForSegment(player.currentIndex)
@@ -448,7 +448,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     final player = _player!;
     if (player.isPlaying || player.segments.isEmpty) return;
     final visible = _itemPositionsListener.itemPositions.value
-        .where((item) => item.itemTrailingEdge > 0)
+        .where((item) =>
+            item.itemTrailingEdge > 0 && item.itemLeadingEdge < 1)
         .map((item) => item.index)
         .toList();
     if (visible.isEmpty) return;
@@ -460,8 +461,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (firstItem >= _epubLayout.blocks.length) return;
       // The initial notification is not manual scroll and must not
       // coarsen an exact bookmark to the nearest spoken segment.
-      if (_visualCheckpoint.preserveOnVisibleBlock(
-          firstItem, _epubLayout)) return;
+      if (_visualCheckpoint.preserveOnVisibleBlocks(
+          visible, _epubLayout)) return;
       final location = _epubLayout.positionForVisibleBlock(
           firstItem, player.segments);
       index = location.segmentIndex;
@@ -948,7 +949,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     );
     _visiblePositionIndex = index;
     _visualCheckpoint.hold(widget.book.format == BookFormat.epub
-        ? visualSourceOffset : null);
+        ? visualSourceOffset : null, awaitTarget: visualSourceOffset != null);
     final visualIndex = widget.book.format == BookFormat.epub
         ? (visualSourceOffset == null
             ? _epubLayout.blockForSegment(index)

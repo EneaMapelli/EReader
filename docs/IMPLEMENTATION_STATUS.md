@@ -859,3 +859,16 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   lazy hydration occurring only when the actual block is requested.
 - No new run since `20261025T120153Z-7b9bd230-236d92`; tests are authored
   but remain unverified on Windows and Android.
+
+## M2 — stale viewport notifications no longer coarsen exact EPUB bookmarks (2026-10-25)
+
+- Programmatic EPUB jumps and initial checkpoint restoration now wait
+  until the target paragraph appears in the actual visible-items set.
+  Transient positions from the previous viewport cannot immediately
+  override the restored SQLite anchor. A target near the end of the book
+  may be visible without being the first displayed block.
+- After the target has appeared, the guard releases on genuine movement
+  completely away from it or explicit playback/seek; list caches beyond
+  viewport edges no longer count as visible positions.
+- Added isolated pending-jump and short-paragraph regression tests.
+  Changes remain unverified by a fresh Windows/Android run.

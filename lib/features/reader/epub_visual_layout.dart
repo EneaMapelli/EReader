@@ -141,27 +141,44 @@ class EpubVisualLayout {
 /// the guard. This object never stores text or mutates SQLite.
 class EpubVisualSourceCheckpoint {
   int? _offset;
+  bool _awaitingTarget = false;
 
   int? get offset => _offset;
 
-  void hold(int? sourceOffset) {
+  /// [awaitTarget] is used for a programmatic jump or initial restore:
+  /// Flutter may briefly report the PREVIOUS viewport while jumpTo or
+  /// initialScrollIndex is still being laid out.
+  void hold(int? sourceOffset, {bool awaitTarget = false}) {
     _offset = sourceOffset;
+    _awaitingTarget = sourceOffset != null && awaitTarget;
   }
 
   void clear() {
     _offset = null;
+    _awaitingTarget = false;
   }
 
-  /// True means this is still the same paragraph: ignore the scroll
-  /// notification without changing the checkpoint. False means the
-  /// previous exact checkpoint has been released (or none was held).
-  bool preserveOnVisibleBlock(int firstVisibleBlock, EpubVisualLayout layout) {
+  /// Preserve a precise checkpoint while its target paragraph is visible,
+  /// even if that paragraph is too short to be the FIRST item in the viewport.
+  /// Ignore a stale previous viewport before the target is first observed.
+  /// Once observed, navigating until it is fully out of view releases it.
+  bool preserveOnVisibleBlocks(
+      Iterable<int> visibleBlocks, EpubVisualLayout layout) {
     final held = _offset;
     if (held == null) return false;
-    if (layout.blockForSourceOffset(held) == firstVisibleBlock) return true;
-    _offset = null;
+    final targetBlock = layout.blockForSourceOffset(held);
+    if (visibleBlocks.contains(targetBlock)) {
+      _awaitingTarget = false;
+      return true;
+    }
+    if (_awaitingTarget) return true;
+    clear();
     return false;
   }
+
+  /// Convenience for a single visible paragraph (unit regressions).
+  bool preserveOnVisibleBlock(int blockIndex, EpubVisualLayout layout) =>
+      preserveOnVisibleBlocks([blockIndex], layout);
 }
 
 /// Paragraph breaks are also hard narration boundaries for EPUB so a

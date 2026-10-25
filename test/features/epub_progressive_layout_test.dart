@@ -332,6 +332,37 @@ void main() {
     expect(blocks.materializations, 0);
   });
 
+  test('pending EPUB jump ignores prior viewport until target is seen',
+      () {
+    const text = 'Chapter intro.\n\nCaption with no speech.\n\nTiny end.';
+    final doc = chapter(text);
+    final layout = buildProgressiveEpubVisualLayout(
+        doc, const [], const []);
+    final lazy = layout.blocks as ProgressiveEpubBlocks;
+    final target = text.indexOf('Caption with');
+    final guard = EpubVisualSourceCheckpoint()
+      ..hold(target, awaitTarget: true);
+
+    // jumpTo() has been requested, but the old viewport is still
+    // reporting its positions: it cannot overwrite the new bookmark.
+    expect(guard.preserveOnVisibleBlocks([0], layout), isTrue);
+    expect(guard.offset, target);
+    // On a short last page, the target may be visible but not first.
+    expect(guard.preserveOnVisibleBlocks([0, 1], layout), isTrue);
+    expect(guard.preserveOnVisibleBlocks([1, 2], layout), isTrue);
+    expect(guard.offset, target);
+    // Only an actual move completely away from the target clears it.
+    expect(guard.preserveOnVisibleBlocks([2], layout), isFalse);
+    expect(guard.offset, isNull);
+    expect(lazy.materializations, 0,
+        reason: 'Viewport checkpoints use metadata, not rich paragraphs');
+
+    guard.hold(target, awaitTarget: true);
+    guard.clear();
+    expect(guard.preserveOnVisibleBlocks([1], layout), isFalse,
+        reason: 'Explicit narration/seek cancellation always wins');
+  });
+
   test('visible unspoken paragraph persists its own source offset',
       () {
     const text = 'An opening.\n\nUnspoken illustration.\n\nThe narrated end.';
