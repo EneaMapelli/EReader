@@ -1,9 +1,0 @@
-{"protocolVersion":"0.1.1","runnerVersion":null,"pid":30744,"type":"start","time":0}
-{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/config/offline_voice_pack_structure_test.dart"},"type":"suite","time":0}
-{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/config/offline_voice_pack_structure_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
-{"count":1,"time":7,"type":"allSuites"}
-{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":1921}
-{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":1925}
-{"test":{"id":3,"name":"voice pack declarations are unique in the checked-in source","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":9,"column":3,"url":"file:///E:/GitHub/EReader/test/config/offline_voice_pack_structure_test.dart"},"type":"testStart","time":1927}
-{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1961}
-{"success":true,"type":"done","time":1990}

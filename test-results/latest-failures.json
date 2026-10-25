@@ -1,177 +1,51 @@
 [
     {
-        "file":  "test/data/book_decoder_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/book_decoder_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0017"
-    },
-    {
-        "file":  "test/data/epub_bounded_file_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_bounded_file_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0021"
-    },
-    {
-        "file":  "test/data/epub_embedded_content_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_embedded_content_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0022"
-    },
-    {
-        "file":  "test/data/epub_encoding_integration_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_encoding_integration_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0023"
-    },
-    {
-        "file":  "test/data/epub_inline_style_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_inline_style_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0025"
-    },
-    {
-        "file":  "test/data/epub_legacy_notes_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_legacy_notes_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0026"
-    },
-    {
-        "file":  "test/data/epub_navigation_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_navigation_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0027"
-    },
-    {
-        "file":  "test/data/epub_progress_recovery_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_progress_recovery_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0028"
-    },
-    {
         "file":  "test/data/epub_reader_preflight_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_reader_preflight_test.dart",
+        "name":  "independent preflights cannot cancel each other",
         "status":  "error",
         "issue":  "compile_or_runtime",
         "run":  "individual-0029"
     },
     {
-        "file":  "test/data/epub_text_extractor_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_text_extractor_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0031"
-    },
-    {
-        "file":  "test/data/offline_voice_pack_test.dart",
-        "name":  "reinstall refuses a changed stored identity and metadata",
-        "status":  "failure",
-        "issue":  "assertion",
-        "run":  "individual-0035"
-    },
-    {
-        "file":  "test/data/reading_anchor_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/reading_anchor_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0038"
-    },
-    {
         "file":  "test/features/book_source_search_widget_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB search dialog has a bounded scrollable results viewport",
         "status":  "error",
-        "issue":  "compile_or_runtime",
+        "issue":  "runtime",
         "run":  "individual-0058"
     },
     {
-        "file":  "test/features/epub_chapter_navigation_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/epub_chapter_navigation_test.dart",
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB source search navigates to silent caption source offset",
         "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0059"
+        "issue":  "runtime",
+        "run":  "individual-0058"
     },
     {
-        "file":  "test/features/epub_opening_performance_sheet_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/epub_opening_performance_sheet_test.dart",
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB search begins near reading position before wrapping",
         "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0064"
+        "issue":  "runtime",
+        "run":  "individual-0058"
     },
     {
-        "file":  "test/features/epub_paragraph_tile_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/epub_paragraph_tile_test.dart",
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "changing EPUB search query resets the result page",
         "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0065"
+        "issue":  "runtime",
+        "run":  "individual-0058"
     },
     {
-        "file":  "test/features/epub_progressive_layout_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/epub_progressive_layout_test.dart",
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB full-source search can open page three and return",
         "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0066"
+        "issue":  "runtime",
+        "run":  "individual-0058"
     },
     {
-        "file":  "test/features/epub_visual_layout_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/epub_visual_layout_test.dart",
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "closed search dialog never navigates or starts playback",
         "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0067"
-    },
-    {
-        "file":  "test/features/library_catalog_widget_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/library_catalog_widget_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0068"
-    },
-    {
-        "file":  "test/llm/dialogue_analysis_plan_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/dialogue_analysis_plan_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0070"
-    },
-    {
-        "file":  "test/llm/historical_character_concordance_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/historical_character_concordance_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0071"
-    },
-    {
-        "file":  "test/llm/openai_alias_reconciler_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/openai_alias_reconciler_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0073"
-    },
-    {
-        "file":  "test/llm/openai_character_discoverer_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/openai_character_discoverer_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0074"
-    },
-    {
-        "file":  "test/llm/openai_dialogue_analyzer_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/openai_dialogue_analyzer_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0075"
-    },
-    {
-        "file":  "test/llm/openai_reference_resolver_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/openai_reference_resolver_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
-        "run":  "individual-0076"
+        "issue":  "runtime",
+        "run":  "individual-0058"
     }
 ]

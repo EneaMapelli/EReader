@@ -827,9 +827,44 @@
     },
     {
         "file":  "test/data/book_decoder_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/book_decoder_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "missing source reports a filesystem error",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0017"
+    },
+    {
+        "file":  "test/data/book_decoder_test.dart",
+        "name":  "TXT UTF-8 BOM is removed while Unicode text is preserved",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0017"
+    },
+    {
+        "file":  "test/data/book_decoder_test.dart",
+        "name":  "background EPUB decoding preserves the direct extractor model",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0017"
+    },
+    {
+        "file":  "test/data/book_decoder_test.dart",
+        "name":  "two EPUB decodes have isolated independent result objects",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0017"
+    },
+    {
+        "file":  "test/data/book_decoder_test.dart",
+        "name":  "background EPUB worker rejects invalid archives without fallback",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0017"
+    },
+    {
+        "file":  "test/data/book_decoder_test.dart",
+        "name":  "page offsets retain exact correspondence with extracted string",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0017"
     },
     {
@@ -967,23 +1002,156 @@
     },
     {
         "file":  "test/data/epub_bounded_file_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_bounded_file_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "worker may not override the global compressed ZIP safety quota",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0021"
+    },
+    {
+        "file":  "test/data/epub_bounded_file_test.dart",
+        "name":  "missing local file still reports an actionable filesystem error",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0021"
+    },
+    {
+        "file":  "test/data/epub_bounded_file_test.dart",
+        "name":  "oversized ZIP is rejected from file size before decompression",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0021"
+    },
+    {
+        "file":  "test/data/epub_bounded_file_test.dart",
+        "name":  "small archive bytes are read without modification",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0021"
     },
     {
         "file":  "test/data/epub_embedded_content_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_embedded_content_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "EPUB2 candidate super/subscript link and classed note body are distinct metadata",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "EPUB2 named anchor at beginning of classed note is accepted",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "body image and fragment offsets agree with canonical UTF-16 text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "table rows are bounded and do not alter flattened TTS source",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "unmarked list and class-token substring cannot create a footnote",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "raster allowlist enforces MIME, magic, pixel and byte limits",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "hidden nodes and mismatched source suppress every marker",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "EPUB3 and ARIA noteref tags preserve in-book note semantics",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "structure projection accounts for removed pre-newline whitespace",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "ordinary asides and source mismatch never create note previews",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "only semantic in-spine note containers expose a bounded raw body",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "numbered superscript to arbitrary anchor is never recognized as note body",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0022"
     },
     {
         "file":  "test/data/epub_encoding_integration_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_encoding_integration_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "malformed legacy chapter never inserts replacement characters",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0023"
+    },
+    {
+        "file":  "test/data/epub_encoding_integration_test.dart",
+        "name":  "declared Windows-1252 chapter keeps punctuation and style offsets",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0023"
+    },
+    {
+        "file":  "test/data/epub_encoding_integration_test.dart",
+        "name":  "declared Latin-1 EPUB preserves accented Unicode positions",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0023"
+    },
+    {
+        "file":  "test/data/epub_encoding_integration_test.dart",
+        "name":  "attributed XHTML br shares exact offsets across voice and styles",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0023"
+    },
+    {
+        "file":  "test/data/epub_encoding_integration_test.dart",
+        "name":  "UTF-16LE and BE XHTML chapters yield the same spoken source",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0023"
+    },
+    {
+        "file":  "test/data/epub_encoding_integration_test.dart",
+        "name":  "malformed UTF-16 encoding fails even when spine manifest is valid",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0023"
     },
     {
@@ -1009,37 +1177,366 @@
     },
     {
         "file":  "test/data/epub_inline_style_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_inline_style_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "nested strong and emphasis are flattened into disjoint style runs",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0025"
+    },
+    {
+        "file":  "test/data/epub_inline_style_test.dart",
+        "name":  "non-content XHTML cannot produce formatting metadata",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0025"
+    },
+    {
+        "file":  "test/data/epub_inline_style_test.dart",
+        "name":  "emoji keep UTF-16 source offsets inside emphasis",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0025"
+    },
+    {
+        "file":  "test/data/epub_inline_style_test.dart",
+        "name":  "normalization mismatch discards every visual style",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0025"
     },
     {
         "file":  "test/data/epub_legacy_notes_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_legacy_notes_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "ordinary unmarked link cannot turn into auxiliary note reference",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "test/data/epub_legacy_notes_test.dart",
+        "name":  "named anchor after unrelated prose is not a note target",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "test/data/epub_legacy_notes_test.dart",
+        "name":  "EPUB2 superscript and classed in-spine note are paired",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "test/data/epub_legacy_notes_test.dart",
+        "name":  "multiple legacy references never duplicate auxiliary speech text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "test/data/epub_legacy_notes_test.dart",
+        "name":  "manifest declaration is required even for correctly marked notes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "test/data/epub_legacy_notes_test.dart",
+        "name":  "oversized legacy auxiliary note fails closed, main book still opens",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "test/data/epub_legacy_notes_test.dart",
+        "name":  "EPUB2 classed note-ref opens declared auxiliary list note only",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "test/data/epub_legacy_notes_test.dart",
+        "name":  "ordinary numbered superscript to non-note paragraph stays a link",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "test/data/epub_legacy_notes_test.dart",
+        "name":  "leading EPUB2 named anchor identifies a verified classed note",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "test/data/epub_legacy_notes_test.dart",
+        "name":  "class substring likeness cannot masquerade as footnote markup",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0026"
     },
     {
         "file":  "test/data/epub_navigation_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_navigation_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "current editorial section uses nearest preceding source offset",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "EPUB3 nested NAV TOC parses in editorial order with depth",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "semantic in-spine footnote creates source-exact plain text preview",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "hostile URL schemes and traversal are ignored from NAV",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "EPUB2 NCX navPoint nesting maps to the same source anchors",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "nonsemantic, oversized, or missing auxiliary note fails closed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "manifest-declared non-spine note previews never join spoken source",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "path-only TOC anchors select the start of the target spine file",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "auxiliary note cannot be obtained using external URL or path escape",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "unlisted non-spine note is not read or linked",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "missing optional NAV/NCX yields no editor entries, not import failure",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "oversize note falls back to safe link navigation and preserves source",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "NCX DTD and external entities are rejected without network fetch",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "ordinary internal link without semantic note offers no preview",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "EPUB3 NAV resolves only fragments in the readable OPF spine",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "source content and speech offsets are unchanged by TOC extraction",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "broken EPUB3 NAV falls back to valid EPUB2 NCX",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0027"
     },
     {
         "file":  "test/data/epub_progress_recovery_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_progress_recovery_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "repeated equivalent context cannot choose arbitrary occurrence",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0028"
+    },
+    {
+        "file":  "test/data/epub_progress_recovery_test.dart",
+        "name":  "valid end-of-book checkpoint stays at EOF, not opening chapter",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0028"
+    },
+    {
+        "file":  "test/data/epub_progress_recovery_test.dart",
+        "name":  "v2 exact source resumes at the same UTF-16 offset",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0028"
+    },
+    {
+        "file":  "test/data/epub_progress_recovery_test.dart",
+        "name":  "out-of-range v1 local offset starts at its original chapter",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0028"
+    },
+    {
+        "file":  "test/data/epub_progress_recovery_test.dart",
+        "name":  "v1 anchors and offset-only old library entries remain compatible",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0028"
+    },
+    {
+        "file":  "test/data/epub_progress_recovery_test.dart",
+        "name":  "new v2 anchors round-trip using existing anchor JSON column",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0028"
+    },
+    {
+        "file":  "test/data/epub_progress_recovery_test.dart",
+        "name":  "new paragraph breaks relocate a unique reference in same spine",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0028"
+    },
+    {
+        "file":  "test/data/epub_progress_recovery_test.dart",
+        "name":  "changes in a preceding chapter preserve later spine anchor",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0028"
+    },
+    {
+        "file":  "test/data/epub_progress_recovery_test.dart",
+        "name":  "old absolute offset in inserted whitespace is not an exact match",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0028"
+    },
+    {
+        "file":  "test/data/epub_progress_recovery_test.dart",
+        "name":  "missing section or out-of-bounds v2 progress needs user review",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0028"
     },
     {
         "file":  "test/data/epub_reader_preflight_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_reader_preflight_test.dart",
+        "name":  "worker handles offset-only legacy checkpoints without rewrites",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "cancel while worker spawn is in flight settles future exactly once",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "worker preflight produces same source, quotes and hard boundaries",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "cancelled sibling never interrupts concurrent valid EPUB workers",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "independent preflights cannot cancel each other",
         "status":  "error",
         "issue":  "compile_or_runtime",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "multiple worker exit notifications do not mask valid results",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "background worker handles many paragraphs without altering source",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "worker fails closed on missing or invalid input",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "worker relocates a unique changed-chapter anchor, never a stale ID",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "worker verifies an exact v2 checkpoint using its own EPUB source",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "preflight timing report records nonnegative stages and safe counts",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0029"
     },
     {
@@ -1128,9 +1625,170 @@
     },
     {
         "file":  "test/data/epub_text_extractor_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/epub_text_extractor_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "fragment after final text stays inside its source spine item",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "respects OPF spine instead of manifest file order",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "chapter headings are bounded and leave source offsets untouched",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "unlisted and invalid image paths never load archive assets",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "scripts, NAV and metadata never become styled reading content",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "unterminated head without body skips hidden spine prose",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "repeated spine idref is rejected to prevent ambiguous recovery anchor",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "fails with missing XHTML resource instead of skipping a chapter",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "malformed head heading never becomes source or chapter title",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "tables are preview metadata while the read-aloud text is unchanged",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "chapter heading stops before following paragraph and metadata",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "unterminated XHTML head does not leak private headings into body",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "rejects traversal in ZIP archive filenames",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "only manifest-declared local raster assets are loaded",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "repeated words only style the actual tagged occurrence",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "in-book fragment links resolve across different spine documents",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "empty XHTML in one spine item is recorded, not made into speech",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "rejects XML DTDs and entities in OPF",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "rejects OPF href escaping ZIP logical root",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "semantic XHTML styles map onto unchanged EPUB source text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "spine labels use XHTML body headings, not navigation or head",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "optional EPUB incompatibilities are summarized without failing text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "normalization projects markup through stripped whitespace",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "rejects malformed non-ZIP input",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0031"
     },
     {
@@ -1577,8 +2235,8 @@
     {
         "file":  "test/data/offline_voice_pack_test.dart",
         "name":  "reinstall refuses a changed stored identity and metadata",
-        "status":  "failure",
-        "issue":  "assertion",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0035"
     },
     {
@@ -1751,9 +2409,44 @@
     },
     {
         "file":  "test/data/reading_anchor_test.dart",
-        "name":  "loading \u003crepo\u003e/test/data/reading_anchor_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "PDF page anchor retains local offset",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0038"
+    },
+    {
+        "file":  "test/data/reading_anchor_test.dart",
+        "name":  "EPUB spine anchor survives offset shifts in preceding chapter",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0038"
+    },
+    {
+        "file":  "test/data/reading_anchor_test.dart",
+        "name":  "stale EPUB anchor offset beyond its spine item fails closed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0038"
+    },
+    {
+        "file":  "test/data/reading_anchor_test.dart",
+        "name":  "binary EPUB lookup matches original behavior across 15000 chapters",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0038"
+    },
+    {
+        "file":  "test/data/reading_anchor_test.dart",
+        "name":  "EPUB anchor may not resume in the middle of a surrogate pair",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0038"
+    },
+    {
+        "file":  "test/data/reading_anchor_test.dart",
+        "name":  "anchors are versioned and reject invalid positions",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0038"
     },
     {
@@ -2682,16 +3375,107 @@
     },
     {
         "file":  "test/features/book_source_search_widget_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB search dialog has a bounded scrollable results viewport",
         "status":  "error",
-        "issue":  "compile_or_runtime",
+        "issue":  "runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB source search navigates to silent caption source offset",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB search begins near reading position before wrapping",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "changing EPUB search query resets the result page",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB full-source search can open page three and return",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "closed search dialog never navigates or starts playback",
+        "status":  "error",
+        "issue":  "runtime",
         "run":  "individual-0058"
     },
     {
         "file":  "test/features/epub_chapter_navigation_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/epub_chapter_navigation_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "standalone heading gets accessible style without inserting text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0059"
+    },
+    {
+        "file":  "test/features/epub_chapter_navigation_test.dart",
+        "name":  "source fragment inside a long speech chunk maps to that chunk",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0059"
+    },
+    {
+        "file":  "test/features/epub_chapter_navigation_test.dart",
+        "name":  "chapters retain accurate UTF-16 offsets and source spine IDs",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0059"
+    },
+    {
+        "file":  "test/features/epub_chapter_navigation_test.dart",
+        "name":  "invalid overlapping or out-of-range spine offsets fail closed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0059"
+    },
+    {
+        "file":  "test/features/epub_chapter_navigation_test.dart",
+        "name":  "TXT fallback segmentation unchanged without EPUB spine",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0059"
+    },
+    {
+        "file":  "test/features/epub_chapter_navigation_test.dart",
+        "name":  "quote coalescing never merges across hard EPUB spine boundary",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0059"
+    },
+    {
+        "file":  "test/features/epub_chapter_navigation_test.dart",
+        "name":  "fallback chapter labels and missing playable ranges are stable",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0059"
+    },
+    {
+        "file":  "test/features/epub_chapter_navigation_test.dart",
+        "name":  "unclosed quote in prior spine cannot turn next chapter into dialogue",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0059"
+    },
+    {
+        "file":  "test/features/epub_chapter_navigation_test.dart",
+        "name":  "binary chapter lookup remains correct across 20000 sections",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0059"
     },
     {
@@ -2822,37 +3606,408 @@
     },
     {
         "file":  "test/features/epub_opening_performance_sheet_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/epub_opening_performance_sheet_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "frame capture starts only by explicit action, and report shows bounded numeric timings",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0064"
+    },
+    {
+        "file":  "test/features/epub_opening_performance_sheet_test.dart",
+        "name":  "active capture can be stopped from report",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0064"
+    },
+    {
+        "file":  "test/features/epub_opening_performance_sheet_test.dart",
+        "name":  "empty/zero stage times are displayed without errors",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0064"
+    },
+    {
+        "file":  "test/features/epub_opening_performance_sheet_test.dart",
+        "name":  "local opening metrics show only stage numbers, not book text",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0064"
     },
     {
         "file":  "test/features/epub_paragraph_tile_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/epub_paragraph_tile_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "exact Unicode search highlight preserves speech tap target",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "EPUB paragraph preserves exact words and selective TTS styling",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "warm paper and night palettes keep text and highlight readable",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "auxiliary note tap previews only, never navigates or seeks",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "footnote without a preview callback retains link navigation",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "internal link acts on source target rather than speech",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "search highlight inside verified link keeps navigation target",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "footnote remains previewable without ordinary link callback",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "footnote and normal link to same target use separate taps",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "ragged table preview uses one consistent rectangular width",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "semantic h2 is accessible even without a spine title match",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "new paragraph data replaces stale tap recognizers",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "author emphasis remains visible during TTS highlighting",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "standalone chapter heading retains accessible heading semantics",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "bounded local picture and ragged table preview appear safely",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0065"
     },
     {
         "file":  "test/features/epub_progressive_layout_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/epub_progressive_layout_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "monotonic segment cursor matches eager layout across many blocks",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "eager and progressive renders match normal EPUB speech and headings",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "gaps, spine boundaries and punctuation retain exact mapping",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "rejects zero cache and too-small paragraph budgets",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "exact EPUB checkpoint resists initial rebuild, not real scrolling",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "source-offset link in unspoken gap resolves without hydration",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "oversized visual Unicode cluster fails closed, not split",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "prevents unsafe style, link or TTS metadata at index construction",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "link target in a wholly unspoken paragraph stays visual",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "12000 paragraphs index without constructing any rich runs",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "failed jump releases stale viewport protection after deadline",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "both EPUB renderers preserve combined accents and emoji on hard cuts",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "visible unspoken paragraph persists its own source offset",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "long emoji paragraph splitting remains surrogate-safe",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "rich runs, source-exact links, notes and embedded overlays match",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "presentation-only footnotes remain tappable with zero speech chunks",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "pending EPUB jump ignores prior viewport until target is seen",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0066"
     },
     {
         "file":  "test/features/epub_visual_layout_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/epub_visual_layout_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "footnote source markers keep TTS segment identity and target",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "lazy source-backed runs retain exact Unicode and old const API",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "paragraph regex at spine boundary does not consume next chapter",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "auxiliary note marker preserves source speech and has no target offset",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "inline emphasis divides a TTS segment without altering its index",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "long surrogate-bearing paragraph splits safely and retains text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "source-mismatched and overlapping spoken chunks are rejected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "invalid/empty input and impossible max lengths fail predictably",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "spine boundaries prevent adjacent paragraphs from merging",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "image and table metadata attach without changing paragraph text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "gaps between speech segments remain readable and unmodified",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "spine chapter boundaries and two paragraphs keep chapter mapping",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "invalid overlapping or out-of-bounds typography fails closed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "paragraph runs concatenate to exact source and locate spoken spans",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "in-book link splits visual run without losing spoken segment ID",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "invalid or overlapping fragment links cannot redirect narration",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "thousands of local auxiliary link keys retain preview-only targets",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "large EPUB builds 12000 paragraph blocks with stable source mapping",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "unresolved auxiliary reference is rejected before rendering",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "semantic h2 and Unicode inline spans preserve original anchors",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0067"
     },
     {
         "file":  "test/features/library_catalog_widget_test.dart",
-        "name":  "loading \u003crepo\u003e/test/features/library_catalog_widget_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "library search filters the view without deleting books",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0068"
+    },
+    {
+        "file":  "test/features/library_catalog_widget_test.dart",
+        "name":  "sorting and format chips preserve the stored catalog",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0068"
     },
     {
@@ -2948,16 +4103,128 @@
     },
     {
         "file":  "test/llm/dialogue_analysis_plan_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/dialogue_analysis_plan_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "repeated quote within one segment is rejected as ambiguous",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0070"
+    },
+    {
+        "file":  "test/llm/dialogue_analysis_plan_test.dart",
+        "name":  "multiple earlier context segments retain chronological evidence order",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0070"
+    },
+    {
+        "file":  "test/llm/dialogue_analysis_plan_test.dart",
+        "name":  "EPUB scopes stay within source spine bounds",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0070"
+    },
+    {
+        "file":  "test/llm/dialogue_analysis_plan_test.dart",
+        "name":  "LLM evidence is tied to an exact earlier source substring",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0070"
+    },
+    {
+        "file":  "test/llm/dialogue_analysis_plan_test.dart",
+        "name":  "reading position cap blocks future incomplete dialogue segment",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0070"
+    },
+    {
+        "file":  "test/llm/dialogue_analysis_plan_test.dart",
+        "name":  "model quote must be exact, unambiguous and within selected window",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0070"
+    },
+    {
+        "file":  "test/llm/dialogue_analysis_plan_test.dart",
+        "name":  "never chooses a window outside the selected chapter",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0070"
+    },
+    {
+        "file":  "test/llm/dialogue_analysis_plan_test.dart",
+        "name":  "model cannot invent cast member or source segment",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0070"
+    },
+    {
+        "file":  "test/llm/dialogue_analysis_plan_test.dart",
+        "name":  "backward context never includes previous or later chapters",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0070"
     },
     {
         "file":  "test/llm/historical_character_concordance_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/historical_character_concordance_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "word-boundaries prevent Amira from being misidentified as Mira",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0071"
+    },
+    {
+        "file":  "test/llm/historical_character_concordance_test.dart",
+        "name":  "request contains only selected validated history, with distinct ID",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0071"
+    },
+    {
+        "file":  "test/llm/historical_character_concordance_test.dart",
+        "name":  "earlier-chapter mentions contain exact verified book offsets only",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0071"
+    },
+    {
+        "file":  "test/llm/historical_character_concordance_test.dart",
+        "name":  "historical passages cannot become dialogue proposal target segments",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0071"
+    },
+    {
+        "file":  "test/llm/historical_character_concordance_test.dart",
+        "name":  "forged previous-chapter excerpt is rejected before HTTP",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0071"
+    },
+    {
+        "file":  "test/llm/historical_character_concordance_test.dart",
+        "name":  "no chosen cast means zero historical data or leaked name",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0071"
+    },
+    {
+        "file":  "test/llm/historical_character_concordance_test.dart",
+        "name":  "source snippet with an emoji never splits a surrogate pair",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0071"
+    },
+    {
+        "file":  "test/llm/historical_character_concordance_test.dart",
+        "name":  "a future chapter and the current chapter can never be history",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0071"
+    },
+    {
+        "file":  "test/llm/historical_character_concordance_test.dart",
+        "name":  "history is bounded in scopes, matches and transmitted characters",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0071"
     },
     {
@@ -3046,30 +4313,226 @@
     },
     {
         "file":  "test/llm/openai_alias_reconciler_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/openai_alias_reconciler_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "known name and existing alias are not suggested again",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0073"
+    },
+    {
+        "file":  "test/llm/openai_alias_reconciler_test.dart",
+        "name":  "missing key keeps budget untouched",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0073"
+    },
+    {
+        "file":  "test/llm/openai_alias_reconciler_test.dart",
+        "name":  "default-deny privacy blocks key reads and network",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0073"
+    },
+    {
+        "file":  "test/llm/openai_alias_reconciler_test.dart",
+        "name":  "no future text can enter the request after spoiler ceiling",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0073"
+    },
+    {
+        "file":  "test/llm/openai_alias_reconciler_test.dart",
+        "name":  "valid exact nickname creates review-only candidate with evidence",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0073"
+    },
+    {
+        "file":  "test/llm/openai_alias_reconciler_test.dart",
+        "name":  "invented target, nonexistent alias and future evidence rejected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0073"
+    },
+    {
+        "file":  "test/llm/openai_alias_reconciler_test.dart",
+        "name":  "same alias proposed for two targets is dropped as ambiguous",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0073"
+    },
+    {
+        "file":  "test/llm/openai_alias_reconciler_test.dart",
+        "name":  "a forged local excerpt is rejected before quota or HTTP",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0073"
     },
     {
         "file":  "test/llm/openai_character_discoverer_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/openai_character_discoverer_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "missing key does not debit input or issue network calls",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0074"
+    },
+    {
+        "file":  "test/llm/openai_character_discoverer_test.dart",
+        "name":  "no permission means zero secret reads, quotas or HTTP calls",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0074"
+    },
+    {
+        "file":  "test/llm/openai_character_discoverer_test.dart",
+        "name":  "exact source mention creates only a pending candidate",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0074"
+    },
+    {
+        "file":  "test/llm/openai_character_discoverer_test.dart",
+        "name":  "model cannot invent names or insert a speaker assignment",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0074"
+    },
+    {
+        "file":  "test/llm/openai_character_discoverer_test.dart",
+        "name":  "existing names and repeated candidates are skipped",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0074"
+    },
+    {
+        "file":  "test/llm/openai_character_discoverer_test.dart",
+        "name":  "source range/cap enforced before sending any text",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0074"
     },
     {
         "file":  "test/llm/openai_dialogue_analyzer_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/openai_dialogue_analyzer_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "approved prior context is visible and later spoilers never transmitted",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0075"
+    },
+    {
+        "file":  "test/llm/openai_dialogue_analyzer_test.dart",
+        "name":  "structured response parses optional evidence fields",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0075"
+    },
+    {
+        "file":  "test/llm/openai_dialogue_analyzer_test.dart",
+        "name":  "no network, key read or budget consumption without consent",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0075"
+    },
+    {
+        "file":  "test/llm/openai_dialogue_analyzer_test.dart",
+        "name":  "transport adapter rejects a segment outside approved scope",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0075"
+    },
+    {
+        "file":  "test/llm/openai_dialogue_analyzer_test.dart",
+        "name":  "foreign-book or duplicated cast cannot enter model request",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0075"
+    },
+    {
+        "file":  "test/llm/openai_dialogue_analyzer_test.dart",
+        "name":  "Responses API uses store=false and strict JSON schema without tools",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0075"
+    },
+    {
+        "file":  "test/llm/openai_dialogue_analyzer_test.dart",
+        "name":  "approved single window is sent; no other book passages",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0075"
+    },
+    {
+        "file":  "test/llm/openai_dialogue_analyzer_test.dart",
+        "name":  "quota is reserved before request; second call can be denied",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0075"
+    },
+    {
+        "file":  "test/llm/openai_dialogue_analyzer_test.dart",
+        "name":  "missing key forbids requests and leaves input budget untouched",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0075"
+    },
+    {
+        "file":  "test/llm/openai_dialogue_analyzer_test.dart",
+        "name":  "forged later context is rejected before a network call",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0075"
     },
     {
         "file":  "test/llm/openai_reference_resolver_test.dart",
-        "name":  "loading \u003crepo\u003e/test/llm/openai_reference_resolver_test.dart",
-        "status":  "error",
-        "issue":  "compile_or_runtime",
+        "name":  "direct names are ignored and repeated target quote is unsafe",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0076"
+    },
+    {
+        "file":  "test/llm/openai_reference_resolver_test.dart",
+        "name":  "source spoof is rejected before quota reservation",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0076"
+    },
+    {
+        "file":  "test/llm/openai_reference_resolver_test.dart",
+        "name":  "pronoun is exact and review-only, with optional earlier proof",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0076"
+    },
+    {
+        "file":  "test/llm/openai_reference_resolver_test.dart",
+        "name":  "single approved window uses existing transport and input budget",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0076"
+    },
+    {
+        "file":  "test/llm/openai_reference_resolver_test.dart",
+        "name":  "descriptive reference is not a new alias or speaker label",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0076"
+    },
+    {
+        "file":  "test/llm/openai_reference_resolver_test.dart",
+        "name":  "model cannot invent speaker IDs or quoted source text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0076"
+    },
+    {
+        "file":  "test/llm/openai_reference_resolver_test.dart",
+        "name":  "conflicting cast IDs for same pronoun produce unresolved record",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0076"
+    },
+    {
+        "file":  "test/llm/openai_reference_resolver_test.dart",
+        "name":  "no consent or credential means no HTTP and no quota",
+        "status":  "success",
+        "issue":  "",
         "run":  "individual-0076"
     }
 ]
