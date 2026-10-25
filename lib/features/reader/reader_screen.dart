@@ -710,7 +710,9 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (player == null || player.segments.isEmpty) return;
     final document = _document;
     if (widget.book.format == BookFormat.epub && document != null) {
-      final sourceOffset = await showBookSourceSearch(context, document.text);
+      final sourceOffset = await showBookSourceSearch(
+          context, document.text,
+          startOffset: _directorySourceOffset(player));
       if (!mounted || _player != player || sourceOffset == null) return;
       // Search is only local source navigation. Never start TTS or pay for
       // cloud synthesis just because a result was selected.

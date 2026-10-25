@@ -70,6 +70,41 @@ void main() {
         throwsArgumentError);
   });
 
+  test('full-source results start near current position and wrap once', () {
+    const source = 'echo A.\n\necho 📖 B.\n\necho C.';
+    final later = source.lastIndexOf('echo');
+    final hits = findSourceTextMatches(source, 'ECHO',
+        startOffset: later, maxResults: 2);
+    expect(hits.map((hit) => hit.start).toList(), [later, 0]);
+    expect(source.substring(hits.first.start, hits.first.end), 'echo');
+
+    final all = findSourceTextMatches(source, 'echo',
+        startOffset: source.length);
+    expect(all.map((hit) => hit.start).toList(),
+        [0, source.indexOf('echo', 1), later]);
+    expect(findSourceTextMatches(source, 'echo', startOffset: 0)
+        .map((hit) => hit.start).toList(), all.map((hit) => hit.start).toList());
+    expect(() => findSourceTextMatches(source, 'echo', startOffset: -1),
+        throwsArgumentError);
+    expect(() => findSourceTextMatches(source, 'echo',
+        startOffset: source.length + 1), throwsArgumentError);
+  });
+
+  test('a cursor inside an emoji never splits source or duplicates hits', () {
+    const source = 'needle 📖needle then needle';
+    final lowSurrogate = source.indexOf('📖') + 1;
+    final hits = findSourceTextMatches(source, 'needle',
+        startOffset: lowSurrogate, maxResults: 3, contextChars: 1);
+    expect(hits.map((hit) => hit.start).toList(), [
+      source.indexOf('needle', source.indexOf('📖')),
+      source.lastIndexOf('needle'),
+      0,
+    ]);
+    for (final hit in hits) {
+      expect(source.substring(hit.start, hit.end), 'needle');
+    }
+  });
+
   test('search bounds number of results and ignores empty queries', () {
     expect(findMatchingSegments(segments, 'prima', maxResults: 1), [0]);
     expect(findMatchingSegments(segments, '   '), isEmpty);

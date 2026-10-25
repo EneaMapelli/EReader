@@ -34,14 +34,22 @@ class BookSourceMatch {
 /// paragraphs. Results preserve original UTF-16 offsets without rebuilding
 /// speech segments, using an escaped case-insensitive regular expression
 /// rather than lowercasing the source (which can change Unicode length).
-/// This is local-only: no online indexing, remote API or book-content upload.
+///
+/// Results start at [startOffset], then wrap once to the beginning of the book.
+/// This avoids returning only the first 100 occurrences in a long EPUB when
+/// the reader is currently near the end. No index or hidden full-text cache
+/// is persisted. This is local-only: no remote API or book-content upload.
 List<BookSourceMatch> findSourceTextMatches(
   String source,
   String query, {
   int maxResults = 100,
   int contextChars = 60,
+  int startOffset = 0,
 }) {
   if (maxResults < 1) throw ArgumentError.value(maxResults, 'maxResults');
+  if (startOffset < 0 || startOffset > source.length) {
+    throw ArgumentError.value(startOffset, 'startOffset');
+  }
   if (contextChars < 0 || contextChars > 512) {
     throw ArgumentError.value(contextChars, 'contextChars');
   }
@@ -52,7 +60,15 @@ List<BookSourceMatch> findSourceTextMatches(
   final pattern = RegExp(RegExp.escape(needle), caseSensitive: false,
       unicode: true);
   final results = <BookSourceMatch>[];
-  for (final hit in pattern.allMatches(source)) {
+  // Never hand RegExp a cursor in the middle of an emoji surrogate pair.
+  var cursor = startOffset;
+  if (cursor > 0 && cursor < source.length &&
+      _sourceLowSurrogate(source.codeUnitAt(cursor)) &&
+      _sourceHighSurrogate(source.codeUnitAt(cursor - 1))) {
+    cursor--;
+  }
+
+  void appendHit(RegExpMatch hit) {
     var start = hit.start - contextChars;
     if (start < 0) start = 0;
     var end = hit.end + contextChars;
@@ -67,7 +83,18 @@ List<BookSourceMatch> findSourceTextMatches(
     final excerpt = source.substring(start, end)
         .replaceAll(RegExp(r'\s+'), ' ').trim();
     results.add(BookSourceMatch(hit.start, hit.end, excerpt));
-    if (results.length >= maxResults) break;
+  }
+
+  for (final hit in pattern.allMatches(source, cursor)) {
+    appendHit(hit);
+    if (results.length >= maxResults) return List.unmodifiable(results);
+  }
+  if (cursor > 0) {
+    for (final hit in pattern.allMatches(source)) {
+      if (hit.start >= cursor) break;
+      appendHit(hit);
+      if (results.length >= maxResults) break;
+    }
   }
   return List.unmodifiable(results);
 }

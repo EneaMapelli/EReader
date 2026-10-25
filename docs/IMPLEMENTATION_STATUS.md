@@ -981,3 +981,16 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   accepting subsequent viewport checkpoints, even if no distinct visual
   offset argument was supplied (e.g. chapter or speech search).
 - Runtime integration and Windows Flutter tests remain pending.
+
+## M2 — EPUB search starts at the current reading location (2026-10-25)
+
+- Full-source EPUB search now returns up to 100 exact UTF-16 hits starting
+  at the visible chapter/reading cursor before wrapping to the beginning,
+  so frequent terms in long books do not strand a late reader at the first
+  100 results. The selected hit still uses source-only navigation and never
+  triggers TTS synthesis or a cloud request.
+- Cursor validation and surrogate-pair boundary handling preserve source
+  offsets and keep results unique across the wrap. Added domain and widget
+  regressions for late-chapter matches, emoji cursors and dialog navigation.
+- The previous Windows test report predates this increment. Dart analysis,
+  Windows/Android builds and these tests have not been executed here.

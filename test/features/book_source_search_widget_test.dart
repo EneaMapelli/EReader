@@ -33,6 +33,37 @@ void main() {
     expect(selected, text.indexOf('caption'));
   });
 
+  testWidgets('EPUB search begins near reading position before wrapping',
+      (tester) async {
+    const text = 'echo one.\n\necho two.\n\necho three.';
+    final last = text.lastIndexOf('echo');
+    int? selected;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () async {
+            selected = await showBookSourceSearch(
+                context, text, startOffset: last);
+          },
+          child: const Text('Find near me'),
+        ),
+      )),
+    ));
+    await tester.tap(find.text('Find near me'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'echo');
+    await tester.pump(const Duration(milliseconds: 190));
+    await tester.pumpAndSettle();
+    expect(find.text('From reading position, then from the beginning'),
+        findsOneWidget);
+    final firstResult = find.byType(ListTile).first;
+    expect(find.descendant(of: firstResult,
+        matching: find.text('Source offset $last')), findsOneWidget);
+    await tester.tap(firstResult);
+    await tester.pumpAndSettle();
+    expect(selected, last);
+  });
+
   testWidgets('closed search dialog never navigates or starts playback',
       (tester) async {
     const book = 'Visible text and a quiet illustration.';
