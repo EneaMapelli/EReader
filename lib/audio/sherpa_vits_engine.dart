@@ -116,6 +116,8 @@ Future<void> synthesizeVitsWave({
 /// computation may continue until its bounded chunk finishes; a persistent
 /// worker with hard cancellation is a later native milestone.
 class SherpaVitsSpeechEngine implements SpeechEngine {
+  static const providerId = 'sherpa-vits';
+
   SherpaVitsSpeechEngine({
     required this.pack,
     this.dataDir = '',
