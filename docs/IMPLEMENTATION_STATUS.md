@@ -1171,3 +1171,29 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - These tests and the changed Android CI pipeline have not run on this
   execution environment. The latest published Windows report remains from
   older SHA `946fc7b9` (589 pass, 5 errors).
+
+## M3 — experimental sherpa-onnx VITS engine boundary (2026-10-25)
+
+- Pinned `sherpa_onnx: 1.13.8` for a stable Dart FFI integration API.
+  New `SherpaVitsSpeechEngine` implements the existing `SpeechEngine`
+  contract and generates WAV inside a worker isolate, with native binding
+  initialization and native model release on the same isolate.
+- Playback uses a separate `OfflineWaveOutput` implemented using
+  `just_audio`, with temporary WAV cleanup, source/audio language check,
+  speed mapping and explicit unsupported-pitch response. A generation token
+  rejects synthesis that completes after Stop or dispose, without ever
+  initiating cloud requests. Native inference is not yet hard-cancellable;
+  the model is initialized anew for each bounded speech chunk.
+- `SpeechEngineFactory` can route the experimental `sherpa-vits` ID only
+  when passed an explicit previously verified offline model pack. It stays
+  deliberately absent from the provider picker and from
+  `SpeechEngineFactory.availableProviders`, pending real-model,
+  espeak/phonemizer, native asset, WAV output and platform validation.
+- Seven mock-driven engine tests and three provider-gate tests cover
+  rate/voice/language contracts, late cancellation, disposal, error cleanup,
+  missing models and disabled discovery. Real TTS audio has **not** been
+  synthesized on Windows or Android in the current execution environment.
+- Detailed remaining M3 requirements: [OFFLINE_VOICE_PACKS.md]
+  (OFFLINE_VOICE_PACKS.md). The latest published Windows report remains
+  `20261025T165839Z-946fc7b9-dc2652`: 589 pass, 5 errors, source from
+  before this increment. Run the updated local suite before accepting M3.
