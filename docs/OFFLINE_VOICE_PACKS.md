@@ -77,6 +77,38 @@ Before enabling a model in the TTS selector:
 6. After these gates, expose the provider ID in the discovery UI and attach
    only actually installed voices. Do not silently switch to paid cloud TTS.
 
+
+## Increment — cancellable worker and manifest-verified phonemizer files
+
+- A `VitsWaveJob` now owns one spawned worker isolate, the result port and
+  an explicit `cancel()` operation. Reader `Stop` / `Dispose` cancel the
+  current job and clear its handle. Cancelling settles the waiting Future and
+  prevents late WAV playback, even if the ONNX worker had not finished.
+- Dart can request immediate termination of the isolate; a blocking native
+  FFI call may not be preempted instantly on every OS. Model memory,
+  termination latency and native library safety still need device testing.
+- The worker initializes Sherpa FFI in its own isolate and reports only
+  bounded success/error status. It never sends PCM, text or native stack
+  traces back through the port. A three-second exit-notification grace avoids
+  falsely failing successful Isolate.exit transfers.
+- Tests spawn synthetic workers without linking to any real ONNX model and
+  check success, sanitized failure, immediate cancellation, Stop, Dispose,
+  no late playback and temporary-file cleanup.
+- Manifests may now enumerate optional `espeak-ng-data/` files, each with
+  a strict relative name and SHA-256. Installation validates each regular
+  file and its parent directories, rejects directory traversal, symlinks,
+  case-insensitive duplicate paths and Windows reserved device names.
+  Installation limits entries to 2,048 and resource bytes to 64 MiB in total
+  (8 MiB per individual file). A failed set is removed without publishing a
+  half-installed model. Reopening an existing pack rehashes its resources.
+- `SpeechEngineFactory` derives the native phonemizer path from the pack's
+  verified on-disk directory rather than accepting a caller-supplied path.
+  No downloading, untrusted archive extraction or new network access was
+  added by this work.
+- These additions are source/test changes only. They have not yet been
+  compiled with a native Flutter SDK here and the public picker remains
+  limited to tested system/cloud engines.
+
 No pretrained model or voice license has been bundled with this increment.
 
 References:
