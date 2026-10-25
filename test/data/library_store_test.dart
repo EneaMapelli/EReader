@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:ereader/data/library_store.dart';
+import 'package:ereader/data/picked_book_import.dart';
 import 'package:crypto/crypto.dart';
 import 'package:ereader/domain/reading_anchor.dart';
+import 'package:ereader/domain/book.dart';
 import 'package:ereader/domain/pronunciation_rule.dart';
 import 'package:ereader/domain/speech_preferences.dart';
 import 'package:ereader/domain/book_bookmark.dart';
@@ -49,6 +51,41 @@ void main() {
     await store.initialize();
     expect(store.getBook(first.id)!.progressOffset, 42);
     expect(File(store.books.single.localPath).existsSync(), isTrue);
+  });
+
+
+  test('stream-only picker import deduplicates in the real SQLite library',
+      () async {
+    final source = utf8.encode('The same EPUB-independent reading source.');
+    var openedStream = 0;
+    Future<BookRecord> importStream() => importPickedBook<BookRecord>(
+      originalName: 'Reader copy.txt',
+      pickedPath: null,
+      stagingParent: root,
+      readAsByteStream: () {
+        openedStream++;
+        return Stream<List<int>>.fromIterable([
+          source.sublist(0, 8),
+          source.sublist(8),
+        ]);
+      },
+      importFile: store.importFile,
+    );
+    final first = await importStream();
+    expect(first.title, 'Reader copy');
+    expect(first.format, BookFormat.txt);
+    expect(await File(first.localPath).readAsBytes(), source);
+    await store.savePosition(first.id, 17);
+    final second = await importStream();
+    expect(second.id, first.id);
+    expect(store.books, hasLength(1));
+    expect(store.getBook(first.id)?.progressOffset, 17);
+    expect(openedStream, 2);
+    final remainingStageDirectories = await root.list()
+        .where((entry) => entry is Directory &&
+            p.basename(entry.path).startsWith('ereader-picker-'))
+        .toList();
+    expect(remainingStageDirectories, isEmpty);
   });
 
   test('v2 EPUB context survives existing SQLite progress-anchor JSON column',

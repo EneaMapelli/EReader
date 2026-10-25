@@ -1115,3 +1115,8 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Added isolated tests for desktop shortcuts, Android SAF fallback, missing
   cached paths, oversize/empty streams, error cleanup and unsupported types.
 - Windows/Android tests and builds are pending a fresh current-HEAD run.
+
+- An additional SQLite-backed regression now checks that two stream-only
+  imports of the same TXT source produce one managed book, retain its saved
+  reading checkpoint, preserve the original title, and leave no private
+  staging directory after import.
