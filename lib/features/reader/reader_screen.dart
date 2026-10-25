@@ -62,7 +62,6 @@ class _ReaderScreenState extends State<ReaderScreen>
   Map<int, EpubChapter> _chapterStarts = const {};
   List<PronunciationRule> _pronunciationRules = const [];
   Map<String, String> _castNames = const {};
-  Map<int, String?> _resolvedSpeakerByStart = const {};
   String? _error;
   bool _loading = true;
   int _loadEpoch = 0;
@@ -197,8 +196,11 @@ class _ReaderScreenState extends State<ReaderScreen>
       // This also preserves the final speech index for an EOF checkpoint.
       final savedIndex = speechSegmentIndexForOffset(chunks, saved);
       if (savedIndex >= 0) player.currentIndex = savedIndex;
-      _pronunciationRules =
+      final pronunciationRules =
           widget.store.listPronunciationRules(bookId: widget.book.id);
+      // The active player's rule list must not change until this new
+      // session is adopted. The transform reads the committed field to
+      // keep subsequent edits to pronunciations immediately effective.
       player.speechTextTransform = (original) =>
           const PronunciationTransformer().apply(
               original, _pronunciationRules, bookId: widget.book.id);
@@ -207,8 +209,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       await player.applyPreferences(prefs);
       if (!mounted || epoch != _loadEpoch) return;
       final voiceSetupUs = stopwatch.elapsedMicroseconds - voiceSetupStartUs;
-      _resolvedSpeakerByStart = prepared.speakerByStart;
-      _configureVoiceCast(player);
+      final castNames = _configureVoiceCast(
+          player, prepared.speakerByStart);
       var recoveryWriteFailed = false;
       if (epubRecovery?.shouldPersist == true) {
         // Persist only an unambiguous recovered v2 anchor. Failure to
@@ -261,6 +263,8 @@ class _ReaderScreenState extends State<ReaderScreen>
         _chapterStarts = {
           for (final chapter in chapters) chapter.segmentIndex: chapter,
         };
+        _pronunciationRules = pronunciationRules;
+        _castNames = castNames;
         _epubWorkerTimings = preflight?.timings;
         _epubCastLayoutUs = preflight == null ? null : uiPreparationUs;
         _epubVoiceSetupUs = preflight == null ? null : voiceSetupUs;
@@ -306,15 +310,15 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
-  void _configureVoiceCast(ReaderPlayer player) {
+  Map<String, String> _configureVoiceCast(
+      ReaderPlayer player, Map<int, String?> speakerByStart) {
     final people = widget.store.listCastCharacters(widget.book.id);
     final voices = widget.store.listCastVoices(widget.book.id);
-    _castNames = {for (final person in people) person.id: person.name};
-    // All source-hashed legacy and precise ranges were resolved before
-    // coalescing. Never fall back to exact chunk equality here: that could
-    // reapply a stale or intentionally masked legacy speaker.
+    final castNames = {for (final person in people) person.id: person.name};
+    // Capture the verified assignments for this player only. A later
+    // canceled load cannot overwrite the active player's speaker map.
     String? speakerForSegment(SpeechSegment segment) =>
-        _resolvedSpeakerByStart[segment.start];
+        speakerByStart[segment.start];
     player.castSpeakerForSegment = speakerForSegment;
     player.castVoiceForSegment = (segment) {
       final speaker = speakerForSegment(segment);
@@ -330,6 +334,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       }
       return null;
     };
+    return castNames;
   }
 
   Future<void> _openCastEditor() async {
