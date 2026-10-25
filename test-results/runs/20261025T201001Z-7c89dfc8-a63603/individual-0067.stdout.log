@@ -1,0 +1,47 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":30432,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/features/epub_visual_layout_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3}
+{"count":1,"time":9,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2624}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":20,"line":null,"column":null,"url":null},"type":"group","time":2627}
+{"test":{"id":3,"name":"lazy source-backed runs retain exact Unicode and old const API","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":26,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2628}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2647}
+{"test":{"id":4,"name":"large EPUB builds 12000 paragraph blocks with stable source mapping","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":40,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2648}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2733}
+{"test":{"id":5,"name":"paragraph regex at spine boundary does not consume next chapter","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":71,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2734}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2739}
+{"test":{"id":6,"name":"thousands of local auxiliary link keys retain preview-only targets","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":99,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2740}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2753}
+{"test":{"id":7,"name":"paragraph runs concatenate to exact source and locate spoken spans","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":136,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2754}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2775}
+{"test":{"id":8,"name":"spine boundaries prevent adjacent paragraphs from merging","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":168,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2776}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2784}
+{"test":{"id":9,"name":"spine chapter boundaries and two paragraphs keep chapter mapping","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":201,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2785}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2789}
+{"test":{"id":10,"name":"long surrogate-bearing paragraph splits safely and retains text","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":229,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2790}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2796}
+{"test":{"id":11,"name":"gaps between speech segments remain readable and unmodified","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":248,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2797}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2802}
+{"test":{"id":12,"name":"inline emphasis divides a TTS segment without altering its index","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":266,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2803}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2807}
+{"test":{"id":13,"name":"semantic h2 and Unicode inline spans preserve original anchors","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":299,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2808}
+{"testID":13,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2812}
+{"test":{"id":14,"name":"invalid overlapping or out-of-bounds typography fails closed","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":327,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2813}
+{"testID":14,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2819}
+{"test":{"id":15,"name":"in-book link splits visual run without losing spoken segment ID","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":353,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2820}
+{"testID":15,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2824}
+{"test":{"id":16,"name":"footnote source markers keep TTS segment identity and target","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":377,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2825}
+{"testID":16,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2828}
+{"test":{"id":17,"name":"image and table metadata attach without changing paragraph text","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":397,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2828}
+{"testID":17,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2834}
+{"test":{"id":18,"name":"auxiliary note marker preserves source speech and has no target offset","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":432,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2835}
+{"testID":18,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2839}
+{"test":{"id":19,"name":"unresolved auxiliary reference is rejected before rendering","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":462,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2839}
+{"testID":19,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2842}
+{"test":{"id":20,"name":"invalid or overlapping fragment links cannot redirect narration","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":479,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2843}
+{"testID":20,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2848}
+{"test":{"id":21,"name":"source-mismatched and overlapping spoken chunks are rejected","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":503,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2849}
+{"testID":21,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2851}
+{"test":{"id":22,"name":"invalid/empty input and impossible max lengths fail predictably","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":520,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_visual_layout_test.dart"},"type":"testStart","time":2852}
+{"testID":22,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2856}
+{"success":true,"type":"done","time":2898}

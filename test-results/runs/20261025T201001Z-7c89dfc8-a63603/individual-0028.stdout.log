@@ -1,0 +1,27 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":7176,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":8,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2384}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":10,"line":null,"column":null,"url":null},"type":"group","time":2388}
+{"test":{"id":3,"name":"v2 exact source resumes at the same UTF-16 offset","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":15,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart"},"type":"testStart","time":2389}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2413}
+{"test":{"id":4,"name":"new paragraph breaks relocate a unique reference in same spine","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":28,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart"},"type":"testStart","time":2414}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2422}
+{"test":{"id":5,"name":"old absolute offset in inserted whitespace is not an exact match","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":46,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart"},"type":"testStart","time":2423}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2426}
+{"test":{"id":6,"name":"changes in a preceding chapter preserve later spine anchor","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":63,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart"},"type":"testStart","time":2427}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2430}
+{"test":{"id":7,"name":"repeated equivalent context cannot choose arbitrary occurrence","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":91,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart"},"type":"testStart","time":2430}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2441}
+{"test":{"id":8,"name":"missing section or out-of-bounds v2 progress needs user review","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":105,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart"},"type":"testStart","time":2442}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2445}
+{"test":{"id":9,"name":"valid end-of-book checkpoint stays at EOF, not opening chapter","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":118,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart"},"type":"testStart","time":2446}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2449}
+{"test":{"id":10,"name":"v1 anchors and offset-only old library entries remain compatible","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":129,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart"},"type":"testStart","time":2449}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2454}
+{"test":{"id":11,"name":"out-of-range v1 local offset starts at its original chapter","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":145,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart"},"type":"testStart","time":2454}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2457}
+{"test":{"id":12,"name":"new v2 anchors round-trip using existing anchor JSON column","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":156,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_progress_recovery_test.dart"},"type":"testStart","time":2458}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2462}
+{"success":true,"type":"done","time":2491}

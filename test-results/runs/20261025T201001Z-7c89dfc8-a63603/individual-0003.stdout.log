@@ -1,0 +1,25 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":28016,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3}
+{"count":1,"time":12,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":3239}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":9,"line":null,"column":null,"url":null},"type":"group","time":3244}
+{"test":{"id":3,"name":"real ReaderPlayer checkpoints before speech and pause clears it","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":109,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart"},"type":"testStart","time":3247}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3482}
+{"test":{"id":4,"name":"running player left alive when SQLite closes yields recovery hint","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":127,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart"},"type":"testStart","time":3483}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3594}
+{"test":{"id":5,"name":"book completion and engine failure both clear active checkpoint","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":148,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart"},"type":"testStart","time":3595}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3728}
+{"test":{"id":6,"name":"seek preserves crash checkpoint while native stop is pending","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":186,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart"},"type":"testStart","time":3729}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3836}
+{"test":{"id":7,"name":"pause preserves marker until native stop completes, then clears","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":215,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart"},"type":"testStart","time":3837}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3935}
+{"test":{"id":8,"name":"voice change keeps marker across stop and resumed narration","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":237,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart"},"type":"testStart","time":3936}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4053}
+{"test":{"id":9,"name":"uncertain native Stop retains recovery checkpoint after dispose","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":264,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart"},"type":"testStart","time":4053}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4177}
+{"test":{"id":10,"name":"closing a reader while narration is live retains recovery hint","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":286,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart"},"type":"testStart","time":4178}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4300}
+{"test":{"id":11,"name":"binding can only attach once and dispose is idempotent","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":310,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart"},"type":"testStart","time":4301}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4432}
+{"success":true,"type":"done","time":4469}

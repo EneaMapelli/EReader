@@ -1,0 +1,51 @@
+[
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "independent preflights cannot cancel each other",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB search dialog has a bounded scrollable results viewport",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB source search navigates to silent caption source offset",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB search begins near reading position before wrapping",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "changing EPUB search query resets the result page",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB full-source search can open page three and return",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "closed search dialog never navigates or starts playback",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0058"
+    }
+]

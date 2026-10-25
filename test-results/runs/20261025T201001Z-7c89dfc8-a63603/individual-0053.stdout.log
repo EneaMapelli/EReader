@@ -1,0 +1,17 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":44972,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/domain/llm_cast_proposals_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/domain/llm_cast_proposals_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":8,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":1823}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":5,"line":null,"column":null,"url":null},"type":"group","time":1827}
+{"test":{"id":3,"name":"parses bounded suggestions for review but never approves","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":36,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/llm_cast_proposals_test.dart"},"type":"testStart","time":1828}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1857}
+{"test":{"id":4,"name":"rejects a speaker that is not in the local cast","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":50,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/llm_cast_proposals_test.dart"},"type":"testStart","time":1858}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1861}
+{"test":{"id":5,"name":"rejects forged digest, altered schema and out-of-range offsets","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":59,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/llm_cast_proposals_test.dart"},"type":"testStart","time":1862}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1866}
+{"test":{"id":6,"name":"literal prompt-injection text remains data, not instructions","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":74,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/llm_cast_proposals_test.dart"},"type":"testStart","time":1866}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1869}
+{"test":{"id":7,"name":"rejects oversized suggestion responses before decoding JSON","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":98,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/llm_cast_proposals_test.dart"},"type":"testStart","time":1870}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1874}
+{"success":true,"type":"done","time":1900}

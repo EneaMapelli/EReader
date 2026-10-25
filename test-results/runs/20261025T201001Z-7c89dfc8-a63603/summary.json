@@ -1,0 +1,1481 @@
+{
+    "runId":  "20261025T201001Z-7c89dfc8-a63603",
+    "sourceCommit":  "7c89dfc8008fa123a544b9a70f95a653563c5834",
+    "branch":  "feature/m0-flutter-foundation",
+    "startedUtc":  "2026-10-25T20:10:01.5975746Z",
+    "completedUtc":  "2026-10-25T20:19:06.4327441Z",
+    "result":  "FAIL",
+    "totals":  {
+                   "passed":  641,
+                   "failed":  0,
+                   "errors":  7,
+                   "skipped":  0,
+                   "testFilesDiscovered":  76,
+                   "testOutcomesParsed":  648
+               },
+    "stages":  [
+                   {
+                       "step":  "flutter-version",
+                       "exitCode":  0,
+                       "seconds":  2.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "dart-version",
+                       "exitCode":  0,
+                       "seconds":  0.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "pub-get",
+                       "exitCode":  0,
+                       "seconds":  2.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "format-check",
+                       "exitCode":  1,
+                       "seconds":  2.6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "flutter-analyze",
+                       "exitCode":  1,
+                       "seconds":  15.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "flutter-test-all",
+                       "exitCode":  1,
+                       "seconds":  45.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0001",
+                       "exitCode":  0,
+                       "seconds":  7.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0002",
+                       "exitCode":  0,
+                       "seconds":  6.6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0003",
+                       "exitCode":  0,
+                       "seconds":  8.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0004",
+                       "exitCode":  0,
+                       "seconds":  7.4,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0005",
+                       "exitCode":  0,
+                       "seconds":  6.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0006",
+                       "exitCode":  0,
+                       "seconds":  7.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0007",
+                       "exitCode":  0,
+                       "seconds":  5.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0008",
+                       "exitCode":  0,
+                       "seconds":  6.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0009",
+                       "exitCode":  0,
+                       "seconds":  6.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0010",
+                       "exitCode":  0,
+                       "seconds":  7.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0011",
+                       "exitCode":  0,
+                       "seconds":  7.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0012",
+                       "exitCode":  0,
+                       "seconds":  6.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0013",
+                       "exitCode":  0,
+                       "seconds":  6.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0014",
+                       "exitCode":  0,
+                       "seconds":  5.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0015",
+                       "exitCode":  0,
+                       "seconds":  5.4,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0016",
+                       "exitCode":  0,
+                       "seconds":  4.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0017",
+                       "exitCode":  0,
+                       "seconds":  8.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0018",
+                       "exitCode":  0,
+                       "seconds":  6.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0019",
+                       "exitCode":  0,
+                       "seconds":  6.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0020",
+                       "exitCode":  0,
+                       "seconds":  5.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0021",
+                       "exitCode":  0,
+                       "seconds":  5.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0022",
+                       "exitCode":  0,
+                       "seconds":  5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0023",
+                       "exitCode":  0,
+                       "seconds":  6.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0024",
+                       "exitCode":  0,
+                       "seconds":  6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0025",
+                       "exitCode":  0,
+                       "seconds":  5.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0026",
+                       "exitCode":  0,
+                       "seconds":  5.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0027",
+                       "exitCode":  0,
+                       "seconds":  5.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0028",
+                       "exitCode":  0,
+                       "seconds":  5.6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0029",
+                       "exitCode":  1,
+                       "seconds":  6.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0030",
+                       "exitCode":  0,
+                       "seconds":  5.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0031",
+                       "exitCode":  0,
+                       "seconds":  5.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0032",
+                       "exitCode":  0,
+                       "seconds":  11.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0033",
+                       "exitCode":  0,
+                       "seconds":  6.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0034",
+                       "exitCode":  0,
+                       "seconds":  6.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0035",
+                       "exitCode":  0,
+                       "seconds":  5.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0036",
+                       "exitCode":  0,
+                       "seconds":  5.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0037",
+                       "exitCode":  0,
+                       "seconds":  4.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0038",
+                       "exitCode":  0,
+                       "seconds":  8.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0039",
+                       "exitCode":  0,
+                       "seconds":  6.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0040",
+                       "exitCode":  0,
+                       "seconds":  4.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0041",
+                       "exitCode":  0,
+                       "seconds":  5.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0042",
+                       "exitCode":  0,
+                       "seconds":  5.4,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0043",
+                       "exitCode":  0,
+                       "seconds":  5.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0044",
+                       "exitCode":  0,
+                       "seconds":  6.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0045",
+                       "exitCode":  0,
+                       "seconds":  5.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0046",
+                       "exitCode":  0,
+                       "seconds":  4.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0047",
+                       "exitCode":  0,
+                       "seconds":  5.4,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0048",
+                       "exitCode":  0,
+                       "seconds":  6.6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0049",
+                       "exitCode":  0,
+                       "seconds":  5.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0050",
+                       "exitCode":  0,
+                       "seconds":  5.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0051",
+                       "exitCode":  0,
+                       "seconds":  5.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0052",
+                       "exitCode":  0,
+                       "seconds":  5.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0053",
+                       "exitCode":  0,
+                       "seconds":  4.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0054",
+                       "exitCode":  0,
+                       "seconds":  4.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0055",
+                       "exitCode":  0,
+                       "seconds":  4.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0056",
+                       "exitCode":  0,
+                       "seconds":  4.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0057",
+                       "exitCode":  0,
+                       "seconds":  4.4,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0058",
+                       "exitCode":  1,
+                       "seconds":  10.6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0059",
+                       "exitCode":  0,
+                       "seconds":  6.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0060",
+                       "exitCode":  0,
+                       "seconds":  7.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0061",
+                       "exitCode":  0,
+                       "seconds":  6.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0062",
+                       "exitCode":  0,
+                       "seconds":  5.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0063",
+                       "exitCode":  0,
+                       "seconds":  6.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0064",
+                       "exitCode":  0,
+                       "seconds":  10.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0065",
+                       "exitCode":  0,
+                       "seconds":  6.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0066",
+                       "exitCode":  0,
+                       "seconds":  5.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0067",
+                       "exitCode":  0,
+                       "seconds":  5.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0068",
+                       "exitCode":  0,
+                       "seconds":  10.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0069",
+                       "exitCode":  0,
+                       "seconds":  5.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0070",
+                       "exitCode":  0,
+                       "seconds":  5.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0071",
+                       "exitCode":  0,
+                       "seconds":  5.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0072",
+                       "exitCode":  0,
+                       "seconds":  5.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0073",
+                       "exitCode":  0,
+                       "seconds":  6.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0074",
+                       "exitCode":  0,
+                       "seconds":  5.6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0075",
+                       "exitCode":  0,
+                       "seconds":  5.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0076",
+                       "exitCode":  0,
+                       "seconds":  5.3,
+                       "timedOut":  false
+                   }
+               ],
+    "isolatedFileRuns":  [
+                             {
+                                 "file":  "test/audio/cloud_prefetch_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  8
+                             },
+                             {
+                                 "file":  "test/audio/mp3_preload_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  16
+                             },
+                             {
+                                 "file":  "test/audio/narration_recovery_binding_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  9
+                             },
+                             {
+                                 "file":  "test/audio/native_stop_timeout_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  8
+                             },
+                             {
+                                 "file":  "test/audio/openai_speech_engine_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  11
+                             },
+                             {
+                                 "file":  "test/audio/rapid_playback_navigation_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  9
+                             },
+                             {
+                                 "file":  "test/audio/reader_lifecycle_policy_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  3
+                             },
+                             {
+                                 "file":  "test/audio/reader_media_handler_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  18
+                             },
+                             {
+                                 "file":  "test/audio/reader_player_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  10
+                             },
+                             {
+                                 "file":  "test/audio/sherpa_vits_engine_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  7
+                             },
+                             {
+                                 "file":  "test/audio/sherpa_vits_factory_gate_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  3
+                             },
+                             {
+                                 "file":  "test/audio/sherpa_vits_worker_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  6
+                             },
+                             {
+                                 "file":  "test/audio/sleep_timer_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  4
+                             },
+                             {
+                                 "file":  "test/audio/speech_audio_cache_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  3
+                             },
+                             {
+                                 "file":  "test/config/android_manifest_bootstrap_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  2
+                             },
+                             {
+                                 "file":  "test/config/offline_voice_pack_structure_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  1
+                             },
+                             {
+                                 "file":  "test/data/book_decoder_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  6
+                             },
+                             {
+                                 "file":  "test/data/cast_merge_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  9
+                             },
+                             {
+                                 "file":  "test/data/dialogue_turn_review_store_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  3
+                             },
+                             {
+                                 "file":  "test/data/epub_anchor_integrity_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  7
+                             },
+                             {
+                                 "file":  "test/data/epub_bounded_file_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  4
+                             },
+                             {
+                                 "file":  "test/data/epub_embedded_content_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  12
+                             },
+                             {
+                                 "file":  "test/data/epub_encoding_integration_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  6
+                             },
+                             {
+                                 "file":  "test/data/epub_import_diagnostics_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  3
+                             },
+                             {
+                                 "file":  "test/data/epub_inline_style_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  4
+                             },
+                             {
+                                 "file":  "test/data/epub_legacy_notes_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  10
+                             },
+                             {
+                                 "file":  "test/data/epub_navigation_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  17
+                             },
+                             {
+                                 "file":  "test/data/epub_progress_recovery_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  10
+                             },
+                             {
+                                 "file":  "test/data/epub_reader_preflight_test.dart",
+                                 "exitCode":  1,
+                                 "timedOut":  false,
+                                 "parsedCases":  11
+                             },
+                             {
+                                 "file":  "test/data/epub_text_decoder_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  12
+                             },
+                             {
+                                 "file":  "test/data/epub_text_extractor_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  24
+                             },
+                             {
+                                 "file":  "test/data/library_store_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  43
+                             },
+                             {
+                                 "file":  "test/data/narration_crash_recovery_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  10
+                             },
+                             {
+                                 "file":  "test/data/narrative_reference_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  7
+                             },
+                             {
+                                 "file":  "test/data/offline_voice_pack_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  15
+                             },
+                             {
+                                 "file":  "test/data/pdf_visual_resume_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  7
+                             },
+                             {
+                                 "file":  "test/data/picked_book_import_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  6
+                             },
+                             {
+                                 "file":  "test/data/reading_anchor_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  6
+                             },
+                             {
+                                 "file":  "test/data/recent_book_resume_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  4
+                             },
+                             {
+                                 "file":  "test/domain/alias_candidate_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  3
+                             },
+                             {
+                                 "file":  "test/domain/book_bookmark_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  2
+                             },
+                             {
+                                 "file":  "test/domain/book_search_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  11
+                             },
+                             {
+                                 "file":  "test/domain/book_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  3
+                             },
+                             {
+                                 "file":  "test/domain/cast_span_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  8
+                             },
+                             {
+                                 "file":  "test/domain/character_candidate_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  3
+                             },
+                             {
+                                 "file":  "test/domain/cloud_speech_consent_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  3
+                             },
+                             {
+                                 "file":  "test/domain/cross_chunk_cast_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  13
+                             },
+                             {
+                                 "file":  "test/domain/dialogue_segmenter_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  8
+                             },
+                             {
+                                 "file":  "test/domain/dialogue_turn_inspector_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  16
+                             },
+                             {
+                                 "file":  "test/domain/dialogue_turn_review_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  14
+                             },
+                             {
+                                 "file":  "test/domain/epub_anchor_context_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  7
+                             },
+                             {
+                                 "file":  "test/domain/library_catalog_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  4
+                             },
+                             {
+                                 "file":  "test/domain/llm_cast_proposals_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  5
+                             },
+                             {
+                                 "file":  "test/domain/pronunciation_rule_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  7
+                             },
+                             {
+                                 "file":  "test/domain/speech_preferences_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  3
+                             },
+                             {
+                                 "file":  "test/domain/speech_segment_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  14
+                             },
+                             {
+                                 "file":  "test/domain/voice_cast_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  4
+                             },
+                             {
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "exitCode":  1,
+                                 "timedOut":  false,
+                                 "parsedCases":  6
+                             },
+                             {
+                                 "file":  "test/features/epub_chapter_navigation_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  9
+                             },
+                             {
+                                 "file":  "test/features/epub_diagnostics_sheet_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  2
+                             },
+                             {
+                                 "file":  "test/features/epub_frame_sampler_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  4
+                             },
+                             {
+                                 "file":  "test/features/epub_link_history_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  6
+                             },
+                             {
+                                 "file":  "test/features/epub_note_preview_sheet_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  6
+                             },
+                             {
+                                 "file":  "test/features/epub_opening_performance_sheet_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  4
+                             },
+                             {
+                                 "file":  "test/features/epub_paragraph_tile_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  15
+                             },
+                             {
+                                 "file":  "test/features/epub_progressive_layout_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  17
+                             },
+                             {
+                                 "file":  "test/features/epub_visual_layout_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  20
+                             },
+                             {
+                                 "file":  "test/features/library_catalog_widget_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  2
+                             },
+                             {
+                                 "file":  "test/llm/conversation_speaker_inspector_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  13
+                             },
+                             {
+                                 "file":  "test/llm/dialogue_analysis_plan_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  9
+                             },
+                             {
+                                 "file":  "test/llm/historical_character_concordance_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  9
+                             },
+                             {
+                                 "file":  "test/llm/narrative_antecedent_finder_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  12
+                             },
+                             {
+                                 "file":  "test/llm/openai_alias_reconciler_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  8
+                             },
+                             {
+                                 "file":  "test/llm/openai_character_discoverer_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  6
+                             },
+                             {
+                                 "file":  "test/llm/openai_dialogue_analyzer_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  10
+                             },
+                             {
+                                 "file":  "test/llm/openai_reference_resolver_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  8
+                             }
+                         ],
+    "compileLocations":  [
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "lib/features/reader/reading_tools.dart",
+                                 "line":  115,
+                                 "column":  16,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  23,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  23,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  25,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  55,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  55,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  56,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  84,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  84,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  85,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  119,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  119,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  120,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  149,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  149,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  150,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  177,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  177,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  178,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "lib/features/reader/reading_tools.dart",
+                                 "line":  115,
+                                 "column":  16,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  23,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  23,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  25,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  55,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  55,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  56,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  84,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  84,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  85,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  119,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  119,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  120,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  149,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  149,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  150,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  177,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  177,
+                                 "column":  5,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/book_source_search_widget_test.dart",
+                                 "file":  "test/features/book_source_search_widget_test.dart",
+                                 "line":  178,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             }
+                         ],
+    "analyzerIssues":  [
+                           "warning - Unnecessary cast. Try removing the cast - lib/audio/openai_speech_engine.dart:296:20 - unnecessary_cast",
+                           "warning - The \u0027!\u0027 will have no effect because the receiver can\u0027t be null. Try removing the \u0027!\u0027 operator - lib/audio/reader_media_handler.dart:142:34 - unnecessary_non_null_assertion",
+                           "warning - Unused import: \u0027dart:convert\u0027. Try removing the import directive - lib/data/epub_text_extractor.dart:1:8 - unused_import",
+                           "warning - The \u0027!\u0027 will have no effect because the receiver can\u0027t be null. Try removing the \u0027!\u0027 operator - lib/data/epub_text_extractor.dart:525:35 - unnecessary_non_null_assertion",
+                           "warning - The \u0027!\u0027 will have no effect because the receiver can\u0027t be null. Try removing the \u0027!\u0027 operator - lib/data/epub_text_extractor.dart:527:55 - unnecessary_non_null_assertion",
+                           "warning - The \u0027!\u0027 will have no effect because the receiver can\u0027t be null. Try removing the \u0027!\u0027 operator - lib/domain/dialogue_segmenter.dart:150:29 - unnecessary_non_null_assertion",
+                           "warning - Unused import: \u0027../../domain/voice_cast.dart\u0027. Try removing the import directive - lib/features/reader/reader_screen.dart:28:8 - unused_import",
+                           "warning - Unused import: \u0027dart:convert\u0027. Try removing the import directive - test/data/epub_legacy_notes_test.dart:1:8 - unused_import",
+                           "warning - Unused import: \u0027package:ereader/domain/book.dart\u0027. Try removing the import directive - test/llm/historical_character_concordance_test.dart:6:8 - unused_import",
+                           "warning - Unused import: \u0027package:ereader/domain/cast_span.dart\u0027. Try removing the import directive - test/llm/openai_reference_resolver_test.dart:4:8 - unused_import",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/audio/mp3_playback.dart:127:59 - curly_braces_in_flow_control_structures",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/mp3_playback.dart:160:26 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/mp3_playback.dart:161:64 - prefer_interpolation_to_compose_strings",
+                           "   info - Use the null-aware marker \u0027?\u0027 rather than a null check via an \u0027if\u0027. Try using \u0027?\u0027 - lib/audio/mp3_playback.dart:341:7 - use_null_aware_elements",
+                           "   info - Use the null-aware marker \u0027?\u0027 rather than a null check via an \u0027if\u0027. Try using \u0027?\u0027 - lib/audio/mp3_playback.dart:342:7 - use_null_aware_elements",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/openai_speech_engine.dart:57:24 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/openai_speech_engine.dart:101:24 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/openai_speech_engine.dart:138:30 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/openai_speech_engine.dart:191:21 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/openai_speech_engine.dart:191:42 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/openai_speech_engine.dart:229:9 - prefer_interpolation_to_compose_strings",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/audio/openai_speech_engine.dart:276:50 - curly_braces_in_flow_control_structures",
+                           "   info - Use an initializing formal to assign a parameter to a field. Try using an initialing formal (\u0027this._requestFocus\u0027) to initialize the field - lib/audio/reader_media_handler.dart:20:8 - prefer_initializing_formal",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/audio/reader_media_handler.dart:181:34 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/audio/reader_media_handler.dart:198:61 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/audio/reader_media_handler.dart:201:63 - curly_braces_in_flow_control_structures",
+                           "   info - Unnecessary use of multiple underscores. Try using \u0027_\u0027 - lib/audio/reader_media_handler.dart:214:62 - unnecessary_underscores",
+                           "   info - Unnecessary use of multiple underscores. Try using \u0027_\u0027 - lib/audio/reader_media_handler.dart:266:56 - unnecessary_underscores",
+                           "   info - Use an initializing formal to assign a parameter to a field. Try using an initialing formal (\u0027this._engine\u0027) to initialize the field - lib/audio/reader_player.dart:42:8 - prefer_initializing_formals",
+                           "   info - Use an initializing formal to assign a parameter to a field. Try using an initialing formal (\u0027this._segments\u0027) to initialize the field - lib/audio/reader_player.dart:43:8 - prefer_initializing_formals",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/reader_player.dart:205:9 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/secret_vault.dart:20:12 - prefer_interpolation_to_compose_strings",
+                           "   info - Use an initializing formal to assign a parameter to a field. Try using an initialing formal (\u0027this._synthesizer\u0027) to initialize the field - lib/audio/sherpa_vits_engine.dart:94:9 - prefer_initializing_formals",
+                           "   info - Use an initializing formal to assign a parameter to a field. Try using an initialing formal (\u0027this._root\u0027) to initialize the field - lib/audio/speech_audio_cache.dart:30:46 - prefer_initializing_formals",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/speech_audio_cache.dart:58:34 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/speech_audio_cache.dart:88:7 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/speech_audio_cache.dart:88:25 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/speech_engine_factory.dart:61:11 - prefer_interpolation_to_compose_strings",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_embedded_content.dart:68:45 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in a while should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_embedded_content.dart:78:62 - curly_braces_in_flow_control_structures",
+                           "   info - Angle brackets will be interpreted as HTML. Try using backticks around the content with angle brackets, or try replacing `\u003c` with `\u0026lt;` and `\u003e` with `\u0026gt;` - lib/data/epub_html_preprocess.dart:3:5 - unintended",
+                           "   info - Angle brackets will be interpreted as HTML. Try using backticks around the content with angle brackets, or try replacing `\u003c` with `\u0026lt;` and `\u003e` with `\u0026gt;` - lib/data/epub_html_preprocess.dart:3:28 - unintende",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_navigation.dart:69:35 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_navigation.dart:124:37 - curly_braces_in_flow_control_structures",
+                           "   info - Use the null-aware marker \u0027?\u0027 rather than a null check via an \u0027if\u0027. Try using \u0027?\u0027 - lib/data/epub_reader_preflight.dart:67:5 - use_null_aware_elements",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_structural_markup.dart:98:63 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_structural_markup.dart:123:25 - curly_braces_in_flow_control_structures",
+                           "   info - Use \u0027isEmpty\u0027 instead of \u0027length\u0027 to test whether the collection is empty. Try rewriting the expression to use \u0027isEmpty\u0027 - lib/data/epub_text_extractor.dart:91:9 - prefer_is_empty",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_text_extractor.dart:171:39 - curly_braces_in_flow_control_structures",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/data/epub_text_extractor.dart:213:31 - prefer_interpolation_to_compose_strings",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_text_extractor.dart:327:33 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_text_extractor.dart:381:47 - curly_braces_in_flow_control_structures",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/data/epub_text_extractor.dart:596:46 - prefer_interpolation_to_compose_strings",
+                           "   info - \u0027dispose\u0027 is deprecated and shouldn\u0027t be used. Call close() instead. Try replacing the use of the deprecated member with the replacement - lib/data/library_store.dart:404:10 - deprecated_member_use",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/library_store.dart:462:46 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/library_store.dart:475:45 - curly_braces_in_flow_control_structures",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/data/library_store.dart:545:32 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/data/library_store.dart:549:28 - prefer_interpolation_to_compose_strings",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/library_store.dart:979:68 - curly_braces_in_flow_control_structures",
+                           "   info - \u0027dispose\u0027 is deprecated and shouldn\u0027t be used. Call close() instead. Try replacing the use of the deprecated member with the replacement - lib/data/library_store.dart:1981:10 - deprecated_member_use",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/book_search.dart:90:61 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/book_search.dart:93:59 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:173:56 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:217:61 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:224:65 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:270:43 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:272:41 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:276:44 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:279:43 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:281:41 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:292:43 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:294:41 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_inspector.dart:108:45 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_inspector.dart:118:63 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_inspector.dart:124:32 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_inspector.dart:129:59 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_inspector.dart:134:52 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_inspector.dart:142:67 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_review.dart:78:51 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_review.dart:81:58 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_review.dart:89:50 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_review.dart:93:34 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in a while should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_review.dart:142:46 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in a while should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_review.dart:177:55 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in a while should be enclosed in a block. Try wrapping the statement in a block - lib/domain/dialogue_turn_review.dart:178:59 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/epub_anchor_context.dart:56:60 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/epub_anchor_context.dart:58:31 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/epub_anchor_context.dart:69:55 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/epub_anchor_context.dart:76:40 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/epub_anchor_context.dart:78:33 - curly_braces_in_flow_control_structures"
+                       ],
+    "analyzerErrorCount":  0,
+    "analyzerWarningCount":  10,
+    "unformattedFiles":  [
+                             "lib/audio/mp3_playback.dart",
+                             "lib/audio/narration_recovery_binding.dart",
+                             "lib/audio/openai_speech_engine.dart",
+                             "lib/audio/reader_lifecycle_policy.dart",
+                             "lib/audio/reader_media_handler.dart",
+                             "lib/audio/reader_player.dart",
+                             "lib/audio/secret_vault.dart",
+                             "lib/audio/sherpa_vits_engine.dart",
+                             "lib/audio/sherpa_vits_worker.dart",
+                             "lib/audio/speech_audio_cache.dart",
+                             "lib/audio/speech_engine_factory.dart",
+                             "lib/data/book_decoder.dart",
+                             "lib/data/epub_anchor_integrity.dart",
+                             "lib/data/epub_embedded_content.dart",
+                             "lib/data/epub_html_preprocess.dart",
+                             "lib/data/epub_import_diagnostics.dart",
+                             "lib/data/epub_inline_style.dart",
+                             "lib/data/epub_navigation.dart",
+                             "lib/data/epub_progress_recovery.dart",
+                             "lib/data/epub_reader_preflight.dart",
+                             "lib/data/epub_structural_markup.dart",
+                             "lib/data/epub_text_decoder.dart",
+                             "lib/data/epub_text_extractor.dart",
+                             "lib/data/library_store.dart",
+                             "lib/data/offline_voice_pack.dart",
+                             "lib/data/picked_book_import.dart",
+                             "lib/domain/alias_candidate.dart",
+                             "lib/domain/book.dart",
+                             "lib/domain/book_search.dart",
+                             "lib/domain/cast_merge.dart",
+                             "lib/domain/cast_span.dart",
+                             "lib/domain/character_candidate.dart",
+                             "lib/domain/cloud_speech_consent.dart",
+                             "lib/domain/dialogue_segmenter.dart",
+                             "lib/domain/dialogue_turn_inspector.dart",
+                             "lib/domain/dialogue_turn_review.dart",
+                             "lib/domain/epub_anchor_context.dart",
+                             "lib/domain/library_catalog.dart",
+                             "lib/domain/llm_analysis_consent.dart",
+                             "lib/domain/llm_cast_proposals.dart",
+                             "lib/domain/narrative_reference.dart",
+                             "lib/domain/pronunciation_rule.dart",
+                             "lib/domain/reading_anchor.dart",
+                             "lib/domain/speech_preferences.dart",
+                             "lib/domain/speech_segment.dart",
+                             "lib/domain/voice_cast.dart",
+                             "lib/features/library/library_screen.dart",
+                             "lib/features/reader/cast_merge_screen.dart",
+                             "lib/features/reader/dialogue_analysis_screen.dart",
+                             "lib/features/reader/dialogue_turn_review_screen.dart",
+                             "lib/features/reader/epub_chapter_navigation.dart",
+                             "lib/features/reader/epub_frame_sampler.dart",
+                             "lib/features/reader/epub_link_history.dart",
+                             "lib/features/reader/epub_note_preview_sheet.dart",
+                             "lib/features/reader/epub_opening_performance_sheet.dart",
+                             "lib/features/reader/epub_paragraph_tile.dart",
+                             "lib/features/reader/epub_progressive_layout.dart",
+                             "lib/features/reader/epub_visual_layout.dart",
+                             "lib/features/reader/pronunciation_screen.dart",
+                             "lib/features/reader/reader_screen.dart",
+                             "lib/features/reader/reading_tools.dart",
+                             "lib/features/reader/speech_provider_screen.dart",
+                             "lib/features/reader/voice_cast_screen.dart",
+                             "lib/llm/conversation_speaker_inspector.dart",
+                             "lib/llm/dialogue_analysis_plan.dart",
+                             "lib/llm/historical_character_concordance.dart",
+                             "lib/llm/historical_character_mention.dart",
+                             "lib/llm/narrative_antecedent_finder.dart",
+                             "lib/llm/openai_alias_reconciler.dart",
+                             "lib/llm/openai_character_discoverer.dart",
+                             "lib/llm/openai_dialogue_analyzer.dart",
+                             "lib/llm/openai_reference_resolver.dart",
+                             "lib/main.dart",
+                             "test/audio/cloud_prefetch_test.dart",
+                             "test/audio/mp3_preload_test.dart",
+                             "test/audio/narration_recovery_binding_test.dart",
+                             "test/audio/native_stop_timeout_test.dart",
+                             "test/audio/openai_speech_engine_test.dart",
+                             "test/audio/rapid_playback_navigation_test.dart",
+                             "test/audio/reader_lifecycle_policy_test.dart",
+                             "test/audio/reader_media_handler_test.dart",
+                             "test/audio/reader_player_test.dart",
+                             "test/audio/sherpa_vits_engine_test.dart",
+                             "test/audio/sherpa_vits_factory_gate_test.dart",
+                             "test/audio/sherpa_vits_worker_test.dart",
+                             "test/audio/sleep_timer_test.dart",
+                             "test/audio/speech_audio_cache_test.dart",
+                             "test/config/android_manifest_bootstrap_test.dart",
+                             "test/config/offline_voice_pack_structure_test.dart",
+                             "test/data/book_decoder_test.dart",
+                             "test/data/cast_merge_test.dart",
+                             "test/data/dialogue_turn_review_store_test.dart",
+                             "test/data/epub_anchor_integrity_test.dart",
+                             "test/data/epub_bounded_file_test.dart",
+                             "test/data/epub_embedded_content_test.dart",
+                             "test/data/epub_encoding_integration_test.dart",
+                             "test/data/epub_import_diagnostics_test.dart",
+                             "test/data/epub_inline_style_test.dart",
+                             "test/data/epub_legacy_notes_test.dart",
+                             "test/data/epub_navigation_test.dart",
+                             "test/data/epub_progress_recovery_test.dart",
+                             "test/data/epub_reader_preflight_test.dart",
+                             "test/data/epub_text_decoder_test.dart",
+                             "test/data/epub_text_extractor_test.dart",
+                             "test/data/library_store_test.dart",
+                             "test/data/narration_crash_recovery_test.dart",
+                             "test/data/narrative_reference_test.dart",
+                             "test/data/offline_voice_pack_test.dart",
+                             "test/data/pdf_visual_resume_test.dart",
+                             "test/data/picked_book_import_test.dart",
+                             "test/data/reading_anchor_test.dart",
+                             "test/data/recent_book_resume_test.dart",
+                             "test/domain/alias_candidate_test.dart",
+                             "test/domain/book_search_test.dart",
+                             "test/domain/cast_span_test.dart",
+                             "test/domain/character_candidate_test.dart",
+                             "test/domain/cloud_speech_consent_test.dart",
+                             "test/domain/cross_chunk_cast_test.dart",
+                             "test/domain/dialogue_segmenter_test.dart",
+                             "test/domain/dialogue_turn_inspector_test.dart",
+                             "test/domain/dialogue_turn_review_test.dart",
+                             "test/domain/epub_anchor_context_test.dart",
+                             "test/domain/library_catalog_test.dart",
+                             "test/domain/llm_cast_proposals_test.dart",
+                             "test/domain/pronunciation_rule_test.dart",
+                             "test/domain/speech_preferences_test.dart",
+                             "test/domain/speech_segment_test.dart",
+                             "test/domain/voice_cast_test.dart",
+                             "test/features/book_source_search_widget_test.dart",
+                             "test/features/epub_chapter_navigation_test.dart",
+                             "test/features/epub_diagnostics_sheet_test.dart",
+                             "test/features/epub_frame_sampler_test.dart",
+                             "test/features/epub_link_history_test.dart",
+                             "test/features/epub_note_preview_sheet_test.dart",
+                             "test/features/epub_opening_performance_sheet_test.dart",
+                             "test/features/epub_paragraph_tile_test.dart",
+                             "test/features/epub_progressive_layout_test.dart",
+                             "test/features/epub_visual_layout_test.dart",
+                             "test/features/library_catalog_widget_test.dart",
+                             "test/llm/conversation_speaker_inspector_test.dart",
+                             "test/llm/dialogue_analysis_plan_test.dart",
+                             "test/llm/historical_character_concordance_test.dart",
+                             "test/llm/narrative_antecedent_finder_test.dart",
+                             "test/llm/openai_alias_reconciler_test.dart",
+                             "test/llm/openai_character_discoverer_test.dart",
+                             "test/llm/openai_dialogue_analyzer_test.dart",
+                             "test/llm/openai_reference_resolver_test.dart"
+                         ],
+    "localOnlyRawLogDirectory":  ".local-test-results/20261025T201001Z-7c89dfc8-a63603",
+    "note":  "Raw logs are local-only; no user file contents or secrets are published."
+}

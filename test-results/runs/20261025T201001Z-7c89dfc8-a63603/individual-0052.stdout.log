@@ -1,0 +1,15 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":40568,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/domain/library_catalog_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/domain/library_catalog_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":8,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":1719}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":4,"line":null,"column":null,"url":null},"type":"group","time":1722}
+{"test":{"id":3,"name":"newest default has deterministic ties and preserves source order","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":18,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/library_catalog_test.dart"},"type":"testStart","time":1723}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1742}
+{"test":{"id":4,"name":"case-insensitive title sorting works in both directions","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":25,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/library_catalog_test.dart"},"type":"testStart","time":1743}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1746}
+{"test":{"id":5,"name":"query and format are combined without mutating storage","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":34,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/library_catalog_test.dart"},"type":"testStart","time":1746}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1749}
+{"test":{"id":6,"name":"format ordering and saved progress remain stable","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":44,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/library_catalog_test.dart"},"type":"testStart","time":1749}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1752}
+{"success":true,"type":"done","time":1777}

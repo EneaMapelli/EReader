@@ -1,0 +1,37 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":48572,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/data/offline_voice_pack_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3}
+{"count":1,"time":9,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2347}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":15,"line":null,"column":null,"url":null},"type":"group","time":2351}
+{"test":{"id":3,"name":"verified two-file model installs into a private pack directory","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":41,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2352}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2450}
+{"test":{"id":4,"name":"same manifest can be reinstalled without changing existing files","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":53,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2452}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2494}
+{"test":{"id":5,"name":"corrupt installed model is rejected without replacement","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":69,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2495}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2534}
+{"test":{"id":6,"name":"digest mismatch rejects a new pack and removes its staging directory","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":86,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2535}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2558}
+{"test":{"id":7,"name":"byte ceilings prevent oversized model and tokens installation","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":99,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2559}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2581}
+{"test":{"id":8,"name":"verified eSpeak phonemizer resources install and reverify","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":114,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2582}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2651}
+{"test":{"id":9,"name":"tampered phonemizer data blocks reinstall without replacement","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":152,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2651}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2703}
+{"test":{"id":10,"name":"resource paths, case duplicates and overall byte budget fail closed","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":186,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2703}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2729}
+{"test":{"id":11,"name":"persisted model manifest survives reopening after restart","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":240,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2730}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2767}
+{"test":{"id":12,"name":"reinstall refuses a changed stored identity and metadata","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":257,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2768}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2807}
+{"test":{"id":13,"name":"unlisted files cannot hide inside an installed phonemizer tree","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":282,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2808}
+{"testID":13,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2842}
+{"test":{"id":14,"name":"corrupted voice metadata and unsafe reopen IDs fail closed","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":296,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2843}
+{"testID":14,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2875}
+{"test":{"id":15,"name":"local catalog distinguishes verified voices from corrupt folders","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":313,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2876}
+{"testID":15,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2933}
+{"test":{"id":16,"name":"catalog bounds model count and never loads an unknown pack","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":330,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2933}
+{"testID":16,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2951}
+{"test":{"id":17,"name":"invalid IDs and untrusted manifest data never create installation","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":345,"column":3,"url":"file:///E:/GitHub/EReader/test/data/offline_voice_pack_test.dart"},"type":"testStart","time":2952}
+{"testID":17,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2963}
+{"success":true,"type":"done","time":3002}

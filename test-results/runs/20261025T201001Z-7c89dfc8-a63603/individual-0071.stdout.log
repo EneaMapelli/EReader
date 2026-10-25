@@ -1,0 +1,25 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":30144,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3}
+{"count":1,"time":11,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2764}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":9,"line":null,"column":null,"url":null},"type":"group","time":2768}
+{"test":{"id":3,"name":"earlier-chapter mentions contain exact verified book offsets only","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":59,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart"},"type":"testStart","time":2769}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2801}
+{"test":{"id":4,"name":"no chosen cast means zero historical data or leaked name","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":83,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart"},"type":"testStart","time":2802}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2805}
+{"test":{"id":5,"name":"a future chapter and the current chapter can never be history","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":90,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart"},"type":"testStart","time":2806}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2809}
+{"test":{"id":6,"name":"source snippet with an emoji never splits a surrogate pair","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":101,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart"},"type":"testStart","time":2809}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2815}
+{"test":{"id":7,"name":"word-boundaries prevent Amira from being misidentified as Mira","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":133,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart"},"type":"testStart","time":2816}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2820}
+{"test":{"id":8,"name":"history is bounded in scopes, matches and transmitted characters","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":162,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart"},"type":"testStart","time":2820}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2825}
+{"test":{"id":9,"name":"request contains only selected validated history, with distinct ID","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":196,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart"},"type":"testStart","time":2826}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2835}
+{"test":{"id":10,"name":"forged previous-chapter excerpt is rejected before HTTP","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":223,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart"},"type":"testStart","time":2836}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2842}
+{"test":{"id":11,"name":"historical passages cannot become dialogue proposal target segments","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":253,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart"},"type":"testStart","time":2842}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2847}
+{"success":true,"type":"done","time":2888}

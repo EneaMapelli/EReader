@@ -1,0 +1,19 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":3276,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/data/book_decoder_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/data/book_decoder_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3}
+{"count":1,"time":12,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":5079}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":6,"line":null,"column":null,"url":null},"type":"group","time":5082}
+{"test":{"id":3,"name":"TXT UTF-8 BOM is removed while Unicode text is preserved","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":31,"column":3,"url":"file:///E:/GitHub/EReader/test/data/book_decoder_test.dart"},"type":"testStart","time":5083}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":5122}
+{"test":{"id":4,"name":"background EPUB decoding preserves the direct extractor model","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":46,"column":3,"url":"file:///E:/GitHub/EReader/test/data/book_decoder_test.dart"},"type":"testStart","time":5123}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":5297}
+{"test":{"id":5,"name":"background EPUB worker rejects invalid archives without fallback","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":82,"column":3,"url":"file:///E:/GitHub/EReader/test/data/book_decoder_test.dart"},"type":"testStart","time":5297}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":5308}
+{"test":{"id":6,"name":"two EPUB decodes have isolated independent result objects","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":93,"column":3,"url":"file:///E:/GitHub/EReader/test/data/book_decoder_test.dart"},"type":"testStart","time":5309}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":5326}
+{"test":{"id":7,"name":"missing source reports a filesystem error","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":117,"column":3,"url":"file:///E:/GitHub/EReader/test/data/book_decoder_test.dart"},"type":"testStart","time":5327}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":5331}
+{"test":{"id":8,"name":"page offsets retain exact correspondence with extracted string","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":125,"column":3,"url":"file:///E:/GitHub/EReader/test/data/book_decoder_test.dart"},"type":"testStart","time":5332}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":5336}
+{"success":true,"type":"done","time":5368}

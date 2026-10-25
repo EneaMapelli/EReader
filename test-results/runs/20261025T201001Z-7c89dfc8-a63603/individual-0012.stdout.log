@@ -1,0 +1,20 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":52908,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/audio/sherpa_vits_worker_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/audio/sherpa_vits_worker_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":9,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2545}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":6,"line":null,"column":null,"url":null},"type":"group","time":2550}
+{"test":{"id":3,"name":"native worker success transfers a small status, not model audio","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":50,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_worker_test.dart"},"type":"testStart","time":2552}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2576}
+{"test":{"id":4,"name":"native worker failure does not disclose paths or model content","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":56,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_worker_test.dart"},"type":"testStart","time":2577}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2592}
+{"test":{"id":5,"name":"cancellation settles result even if native worker never finishes","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":62,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_worker_test.dart"},"type":"testStart","time":2593}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2597}
+{"test":{"id":6,"name":"immediately canceled worker cannot later complete successfully","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":73,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_worker_test.dart"},"type":"testStart","time":2597}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2602}
+{"group":{"id":7,"suiteID":0,"parentID":2,"name":"Reader Stop and Dispose with real cancellable worker contract","metadata":{"skip":false,"skipReason":null},"testCount":2,"line":83,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_worker_test.dart"},"type":"group","time":2603}
+{"test":{"id":8,"name":"Reader Stop and Dispose with real cancellable worker contract Stop cancels active worker, suppresses audio and clears temp WAV","suiteID":0,"groupIDs":[2,7],"metadata":{"skip":false,"skipReason":null},"line":107,"column":5,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_worker_test.dart"},"type":"testStart","time":2604}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2629}
+{"test":{"id":9,"name":"Reader Stop and Dispose with real cancellable worker contract Dispose cancels active worker without playing late sound","suiteID":0,"groupIDs":[2,7],"metadata":{"skip":false,"skipReason":null},"line":130,"column":5,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_worker_test.dart"},"type":"testStart","time":2630}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2638}
+{"success":true,"type":"done","time":2678}

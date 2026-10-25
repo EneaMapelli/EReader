@@ -1,0 +1,30 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":51924,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3}
+{"count":1,"time":12,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2329}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":11,"line":null,"column":null,"url":null},"type":"group","time":2335}
+{"test":{"id":3,"name":"worker preflight produces same source, quotes and hard boundaries","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":55,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"testStart","time":2337}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2539}
+{"test":{"id":4,"name":"background worker handles many paragraphs without altering source","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":85,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"testStart","time":2539}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2712}
+{"test":{"id":5,"name":"worker verifies an exact v2 checkpoint using its own EPUB source","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":106,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"testStart","time":2713}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2756}
+{"test":{"id":6,"name":"worker relocates a unique changed-chapter anchor, never a stale ID","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":127,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"testStart","time":2756}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2800}
+{"test":{"id":7,"name":"worker handles offset-only legacy checkpoints without rewrites","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":167,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"testStart","time":2801}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2816}
+{"test":{"id":8,"name":"preflight timing report records nonnegative stages and safe counts","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":181,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"testStart","time":2817}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2833}
+{"test":{"id":9,"name":"cancel while worker spawn is in flight settles future exactly once","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":201,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"testStart","time":2834}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2897}
+{"test":{"id":10,"name":"independent preflights cannot cancel each other","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":218,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"testStart","time":2899}
+{"testID":10,"error":"PathAccessException: Deletion failed, path = 'C:\\Users\\eneam\\AppData\\Local\\Temp\\ereader-preflight-9f97423e' (OS Error: The process cannot access the file because it is being used by another process, errno = 32)","stackTrace":"dart:io                                          FileSystemEntity.delete\ntest\\data\\epub_reader_preflight_test.dart 24:23  main.<fn>\n===== asynchronous gap ===========================\ndart:async                                       _CustomZone.registerUnaryCallback\ntest\\data\\epub_reader_preflight_test.dart 23:9   main.<fn>\n","isFailure":false,"type":"error","time":2949}
+{"testID":10,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":2951}
+{"test":{"id":11,"name":"cancelled sibling never interrupts concurrent valid EPUB workers","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":231,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"testStart","time":2952}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3018}
+{"test":{"id":12,"name":"multiple worker exit notifications do not mask valid results","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":259,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"testStart","time":3019}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3039}
+{"test":{"id":13,"name":"worker fails closed on missing or invalid input","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":279,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart"},"type":"testStart","time":3039}
+{"testID":13,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3049}
+{"success":false,"type":"done","time":3097}

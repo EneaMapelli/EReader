@@ -1,0 +1,41 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":41200,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/data/epub_navigation_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":8,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2360}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":17,"line":null,"column":null,"url":null},"type":"group","time":2363}
+{"test":{"id":3,"name":"EPUB3 nested NAV TOC parses in editorial order with depth","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":95,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2364}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2420}
+{"test":{"id":4,"name":"EPUB3 NAV resolves only fragments in the readable OPF spine","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":105,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2421}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2546}
+{"test":{"id":5,"name":"semantic in-spine footnote creates source-exact plain text preview","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":123,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2547}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2564}
+{"test":{"id":6,"name":"ordinary internal link without semantic note offers no preview","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":137,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2564}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2576}
+{"test":{"id":7,"name":"oversize note falls back to safe link navigation and preserves source","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":149,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2577}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2592}
+{"test":{"id":8,"name":"manifest-declared non-spine note previews never join spoken source","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":166,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2592}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2602}
+{"test":{"id":9,"name":"unlisted non-spine note is not read or linked","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":197,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2602}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2610}
+{"test":{"id":10,"name":"nonsemantic, oversized, or missing auxiliary note fails closed","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":214,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2610}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2626}
+{"test":{"id":11,"name":"auxiliary note cannot be obtained using external URL or path escape","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":239,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2626}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2634}
+{"test":{"id":12,"name":"EPUB2 NCX navPoint nesting maps to the same source anchors","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":261,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2635}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2646}
+{"test":{"id":13,"name":"broken EPUB3 NAV falls back to valid EPUB2 NCX","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":275,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2647}
+{"testID":13,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2660}
+{"test":{"id":14,"name":"missing optional NAV/NCX yields no editor entries, not import failure","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":285,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2661}
+{"testID":14,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2669}
+{"test":{"id":15,"name":"NCX DTD and external entities are rejected without network fetch","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":294,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2670}
+{"testID":15,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2673}
+{"test":{"id":16,"name":"current editorial section uses nearest preceding source offset","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":300,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2673}
+{"testID":16,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2677}
+{"test":{"id":17,"name":"path-only TOC anchors select the start of the target spine file","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":314,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2677}
+{"testID":17,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2687}
+{"test":{"id":18,"name":"hostile URL schemes and traversal are ignored from NAV","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":324,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2687}
+{"testID":18,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2697}
+{"test":{"id":19,"name":"source content and speech offsets are unchanged by TOC extraction","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":339,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_navigation_test.dart"},"type":"testStart","time":2698}
+{"testID":19,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2716}
+{"success":true,"type":"done","time":2748}

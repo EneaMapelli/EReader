@@ -1,0 +1,21 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":50780,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3}
+{"count":1,"time":13,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":3659}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":7,"line":null,"column":null,"url":null},"type":"group","time":3663}
+{"test":{"id":3,"name":"offline speech exposes only installed local voice and WAV playback","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":86,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":3664}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3723}
+{"test":{"id":4,"name":"speech rate maps to engine speed and never calls a cloud service","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":103,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":3725}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3742}
+{"test":{"id":5,"name":"unsupported voice/language/pitch and overlong text fail closed","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":113,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":3743}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3756}
+{"test":{"id":6,"name":"stop while native synthesis is pending never plays delayed WAV","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":132,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":3757}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3765}
+{"test":{"id":7,"name":"dispose during synthesis suppresses late playback and closes audio","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":162,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":3766}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3776}
+{"test":{"id":8,"name":"native synthesis failure does not leak temporary voice audio","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":192,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":3776}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3783}
+{"test":{"id":9,"name":"missing WAV fails safely without attempting output playback","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":211,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":3784}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3791}
+{"success":true,"type":"done","time":3826}
