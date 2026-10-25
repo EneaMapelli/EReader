@@ -960,3 +960,11 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   Unicode excerpt boundaries. Added a regression for newline-normalized
   previews with an unchanged source UTF-16 hit offset.
 - No claim of a passing Windows suite; these fixtures need Dart execution.
+
+## M2 — EPUB source search UI regressions (2026-10-25)
+
+- Added widget-level tests opening the EPUB search dialog, debouncing a
+  case-insensitive query against a silent caption, and selecting its
+  exact UTF-16 source hit. Canceling the dialog returns no position.
+- These tests exercise the view and local search without a speech engine
+  or a cloud credential; execution on Windows/Android is still pending.
