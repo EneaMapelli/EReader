@@ -52,9 +52,11 @@ The worker does not access Flutter widgets, speech providers, user
 settings, SQLite, passwords, cloud endpoints or telemetry.
 
 An `Isolate.run` execution still uses CPU and memory, and returning
-the extracted model has a serialization/transfer cost. There is
-currently **no user-facing cancellation or percentage progress
-report**, and the EPUB is not streamed chapter by chapter from disk.
+the extracted model has a serialization/transfer cost. A subsequent increment adds **active worker cancellation** when the reader
+closes or its load becomes obsolete, plus passive local-only stage timing
+instrumentation (see [Cancellation and Timings](EPUB_CANCELLATION_TIMINGS.md)).
+There is still **no percentage progress indicator**, and the EPUB is not
+streamed chapter by chapter from disk.
 Those limitations remain open for device profiling and later work.
 
 ### Source-range and metadata indexing
