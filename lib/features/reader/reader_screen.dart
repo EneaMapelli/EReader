@@ -31,6 +31,7 @@ import 'epub_link_history.dart';
 import 'epub_note_preview_sheet.dart';
 import '../../data/epub_navigation.dart';
 import 'epub_visual_layout.dart';
+import 'epub_progressive_layout.dart';
 import 'epub_paragraph_tile.dart';
 import 'epub_diagnostics_sheet.dart';
 
@@ -128,7 +129,7 @@ class _ReaderScreenState extends State<ReaderScreen>
           ? buildEpubChapters(document, chunks)
           : const <EpubChapter>[];
       final visualLayout = widget.book.format == BookFormat.epub
-          ? buildEpubVisualLayout(document, chunks, chapters)
+          ? buildProgressiveEpubVisualLayout(document, chunks, chapters)
           : const EpubVisualLayout([], []);
       final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
       final recoveryBinding = NarrationRecoveryBinding(
