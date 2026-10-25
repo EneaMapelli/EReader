@@ -203,6 +203,10 @@ void main() {
       'espeak-ng-data/..',
       'espeak-ng-data/evil\\name',
       'unapproved/other',
+      'espeak-ng-data/NUL',
+      'espeak-ng-data/CON.txt',
+      'espeak-ng-data/COM1',
+      'espeak-ng-data/trailing.',
     ]) {
       expect(() => withResources([
         OfflineVoiceResource(relativePath: name, sha256: checksum),
