@@ -301,17 +301,40 @@ $outcome = if ($allFiles.Count -eq 0 -or $cases.Count -eq 0 -or
     $brokenStages -gt 0 -or $fail -gt 0 -or $errorCount -gt 0) {
   'FAIL'
 } else { 'PASS' }
-# Analyzer lines publish only diagnostic headers; full stdout/stderr is local.
-$analyzerIssues = New-Object System.Collections.ArrayList
+# Publish analyzer headers only, prioritizing errors over style lints.
+# The previous first-200 capture could hide actual compilation diagnostics
+# after hundreds of unrelated 'info' suggestions.
+$diagnosticErrors = New-Object System.Collections.ArrayList
+$diagnosticWarnings = New-Object System.Collections.ArrayList
+$diagnosticInfos = New-Object System.Collections.ArrayList
 foreach ($path in @($analyze.Stdout,$analyze.Stderr)) {
-  if (-not (Test-Path $path)) { continue }
+  if (-not (Test-Path -LiteralPath $path)) { continue }
   foreach ($line in [IO.File]::ReadLines($path)) {
-    if ($line -match '^\s*(error|warning|info)\s+[-\u2022]' -or
-        $line -match 'issues? found') {
-      [void]$analyzerIssues.Add((Redact $line))
-      if ($analyzerIssues.Count -ge 200) { break }
+    $safe = $null
+    if ($line -match '^\s*error\s+[-\u2022]') {
+      $safe = Redact $line
+      if ($diagnosticErrors.Count -lt 200) {
+        [void]$diagnosticErrors.Add($safe)
+      }
+    } elseif ($line -match '^\s*warning\s+[-\u2022]') {
+      $safe = Redact $line
+      if ($diagnosticWarnings.Count -lt 200) {
+        [void]$diagnosticWarnings.Add($safe)
+      }
+    } elseif ($line -match '^\s*info\s+[-\u2022]' -or
+              $line -match 'issues? found') {
+      $safe = Redact $line
+      if ($diagnosticInfos.Count -lt 80) {
+        [void]$diagnosticInfos.Add($safe)
+      }
     }
   }
+}
+$analyzerIssues = New-Object System.Collections.ArrayList
+foreach ($issue in @($diagnosticErrors.ToArray()) +
+                  @($diagnosticWarnings.ToArray()) +
+                  @($diagnosticInfos.ToArray()) | Select-Object -First 250) {
+  [void]$analyzerIssues.Add($issue)
 }
 # Sanitized format-check paths only.
 $unformattedFiles = New-Object System.Collections.ArrayList
@@ -342,6 +365,8 @@ $summary = [ordered]@{
   isolatedFileRuns=@($fileRuns.ToArray())
   compileLocations=@($compilerLocations.ToArray())
   analyzerIssues=@($analyzerIssues.ToArray())
+  analyzerErrorCount=$diagnosticErrors.Count
+  analyzerWarningCount=$diagnosticWarnings.Count
   unformattedFiles=@($unformattedFiles.ToArray())
   localOnlyRawLogDirectory='.local-test-results/' + $id
   note='Raw logs are local-only; no user file contents or secrets are published.'
