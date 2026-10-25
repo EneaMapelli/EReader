@@ -71,6 +71,28 @@ void main() {
   final from = story.indexOf('«');
   final to = story.indexOf('»') + 1;
 
+  // Narrator speech remains source-exact and unlabelled even when the
+  // fixed-size TTS chunker splits it into several utterances. The last
+  // chunk is not obliged to contain the entire narrator sentence.
+  void expectNarratorTail(PreparedCastSpeech speech) {
+    final narrator = speech.segments.where((chunk) =>
+        chunk.start >= to).toList();
+    expect(narrator, isNotEmpty);
+    expect(story.substring(narrator.first.start, narrator.last.end),
+        story.substring(to).trim());
+    for (var i = 0; i < narrator.length; i++) {
+      final chunk = narrator[i];
+      expect(story.substring(chunk.start, chunk.end), chunk.text);
+      expect(speech.speakerByStart.containsKey(chunk.start), isFalse,
+          reason: 'A finished character turn must never label a '
+              'later narrator chunk');
+      if (i > 0) {
+        expect(story.substring(narrator[i - 1].end, chunk.start).trim(),
+            isEmpty, reason: 'Narration may skip whitespace, not words');
+      }
+    }
+  }
+
   test('one approved long quote retains voice across multiple TTS chunks', () {
     final result = plan(story, labels: [accepted(story, from, to, 'mira')]);
     final quoteChunks = result.prepared.segments.where(
@@ -86,10 +108,7 @@ void main() {
     for (final chunk in result.coalesced.segments) {
       expect(story.substring(chunk.start, chunk.end), chunk.text);
     }
-    final narrator = result.coalesced.segments.last;
-    expect(narrator.text, contains('narrator replied.'));
-    expect(result.coalesced.speakerByStart.containsKey(narrator.start),
-        isFalse);
+    expectNarratorTail(result.coalesced);
   });
 
   test('legacy whole-quote tag survives new segment boundaries', () {
@@ -141,10 +160,46 @@ void main() {
     expect(groups.length, 1);
     expect(result.coalesced.segments.first.text,
         isNot(contains('First sentence')));
-    final narrator = result.coalesced.segments.last;
-    expect(narrator.text, contains('narrator'));
-    expect(narrator.text, isNot(contains('third sentence')));
+    expectNarratorTail(result.coalesced);
     expect(result.coalesced.speakerByStart, isEmpty);
+  });
+
+  test('two confirmed turns have separate voices with narrator between',
+      () {
+    const source =
+        '«Hello from Mira.» The narrator paused. '
+        '«Hello from Anna.» Then the narrator continued.';
+    final first = source.indexOf('«');
+    final firstEnd = source.indexOf('»') + 1;
+    final second = source.lastIndexOf('«');
+    final secondEnd = source.lastIndexOf('»') + 1;
+    final result = plan(source, baseMax: 18, labels: [
+      accepted(source, first, firstEnd, 'mira'),
+      accepted(source, second, secondEnd, 'anna'),
+    ]);
+    final actual = result.coalesced;
+    expect(actual.speakerByStart[first], 'mira');
+    expect(actual.speakerByStart[second], 'anna');
+    expect(actual.segments.any((chunk) =>
+        chunk.start == first && chunk.end == firstEnd), isTrue);
+    expect(actual.segments.any((chunk) =>
+        chunk.start == second && chunk.end == secondEnd), isTrue);
+
+    for (final chunk in actual.segments) {
+      expect(chunk.text, source.substring(chunk.start, chunk.end));
+      if (chunk.start >= firstEnd && chunk.end <= second) {
+        expect(actual.speakerByStart.containsKey(chunk.start), isFalse,
+            reason: 'Intervening narration cannot inherit Mira');
+      }
+      if (chunk.start >= secondEnd) {
+        expect(actual.speakerByStart.containsKey(chunk.start), isFalse,
+            reason: 'Final narration cannot inherit Anna');
+      }
+    }
+    expect(source.substring(firstEnd, second),
+        contains('The narrator paused.'));
+    expect(source.substring(secondEnd),
+        contains('Then the narrator continued.'));
   });
 
   test('more than provider chunk limit stays split but every part cast',

@@ -625,3 +625,14 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   Also corrected a literal `\\n` test expectation to a real newline.
 - Added one EPUB hidden-heading regression and one alias-recency
   regression; none of these authored tests has yet run on Windows/Android.
+
+## M2 — narrator boundaries across bounded TTS chunks (2026-10-25)
+
+- Corrected two historical cross-chunk cast regressions which mistakenly
+  required an entire narrator sentence inside the last bounded TTS
+  segment. The improved test checks all narrator fragments in source
+  order and absence of character voice bleed after an approved quote.
+- Added a new two-speaker dialogue test guarding the narrator gap and
+  closing narrator tail against voice inheritance. No production
+  casting algorithm was changed: all source/speaker behavior was already
+  consistent with bounded segmentation. Tests have not been executed.

@@ -138,3 +138,21 @@ the updated Windows/Android application. Re-run all affected tests.
 
 The EPUB and cue changes are source and test edits only. No updated
 Flutter execution result exists: the published status remains NOT_RUN.
+
+## Cross-chunk narrator attribution follow-up — 2026-10-25
+
+- Two historical failures in `test/domain/cross_chunk_cast_test.dart` came
+  from expecting the final individual `SpeechSegment` to contain an
+  entire narrator sentence. The deterministic bounded TTS chunker may
+  validly split it at words (the observed final chunk was `replied.`).
+  The suite now verifies the whole original narrator tail across its
+  source-aligned chunks, with no lost non-whitespace text and **no
+  inherited character voice** after a closed quote.
+- Added a separate unexecuted regression for two approved speakers on
+  successive dialogue turns with unlabelled narrator passages before
+  and after the second turn; it checks source offsets and two distinct
+  voice mappings. Source casting/coalescing runtime behavior is
+  unchanged, because the observed failures were incorrect test
+  expectations, not proof of a TTS attribution defect.
+- Current published suite still reads **NOT_RUN**. The previous Windows
+  errors and the new assertions require a current local rerun.
