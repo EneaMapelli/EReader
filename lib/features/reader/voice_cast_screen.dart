@@ -587,7 +587,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
   }
 
   Future<void> _reviewCharacter(
-    CharacterCandidate candidate, {required bool approve},
+    CharacterCandidate candidate, {required bool approve}
   ) async {
     if (approve && !candidate.matchesSource(widget.document.text)) {
       _error(const FormatException(
@@ -689,7 +689,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
   }
 
   Future<void> _reviewAlias(
-    AliasCandidate candidate, {required bool approve},
+    AliasCandidate candidate, {required bool approve}
   ) async {
     if (!approve) {
       try {
@@ -771,7 +771,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
   }
 
   Future<void> _reviewNarrativeReference(
-    NarrativeReferenceCandidate candidate, {required bool approve},
+    NarrativeReferenceCandidate candidate, {required bool approve}
   ) async {
     if (!approve) {
       try {

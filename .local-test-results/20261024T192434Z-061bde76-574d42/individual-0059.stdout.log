@@ -1,7 +1,0 @@
-{"protocolVersion":"0.1.1","runnerVersion":null,"pid":51976,"type":"start","time":0}
-{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/llm/openai_character_discoverer_test.dart"},"type":"suite","time":0}
-{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/llm/openai_character_discoverer_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
-{"count":1,"time":8,"type":"allSuites"}
-{"testID":1,"error":"Failed to load \"E:/GitHub/EReader/test/llm/openai_character_discoverer_test.dart\":\nCompilation failed for testPath=E:/GitHub/EReader/test/llm/openai_character_discoverer_test.dart: lib/llm/openai_dialogue_analyzer.dart:289:67: Error: Expected ')' before this.\n    DialogueAnalysisWindow window, {String model = 'gpt-5.4-mini'},\n                                                                  ^\n.","stackTrace":"","isFailure":false,"type":"error","time":1837}
-{"testID":1,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":1839}
-{"success":false,"type":"done","time":1844}

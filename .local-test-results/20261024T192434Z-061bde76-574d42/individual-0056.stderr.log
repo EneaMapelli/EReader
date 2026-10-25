@@ -1,3 +1,0 @@
-lib/llm/openai_dialogue_analyzer.dart:289:67: Error: Expected ')' before this.
-    DialogueAnalysisWindow window, {String model = 'gpt-5.4-mini'},
-                                                                  ^
