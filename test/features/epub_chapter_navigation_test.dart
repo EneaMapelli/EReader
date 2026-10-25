@@ -95,7 +95,7 @@ void main() {
       () {
     const first = '«Old dialogue without a closing mark';
     const second = 'Narrator text. «Fresh dialogue» follows.';
-    const source = '$' + '{first}\n\n' + '$' + '{second}';
+    const source = '$first\n\n$second';
     final bStart = first.length + 2;
     final document = DocumentContent(
       title: 'Book', text: source,

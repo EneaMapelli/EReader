@@ -60,7 +60,7 @@ void main() {
       () {
     const first = 'She called «Wait for me';
     const next = 'Narration resumes. «New turn» ends.';
-    const source = '$' + '{first}\n\n' + '$' + '{next}';
+    const source = '$first\n\n$next';
     final start = source.indexOf('Narration resumes.');
     final base = [
       SpeechSegment(0, first.length, first),
@@ -90,7 +90,7 @@ void main() {
   test('spine reset in whitespace gap still applies before next word', () {
     const first = '«Old incomplete';
     const next = ' Next chapter is plain text.';
-    const source = '$' + '{first}\n\n' + '$' + '{next}';
+    const source = '$first\n\n$next';
     final spineStart = first.length + 2;
     final base = [
       SpeechSegment(0, first.length, first),
