@@ -141,6 +141,65 @@ class InstalledOfflineVoicePack {
       ? null : p.join(p.dirname(modelPath), 'espeak-ng-data');
 }
 
+const _voiceManifestFile = 'voice-pack.json';
+
+Future<OfflineVoicePackManifest> _readPersistedVoiceManifest(
+    Directory directory) async {
+  final file = File(p.join(directory.path, _voiceManifestFile));
+  if (await FileSystemEntity.type(file.path, followLinks: false) !=
+      FileSystemEntityType.file) {
+    throw const FormatException('Missing verified voice pack manifest');
+  }
+  final length = await file.length();
+  if (length < 2 || length > 1024 * 1024) {
+    throw const FormatException('Offline voice manifest too large');
+  }
+  final decoded = jsonDecode(await file.readAsString());
+  if (decoded is! Map<String, dynamic>) {
+    throw const FormatException('Offline voice manifest must be an object');
+  }
+  return OfflineVoicePackManifest.fromJson(decoded);
+}
+
+Future<void> _verifyPackContents(
+    Directory directory, OfflineVoicePackManifest manifest) async {
+  final expectedFiles = <String>{
+    'model.onnx',
+    'tokens.txt',
+    _voiceManifestFile,
+    for (final file in manifest.phonemizerResources) file.relativePath,
+  };
+  final expectedDirectories = <String>{};
+  for (final resource in manifest.phonemizerResources) {
+    final parts = resource.relativePath.split('/');
+    for (var i = 1; i < parts.length; i++) {
+      expectedDirectories.add(parts.take(i).join('/'));
+    }
+  }
+  var filesSeen = 0;
+  await for (final item in directory.list(
+      recursive: true, followLinks: false)) {
+    final relative =
+        p.relative(item.path, from: directory.path).replaceAll('\\', '/');
+    final type =
+        await FileSystemEntity.type(item.path, followLinks: false);
+    if (type == FileSystemEntityType.file && expectedFiles.contains(relative)) {
+      filesSeen++;
+    } else if (type == FileSystemEntityType.directory &&
+        expectedDirectories.contains(relative)) {
+      continue;
+    } else {
+      throw const FormatException('Unexpected file in offline voice pack');
+    }
+    if (filesSeen > expectedFiles.length) {
+      throw const FormatException('Excessive files in offline voice pack');
+    }
+  }
+  if (filesSeen != expectedFiles.length) {
+    throw const FormatException('Missing files in offline voice pack');
+  }
+}
+
 Future<int> _copyVerifiedFile(
   File source,
   File destination, {
