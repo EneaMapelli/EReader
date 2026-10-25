@@ -15,6 +15,7 @@ import '../../audio/openai_speech_engine.dart';
 import '../../audio/secret_vault.dart';
 import 'speech_provider_screen.dart';
 import '../../data/book_decoder.dart';
+import '../../data/epub_reader_preflight.dart';
 import '../../data/epub_progress_recovery.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
@@ -95,16 +96,18 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   Future<void> _load() async {
     try {
-      final document = await PrototypeDocumentDecoder().read(widget.book);
+      // On EPUB, the background isolate prepares the immutable source,
+      // initial speech chunks, quote group markers and paragraph boundaries
+      // together. Only user-specific cast resolution stays in this isolate.
+      final preflight = widget.book.format == BookFormat.epub
+          ? await prepareEpubReader(widget.book.localPath)
+          : null;
+      final document = preflight?.document ??
+          await PrototypeDocumentDecoder().read(widget.book);
       if (!mounted) return;
-      // A quoted turn can cross multiple source chunks. Resolve both
-      // legacy whole-passage and precise manual tags as verified ranges
-      // BEFORE merging short fragments for the same voice/quote group.
-      final quoted = splitQuotedSegmentsWithRegions(
-        widget.book.format == BookFormat.epub
-            ? segmentEpubSpine(document)
-            : segmentSpeech(document.text),
-      );
+      // Resolve both legacy and precise manual speaker tags before coalescing.
+      final quoted = preflight?.quoted ??
+          splitQuotedSegmentsWithRegions(segmentSpeech(document.text));
       final people = widget.store.listCastCharacters(widget.book.id);
       final assigned = prepareCastSpeech(
         source: document.text,
@@ -120,9 +123,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         chunks: assigned.segments,
         quotedChunks: quoted,
         speakerByStart: assigned.speakerByStart,
-        hardBoundaries: widget.book.format == BookFormat.epub
-            ? epubParagraphHardBoundaries(document)
-            : const [],
+        hardBoundaries: preflight?.hardBoundaries ?? const [],
       );
       final chunks = prepared.segments;
       final chapters = widget.book.format == BookFormat.epub
