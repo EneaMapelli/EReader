@@ -72,6 +72,47 @@ void main() {
     )), 2);
   });
 
+  test('binary EPUB lookup matches original behavior across 15000 chapters',
+      () {
+    final titles = List<String>.generate(
+        15000, (i) => 'Chapter $i: a unique passage 📖.');
+    final source = titles.join('\n\n');
+    final ranges = <EpubSpineRange>[];
+    var cursor = 0;
+    for (var i = 0; i < titles.length; i++) {
+      final end = cursor + titles[i].length;
+      ranges.add(EpubSpineRange(
+        idref: 'id$i', href: '$i.xhtml', start: cursor, end: end));
+      cursor = end + 2;
+    }
+    final doc = DocumentContent(
+        title: 'Long book', text: source, epubSpineRanges: ranges);
+    for (final i in [0, 1, 29, 2000, 8888, 14999]) {
+      final chapter = ranges[i];
+      final anchor = doc.anchorAt(BookFormat.epub, chapter.start + 4);
+      expect(anchor.sourceId, 'id$i');
+      expect(anchor.localOffset, 4);
+      expect(doc.offsetOf(anchor), chapter.start + 4);
+      expect(doc.offsetOf(ReadingAnchor(
+        kind: AnchorKind.epubSpine,
+        sourceId: 'id$i', localOffset: 4,
+      )), chapter.start + 4);
+      if (i < ranges.length - 1) {
+        final separator = doc.anchorAt(BookFormat.epub, chapter.end);
+        expect(separator.sourceId, 'id${i + 1}');
+        expect(separator.localOffset, 0);
+        expect(doc.offsetOf(separator), ranges[i + 1].start);
+      }
+    }
+    final eof = doc.anchorAt(BookFormat.epub, source.length);
+    expect(eof.sourceId, 'id14999');
+    expect(eof.localOffset, ranges.last.end - ranges.last.start);
+    expect(doc.offsetOf(eof), source.length);
+    expect(doc.offsetOf(const ReadingAnchor(
+        kind: AnchorKind.epubSpine,
+        sourceId: 'nonexistent', localOffset: 0)), isNull);
+  });
+
   test('PDF page anchor retains local offset', () {
     const data = DocumentContent(
       title: 'PDF',
