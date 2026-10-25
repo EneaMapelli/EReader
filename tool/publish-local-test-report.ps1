@@ -33,7 +33,7 @@ if (-not (Test-Path -LiteralPath $runDir -PathType Container)) {
   throw ('Local run not found: ' + $RunId)
 }
 $inputNames = @('summary.json','cases.json','failures.json','latest.md')
-$input = @{}
+$reportFiles = @{}
 foreach ($name in $inputNames) {
   $file = Join-Path $runDir $name
   if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
@@ -43,11 +43,11 @@ foreach ($name in $inputNames) {
   if ($size -le 0 -or $size -gt 10MB) {
     throw ('Unexpected sanitized report size: ' + $name)
   }
-  $input[$name] = [IO.File]::ReadAllText($file)
+  $reportFiles[$name] = [IO.File]::ReadAllText($file)
 }
-$summary = $input['summary.json'] | ConvertFrom-Json
-$cases = @($input['cases.json'] | ConvertFrom-Json)
-$failures = @($input['failures.json'] | ConvertFrom-Json)
+$summary = $reportFiles['summary.json'] | ConvertFrom-Json
+$cases = @($reportFiles['cases.json'] | ConvertFrom-Json)
+$failures = @($reportFiles['failures.json'] | ConvertFrom-Json)
 if ($summary.runId -ne $RunId -or
     $summary.branch -ne $repoBranch -or
     [string]$summary.sourceCommit -notmatch '^[a-f0-9]{40}$' -or
@@ -71,7 +71,7 @@ if ($cases.Count -ne [int]$totals.testOutcomesParsed -or
   throw 'Saved report case totals do not reconcile.'
 }
 # Review names/paths before pushing: the sanitizer leaves raw logs local.
-foreach ($case in @($cases) + @($failures)) {
+foreach ($case in (@($cases) + @($failures))) {
   $file = [string]$case.file
   if ($file -notmatch '^(?:test/[A-Za-z0-9_./-]+\.dart|<full_suite>)$' -or
       $file.Contains('..') -or
@@ -80,7 +80,7 @@ foreach ($case in @($cases) + @($failures)) {
   }
 }
 foreach ($name in $inputNames) {
-  if ($input[$name] -match '(?i)([a-z]:[\\/]|[\\/](?:Users|home)[\\/])') {
+  if ($reportFiles[$name] -match '(?i)([a-z]:[\\/]|[\\/](?:Users|home)[\\/])') {
     throw ('Possible absolute path in report: ' + $name)
   }
 }
@@ -124,13 +124,13 @@ foreach ($entry in $destinations.GetEnumerator()) {
   if (-not $entry.Key.StartsWith('test-results/runs/')) { continue }
   $target = Join-Path $repoRoot $entry.Key
   if ((Test-Path -LiteralPath $target) -and
-      [IO.File]::ReadAllText($target) -ne $input[$entry.Value]) {
+      [IO.File]::ReadAllText($target) -ne $reportFiles[$entry.Value]) {
     throw 'An immutable run report already exists with different content.'
   }
 }
 foreach ($entry in $destinations.GetEnumerator()) {
   $target = Join-Path $repoRoot $entry.Key
-  [IO.File]::WriteAllText($target, $input[$entry.Value], $utf8)
+  [IO.File]::WriteAllText($target, $reportFiles[$entry.Value], $utf8)
 }
 & $git add -- @($destinations.Keys)
 if ($LASTEXITCODE -ne 0) { throw 'Could not stage sanitized report files.' }
