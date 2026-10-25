@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+import 'dart:isolate';
 
 import 'package:pdfrx/pdfrx.dart';
 
@@ -8,6 +8,7 @@ import '../domain/book.dart';
 import '../domain/reading_anchor.dart';
 import '../domain/epub_anchor_context.dart';
 import 'epub_text_extractor.dart';
+import 'epub_bounded_file.dart';
 import 'epub_inline_style.dart';
 import 'epub_embedded_content.dart';
 import 'epub_navigation.dart';
@@ -45,6 +46,25 @@ class DocumentContent {
   final List<EpubAuxiliaryFootnotePreview> epubAuxiliaryFootnotePreviews;
   final List<EpubImportDiagnostic> epubDiagnostics;
 
+  // Weakly held per-document index: lookup caches disappear with the
+  // decoded document, avoiding an unbounded global index across a library.
+  // EPUB extracted spine IDs are structurally unique; preserve the first
+  // match for older synthetic/caller-provided documents as well.
+  static final Expando<Map<String, EpubSpineRange>> _spineById =
+      Expando<Map<String, EpubSpineRange>>('ereader_epub_spine');
+
+  EpubSpineRange? _sourceRangeForId(String id) {
+    var index = _spineById[this];
+    if (index == null) {
+      index = <String, EpubSpineRange>{};
+      for (final range in epubSpineRanges) {
+        index.putIfAbsent(range.idref, () => range);
+      }
+      _spineById[this] = index;
+    }
+    return index[id];
+  }
+
   /// Converts the global reader offset to a document-relative source address.
   /// No anchoring to an EPUB TOC entry or PDF visual coordinate is implied.
   ReadingAnchor anchorAt(BookFormat format, int offset) {
@@ -54,24 +74,29 @@ class DocumentContent {
           localOffset: offset.clamp(0, text.length).toInt());
     }
     if (format == BookFormat.epub && epubSpineRanges.isNotEmpty) {
-      for (final entry in epubSpineRanges) {
-        if (offset < entry.end) {
-          final inside = (offset - entry.start)
-              .clamp(0, entry.end - entry.start).toInt();
-          final absolute = entry.start + inside;
-          final fingerprint = EpubAnchorContext.capture(
-              text, entry.start, entry.end, absolute);
-          return ReadingAnchor(kind: AnchorKind.epubSpine,
-              sourceId: entry.idref, localOffset: inside,
-              contextBefore: fingerprint.before,
-              contextAfter: fingerprint.after);
+      // OPF spine ranges are sorted by original UTF-16 source position.
+      // Use the first chapter whose *end* exceeds the offset: this
+      // deliberately assigns synthetic separator positions to the NEXT
+      // readable chapter, preserving the earlier linear-scan behavior.
+      var low = 0;
+      var high = epubSpineRanges.length;
+      while (low < high) {
+        final mid = low + (high - low) ~/ 2;
+        if (epubSpineRanges[mid].end <= offset) {
+          low = mid + 1;
+        } else {
+          high = mid;
         }
       }
-      final last = epubSpineRanges.last;
+      final entry = low < epubSpineRanges.length
+          ? epubSpineRanges[low] : epubSpineRanges.last;
+      final inside = (offset - entry.start)
+          .clamp(0, entry.end - entry.start).toInt();
+      final absolute = entry.start + inside;
       final fingerprint = EpubAnchorContext.capture(
-          text, last.start, last.end, last.end);
+          text, entry.start, entry.end, absolute);
       return ReadingAnchor(kind: AnchorKind.epubSpine,
-          sourceId: last.idref, localOffset: last.end - last.start,
+          sourceId: entry.idref, localOffset: inside,
           contextBefore: fingerprint.before,
           contextAfter: fingerprint.after);
     }
@@ -100,31 +125,29 @@ class DocumentContent {
       return anchor.localOffset.clamp(0, text.length).toInt();
     }
     if (anchor.kind == AnchorKind.epubSpine) {
-      for (final entry in epubSpineRanges) {
-        if (entry.idref == anchor.sourceId) {
-          final length = entry.end - entry.start;
-          // A stale local offset must never be silently mapped to another
-          // character or to the next chapter's separator.
-          if (anchor.localOffset > length) return null;
-          final absolute = entry.start + anchor.localOffset;
-          if (absolute > 0 && absolute < text.length) {
-            final left = text.codeUnitAt(absolute - 1);
-            final right = text.codeUnitAt(absolute);
-            if (left >= 0xd800 && left <= 0xdbff &&
-                right >= 0xdc00 && right <= 0xdfff) {
-              return null;
-            }
-          }
-          if (anchor.hasContext &&
-              !EpubAnchorContext.matches(
-                  text, entry.start, entry.end, absolute, anchor)) {
-            // A valid integer offset can still point to the wrong sentence
-            // after newly recognized <br> tags or other parser changes.
-            return null;
-          }
-          return absolute;
+      final entry = _sourceRangeForId(anchor.sourceId);
+      if (entry == null) return null;
+      final length = entry.end - entry.start;
+      // A stale local offset must never be silently mapped to another
+      // character or to the next chapter's separator.
+      if (anchor.localOffset > length) return null;
+      final absolute = entry.start + anchor.localOffset;
+      if (absolute > 0 && absolute < text.length) {
+        final left = text.codeUnitAt(absolute - 1);
+        final right = text.codeUnitAt(absolute);
+        if (left >= 0xd800 && left <= 0xdbff &&
+            right >= 0xdc00 && right <= 0xdfff) {
+          return null;
         }
       }
+      if (anchor.hasContext &&
+          !EpubAnchorContext.matches(
+              text, entry.start, entry.end, absolute, anchor)) {
+        // A valid integer offset can still point to the wrong sentence
+        // after newly recognized <br> tags or other parser changes.
+        return null;
+      }
+      return absolute;
     }
     if (anchor.kind == AnchorKind.pdfPage) {
       for (final entry in pdfPageRanges) {
@@ -144,6 +167,31 @@ class PdfPageRange {
   final int pageNumber;
   final int start;
   final int end;
+}
+
+/// The exact metadata adapter for foreground consumer reads and the reader
+/// preparation worker. Keeping one implementation prevents note, TOC, style
+/// or diagnostic fields from silently disappearing in background parsing.
+DocumentContent documentFromExtractedEpub(EpubTextResult content) =>
+    DocumentContent(
+      title: content.title,
+      text: content.text,
+      epubSpineRanges: content.ranges,
+      epubInlineStyles: content.styles,
+      epubImages: content.images,
+      epubLinks: content.links,
+      epubTables: content.tables,
+      epubNavigation: content.navigation,
+      epubFootnotePreviews: content.footnotePreviews,
+      epubAuxiliaryFootnotePreviews: content.auxiliaryFootnotePreviews,
+      epubDiagnostics: content.diagnostics,
+    );
+
+/// Worker-side only: no Flutter widgets/plugins, SQLite connection, network,
+/// TTS engine or user-specific credentials cross the isolate boundary.
+EpubTextResult _extractEpubFile(String localPath) {
+  final bytes = readBoundedEpubFile(localPath);
+  return const EpubTextExtractor().extract(bytes);
 }
 
 abstract interface class DocumentDecoder {
@@ -169,24 +217,15 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
           text: text.startsWith('\uFEFF') ? text.substring(1) : text,
         );
       case BookFormat.epub:
-        final bytes = await file.readAsBytes();
-        final content = const EpubTextExtractor().extract(
-          Uint8List.fromList(bytes),
+        // EPUB ZIP decompression, XHTML parsing and source annotation are
+        // CPU-heavy. Keep them off the Flutter UI isolate. The worker reads
+        // the file itself, avoiding a second compressed archive copy on
+        // the UI thread; its result is a sendable, pure-Dart data object.
+        final content = await Isolate.run(
+          () => _extractEpubFile(record.localPath),
+          debugName: 'EReader EPUB import',
         );
-        return DocumentContent(
-          title: content.title,
-          text: content.text,
-          epubSpineRanges: content.ranges,
-          epubInlineStyles: content.styles,
-          epubImages: content.images,
-          epubLinks: content.links,
-          epubTables: content.tables,
-          epubNavigation: content.navigation,
-          epubFootnotePreviews: content.footnotePreviews,
-          epubAuxiliaryFootnotePreviews:
-              content.auxiliaryFootnotePreviews,
-          epubDiagnostics: content.diagnostics,
-        );
+        return documentFromExtractedEpub(content);
       case BookFormat.pdf:
         return _readPdfText(record);
     }

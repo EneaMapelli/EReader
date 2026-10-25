@@ -1,6 +1,7 @@
 import 'package:ereader/data/book_decoder.dart';
 import 'package:ereader/data/epub_text_extractor.dart';
 import 'package:ereader/domain/dialogue_segmenter.dart';
+import 'package:ereader/domain/speech_segment.dart';
 import 'package:ereader/domain/book.dart';
 import 'package:ereader/domain/reading_anchor.dart';
 import 'package:ereader/features/reader/epub_chapter_navigation.dart';

@@ -69,13 +69,14 @@ class EpubTextResult {
 class EpubTextExtractor {
   const EpubTextExtractor();
 
+  static const int maxCompressedLength = 100 * 1024 * 1024;
   static const int maxFileCount = 10000;
   static const int maxEntrySize = 32 * 1024 * 1024;
   static const int maxTotalUncompressed = 256 * 1024 * 1024;
   static const int maxTextLength = 25 * 1024 * 1024;
 
   EpubTextResult extract(Uint8List source) {
-    if (source.length > 100 * 1024 * 1024) {
+    if (source.length > maxCompressedLength) {
       throw const FormatException('EPUB ZIP file exceeds 100 MB');
     }
     if (source.length < 4 ||

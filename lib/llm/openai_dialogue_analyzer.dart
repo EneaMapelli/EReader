@@ -286,7 +286,7 @@ Do not infer any chapter beyond the provided excerpt.
       createRequest(window).length + instructions.length;
 
   Future<List<DialogueModelProposal>> analyze(
-    DialogueAnalysisWindow window, {String model = 'gpt-5.4-mini'},
+    DialogueAnalysisWindow window, {String model = 'gpt-5.4-mini'}
   ) async {
     if (_disposed) throw StateError('Analyzer disposed');
     if (!supportedModels.contains(model)) {

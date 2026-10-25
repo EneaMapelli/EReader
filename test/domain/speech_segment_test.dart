@@ -50,6 +50,62 @@ void main() {
     }
   });
 
+  test('global source range matches legacy chapter-local segmentation', () {
+    const first = 'Header. This first chapter is done.';
+    const second = 'Chapter 📖 second. Price 3.14! '
+        'A longer passage with many words and line breaks.\nNext line.';
+    const third = 'The final chapter. End.';
+    final full = '$first\n\n$second\n\n$third';
+    final start = first.length + 2;
+    final end = start + second.length;
+    final global = segmentSpeechRange(
+        full, start: start, end: end, maxChars: 24);
+    final local = segmentSpeech(
+        full.substring(start, end), maxChars: 24);
+    expect(global.length, local.length);
+    for (var i = 0; i < global.length; i++) {
+      expect(global[i].start, local[i].start + start);
+      expect(global[i].end, local[i].end + start);
+      expect(global[i].text, local[i].text);
+      expect(full.substring(global[i].start, global[i].end),
+          global[i].text);
+    }
+  });
+
+  test('source-range splitting enforces chapter and Unicode boundaries', () {
+    const content = 'Prelude.\n\n📖 Ending 2.71!\n\nAfter.';
+    final start = content.indexOf('📖');
+    final end = content.indexOf('\n\nAfter.');
+    final ranged = segmentSpeechRange(
+        content, start: start, end: end, maxChars: 16);
+    expect(ranged, isNotEmpty);
+    expect(ranged.every((s) => s.start >= start && s.end <= end), isTrue);
+    expect(ranged.first.start, start);
+    expect(() => segmentSpeechRange(content,
+        start: start + 1, end: end), throwsFormatException);
+    expect(() => segmentSpeechRange(content,
+        start: start, end: start + 1), throwsFormatException);
+    expect(() => segmentSpeechRange(content,
+        start: -1, end: end), throwsRangeError);
+  });
+
+  test('large single chapter yields exact globally indexed TTS spans', () {
+    final preface = List.filled(120, 'Preface text. ').join();
+    final chapter = List.filled(16000, 'Long chapter sentence. ').join();
+    final combined = '$preface\n\n$chapter';
+    final start = preface.length + 2;
+    final segments = segmentSpeechRange(
+        combined, start: start, end: combined.length);
+    expect(segments.length, greaterThan(1000));
+    expect(segments.first.start, start);
+    expect(segments.last.end, lessThanOrEqualTo(combined.length));
+    for (final index in [0, 1, segments.length ~/ 2, segments.length - 1]) {
+      final chunk = segments[index];
+      expect(combined.substring(chunk.start, chunk.end), chunk.text);
+      expect(chunk.start, greaterThanOrEqualTo(start));
+    }
+  });
+
   test('rejects too-small chunk sizes', () {
     expect(() => segmentSpeech('hello', maxChars: 2), throwsArgumentError);
   });

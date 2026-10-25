@@ -85,6 +85,41 @@ These are deterministic functional fixtures, **not benchmark results**.
 They must run in the final integration suite before any speedup or memory
 usage claim can be made.
 
+## Additional EPUB narration improvement (2026-10-24)
+
+- `segmentSpeechRange(source, start:, end:)` splits a bounded global
+  UTF-16 range **directly** in the canonical book string. Each result
+  carries the original global start/end and extracts only the actual
+  short spoken segment string. It respects punctuation, decimals,
+  whitespace trimming, sentence limits and surrogate pairs.
+- `segmentEpubSpine` no longer allocates a full
+  `source.substring(range.start, range.end)` for every XHTML spine file
+  and then adds offsets to local segments. This removes another eager
+  whole-chapter text copy during EPUB opening, independently of visual
+  paragraph rendering.
+- Existing `segmentSpeech(source)` forwards to the new range routine,
+  keeping TXT/PDF behavior and defaults. The
+  `test/domain/speech_segment_test.dart` regressions compare the
+  range-based segments to the historical locally sliced equivalent,
+  reject half-emoji chapter boundaries and cover a synthetic
+  16,000-sentence source. **Tests authored but not run.**
+
+## Background source/TTS preflight (2026-10-25)
+
+`ReaderScreen` now uses a single background Dart isolate to decode EPUB
+ZIP/XHTML **and** compute the initial source-aligned speech/quote groups
+and paragraph hard boundaries. The UI isolate receives the resulting
+metadata for normal cast resolution and TTS setup; no external request
+or user-specific speech attribution runs in the worker.
+
+In addition, a monotonic cursor maps segment offsets to paragraphs
+during progressive index construction, binary search locates global
+EPUB source anchors, and an ephemeral weak ID index accelerates
+restoration by spine `idref`. ZIP file size is checked before
+allocating archive bytes. See [Background EPUB Preparation](EPUB_BACKGROUND_PREPARATION.md)
+for the safety budget, tests, cancellation limitations and final
+profiling plan.
+
 ## Remaining bottlenecks / next steps
 
 The app still decodes the EPUB, derives the canonical book source,

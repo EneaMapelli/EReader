@@ -485,3 +485,62 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - `EpubAnchorContext` checks the SHA-256 digest **before** a relocation candidate first and hashes **after** only if it matches, without changing the existing v2 fingerprint format or uniqueness requirements. New golden-digest test guards persistence compatibility.
 - Added **6 authored unexecuted tests**: large synthetic 12,000-paragraph rendering, 20,000-chapter lookup, 1,200 auxiliary note links, lazy Unicode-run compatibility, spine-boundary regex correctness and SHA v2 digest compatibility. See [EPUB Large Book Performance](EPUB_LARGE_BOOK_PERFORMANCE.md). No profiler benchmark, `flutter analyze`, Flutter tests or Windows/Android builds have run per agreement.
 - Model metadata and TTS segmentation remain eagerly allocated, ZIP decoding still keeps archive content in memory, and v2 fallback relocation still has a bounded linear scan. Device/real-corpus memory and latency profiling remains a mandatory final integration task; no measured speedup is claimed.
+
+## M1 — direct range-based EPUB speech segmentation (2026-10-24)
+
+- `segmentEpubSpine` no longer copies a complete XHTML chapter
+  substring before segmentation. The new
+  `segmentSpeechRange(source,start:,end:)` processes canonical UTF-16
+  text directly and returns global source-aligned speech chunks.
+- This removes a large temporary chapter allocation while retaining
+  sentence/decimal detection, speaker/quote boundaries, Unicode
+  surrogate safety and unchanged TXT/PDF behavior. Added three
+  authored but unexecuted tests for old/new local/global segmentation
+  equivalence, half-surrogate rejection and a 16,000-sentence source.
+- No Flutter analyzer, Windows/Android tests or benchmark executed;
+  measure actual opening latency/memory on the user's PC.
+
+## M1 — Windows full test runner on the ONE development branch (2026-10-24)
+
+- Added the PowerShell 5.1-compatible `tool/run-all-tests.ps1` runner for Flutter/Dart versions, `flutter pub get`, read-only `dart format --set-exit-if-changed`, `flutter analyze --no-pub` and **every Flutter test**. If the combined suite fails/times out, it retries every `test/**/*_test.dart` individually with a bounded per-file timeout and gathers JSON machine events for each case.
+- Raw stdout/stderr logs, which could contain personal paths or excerpts, remain **local** under ignored `.local-test-results/`. Published `test-results/latest.{md,json}`, `latest-cases.json`, `latest-failures.json` and dated history contain only summarized outcomes, categories, exit codes, durations, filtered analyzer diagnostics and allowlisted Dart source locations.
+- Results are automatically committed and pushed to the **existing `feature/m0-flutter-foundation` branch** when Git is clean and authenticated. The runner never creates another branch or force-pushes. Concurrent remote pushes can cause safe non-fast-forward rejection; local results remain available for manual reconciliation. `-NoPublish` runs privately.
+- Initial `test-results/latest.json` is explicitly `NOT_RUN` until Windows publishes an actual report. See [Test runner instructions](../test-results/README.md) and [Windows test report](LOCAL_EXECUTION_REPORT.md).
+- Also corrected two previously reported compilation blockers: malformed named-parameter syntax in `lib/llm/openai_dialogue_analyzer.dart`, and missing `SpeechSegment` import in `test/features/epub_chapter_navigation_test.dart`.
+- **The runner and the corrections are committed, but no new Flutter/Windows tests were executed by this assistant.** Next verified state must come from an actual uploaded local run; do not infer that tests pass merely from source inspection.
+
+## M1 — progressive EPUB visual metadata and bounded LRU (2026-10-25)
+
+- The actual `ReaderScreen` now uses `buildProgressiveEpubVisualLayout` instead of the previously eager all-paragraph run construction. It creates a compact ordered index of source UTF-16 paragraph boundaries, first segment per block and exact `segmentToBlock` mapping; rich text/link/footnote/style/image/table runs are built **only on block access** by the existing lazy scrolling widget.
+- `ProgressiveEpubBlocks` implements the existing `List<EpubVisualBlock>` interface and retains a strict LRU of **48 materialized blocks** by default (configurable 1–256). Returning to an evicted paragraph safely reconstructs its presentation using the original canonical text and verified metadata, without touching narration, cloud TTS or saved position.
+- The publisher TOC / OPF chapter bottom sheet continues virtualized and now opens directly at the active section. Structured previews retain their verified link/footnote targets; no synthetic source offset is created. A hard ceiling of 300,000 lightweight indexed paragraphs prevents pathological EPUB memory use.
+- The eager renderer remains available as an independent reference. Added **8 authored, unexecuted parity/stress tests** in `test/features/epub_progressive_layout_test.dart` for 12,000 paragraphs, LRU eviction, Unicode/surrogate-safe splits, exact speech indexes, multiple spine items, stylized links/footnotes/images/tables, invalid metadata rejection and preview-only notes. See [EPUB Progressive Layout](EPUB_PROGRESSIVE_LAYOUT.md).
+- **No Windows/Android builds, analyzer, unit/widget tests or profiling were executed here.** The GitHub report in `test-results/latest.json` remains `NOT_RUN`, so measured performance and integration correctness require the Windows test runner.
+
+## M1 — background EPUB preflight and indexed reading anchors (2026-10-25)
+
+- `ReaderScreen` now initializes EPUB reading through `prepareEpubReader`, which uses `Isolate.run` to decode the ZIP, parse XHTML and produce the **exact original** initial speech segments, quote groups and hard paragraph boundaries. Manual voice attribution and SQLite/user preferences remain on the normal reader isolate. `PrototypeDocumentDecoder` also uses an isolate for other EPUB consumers.
+- Both workers read local EPUB bytes themselves through `readBoundedEpubFile`: filesystem length is checked **before allocating the archive**, and the actual bytes rechecked afterwards; the extractor's hard 100 MiB ZIP limit is unchanged. No cloud/network calls or TTS synthesis occur in the worker.
+- Progressive visual paragraph indexing advances one monotonic segment cursor for ordered blocks; source-aligned speech ownership and visual offsets are unchanged. `DocumentContent.anchorAt` now finds OPF spine ranges by binary search, while `offsetOf` uses a weak per-document ID index (garbage collectible with the document), eliminating repeated full scans for many-chapter EPUBs. Synthetic separator offsets still map forward and EOF remains stable.
+- **12 authored, unexecuted test cases** cover isolate vs direct extraction, source/quote/boundary equivalence, missing/corrupt ZIPs, pre-allocation quotas, TTS mappings spanning multiple blocks and a 15,000-chapter anchor index. See [Background EPUB Preparation](EPUB_BACKGROUND_PREPARATION.md).
+- The real Windows test report `test-results/latest.json` still says **NOT_RUN**, so startup responsiveness, isolate transfer overhead, memory savings and cross-platform correctness remain to be measured using the single-branch Windows script. No analyzer, runtime tests, compilation or profiler run here.
+
+## M1 — cancellable EPUB worker and local opening measurements (2026-10-25)
+
+- `CancellableEpubPreflight` owns a dedicated Dart `Isolate.spawn` and one-shot message channel. `cancel()` terminates an active worker immediately, settles its Future with an explicit cancellation and safely kills an isolate even if spawning completes after cancellation. `Isolate.exit` transfers the completed EPUB model without an extra deep copy. The prior one-shot `prepareEpubReader` API remains compatible.
+- `ReaderScreen._load` now tracks a load epoch; closing a reader or starting a newer load kills its outstanding EPUB worker, prevents stale asynchronous results from installing themselves, and disposes any provisional player/recovery binding after failure or cancellation. It rechecks the epoch after voice-provider initialization and after a recovered progress write, preserving the current player's ownership.
+- Numeric, local-only `EpubPreflightTimings` records microseconds for ZIP read, XHTML extraction, initial speech segmentation, quotation grouping, paragraph boundaries and worker total. Additional UI-isolate timings cover cast/layout preparation, voice setup, total load and the first completed reader frame (guarded to ignore stale loads). A passive **EPUB opening performance** sheet exposes these measurements alongside fixed numeric book-size counters; no raw text, local file paths, credentials, remote upload or SQLite telemetry is generated. Measurements are wall-clock **not** FPS, first-frame time or peak memory.
+- **Five authored, unexecuted tests**: three preflight timing/cancellation/concurrent-worker cases, two scrollable performance-widget cases. See [EPUB Cancellation and Timings](EPUB_CANCELLATION_TIMINGS.md). The user-PC result at `test-results/latest.json` was still **NOT_RUN** when checked; no analyzer, Flutter test, Windows/Android build or device profiling performed in this increment.
+
+## M1 — EPUB saved-position verification in the cancellable worker (2026-10-25)
+
+- `ReaderScreen` now snapshots the current SQLite reading anchor **before** EPUB preflight and passes only that versioned anchor plus its legacy offset into the existing cancellable worker; no book text, DB handle, API key or cloud consent crosses the UI/worker boundary. The worker reuses its already-decoded canonical source to resolve exact/v1, uniquely relocated v2 or needs-review positions off the Flutter isolate. The same bounded, same-spine SHA-256 algorithm is used, and it never guesses between repeated contexts.
+- The reader re-reads the stored checkpoint before adoption. If another operation changed the anchor or offset during preparation, it rejects the stale computed result and conservatively recomputes against the newest checkpoint instead of overwriting progress. A relocated v2 position is persisted only under the existing safe rules; failures do not block opening.
+- The passive opening-performance sheet gains an optional numeric `Verify saved reading position` stage. The prior `prepareEpubReader(path)` and `startEpubReaderPreflight(path)` APIs still work without a checkpoint; no SQLite schema change, text alteration, TTS request, or network behavior is introduced.
+- Authored three unexecuted regression tests for exact v2, unique relocation/missing source and legacy offset-only recovery, plus one widget assertion for timing. See [EPUB Background Progress Recovery](EPUB_BACKGROUND_PROGRESS_RECOVERY.md). Flutter/Dart are unavailable here; analyzer, suite, Windows and Android builds remain **NOT_RUN** pending the agreed final validation.
+
+## M1 — opt-in EPUB frame-build/raster sampling (2026-10-25)
+
+- Added a **user-started, 12-second** Flutter engine frame-timing capture from the existing local EPUB performance modal. Closing the sheet allows scrolling the actual text during the sample. Sampling uses `SchedulerBinding.addTimingsCallback` only while requested and always removes the listener after timeout, manual stop, reader reload, app background or widget disposal. The most recent successful sample stays in memory until reload/exit; no SQLite, logs, API calls, book content, titles, paths or telemetry.
+- `EpubFrameSampler` retains at most **4,096** numeric frame triples (build/raster/total microseconds), providing nearest-rank P95, maxima and counts over the **16.7 ms reference for 60 Hz**. The UI discloses engine batching, sample limits, possible other UI frames, refresh-rate dependence and that neither FPS nor peak memory is being calculated. A missing sample stays explicit; there is no fabricated measurement.
+- Authored **4 unexecuted** pure sampler tests (empty, percentile/reference counter, bounded overwrite, invalid data) and **2 unexecuted** widget tests (explicit capture, numeric report, manual stop). See [EPUB Frame Sampling](EPUB_FRAME_SAMPLING.md). No analyzer, Flutter test, Windows/Android build or on-device profile has been run here; the published test status remains **NOT_RUN**.

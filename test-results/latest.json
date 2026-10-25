@@ -1,0 +1,16 @@
+{
+  "runId": null,
+  "sourceCommit": null,
+  "branch": "feature/m0-flutter-foundation",
+  "result": "NOT_RUN",
+  "totals": {
+    "passed": 0,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "testFilesDiscovered": 0,
+    "testOutcomesParsed": 0
+  },
+  "stages": [],
+  "note": "Placeholder only: no local test report has been published."
+}

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'dart:ui' show FrameTiming;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
@@ -15,6 +17,7 @@ import '../../audio/openai_speech_engine.dart';
 import '../../audio/secret_vault.dart';
 import 'speech_provider_screen.dart';
 import '../../data/book_decoder.dart';
+import '../../data/epub_reader_preflight.dart';
 import '../../data/epub_progress_recovery.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
@@ -31,8 +34,11 @@ import 'epub_link_history.dart';
 import 'epub_note_preview_sheet.dart';
 import '../../data/epub_navigation.dart';
 import 'epub_visual_layout.dart';
+import 'epub_progressive_layout.dart';
 import 'epub_paragraph_tile.dart';
 import 'epub_diagnostics_sheet.dart';
+import 'epub_opening_performance_sheet.dart';
+import 'epub_frame_sampler.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -59,9 +65,18 @@ class _ReaderScreenState extends State<ReaderScreen>
   Map<int, EpubChapter> _chapterStarts = const {};
   List<PronunciationRule> _pronunciationRules = const [];
   Map<String, String> _castNames = const {};
-  Map<int, String?> _resolvedSpeakerByStart = const {};
   String? _error;
   bool _loading = true;
+  int _loadEpoch = 0;
+  CancellableEpubPreflight? _activeEpubTask;
+  EpubPreflightTimings? _epubWorkerTimings;
+  int? _epubCastLayoutUs;
+  int? _epubVoiceSetupUs;
+  int? _epubTotalOpenUs;
+  int? _epubFirstFrameUs;
+  EpubFrameSampler? _activeFrameSampler;
+  EpubFrameProfile? _frameProfile;
+  Timer? _frameCaptureTimer;
   double _fontSize = 19;
   EpubReadingPalette _epubPalette = EpubReadingPalette.system;
   bool _pdfTextMode = false;
@@ -93,17 +108,46 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   Future<void> _load() async {
+    // A later reload supersedes all earlier work, including an in-flight
+    // worker that would otherwise continue unpacking ZIP/XHTML offscreen.
+    final epoch = ++_loadEpoch;
+    _activeEpubTask?.cancel();
+    _activeEpubTask = null;
+    _stopFrameCapture(discard: true);
+    _frameProfile = null;
+    final stopwatch = Stopwatch()..start();
+    ReaderPlayer? provisionalPlayer;
+    NarrationRecoveryBinding? provisionalBinding;
+    CancellableEpubPreflight? task;
+    var adoptedPlayer = false;
     try {
-      final document = await PrototypeDocumentDecoder().read(widget.book);
-      if (!mounted) return;
-      // A quoted turn can cross multiple source chunks. Resolve both
-      // legacy whole-passage and precise manual tags as verified ranges
-      // BEFORE merging short fragments for the same voice/quote group.
-      final quoted = splitQuotedSegmentsWithRegions(
-        widget.book.format == BookFormat.epub
-            ? segmentEpubSpine(document)
-            : segmentSpeech(document.text),
-      );
+      // On EPUB, the background isolate prepares the immutable source,
+      // initial speech chunks, quote group markers and paragraph boundaries
+      // together. Only user-specific cast resolution stays in this isolate.
+      // Capture the latest persisted position before the worker starts.
+      // The source fingerprint lookup is CPU-heavy for long chapters, so
+      // run it beside extraction instead of hashing on the Flutter isolate.
+      final checkpointAtStart = widget.store.getBook(widget.book.id) ??
+          widget.book;
+      task = widget.book.format == BookFormat.epub
+          ? startEpubReaderPreflight(
+              widget.book.localPath,
+              resume: EpubResumeRequest(
+                anchor: checkpointAtStart.progressAnchor,
+                legacyOffset: checkpointAtStart.progressOffset,
+              ),
+            )
+          : null;
+      _activeEpubTask = task;
+      final preflight = task == null ? null : await task.result;
+      if (identical(_activeEpubTask, task)) _activeEpubTask = null;
+      final document = preflight?.document ??
+          await PrototypeDocumentDecoder().read(widget.book);
+      if (!mounted || epoch != _loadEpoch) return;
+      final uiPreparationStartUs = stopwatch.elapsedMicroseconds;
+      // Resolve both legacy and precise manual speaker tags before coalescing.
+      final quoted = preflight?.quoted ??
+          splitQuotedSegmentsWithRegions(segmentSpeech(document.text));
       final people = widget.store.listCastCharacters(widget.book.id);
       final assigned = prepareCastSpeech(
         source: document.text,
@@ -119,17 +163,18 @@ class _ReaderScreenState extends State<ReaderScreen>
         chunks: assigned.segments,
         quotedChunks: quoted,
         speakerByStart: assigned.speakerByStart,
-        hardBoundaries: widget.book.format == BookFormat.epub
-            ? epubParagraphHardBoundaries(document)
-            : const [],
+        hardBoundaries: preflight?.hardBoundaries ?? const [],
       );
       final chunks = prepared.segments;
       final chapters = widget.book.format == BookFormat.epub
           ? buildEpubChapters(document, chunks)
           : const <EpubChapter>[];
       final visualLayout = widget.book.format == BookFormat.epub
-          ? buildEpubVisualLayout(document, chunks, chapters)
+          ? buildProgressiveEpubVisualLayout(document, chunks, chapters)
           : const EpubVisualLayout([], []);
+      final uiPreparationUs =
+          stopwatch.elapsedMicroseconds - uiPreparationStartUs;
+      final voiceSetupStartUs = stopwatch.elapsedMicroseconds;
       final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
       final recoveryBinding = NarrationRecoveryBinding(
         store: widget.store,
@@ -137,6 +182,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         anchorFor: (segment) =>
             document.anchorAt(widget.book.format, segment.start),
       );
+      provisionalBinding = recoveryBinding;
       final player = ReaderPlayer(
         engineProviderId: prefs.providerId,
         engine: SpeechEngineFactory(vault: _vault).create(
@@ -147,14 +193,29 @@ class _ReaderScreenState extends State<ReaderScreen>
         segments: chunks,
         onSegmentStarted: recoveryBinding.onSegmentStarted,
       );
+      provisionalPlayer = player;
       final latestBook = widget.store.getBook(widget.book.id) ?? widget.book;
+      final initialAnchor = checkpointAtStart.progressAnchor;
+      final newestAnchor = latestBook.progressAnchor;
+      final checkpointUnchanged =
+          checkpointAtStart.progressOffset == latestBook.progressOffset &&
+          initialAnchor?.kind == newestAnchor?.kind &&
+          initialAnchor?.sourceId == newestAnchor?.sourceId &&
+          initialAnchor?.localOffset == newestAnchor?.localOffset &&
+          initialAnchor?.contextBefore == newestAnchor?.contextBefore &&
+          initialAnchor?.contextAfter == newestAnchor?.contextAfter;
+      // Another write may have reached SQLite while the worker was active.
+      // Never adopt a computed result for an older checkpoint. The rare
+      // changed-checkpoint case uses the conservative existing resolver.
       final EpubProgressRecovery? epubRecovery =
           widget.book.format == BookFormat.epub
-              ? resolveEpubReadingProgress(
-                  document,
-                  anchor: latestBook.progressAnchor,
-                  legacyOffset: latestBook.progressOffset,
-                )
+              ? (checkpointUnchanged
+                  ? preflight!.resumeRecovery!
+                  : resolveEpubReadingProgress(
+                      document,
+                      anchor: latestBook.progressAnchor,
+                      legacyOffset: latestBook.progressOffset,
+                    ))
               : null;
       final saved = epubRecovery?.offset ??
           (latestBook.progressAnchor == null
@@ -168,20 +229,21 @@ class _ReaderScreenState extends State<ReaderScreen>
       // This also preserves the final speech index for an EOF checkpoint.
       final savedIndex = speechSegmentIndexForOffset(chunks, saved);
       if (savedIndex >= 0) player.currentIndex = savedIndex;
-      _pronunciationRules =
+      final pronunciationRules =
           widget.store.listPronunciationRules(bookId: widget.book.id);
+      // The active player's rule list must not change until this new
+      // session is adopted. The transform reads the committed field to
+      // keep subsequent edits to pronunciations immediately effective.
       player.speechTextTransform = (original) =>
           const PronunciationTransformer().apply(
               original, _pronunciationRules, bookId: widget.book.id);
       await player.loadVoices();
+      if (!mounted || epoch != _loadEpoch) return;
       await player.applyPreferences(prefs);
-      _resolvedSpeakerByStart = prepared.speakerByStart;
-      _configureVoiceCast(player);
-      if (!mounted) {
-        recoveryBinding.dispose();
-        player.dispose();
-        return;
-      }
+      if (!mounted || epoch != _loadEpoch) return;
+      final voiceSetupUs = stopwatch.elapsedMicroseconds - voiceSetupStartUs;
+      final castNames = _configureVoiceCast(
+          player, prepared.speakerByStart);
       var recoveryWriteFailed = false;
       if (epubRecovery?.shouldPersist == true) {
         // Persist only an unambiguous recovered v2 anchor. Failure to
@@ -194,11 +256,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         } catch (_) {
           recoveryWriteFailed = true;
         }
-        if (!mounted) {
-          recoveryBinding.dispose();
-          player.dispose();
-          return;
-        }
+        if (!mounted || epoch != _loadEpoch) return;
       }
       final previous = _player;
       if (previous != null) {
@@ -238,11 +296,28 @@ class _ReaderScreenState extends State<ReaderScreen>
         _chapterStarts = {
           for (final chapter in chapters) chapter.segmentIndex: chapter,
         };
+        _pronunciationRules = pronunciationRules;
+        _castNames = castNames;
+        _epubWorkerTimings = preflight?.timings;
+        _epubCastLayoutUs = preflight == null ? null : uiPreparationUs;
+        _epubVoiceSetupUs = preflight == null ? null : voiceSetupUs;
+        _epubTotalOpenUs = preflight == null
+            ? null : stopwatch.elapsedMicroseconds;
+        _epubFirstFrameUs = null;
         _loading = false;
       });
+      adoptedPlayer = true;
+      if (preflight != null) {
+        // Frame-end time is local wall clock from opening attempt, not
+        // a frame-duration/FPS estimate or peak memory measurement.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || epoch != _loadEpoch) return;
+          setState(() => _epubFirstFrameUs = stopwatch.elapsedMicroseconds);
+        });
+      }
       if (epubRecovery?.needsReview == true || recoveryWriteFailed) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
+          if (!mounted || epoch != _loadEpoch) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(recoveryWriteFailed
                 ? 'Recovered EPUB position was found, but saving it failed.'
@@ -251,24 +326,32 @@ class _ReaderScreenState extends State<ReaderScreen>
           );
         });
       }
+    } on EpubPreflightCancelled {
+      // Replaced or disposed reader; its old worker was intentionally killed.
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || epoch != _loadEpoch) return;
       setState(() {
         _error = error.toString();
         _loading = false;
       });
+    } finally {
+      if (identical(_activeEpubTask, task)) _activeEpubTask = null;
+      if (!adoptedPlayer) {
+        provisionalBinding?.dispose();
+        provisionalPlayer?.dispose();
+      }
     }
   }
 
-  void _configureVoiceCast(ReaderPlayer player) {
+  Map<String, String> _configureVoiceCast(
+      ReaderPlayer player, Map<int, String?> speakerByStart) {
     final people = widget.store.listCastCharacters(widget.book.id);
     final voices = widget.store.listCastVoices(widget.book.id);
-    _castNames = {for (final person in people) person.id: person.name};
-    // All source-hashed legacy and precise ranges were resolved before
-    // coalescing. Never fall back to exact chunk equality here: that could
-    // reapply a stale or intentionally masked legacy speaker.
+    final castNames = {for (final person in people) person.id: person.name};
+    // Capture the verified assignments for this player only. A later
+    // canceled load cannot overwrite the active player's speaker map.
     String? speakerForSegment(SpeechSegment segment) =>
-        _resolvedSpeakerByStart[segment.start];
+        speakerByStart[segment.start];
     player.castSpeakerForSegment = speakerForSegment;
     player.castVoiceForSegment = (segment) {
       final speaker = speakerForSegment(segment);
@@ -284,6 +367,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       }
       return null;
     };
+    return castNames;
   }
 
   Future<void> _openCastEditor() async {
@@ -497,7 +581,13 @@ class _ReaderScreenState extends State<ReaderScreen>
               ListTile(title: Text(authorial
                   ? 'Book table of contents' : 'EPUB spine sections')),
               Expanded(
-                child: ListView.builder(
+                child: ScrollablePositionedList.builder(
+                  // Keep publisher TOCs with thousands of entries virtual,
+                  // but start near the current EPUB chapter rather than
+                  // building/scanning earlier chapters to scroll there.
+                  initialScrollIndex: authorial
+                      ? (activeTocIndex < 0 ? 0 : activeTocIndex)
+                      : (current < 0 ? 0 : current),
                   itemCount: authorial ? entries.length : _chapters.length,
                   itemBuilder: (_, index) {
                     if (authorial) {
@@ -838,9 +928,52 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
+  void _recordEpubFrames(List<FrameTiming> frames) {
+    final sampler = _activeFrameSampler;
+    if (sampler == null) return;
+    for (final frame in frames) {
+      sampler.record(
+        buildUs: frame.buildDuration.inMicroseconds,
+        rasterUs: frame.rasterDuration.inMicroseconds,
+        totalUs: frame.totalSpan.inMicroseconds,
+      );
+    }
+  }
+
+  void _startFrameCapture() {
+    if (!mounted || widget.book.format != BookFormat.epub ||
+        _loading || _player == null || _activeFrameSampler != null) return;
+    _frameProfile = null;
+    _activeFrameSampler = EpubFrameSampler();
+    SchedulerBinding.instance.addTimingsCallback(_recordEpubFrames);
+    _frameCaptureTimer = Timer(const Duration(seconds: 12), () {
+      _stopFrameCapture();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Reader frame sample finished. Open the '
+              'EPUB performance report to inspect it.'),
+        ));
+      }
+    });
+    setState(() {});
+  }
+
+  void _stopFrameCapture({bool discard = false, bool notify = true}) {
+    final sampler = _activeFrameSampler;
+    if (sampler == null) return;
+    _frameCaptureTimer?.cancel();
+    _frameCaptureTimer = null;
+    SchedulerBinding.instance.removeTimingsCallback(_recordEpubFrames);
+    _activeFrameSampler = null;
+    _frameProfile = discard ? null : sampler.snapshot();
+    if (notify && mounted) setState(() {});
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!ReaderLifecyclePolicy.backgroundTransition(state)) return;
+    // Do not attribute background, other-app or resume frames to this book.
+    _stopFrameCapture(discard: true);
     // A deferred viewport write must never replace the segment anchor
     // recorded by background audio. Leave Android narration running only
     // when a live media handler owns that player.
@@ -863,6 +996,10 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   @override
   void dispose() {
+    _stopFrameCapture(discard: true, notify: false);
+    ++_loadEpoch;
+    _activeEpubTask?.cancel();
+    _activeEpubTask = null;
     WidgetsBinding.instance.removeObserver(this);
     _saveVisualPositionTimer?.cancel();
     _flushPdfPagePosition();
@@ -884,6 +1021,24 @@ class _ReaderScreenState extends State<ReaderScreen>
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
+          if (widget.book.format == BookFormat.epub &&
+              !_loading && _epubWorkerTimings != null)
+            IconButton(
+              icon: const Icon(Icons.speed_outlined),
+              tooltip: 'EPUB opening performance',
+              onPressed: () => showEpubOpeningPerformance(
+                context,
+                worker: _epubWorkerTimings!,
+                castLayoutUs: _epubCastLayoutUs!,
+                voiceSetupUs: _epubVoiceSetupUs!,
+                totalOpenUs: _epubTotalOpenUs!,
+                firstFrameUs: _epubFirstFrameUs,
+                frameProfile: _frameProfile,
+                frameCaptureActive: _activeFrameSampler != null,
+                onStartFrameCapture: _startFrameCapture,
+                onStopFrameCapture: _stopFrameCapture,
+              ),
+            ),
           if (widget.book.format == BookFormat.epub &&
               (_document?.epubDiagnostics.isNotEmpty ?? false))
             IconButton(

@@ -22,6 +22,9 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - **Diagnostica EPUB e controllo ancore (codice, da validare):** indica nel lettore le risorse opzionali scartate (immagini, link, note, indice editore) senza bloccare il testo. Prima dell'uso verifica che capitoli, collegamenti e riferimenti TTS siano coerenti con gli offset UTF‑16 originali; ancore duplicate, fuori range o in mezzo a un emoji sono rifiutate. [Dettagli](docs/EPUB_IMPORT_DIAGNOSTICS.md).
 - **Ripresa EPUB dopo aggiornamenti del parser (codice, da validare):** le nuove ancore salvano due impronte locali SHA-256 del contesto testuale, senza salvare estratti del libro. Se cambia la suddivisione dei paragrafi, una posizione viene recuperata solo quando la corrispondenza nello stesso capitolo è univoca; riprese e segnalibri ambigui vengono segnalati, non spostati arbitrariamente. Le ancore SQLite v1 rimangono compatibili. [Specifiche](docs/EPUB_PROGRESS_RECOVERY.md).
 - **Ottimizzazione EPUB voluminosi (codice, da validare):** evita copie temporanee di interi capitoli e la creazione anticipata delle stringhe di tutti i paragrafi; le porzioni visibili ricavano il testo originale dagli offset UTF‑16 solo quando richiesto. Tabelle/immagini ricreano solo i blocchi interessati, capitoli e segmenti usano ricerche binarie, le note usano lookup indicizzati e il recupero delle ancore SHA-256 calcola la seconda impronta solo sui candidati compatibili. [Limiti e stress test](docs/EPUB_LARGE_BOOK_PERFORMANCE.md).
+- **Rendering EPUB realmente progressivo (codice, da validare):** il lettore indicizza solo gli intervalli dei paragrafi all'apertura e ricostruisce formattazione, link, immagini, tabelle e note **quando il paragrafo viene visualizzato**. Una cache LRU limitata a 48 blocchi evita di conservare tutte le strutture visive di libri con migliaia di paragrafi; l'indice editoriale apre direttamente vicino al capitolo corrente. [Design e test di confronto](docs/EPUB_PROGRESSIVE_LAYOUT.md).
+- **Apertura EPUB in background (codice, da validare):** la decompressione ZIP, l'analisi XHTML, la segmentazione TTS iniziale e i confini dei paragrafi vengono preparati in un isolate Dart separato dal thread dell'interfaccia. File oltre la quota ZIP vengono rifiutati prima di allocarne i byte; ancore e ID di capitoli sono indicizzati per letture e riprese veloci. [Architettura e test](docs/EPUB_BACKGROUND_PREPARATION.md).
+- **Annullamento EPUB e tempi di apertura (codice, da validare):** chiusura del lettore o nuovi caricamenti terminano l'isolate EPUB superato e impediscono ai risultati vecchi di sostituire il lettore attivo. Il pulsante prestazioni mostra in locale i tempi delle singole fasi di estrazione, segmentazione e configurazione vocale, senza salvare il testo del libro o fare telemetria. [Dettagli e test](docs/EPUB_CANCELLATION_TIMINGS.md).
 - Visualizzazione PDF tramite `pdfrx` e modalità sperimentale di lettura vocale per PDF con testo selezionabile (senza garanzia sull'ordine di colonne, note e tabelle).
 - **Ripresa visuale dei PDF, anche scansionati (codice, da validare):** salva per libro la pagina visualizzata e la ripristina alla riapertura, indipendentemente dalla posizione TTS. Migrazione SQLite v15; nessun OCR o sincronismo a livello di riga. [Specifica e test](docs/PDF_VISUAL_RESUME.md).
 - Lettura vocale con voci di sistema Windows/Android, scelta e salvataggio di voce/lingua/pitch/rate per libro e come default globale, navigazione tra segmenti e Read Along con evidenziazione, auto-scroll disattivabile e ripresa della posizione.
@@ -56,6 +59,30 @@ Sul branch `feature/m0-flutter-foundation` sono presenti:
 - [Workflow GitHub Actions](https://github.com/EneaMapelli/EReader/actions/workflows/manual-verify.yml) **solo manuale**, avviabile da main scegliendo il branch da verificare; Flutter 3.47.7, Android e Windows.
 
 **Verifiche rinviate all'integrazione finale su richiesta del proprietario:** compilazione, test automatici effettivi, migrazioni SQLite reali e uso su Windows/Android. Gli ambienti Flutter/Dart e i toolchain Windows/Android non erano disponibili nel contesto di sviluppo. Le cartelle native `android/` e `windows/` devono ancora essere generate e versionate dopo il bootstrap.
+
+## Test completi Windows e report automatici (branch unico)
+
+Per eseguire analisi statica, formattazione non distruttiva e **tutti i
+test Flutter**, usando il branch di sviluppo e pubblicando automaticamente
+gli esiti filtrati nello stesso repository privato:
+
+```powershell
+git switch feature/m0-flutter-foundation
+git pull --ff-only origin feature/m0-flutter-foundation
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tool\run-all-tests.ps1
+```
+
+Al termine, i nuovi risultati sono consultabili in
+[`test-results/latest.md`](test-results/latest.md) e
+[`test-results/latest.json`](test-results/latest.json), con esiti per
+singolo test, cronologia e posizioni degli eventuali errori di compilazione.
+Lo script pubblica i report anche se i test falliscono. I log completi
+restano **esclusivamente sul PC** in `.local-test-results/`, esclusa da Git.
+
+**Non crea altri branch, non sovrascrive commit altrui e non esegue build.**
+Un push rifiutato da Git lascia i risultati locali per una pubblicazione
+sicura successiva. Per istruzioni e opzioni: [Windows test runner e
+report automatici](test-results/README.md).
 
 ## Avvio su Windows
 
@@ -98,6 +125,11 @@ Il bootstrap esegue `flutter create --platforms=windows,android .`, `pub get`, `
 - [Diagnostica EPUB, avvisi di compatibilità e verifica integrità delle ancore](docs/EPUB_IMPORT_DIAGNOSTICS.md)
 - [Recupero delle posizioni EPUB con fingerprint del contesto e retrocompatibilità v1/v2](docs/EPUB_PROGRESS_RECOVERY.md)
 - [Prestazioni su EPUB molto lunghi, caricamento per paragrafi e stress test](docs/EPUB_LARGE_BOOK_PERFORMANCE.md)
+- [Rendering EPUB progressivo con cache LRU limitata e indici di paragrafi](docs/EPUB_PROGRESSIVE_LAYOUT.md)
+- [Apertura EPUB in background, ZIP con budget e ancore indicizzate](docs/EPUB_BACKGROUND_PREPARATION.md)
+- [Annullamento worker EPUB, protezione dai caricamenti precedenti e tempi locali](docs/EPUB_CANCELLATION_TIMINGS.md)
+- [Ripresa EPUB verificata nel worker annullabile con checkpoint anti-race](docs/EPUB_BACKGROUND_PROGRESS_RECOVERY.md)
+- [Campionamento locale dei frame EPUB durante lo scorrimento](docs/EPUB_FRAME_SAMPLING.md)
 - [Architettura tecnica](docs/TECHNICAL_ARCHITECTURE.md)
 - [Casting dei personaggi e attribuzione dei dialoghi](docs/VOICE_CASTING_SPEC.md)
 - [Implementazione e test](docs/IMPLEMENTATION_STATUS.md)
