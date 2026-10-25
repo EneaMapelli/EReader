@@ -36,6 +36,12 @@ jobs:
           cache: true
       - name: Generate Android project
         run: flutter create --project-name ereader --org com.example.ereader --platforms=android .
+      - name: Apply tracked Android media-service manifest
+        run: |
+          cp tool/android/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          grep -q 'com.ryanheise.audioservice.AudioServiceActivity' android/app/src/main/AndroidManifest.xml
+          grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' android/app/src/main/AndroidManifest.xml
+          grep -q 'com.ryanheise.audioservice.MediaButtonReceiver' android/app/src/main/AndroidManifest.xml
       - name: Resolve dependencies
         run: flutter pub get
       - name: Format for analysis (non-mutating to repository)
