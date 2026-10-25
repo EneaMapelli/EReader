@@ -937,3 +937,17 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   indicator even if a virtual-list position callback is not emitted.
 - Added an editorial contents regression for silent caption vs future
   narrated section. The new code is not yet validated on Windows/Android.
+
+## M2 — source-exact full-text EPUB search (2026-10-25)
+
+- EPUB search now scans the original extracted text locally rather than
+  indexing only speech segments. Captions, unspoken XHTML sections and
+  multiple matches within a TTS segment are searchable. Results use
+  source-exact UTF-16 offsets and reuse verified link navigation, which
+  does not trigger speech synthesis/cloud requests.
+- Uses case-insensitive escaped literal matching, preserving Unicode
+  source offsets without length-changing case transformation; returns
+  bounded (100) hit previews and debounces typing in the EPUB search UI.
+- Added unit regressions for silent captions, regex-literal punctuation,
+  Unicode/emoji source indices, bounded matches and invalid limits.
+  These newly authored tests have not been executed in Flutter.

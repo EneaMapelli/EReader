@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -83,6 +84,83 @@ Future<int?> showBookSearch(
       },
     ),
   );
+  queryController.dispose();
+  return result;
+}
+
+/// Offline search over the entire canonical EPUB source, not just the TTS
+/// chunks. A selected hit is an exact UTF-16 offset, so silent captions,
+/// footnotes, and several matches within one sentence remain searchable.
+/// Typing is debounced to avoid rescanning multi-megabyte books per keypress.
+Future<int?> showBookSourceSearch(BuildContext context, String source) async {
+  final queryController = TextEditingController();
+  Timer? searchDebounce;
+  var searchTerm = '';
+  final result = await showDialog<int>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (dialogContext, redraw) {
+        final matches = findSourceTextMatches(source, searchTerm);
+        return AlertDialog(
+          title: const Text('Search in EPUB'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(
+                maxWidth: 550, maxHeight: 460, minWidth: 280),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: queryController,
+                  autofocus: true,
+                  maxLength: 120,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    labelText: 'Search all book text',
+                  ),
+                  onChanged: (value) {
+                    searchDebounce?.cancel();
+                    searchDebounce = Timer(const Duration(milliseconds: 180),
+                        () {
+                      if (dialogContext.mounted) {
+                        redraw(() => searchTerm = value.trim());
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
+                if (searchTerm.isNotEmpty)
+                  Text(matches.isEmpty ? 'No matches'
+                      : matches.length == 100 ? 'First 100 matches'
+                      : 'Matches: ${matches.length}'),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: matches.length,
+                    itemBuilder: (context, index) {
+                      final hit = matches[index];
+                      return ListTile(
+                        title: Text(hit.excerpt, maxLines: 3),
+                        subtitle: Text('Source offset ${hit.start}'),
+                        onTap: () => Navigator.pop(dialogContext, hit.start),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  searchDebounce?.cancel();
   queryController.dispose();
   return result;
 }

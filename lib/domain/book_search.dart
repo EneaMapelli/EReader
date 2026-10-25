@@ -19,3 +19,58 @@ List<int> findMatchingSegments(
   }
   return result;
 }
+
+/// A hit in the canonical book source, measured in UTF-16 code units.
+/// [excerpt] is for display only, not an alternative audio segment.
+class BookSourceMatch {
+  const BookSourceMatch(this.start, this.end, this.excerpt);
+
+  final int start;
+  final int end;
+  final String excerpt;
+}
+
+/// Search ALL extracted text, including EPUB captions and other unspoken
+/// paragraphs. Results preserve original UTF-16 offsets without rebuilding
+/// speech segments, using an escaped case-insensitive regular expression
+/// rather than lowercasing the source (which can change Unicode length).
+/// This is local-only: no online indexing, remote API or book-content upload.
+List<BookSourceMatch> findSourceTextMatches(
+  String source,
+  String query, {
+  int maxResults = 100,
+  int contextChars = 60,
+}) {
+  if (maxResults < 1) throw ArgumentError.value(maxResults, 'maxResults');
+  if (contextChars < 0 || contextChars > 512) {
+    throw ArgumentError.value(contextChars, 'contextChars');
+  }
+  final needle = query.trim();
+  if (needle.isEmpty || needle.length > 120 || source.isEmpty) {
+    return const [];
+  }
+  final pattern = RegExp(RegExp.escape(needle), caseSensitive: false,
+      unicode: true);
+  final results = <BookSourceMatch>[];
+  for (final hit in pattern.allMatches(source)) {
+    var start = hit.start - contextChars;
+    if (start < 0) start = 0;
+    var end = hit.end + contextChars;
+    if (end > source.length) end = source.length;
+    // A display excerpt must also never split a UTF-16 surrogate pair.
+    if (start > 0 && start < source.length &&
+        _sourceLowSurrogate(source.codeUnitAt(start)) &&
+        _sourceHighSurrogate(source.codeUnitAt(start - 1))) start--;
+    if (end > 0 && end < source.length &&
+        _sourceLowSurrogate(source.codeUnitAt(end)) &&
+        _sourceHighSurrogate(source.codeUnitAt(end - 1))) end++;
+    final excerpt = source.substring(start, end)
+        .replaceAll(RegExp(r'\\s+'), ' ').trim();
+    results.add(BookSourceMatch(hit.start, hit.end, excerpt));
+    if (results.length >= maxResults) break;
+  }
+  return List.unmodifiable(results);
+}
+
+bool _sourceHighSurrogate(int unit) => unit >= 0xD800 && unit <= 0xDBFF;
+bool _sourceLowSurrogate(int unit) => unit >= 0xDC00 && unit <= 0xDFFF;

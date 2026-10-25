@@ -690,8 +690,17 @@ class _ReaderScreenState extends State<ReaderScreen>
   Future<void> _searchInBook() async {
     final player = _player;
     if (player == null || player.segments.isEmpty) return;
+    final document = _document;
+    if (widget.book.format == BookFormat.epub && document != null) {
+      final sourceOffset = await showBookSourceSearch(context, document.text);
+      if (!mounted || _player != player || sourceOffset == null) return;
+      // Search is only local source navigation. Never start TTS or pay for
+      // cloud synthesis just because a result was selected.
+      _navigateToSourceOffset(sourceOffset, remember: false);
+      return;
+    }
     final result = await showBookSearch(context, player.segments);
-    if (!mounted || result == null) return;
+    if (!mounted || _player != player || result == null) return;
     await _select(result);
   }
 
