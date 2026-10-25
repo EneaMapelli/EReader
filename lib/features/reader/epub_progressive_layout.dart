@@ -136,6 +136,11 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
 
   final bounds = <_ParagraphBounds>[];
   final mapping = List<int>.filled(segments.length, -1);
+  // Blocks are visited in monotonically increasing source order. Advance
+  // a single segment cursor rather than binary-searching every paragraph.
+  // This changes boundary-to-segment indexing from O(B log S) toward
+  // O(B + S), retaining first-block ownership for segments spanning blocks.
+  var indexSegmentCursor = 0;
   const maxIndexedParagraphs = 300000;
 
   void indexBlock(int rawStart, int rawEnd, bool chapterStart) {
@@ -151,9 +156,13 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
     if (bounds.length >= maxIndexedParagraphs) {
       throw const FormatException('EPUB paragraph index budget exceeded');
     }
-    final first = firstSegmentAfter(start);
+    while (indexSegmentCursor < segments.length &&
+        segments[indexSegmentCursor].end <= start) {
+      indexSegmentCursor++;
+    }
     int? firstSegment;
-    for (var i = first; i < segments.length && segments[i].start < end; i++) {
+    for (var i = indexSegmentCursor;
+        i < segments.length && segments[i].start < end; i++) {
       if (segments[i].end <= start) continue;
       firstSegment ??= i;
       if (mapping[i] == -1) mapping[i] = bounds.length;
