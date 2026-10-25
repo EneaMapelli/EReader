@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+import 'dart:isolate';
 
 import 'package:pdfrx/pdfrx.dart';
 
@@ -146,6 +146,13 @@ class PdfPageRange {
   final int end;
 }
 
+/// Worker-side only: no Flutter widgets/plugins, SQLite connection, network,
+/// TTS engine or user-specific credentials cross the isolate boundary.
+EpubTextResult _extractEpubFile(String localPath) {
+  final bytes = File(localPath).readAsBytesSync();
+  return const EpubTextExtractor().extract(bytes);
+}
+
 abstract interface class DocumentDecoder {
   Future<DocumentContent> read(BookRecord record);
 }
@@ -169,9 +176,13 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
           text: text.startsWith('\uFEFF') ? text.substring(1) : text,
         );
       case BookFormat.epub:
-        final bytes = await file.readAsBytes();
-        final content = const EpubTextExtractor().extract(
-          Uint8List.fromList(bytes),
+        // EPUB ZIP decompression, XHTML parsing and source annotation are
+        // CPU-heavy. Keep them off the Flutter UI isolate. The worker reads
+        // the file itself, avoiding a second compressed archive copy on
+        // the UI thread; its result is a sendable, pure-Dart data object.
+        final content = await Isolate.run(
+          () => _extractEpubFile(record.localPath),
+          debugName: 'EReader EPUB import',
         );
         return DocumentContent(
           title: content.title,
