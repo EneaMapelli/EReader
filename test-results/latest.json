@@ -1,1225 +1,1585 @@
 {
-    "runId":  "20261025T165839Z-946fc7b9-dc2652",
-    "sourceCommit":  "946fc7b9dae008bbe92e89248921bad6430f7a50",
+    "runId":  "20261025T193458Z-003d2e13-bfda7f",
+    "sourceCommit":  "003d2e132344e6576684d808778dc0fb17befe11",
     "branch":  "feature/m0-flutter-foundation",
-    "startedUtc":  "2026-10-25T16:58:39.6408147Z",
-    "completedUtc":  "2026-10-25T17:08:32.8783438Z",
+    "startedUtc":  "2026-10-25T19:34:58.7233890Z",
+    "completedUtc":  "2026-10-25T19:48:24.6224752Z",
     "result":  "FAIL",
     "totals":  {
-                   "passed":  589,
-                   "failed":  0,
-                   "errors":  5,
+                   "passed":  414,
+                   "failed":  1,
+                   "errors":  24,
                    "skipped":  0,
-                   "testFilesDiscovered":  67,
-                   "testOutcomesParsed":  594
+                   "testFilesDiscovered":  76,
+                   "testOutcomesParsed":  439
                },
     "stages":  [
                    {
                        "step":  "flutter-version",
-                       "exitCode":  125,
-                       "seconds":  2.7,
+                       "exitCode":  0,
+                       "seconds":  3.9,
                        "timedOut":  false
                    },
                    {
                        "step":  "dart-version",
-                       "exitCode":  125,
-                       "seconds":  1.6,
+                       "exitCode":  0,
+                       "seconds":  1.7,
                        "timedOut":  false
                    },
                    {
                        "step":  "pub-get",
-                       "exitCode":  125,
-                       "seconds":  4.6,
+                       "exitCode":  0,
+                       "seconds":  19.5,
                        "timedOut":  false
                    },
                    {
                        "step":  "format-check",
-                       "exitCode":  125,
-                       "seconds":  3.2,
+                       "exitCode":  1,
+                       "seconds":  4.1,
                        "timedOut":  false
                    },
                    {
                        "step":  "flutter-analyze",
-                       "exitCode":  125,
-                       "seconds":  27.3,
+                       "exitCode":  1,
+                       "seconds":  35.8,
                        "timedOut":  false
                    },
                    {
                        "step":  "flutter-test-all",
-                       "exitCode":  125,
-                       "seconds":  42.8,
+                       "exitCode":  1,
+                       "seconds":  174.8,
                        "timedOut":  false
                    },
                    {
                        "step":  "individual-0001",
-                       "exitCode":  125,
-                       "seconds":  7.5,
+                       "exitCode":  0,
+                       "seconds":  9,
                        "timedOut":  false
                    },
                    {
                        "step":  "individual-0002",
-                       "exitCode":  125,
-                       "seconds":  6.8,
+                       "exitCode":  0,
+                       "seconds":  7.5,
                        "timedOut":  false
                    },
                    {
                        "step":  "individual-0003",
-                       "exitCode":  125,
-                       "seconds":  7.5,
+                       "exitCode":  0,
+                       "seconds":  7.6,
                        "timedOut":  false
                    },
                    {
                        "step":  "individual-0004",
-                       "exitCode":  125,
-                       "seconds":  7.4,
+                       "exitCode":  0,
+                       "seconds":  7.2,
                        "timedOut":  false
                    },
                    {
                        "step":  "individual-0005",
-                       "exitCode":  125,
-                       "seconds":  7.2,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0006",
-                       "exitCode":  125,
-                       "seconds":  6,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0007",
-                       "exitCode":  125,
-                       "seconds":  5.1,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0008",
-                       "exitCode":  125,
-                       "seconds":  7.6,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0009",
-                       "exitCode":  125,
-                       "seconds":  7.8,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0010",
-                       "exitCode":  125,
-                       "seconds":  6.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0011",
-                       "exitCode":  125,
-                       "seconds":  6.7,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0012",
-                       "exitCode":  125,
-                       "seconds":  10.7,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0013",
-                       "exitCode":  125,
-                       "seconds":  7.7,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0014",
-                       "exitCode":  125,
-                       "seconds":  7.4,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0015",
-                       "exitCode":  125,
-                       "seconds":  6.6,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0016",
-                       "exitCode":  125,
-                       "seconds":  8.4,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0017",
-                       "exitCode":  125,
-                       "seconds":  7.2,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0018",
-                       "exitCode":  125,
-                       "seconds":  5.9,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0019",
-                       "exitCode":  125,
-                       "seconds":  6.2,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0020",
-                       "exitCode":  125,
-                       "seconds":  8.1,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0021",
-                       "exitCode":  125,
-                       "seconds":  7,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0022",
-                       "exitCode":  125,
-                       "seconds":  6.9,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0023",
-                       "exitCode":  125,
-                       "seconds":  9.4,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0024",
-                       "exitCode":  125,
-                       "seconds":  14.1,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0025",
-                       "exitCode":  125,
-                       "seconds":  8.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0026",
-                       "exitCode":  125,
-                       "seconds":  7.8,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0027",
-                       "exitCode":  125,
-                       "seconds":  11.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0028",
-                       "exitCode":  125,
-                       "seconds":  6.9,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0029",
-                       "exitCode":  125,
-                       "seconds":  6.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0030",
-                       "exitCode":  125,
-                       "seconds":  6.9,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0031",
-                       "exitCode":  125,
-                       "seconds":  7.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0032",
-                       "exitCode":  125,
-                       "seconds":  7.7,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0033",
-                       "exitCode":  125,
-                       "seconds":  8,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0034",
-                       "exitCode":  125,
-                       "seconds":  6.5,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0035",
-                       "exitCode":  125,
-                       "seconds":  7.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0036",
-                       "exitCode":  125,
-                       "seconds":  8.1,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0037",
-                       "exitCode":  125,
-                       "seconds":  8.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0038",
-                       "exitCode":  125,
-                       "seconds":  6,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0039",
-                       "exitCode":  125,
-                       "seconds":  7.5,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0040",
-                       "exitCode":  125,
-                       "seconds":  8.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0041",
-                       "exitCode":  125,
-                       "seconds":  6.5,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0042",
-                       "exitCode":  125,
-                       "seconds":  7.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0043",
-                       "exitCode":  125,
-                       "seconds":  7.7,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0044",
-                       "exitCode":  125,
-                       "seconds":  7.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0045",
-                       "exitCode":  125,
-                       "seconds":  5.7,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0046",
-                       "exitCode":  125,
-                       "seconds":  6.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0047",
-                       "exitCode":  125,
-                       "seconds":  5.8,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0048",
-                       "exitCode":  125,
-                       "seconds":  6.4,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0049",
-                       "exitCode":  125,
-                       "seconds":  7.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0050",
-                       "exitCode":  125,
-                       "seconds":  13,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0051",
-                       "exitCode":  125,
-                       "seconds":  6.7,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0052",
-                       "exitCode":  125,
-                       "seconds":  7.1,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0053",
-                       "exitCode":  125,
-                       "seconds":  5.8,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0054",
-                       "exitCode":  125,
-                       "seconds":  7.3,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0055",
-                       "exitCode":  125,
-                       "seconds":  7.2,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0056",
-                       "exitCode":  125,
-                       "seconds":  11.7,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0057",
-                       "exitCode":  125,
-                       "seconds":  7.9,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0058",
-                       "exitCode":  125,
-                       "seconds":  6.5,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0059",
-                       "exitCode":  125,
-                       "seconds":  6.6,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0060",
-                       "exitCode":  125,
-                       "seconds":  5.7,
-                       "timedOut":  false
-                   },
-                   {
-                       "step":  "individual-0061",
-                       "exitCode":  125,
+                       "exitCode":  0,
                        "seconds":  6.1,
                        "timedOut":  false
                    },
                    {
-                       "step":  "individual-0062",
-                       "exitCode":  125,
-                       "seconds":  7.6,
+                       "step":  "individual-0006",
+                       "exitCode":  0,
+                       "seconds":  8,
                        "timedOut":  false
                    },
                    {
-                       "step":  "individual-0063",
-                       "exitCode":  125,
+                       "step":  "individual-0007",
+                       "exitCode":  0,
+                       "seconds":  5.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0008",
+                       "exitCode":  0,
+                       "seconds":  6.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0009",
+                       "exitCode":  0,
+                       "seconds":  5.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0010",
+                       "exitCode":  0,
+                       "seconds":  6.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0011",
+                       "exitCode":  0,
+                       "seconds":  5.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0012",
+                       "exitCode":  0,
+                       "seconds":  6.4,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0013",
+                       "exitCode":  0,
+                       "seconds":  7.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0014",
+                       "exitCode":  0,
+                       "seconds":  7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0015",
+                       "exitCode":  0,
+                       "seconds":  6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0016",
+                       "exitCode":  0,
+                       "seconds":  5.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0017",
+                       "exitCode":  1,
+                       "seconds":  7.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0018",
+                       "exitCode":  0,
+                       "seconds":  7.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0019",
+                       "exitCode":  0,
+                       "seconds":  6.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0020",
+                       "exitCode":  0,
                        "seconds":  5.2,
                        "timedOut":  false
                    },
                    {
+                       "step":  "individual-0021",
+                       "exitCode":  1,
+                       "seconds":  5.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0022",
+                       "exitCode":  1,
+                       "seconds":  5.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0023",
+                       "exitCode":  1,
+                       "seconds":  5.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0024",
+                       "exitCode":  0,
+                       "seconds":  5.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0025",
+                       "exitCode":  1,
+                       "seconds":  6.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0026",
+                       "exitCode":  1,
+                       "seconds":  6.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0027",
+                       "exitCode":  1,
+                       "seconds":  6.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0028",
+                       "exitCode":  1,
+                       "seconds":  7.6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0029",
+                       "exitCode":  1,
+                       "seconds":  7.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0030",
+                       "exitCode":  0,
+                       "seconds":  5.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0031",
+                       "exitCode":  1,
+                       "seconds":  6.4,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0032",
+                       "exitCode":  0,
+                       "seconds":  14.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0033",
+                       "exitCode":  0,
+                       "seconds":  8.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0034",
+                       "exitCode":  0,
+                       "seconds":  9.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0035",
+                       "exitCode":  1,
+                       "seconds":  7.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0036",
+                       "exitCode":  0,
+                       "seconds":  8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0037",
+                       "exitCode":  0,
+                       "seconds":  6.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0038",
+                       "exitCode":  1,
+                       "seconds":  9.4,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0039",
+                       "exitCode":  0,
+                       "seconds":  6.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0040",
+                       "exitCode":  0,
+                       "seconds":  7.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0041",
+                       "exitCode":  0,
+                       "seconds":  6.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0042",
+                       "exitCode":  0,
+                       "seconds":  6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0043",
+                       "exitCode":  0,
+                       "seconds":  6.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0044",
+                       "exitCode":  0,
+                       "seconds":  6.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0045",
+                       "exitCode":  0,
+                       "seconds":  6.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0046",
+                       "exitCode":  0,
+                       "seconds":  6.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0047",
+                       "exitCode":  0,
+                       "seconds":  6.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0048",
+                       "exitCode":  0,
+                       "seconds":  6.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0049",
+                       "exitCode":  0,
+                       "seconds":  6.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0050",
+                       "exitCode":  0,
+                       "seconds":  6.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0051",
+                       "exitCode":  0,
+                       "seconds":  6.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0052",
+                       "exitCode":  0,
+                       "seconds":  5.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0053",
+                       "exitCode":  0,
+                       "seconds":  6.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0054",
+                       "exitCode":  0,
+                       "seconds":  6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0055",
+                       "exitCode":  0,
+                       "seconds":  6.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0056",
+                       "exitCode":  0,
+                       "seconds":  7.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0057",
+                       "exitCode":  0,
+                       "seconds":  6.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0058",
+                       "exitCode":  1,
+                       "seconds":  10.4,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0059",
+                       "exitCode":  1,
+                       "seconds":  10.1,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0060",
+                       "exitCode":  0,
+                       "seconds":  7.7,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0061",
+                       "exitCode":  0,
+                       "seconds":  7.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0062",
+                       "exitCode":  0,
+                       "seconds":  8.6,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0063",
+                       "exitCode":  0,
+                       "seconds":  9.2,
+                       "timedOut":  false
+                   },
+                   {
                        "step":  "individual-0064",
-                       "exitCode":  125,
-                       "seconds":  8.9,
+                       "exitCode":  1,
+                       "seconds":  10,
                        "timedOut":  false
                    },
                    {
                        "step":  "individual-0065",
-                       "exitCode":  125,
-                       "seconds":  12.6,
+                       "exitCode":  1,
+                       "seconds":  11.7,
                        "timedOut":  false
                    },
                    {
                        "step":  "individual-0066",
-                       "exitCode":  125,
-                       "seconds":  11.4,
+                       "exitCode":  1,
+                       "seconds":  9.4,
                        "timedOut":  false
                    },
                    {
                        "step":  "individual-0067",
-                       "exitCode":  125,
-                       "seconds":  7.2,
+                       "exitCode":  1,
+                       "seconds":  8.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0068",
+                       "exitCode":  1,
+                       "seconds":  11,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0069",
+                       "exitCode":  0,
+                       "seconds":  6.3,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0070",
+                       "exitCode":  1,
+                       "seconds":  10.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0071",
+                       "exitCode":  1,
+                       "seconds":  10.5,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0072",
+                       "exitCode":  0,
+                       "seconds":  6.9,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0073",
+                       "exitCode":  1,
+                       "seconds":  9.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0074",
+                       "exitCode":  1,
+                       "seconds":  9.2,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0075",
+                       "exitCode":  1,
+                       "seconds":  9.8,
+                       "timedOut":  false
+                   },
+                   {
+                       "step":  "individual-0076",
+                       "exitCode":  1,
+                       "seconds":  9.1,
                        "timedOut":  false
                    }
                ],
     "isolatedFileRuns":  [
                              {
                                  "file":  "test/audio/cloud_prefetch_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  8
                              },
                              {
                                  "file":  "test/audio/mp3_preload_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  16
                              },
                              {
                                  "file":  "test/audio/narration_recovery_binding_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  9
                              },
                              {
                                  "file":  "test/audio/native_stop_timeout_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  8
                              },
                              {
                                  "file":  "test/audio/openai_speech_engine_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  11
                              },
                              {
                                  "file":  "test/audio/rapid_playback_navigation_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  9
                              },
                              {
                                  "file":  "test/audio/reader_lifecycle_policy_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  3
                              },
                              {
                                  "file":  "test/audio/reader_media_handler_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  18
                              },
                              {
                                  "file":  "test/audio/reader_player_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  10
                              },
                              {
+                                 "file":  "test/audio/sherpa_vits_engine_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  7
+                             },
+                             {
+                                 "file":  "test/audio/sherpa_vits_factory_gate_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  3
+                             },
+                             {
+                                 "file":  "test/audio/sherpa_vits_worker_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  6
+                             },
+                             {
                                  "file":  "test/audio/sleep_timer_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  4
                              },
                              {
                                  "file":  "test/audio/speech_audio_cache_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  3
                              },
                              {
-                                 "file":  "test/data/book_decoder_test.dart",
-                                 "exitCode":  125,
+                                 "file":  "test/config/android_manifest_bootstrap_test.dart",
+                                 "exitCode":  0,
                                  "timedOut":  false,
-                                 "parsedCases":  6
+                                 "parsedCases":  2
+                             },
+                             {
+                                 "file":  "test/config/offline_voice_pack_structure_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  1
+                             },
+                             {
+                                 "file":  "test/data/book_decoder_test.dart",
+                                 "exitCode":  1,
+                                 "timedOut":  false,
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/data/cast_merge_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  9
                              },
                              {
                                  "file":  "test/data/dialogue_turn_review_store_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  3
                              },
                              {
                                  "file":  "test/data/epub_anchor_integrity_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  7
                              },
                              {
                                  "file":  "test/data/epub_bounded_file_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  4
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/data/epub_embedded_content_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  12
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/data/epub_encoding_integration_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  6
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/data/epub_import_diagnostics_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  3
                              },
                              {
                                  "file":  "test/data/epub_inline_style_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  4
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/data/epub_legacy_notes_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  10
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/data/epub_navigation_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  17
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/data/epub_progress_recovery_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  10
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/data/epub_reader_preflight_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  11
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/data/epub_text_decoder_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  12
                              },
                              {
                                  "file":  "test/data/epub_text_extractor_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  22
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/data/library_store_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
-                                 "parsedCases":  42
+                                 "parsedCases":  43
                              },
                              {
                                  "file":  "test/data/narration_crash_recovery_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  10
                              },
                              {
                                  "file":  "test/data/narrative_reference_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  7
+                             },
+                             {
+                                 "file":  "test/data/offline_voice_pack_test.dart",
+                                 "exitCode":  1,
+                                 "timedOut":  false,
+                                 "parsedCases":  15
                              },
                              {
                                  "file":  "test/data/pdf_visual_resume_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  7
                              },
                              {
-                                 "file":  "test/data/reading_anchor_test.dart",
-                                 "exitCode":  125,
+                                 "file":  "test/data/picked_book_import_test.dart",
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  6
                              },
                              {
+                                 "file":  "test/data/reading_anchor_test.dart",
+                                 "exitCode":  1,
+                                 "timedOut":  false,
+                                 "parsedCases":  1
+                             },
+                             {
                                  "file":  "test/data/recent_book_resume_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  4
                              },
                              {
                                  "file":  "test/domain/alias_candidate_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  3
                              },
                              {
                                  "file":  "test/domain/book_bookmark_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  2
                              },
                              {
                                  "file":  "test/domain/book_search_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
-                                 "parsedCases":  9
+                                 "parsedCases":  11
                              },
                              {
                                  "file":  "test/domain/book_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  3
                              },
                              {
                                  "file":  "test/domain/cast_span_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  8
                              },
                              {
                                  "file":  "test/domain/character_candidate_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  3
                              },
                              {
                                  "file":  "test/domain/cloud_speech_consent_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  3
                              },
                              {
                                  "file":  "test/domain/cross_chunk_cast_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  13
                              },
                              {
                                  "file":  "test/domain/dialogue_segmenter_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  8
                              },
                              {
                                  "file":  "test/domain/dialogue_turn_inspector_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  16
                              },
                              {
                                  "file":  "test/domain/dialogue_turn_review_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  14
                              },
                              {
                                  "file":  "test/domain/epub_anchor_context_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  7
                              },
                              {
+                                 "file":  "test/domain/library_catalog_test.dart",
+                                 "exitCode":  0,
+                                 "timedOut":  false,
+                                 "parsedCases":  4
+                             },
+                             {
                                  "file":  "test/domain/llm_cast_proposals_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  5
                              },
                              {
                                  "file":  "test/domain/pronunciation_rule_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  7
                              },
                              {
                                  "file":  "test/domain/speech_preferences_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  3
                              },
                              {
                                  "file":  "test/domain/speech_segment_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  14
                              },
                              {
                                  "file":  "test/domain/voice_cast_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  4
                              },
                              {
                                  "file":  "test/features/book_source_search_widget_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  3
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/features/epub_chapter_navigation_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  9
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/features/epub_diagnostics_sheet_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  2
                              },
                              {
                                  "file":  "test/features/epub_frame_sampler_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  4
                              },
                              {
                                  "file":  "test/features/epub_link_history_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  6
                              },
                              {
                                  "file":  "test/features/epub_note_preview_sheet_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  6
                              },
                              {
                                  "file":  "test/features/epub_opening_performance_sheet_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  4
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/features/epub_paragraph_tile_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  15
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/features/epub_progressive_layout_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  17
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/features/epub_visual_layout_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  20
+                                 "parsedCases":  1
+                             },
+                             {
+                                 "file":  "test/features/library_catalog_widget_test.dart",
+                                 "exitCode":  1,
+                                 "timedOut":  false,
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/llm/conversation_speaker_inspector_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  13
                              },
                              {
                                  "file":  "test/llm/dialogue_analysis_plan_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  9
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/llm/historical_character_concordance_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  9
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/llm/narrative_antecedent_finder_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  0,
                                  "timedOut":  false,
                                  "parsedCases":  12
                              },
                              {
                                  "file":  "test/llm/openai_alias_reconciler_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  8
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/llm/openai_character_discoverer_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  6
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/llm/openai_dialogue_analyzer_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  10
+                                 "parsedCases":  1
                              },
                              {
                                  "file":  "test/llm/openai_reference_resolver_test.dart",
-                                 "exitCode":  125,
+                                 "exitCode":  1,
                                  "timedOut":  false,
-                                 "parsedCases":  8
+                                 "parsedCases":  1
                              }
                          ],
     "compileLocations":  [
                              {
                                  "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "lib/features/reader/reading_tools.dart",
-                                 "line":  107,
-                                 "column":  16,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  23,
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  23,
-                                 "column":  5,
+                                 "file":  "lib/features/reader/voice_cast_screen.dart",
+                                 "line":  1055,
+                                 "column":  32,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  26,
+                                 "file":  "lib/src/widgets/basic.dart",
+                                 "line":  6091,
+                                 "column":  9,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "\u003cfull_suite\u003e",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  26,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  27,
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  28,
-                                 "column":  18,
+                                 "file":  "lib/features/reader/voice_cast_screen.dart",
+                                 "line":  1055,
+                                 "column":  32,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  28,
-                                 "column":  5,
+                                 "file":  "lib/src/widgets/basic.dart",
+                                 "line":  6091,
+                                 "column":  9,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  29,
-                                 "column":  5,
+                                 "file":  "lib/features/reader/voice_cast_screen.dart",
+                                 "line":  1103,
+                                 "column":  32,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  55,
-                                 "column":  18,
+                                 "file":  "lib/features/reader/voice_cast_screen.dart",
+                                 "line":  1148,
+                                 "column":  32,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  55,
-                                 "column":  5,
+                                 "file":  "lib/features/reader/voice_cast_screen.dart",
+                                 "line":  1217,
+                                 "column":  30,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  56,
+                                 "testFile":  "test/data/book_decoder_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  56,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  57,
+                                 "testFile":  "test/data/book_decoder_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  58,
+                                 "testFile":  "test/data/book_decoder_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  58,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  59,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  84,
+                                 "testFile":  "test/data/epub_bounded_file_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  84,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  85,
+                                 "testFile":  "test/data/epub_bounded_file_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  85,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  86,
+                                 "testFile":  "test/data/epub_bounded_file_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  87,
+                                 "testFile":  "test/data/epub_embedded_content_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  87,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  88,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "\u003cfull_suite\u003e",
-                                 "file":  "test/features/epub_opening_performance_sheet_test.dart",
-                                 "line":  132,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "lib/features/reader/reading_tools.dart",
-                                 "line":  107,
-                                 "column":  16,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  23,
+                                 "testFile":  "test/data/epub_embedded_content_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  23,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  26,
+                                 "testFile":  "test/data/epub_embedded_content_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  26,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  27,
+                                 "testFile":  "test/data/epub_encoding_integration_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  28,
+                                 "testFile":  "test/data/epub_encoding_integration_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  28,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  29,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  55,
+                                 "testFile":  "test/data/epub_encoding_integration_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  55,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  56,
+                                 "testFile":  "test/data/epub_inline_style_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  56,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  57,
+                                 "testFile":  "test/data/epub_inline_style_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  58,
+                                 "testFile":  "test/data/epub_inline_style_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  58,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  59,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  84,
+                                 "testFile":  "test/data/epub_legacy_notes_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  84,
-                                 "column":  5,
+                                 "testFile":  "test/data/epub_legacy_notes_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  85,
+                                 "testFile":  "test/data/epub_legacy_notes_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_navigation_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_navigation_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_navigation_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_progress_recovery_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_progress_recovery_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_progress_recovery_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_reader_preflight_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_reader_preflight_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_reader_preflight_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_text_extractor_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_text_extractor_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/epub_text_extractor_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/reading_anchor_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/reading_anchor_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/data/reading_anchor_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  85,
-                                 "column":  5,
-                                 "kind":  "compile_or_load_location"
-                             },
-                             {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  86,
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  87,
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
                                  "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  87,
-                                 "column":  5,
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
-                                 "testFile":  "test/features/book_source_search_widget_test.dart",
-                                 "file":  "test/features/book_source_search_widget_test.dart",
-                                 "line":  88,
-                                 "column":  5,
+                                 "testFile":  "test/features/epub_chapter_navigation_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_chapter_navigation_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_chapter_navigation_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
                                  "kind":  "compile_or_load_location"
                              },
                              {
                                  "testFile":  "test/features/epub_opening_performance_sheet_test.dart",
-                                 "file":  "test/features/epub_opening_performance_sheet_test.dart",
-                                 "line":  132,
-                                 "column":  5,
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_opening_performance_sheet_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_opening_performance_sheet_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_paragraph_tile_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_paragraph_tile_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_paragraph_tile_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_progressive_layout_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_progressive_layout_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_progressive_layout_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_visual_layout_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_visual_layout_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/epub_visual_layout_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/library_catalog_widget_test.dart",
+                                 "file":  "lib/features/reader/voice_cast_screen.dart",
+                                 "line":  1055,
+                                 "column":  32,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/library_catalog_widget_test.dart",
+                                 "file":  "lib/src/widgets/basic.dart",
+                                 "line":  6091,
+                                 "column":  9,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/library_catalog_widget_test.dart",
+                                 "file":  "lib/features/reader/voice_cast_screen.dart",
+                                 "line":  1055,
+                                 "column":  32,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/library_catalog_widget_test.dart",
+                                 "file":  "lib/src/widgets/basic.dart",
+                                 "line":  6091,
+                                 "column":  9,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/library_catalog_widget_test.dart",
+                                 "file":  "lib/features/reader/voice_cast_screen.dart",
+                                 "line":  1103,
+                                 "column":  32,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/library_catalog_widget_test.dart",
+                                 "file":  "lib/features/reader/voice_cast_screen.dart",
+                                 "line":  1148,
+                                 "column":  32,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/library_catalog_widget_test.dart",
+                                 "file":  "lib/features/reader/voice_cast_screen.dart",
+                                 "line":  1217,
+                                 "column":  30,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/library_catalog_widget_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/features/library_catalog_widget_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/dialogue_analysis_plan_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/dialogue_analysis_plan_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/dialogue_analysis_plan_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/historical_character_concordance_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/historical_character_concordance_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/historical_character_concordance_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_alias_reconciler_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_alias_reconciler_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_alias_reconciler_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_character_discoverer_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_character_discoverer_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_character_discoverer_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_dialogue_analyzer_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_dialogue_analyzer_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_dialogue_analyzer_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_reference_resolver_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_reference_resolver_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  12,
+                                 "column":  18,
+                                 "kind":  "compile_or_load_location"
+                             },
+                             {
+                                 "testFile":  "test/llm/openai_reference_resolver_test.dart",
+                                 "file":  "lib/data/epub_html_preprocess.dart",
+                                 "line":  14,
+                                 "column":  18,
                                  "kind":  "compile_or_load_location"
                              }
                          ],
@@ -1248,13 +1608,18 @@
                            "   info - Use an initializing formal to assign a parameter to a field. Try using an initialing formal (\u0027this._segments\u0027) to initialize the field - lib/audio/reader_player.dart:43:8 - prefer_initializing_formals",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/reader_player.dart:205:9 - prefer_interpolation_to_compose_strings",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/secret_vault.dart:20:12 - prefer_interpolation_to_compose_strings",
+                           "   info - Use an initializing formal to assign a parameter to a field. Try using an initialing formal (\u0027this._synthesizer\u0027) to initialize the field - lib/audio/sherpa_vits_engine.dart:94:9 - prefer_initializing_formals",
                            "   info - Use an initializing formal to assign a parameter to a field. Try using an initialing formal (\u0027this._root\u0027) to initialize the field - lib/audio/speech_audio_cache.dart:30:46 - prefer_initializing_formals",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/speech_audio_cache.dart:58:34 - prefer_interpolation_to_compose_strings",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/speech_audio_cache.dart:88:7 - prefer_interpolation_to_compose_strings",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/speech_audio_cache.dart:88:25 - prefer_interpolation_to_compose_strings",
-                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/speech_engine_factory.dart:33:11 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/audio/speech_engine_factory.dart:61:11 - prefer_interpolation_to_compose_strings",
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_embedded_content.dart:68:45 - curly_braces_in_flow_control_structures",
                            "   info - Statements in a while should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_embedded_content.dart:78:62 - curly_braces_in_flow_control_structures",
+                           "   info - Angle brackets will be interpreted as HTML. Try using backticks around the content with angle brackets, or try replacing `\u003c` with `\u0026lt;` and `\u003e` with `\u0026gt;` - lib/data/epub_html_preprocess.dart:3:5 - unintended",
+                           "   info - Angle brackets will be interpreted as HTML. Try using backticks around the content with angle brackets, or try replacing `\u003c` with `\u0026lt;` and `\u003e` with `\u0026gt;` - lib/data/epub_html_preprocess.dart:3:28 - unintende",
+                           "  error - Too many positional arguments: 1 expected, but 2 found. Try removing the extra arguments - lib/data/epub_html_preprocess.dart:12:26 - extra_positional_arguments",
+                           "  error - Too many positional arguments: 1 expected, but 2 found. Try removing the extra arguments - lib/data/epub_html_preprocess.dart:14:26 - extra_positional_arguments",
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_navigation.dart:69:35 - curly_braces_in_flow_control_structures",
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/epub_navigation.dart:124:37 - curly_braces_in_flow_control_structures",
                            "   info - Use the null-aware marker \u0027?\u0027 rather than a null check via an \u0027if\u0027. Try using \u0027?\u0027 - lib/data/epub_reader_preflight.dart:67:5 - use_null_aware_elements",
@@ -1276,8 +1641,9 @@
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/data/library_store.dart:549:28 - prefer_interpolation_to_compose_strings",
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/data/library_store.dart:979:68 - curly_braces_in_flow_control_structures",
                            "   info - \u0027dispose\u0027 is deprecated and shouldn\u0027t be used. Call close() instead. Try replacing the use of the deprecated member with the replacement - lib/data/library_store.dart:1981:10 - deprecated_member_use",
-                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/book_search.dart:79:61 - curly_braces_in_flow_control_structures",
-                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/book_search.dart:82:59 - curly_braces_in_flow_control_structures",
+                           "warning - Returning a \u0027Future\u0027 without \u0027await\u0027 inside a try block. Try adding an \u0027await\u0027 - lib/data/offline_voice_pack.dart:367:7 - unawaited_return_in_try_block",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/book_search.dart:90:61 - curly_braces_in_flow_control_structures",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/book_search.dart:93:59 - curly_braces_in_flow_control_structures",
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:173:56 - curly_braces_in_flow_control_structures",
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:217:61 - curly_braces_in_flow_control_structures",
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/cast_span.dart:224:65 - curly_braces_in_flow_control_structures",
@@ -1309,7 +1675,6 @@
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/epub_anchor_context.dart:78:33 - curly_braces_in_flow_control_structures",
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/epub_anchor_context.dart:80:32 - curly_braces_in_flow_control_structures",
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/domain/speech_segment.dart:215:44 - curly_braces_in_flow_control_structures",
-                           "  error - The getter \u0027platform\u0027 isn\u0027t defined for the type \u0027FilePicker\u0027. Try importing the library that defines \u0027platform\u0027, correcting the name to the name of an existing getter, or defining a getter or field named \u0027plat",
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/features/reader/cast_merge_screen.dart:58:69 - curly_braces_in_flow_control_structures",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/cast_merge_screen.dart:72:23 - prefer_interpolation_to_compose_strings",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/cast_merge_screen.dart:73:13 - prefer_interpolation_to_compose_strings",
@@ -1402,16 +1767,15 @@
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/features/reader/reader_screen.dart:990:43 - curly_braces_in_flow_control_structures",
                            "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/features/reader/reader_screen.dart:1095:69 - curly_braces_in_flow_control_structures",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reader_screen.dart:1495:22 - prefer_interpolation_to_compose_strings",
-                           "  error - Invalid constant value - lib/features/reader/reader_screen.dart:1607:23 - invalid_constant",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reader_screen.dart:1653:31 - prefer_interpolation_to_compose_strings",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reading_tools.dart:50:29 - prefer_interpolation_to_compose_strings",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reading_tools.dart:62:33 - prefer_interpolation_to_compose_strings",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reading_tools.dart:67:27 - prefer_interpolation_to_compose_strings",
-                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reading_tools.dart:219:33 - prefer_interpolation_to_compose_strings",
-                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/features/reader/reading_tools.dart:250:54 - curly_braces_in_flow_control_structures",
-                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reading_tools.dart:253:35 - prefer_interpolation_to_compose_strings",
-                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reading_tools.dart:269:35 - prefer_interpolation_to_compose_strings",
-                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reading_tools.dart:307:33 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reading_tools.dart:256:33 - prefer_interpolation_to_compose_strings",
+                           "   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib/features/reader/reading_tools.dart:287:54 - curly_braces_in_flow_control_structures",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reading_tools.dart:290:35 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reading_tools.dart:306:35 - prefer_interpolation_to_compose_strings",
+                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/reading_tools.dart:344:33 - prefer_interpolation_to_compose_strings",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/speech_provider_screen.dart:62:17 - prefer_interpolation_to_compose_strings",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/speech_provider_screen.dart:80:17 - prefer_interpolation_to_compose_strings",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/speech_provider_screen.dart:128:17 - prefer_interpolation_to_compose_strings",
@@ -1420,12 +1784,8 @@
                            "   info - \u0027value\u0027 is deprecated and shouldn\u0027t be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the depreca",
                            "   info - \u0027value\u0027 is deprecated and shouldn\u0027t be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the depreca",
                            "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/speech_provider_screen.dart:330:18 - prefer_interpolation_to_compose_strings",
-                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/speech_provider_screen.dart:331:18 - prefer_interpolation_to_compose_strings",
-                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/voice_cast_screen.dart:91:30 - prefer_interpolation_to_compose_strings",
-                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/voice_cast_screen.dart:127:21 - prefer_interpolation_to_compose_strings",
-                           "   info - Use interpolation to compose strings and values. Try using string interpolation to build the composite string - lib/features/reader/voice_cast_screen.dart:164:23 - prefer_interpolation_to_compose_strings",
-                           "353 issues found. (ran in 21.7s)"
+                           "357 issues found. (ran in 26.7s)"
                        ],
-    "localOnlyRawLogDirectory":  ".local-test-results/20261025T165839Z-946fc7b9-dc2652",
+    "localOnlyRawLogDirectory":  ".local-test-results/20261025T193458Z-003d2e13-bfda7f",
     "note":  "Raw logs are local-only; no user file contents or secrets are published."
 }

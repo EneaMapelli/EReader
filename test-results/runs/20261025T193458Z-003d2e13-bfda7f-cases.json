@@ -1,0 +1,3075 @@
+[
+    {
+        "file":  "test/audio/cloud_prefetch_test.dart",
+        "name":  "revoking per-book consent prevents prepared clip playback",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0001"
+    },
+    {
+        "file":  "test/audio/cloud_prefetch_test.dart",
+        "name":  "Stop releases pending lookahead before blocked HTTP responds",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0001"
+    },
+    {
+        "file":  "test/audio/cloud_prefetch_test.dart",
+        "name":  "cloud prebuffer defaults OFF, so only active audio is billed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0001"
+    },
+    {
+        "file":  "test/audio/cloud_prefetch_test.dart",
+        "name":  "a failed first render does not trigger the next paid request",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0001"
+    },
+    {
+        "file":  "test/audio/cloud_prefetch_test.dart",
+        "name":  "opted-in prefetch waits until current audio is ready",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0001"
+    },
+    {
+        "file":  "test/audio/cloud_prefetch_test.dart",
+        "name":  "failed prefetch surfaces once at the next segment, no paid retry",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0001"
+    },
+    {
+        "file":  "test/audio/cloud_prefetch_test.dart",
+        "name":  "prefetch snapshots the NEXT character voice without switching now",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0001"
+    },
+    {
+        "file":  "test/audio/cloud_prefetch_test.dart",
+        "name":  "pause and seek do not play discarded prebuffer after stop",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0001"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "failed warm decoder load does not poison the next prebuffer",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "staged next clip loads on a second player and plays only once",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "only one future clip may be staged at a time",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "invalid clip size or rate fails before creating temporary files",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "dispose releases both native decoders and all temp MP3 files",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "Stop waits for the current native load before touching decoder",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "stop invalidates staged audio and removes private files",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "concurrent disposal callers await the same native cleanup",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "disposing with slow standby load waits before releasing decoder",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "stop during slow native warm-load leaves no playable stale MP3",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "an older slow decoder load must not erase newer warmed MP3",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "different rate must not use previously decoded speed settings",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "transient locked MP3 is retried after decoder disposal",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "mismatched Play does not await an obsolete stalled warm load",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "never opens native player for speculative audio before Play",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/mp3_preload_test.dart",
+        "name":  "old clip finalizer cannot stop a new playing clip after seek",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "test/audio/narration_recovery_binding_test.dart",
+        "name":  "pause preserves marker until native stop completes, then clears",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "test/audio/narration_recovery_binding_test.dart",
+        "name":  "uncertain native Stop retains recovery checkpoint after dispose",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "test/audio/narration_recovery_binding_test.dart",
+        "name":  "real ReaderPlayer checkpoints before speech and pause clears it",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "test/audio/narration_recovery_binding_test.dart",
+        "name":  "binding can only attach once and dispose is idempotent",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "test/audio/narration_recovery_binding_test.dart",
+        "name":  "closing a reader while narration is live retains recovery hint",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "test/audio/narration_recovery_binding_test.dart",
+        "name":  "running player left alive when SQLite closes yields recovery hint",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "test/audio/narration_recovery_binding_test.dart",
+        "name":  "seek preserves crash checkpoint while native stop is pending",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "test/audio/narration_recovery_binding_test.dart",
+        "name":  "book completion and engine failure both clear active checkpoint",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "test/audio/narration_recovery_binding_test.dart",
+        "name":  "voice change keeps marker across stop and resumed narration",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "test/audio/native_stop_timeout_test.dart",
+        "name":  "failed native Stop remains unsafe even after error completes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0004"
+    },
+    {
+        "file":  "test/audio/native_stop_timeout_test.dart",
+        "name":  "Android remote Play refuses uncertain Stop without acquiring focus",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0004"
+    },
+    {
+        "file":  "test/audio/native_stop_timeout_test.dart",
+        "name":  "timeout is bounded but cannot authorize another speech stream",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0004"
+    },
+    {
+        "file":  "test/audio/native_stop_timeout_test.dart",
+        "name":  "positive timeout is required",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0004"
+    },
+    {
+        "file":  "test/audio/native_stop_timeout_test.dart",
+        "name":  "timed-out Seek cannot resume a newer segment after late Stop",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0004"
+    },
+    {
+        "file":  "test/audio/native_stop_timeout_test.dart",
+        "name":  "repeated Pause while Stop hangs does not spawn another native Stop",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0004"
+    },
+    {
+        "file":  "test/audio/native_stop_timeout_test.dart",
+        "name":  "queued Play before timeout is cancelled rather than resumed late",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0004"
+    },
+    {
+        "file":  "test/audio/native_stop_timeout_test.dart",
+        "name":  "late native Stop failure after timeout must not unlock playback",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0004"
+    },
+    {
+        "file":  "test/audio/openai_speech_engine_test.dart",
+        "name":  "hard budget blocks second request before API call",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0005"
+    },
+    {
+        "file":  "test/audio/openai_speech_engine_test.dart",
+        "name":  "changing voice misses cache and requires a new reservation",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0005"
+    },
+    {
+        "file":  "test/audio/openai_speech_engine_test.dart",
+        "name":  "does not contact cloud during voice discovery or selection",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0005"
+    },
+    {
+        "file":  "test/audio/openai_speech_engine_test.dart",
+        "name":  "stop during pending HTTP prevents stale audio playback",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0005"
+    },
+    {
+        "file":  "test/audio/openai_speech_engine_test.dart",
+        "name":  "HTTP failures consume conservative budget without audio playback",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0005"
+    },
+    {
+        "file":  "test/audio/openai_speech_engine_test.dart",
+        "name":  "HTTP transport is closed even when native decoder disposal fails",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0005"
+    },
+    {
+        "file":  "test/audio/openai_speech_engine_test.dart",
+        "name":  "denies all cloud requests without per-book consent",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0005"
+    },
+    {
+        "file":  "test/audio/openai_speech_engine_test.dart",
+        "name":  "HTTP adapter uses fixed HTTPS host and never leaks key in JSON",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0005"
+    },
+    {
+        "file":  "test/audio/openai_speech_engine_test.dart",
+        "name":  "sends a single guarded request and debits exact characters",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0005"
+    },
+    {
+        "file":  "test/audio/openai_speech_engine_test.dart",
+        "name":  "denies cloud requests if API key was removed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0005"
+    },
+    {
+        "file":  "test/audio/openai_speech_engine_test.dart",
+        "name":  "replay from private cache does not use key, network or more quota",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0005"
+    },
+    {
+        "file":  "test/audio/rapid_playback_navigation_test.dart",
+        "name":  "settings commit during an explicit pause does not auto-play",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0006"
+    },
+    {
+        "file":  "test/audio/rapid_playback_navigation_test.dart",
+        "name":  "direct Play supersedes a blocked seek without a late jump",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0006"
+    },
+    {
+        "file":  "test/audio/rapid_playback_navigation_test.dart",
+        "name":  "rapid seeks retain only the last target and still resume once",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0006"
+    },
+    {
+        "file":  "test/audio/rapid_playback_navigation_test.dart",
+        "name":  "direct Play is denied after disposal",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0006"
+    },
+    {
+        "file":  "test/audio/rapid_playback_navigation_test.dart",
+        "name":  "changing narrator voice while paused does not start narration",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0006"
+    },
+    {
+        "file":  "test/audio/rapid_playback_navigation_test.dart",
+        "name":  "explicit pause supersedes an outstanding auto-resuming seek",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0006"
+    },
+    {
+        "file":  "test/audio/rapid_playback_navigation_test.dart",
+        "name":  "committed speed restarts same source segment, not another chapter",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0006"
+    },
+    {
+        "file":  "test/audio/rapid_playback_navigation_test.dart",
+        "name":  "two overlapping native voice choices preserve the last choice",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0006"
+    },
+    {
+        "file":  "test/audio/rapid_playback_navigation_test.dart",
+        "name":  "dispose during an outstanding voice change prevents later speech",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0006"
+    },
+    {
+        "file":  "test/audio/reader_lifecycle_policy_test.dart",
+        "name":  "resume does not auto-play and other platforms are not affected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0007"
+    },
+    {
+        "file":  "test/audio/reader_lifecycle_policy_test.dart",
+        "name":  "Android background without active media owner pauses speech",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0007"
+    },
+    {
+        "file":  "test/audio/reader_lifecycle_policy_test.dart",
+        "name":  "screen off with owned Android media service retains narration",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0007"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "sleep timer release works without a media command",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "bind publishes book and transport; unbind removes orphan controls",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "lock-screen Play cannot bypass book cloud consent",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "two Play calls pending on audio focus acquire native focus once",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "system interruption pauses without automatic resume",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "task removal detaches even if native stop throws",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "late focus grant is released after a superseding Pause",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "two Play requests waiting for cloud consent start speech once",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "notification removal pauses without forcing a new play",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "task removal stops and clears the media session",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "seek keeps focus during native stop and resumes original session",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "focus reacquisition waits for an earlier native release",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "direct player Pause releases Android focus after native stop",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "detached reader cannot hijack a newly attached book",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "focus denial and pending focus superseded by Pause never speak",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "remote play returns before book completion and seeks one segment",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "failed native Stop keeps focus until reader teardown",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "incoming call during in-flight seek cancels latent audio resume",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "test/audio/reader_player_test.dart",
+        "name":  "custom names affect speech only, never source segment offsets",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/reader_player_test.dart",
+        "name":  "rejects unavailable engines rather than charging implicitly",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/reader_player_test.dart",
+        "name":  "pause stops speech; resume starts same segment",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/reader_player_test.dart",
+        "name":  "unsupported character voice falls back without extra narration",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/reader_player_test.dart",
+        "name":  "manually tagged character voice switches back to narrator",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/reader_player_test.dart",
+        "name":  "long cross-chunk quote retains one voice and restores narrator",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/reader_player_test.dart",
+        "name":  "pause listeners never observe idle until native stop finishes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/reader_player_test.dart",
+        "name":  "seek while playing returns before full book playback completes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/reader_player_test.dart",
+        "name":  "rapid pause and play waits for native stop before speaking again",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/reader_player_test.dart",
+        "name":  "restores saved OS voice, language, pitch and rate",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_engine_test.dart",
+        "name":  "dispose during synthesis suppresses late playback and closes audio",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0010"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_engine_test.dart",
+        "name":  "missing WAV fails safely without attempting output playback",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0010"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_engine_test.dart",
+        "name":  "offline speech exposes only installed local voice and WAV playback",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0010"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_engine_test.dart",
+        "name":  "speech rate maps to engine speed and never calls a cloud service",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0010"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_engine_test.dart",
+        "name":  "stop while native synthesis is pending never plays delayed WAV",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0010"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_engine_test.dart",
+        "name":  "unsupported voice/language/pitch and overlong text fail closed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0010"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_engine_test.dart",
+        "name":  "native synthesis failure does not leak temporary voice audio",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0010"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_factory_gate_test.dart",
+        "name":  "factory refuses model locale mismatch before native library startup",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0011"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_factory_gate_test.dart",
+        "name":  "factory refuses offline selection when no verified pack was provided",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0011"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_factory_gate_test.dart",
+        "name":  "offline engine remains hidden until native device qualification",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0011"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_worker_test.dart",
+        "name":  "Reader Stop and Dispose with real cancellable worker contract Dispose cancels active worker without playing late sound",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0012"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_worker_test.dart",
+        "name":  "native worker success transfers a small status, not model audio",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0012"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_worker_test.dart",
+        "name":  "native worker failure does not disclose paths or model content",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0012"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_worker_test.dart",
+        "name":  "immediately canceled worker cannot later complete successfully",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0012"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_worker_test.dart",
+        "name":  "cancellation settles result even if native worker never finishes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0012"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_worker_test.dart",
+        "name":  "Reader Stop and Dispose with real cancellable worker contract Stop cancels active worker, suppresses audio and clears temp WAV",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0012"
+    },
+    {
+        "file":  "test/audio/sleep_timer_test.dart",
+        "name":  "manual pause keeps wall-clock timer; expiry never resumes audio",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0013"
+    },
+    {
+        "file":  "test/audio/sleep_timer_test.dart",
+        "name":  "natural reading completion and dispose cancel the deadline",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0013"
+    },
+    {
+        "file":  "test/audio/sleep_timer_test.dart",
+        "name":  "rearming cancels obsolete deadline; off cancels latest",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0013"
+    },
+    {
+        "file":  "test/audio/sleep_timer_test.dart",
+        "name":  "sleep expiry invalidates current session before native stop completes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0013"
+    },
+    {
+        "file":  "test/audio/speech_audio_cache_test.dart",
+        "name":  "clear all deletes generated local speech files",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0014"
+    },
+    {
+        "file":  "test/audio/speech_audio_cache_test.dart",
+        "name":  "prevents cache directory traversal via book id or clip id",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0014"
+    },
+    {
+        "file":  "test/audio/speech_audio_cache_test.dart",
+        "name":  "reuses exact data per book and key without leaking to other books",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0014"
+    },
+    {
+        "file":  "test/config/android_manifest_bootstrap_test.dart",
+        "name":  "tracked Android media manifest declares required service and controls",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0015"
+    },
+    {
+        "file":  "test/config/android_manifest_bootstrap_test.dart",
+        "name":  "local bootstraps and Android CI all install the same media manifest",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0015"
+    },
+    {
+        "file":  "test/config/offline_voice_pack_structure_test.dart",
+        "name":  "voice pack declarations are unique in the checked-in source",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0016"
+    },
+    {
+        "file":  "test/data/book_decoder_test.dart",
+        "name":  "loading \u003crepo\u003e/test/data/book_decoder_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0017"
+    },
+    {
+        "file":  "test/data/cast_merge_test.dart",
+        "name":  "SQLite v11 upgrade adds merge audit without altering saved cast",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "test/data/cast_merge_test.dart",
+        "name":  "stale preview detects changed source hashes even when counts match",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "test/data/cast_merge_test.dart",
+        "name":  "merge retargets all dialogue references and preserves voice choices",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "test/data/cast_merge_test.dart",
+        "name":  "late audit write failure rolls back voice and dialogue migrations",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "test/data/cast_merge_test.dart",
+        "name":  "merge refuses exceeding 50 aliases, without deleting source",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "test/data/cast_merge_test.dart",
+        "name":  "missing voice conflict decisions never causes partial changes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "test/data/cast_merge_test.dart",
+        "name":  "merge fails across books or onto the same character",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "test/data/cast_merge_test.dart",
+        "name":  "preview becomes invalid after cast changed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "test/data/cast_merge_test.dart",
+        "name":  "reviewed character discovery and approved alias links survive merge",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "test/data/dialogue_turn_review_store_test.dart",
+        "name":  "stale or forged turn source cannot be assigned",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0019"
+    },
+    {
+        "file":  "test/data/dialogue_turn_review_store_test.dart",
+        "name":  "manual locks cannot be replaced by a second overlapping turn label",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0019"
+    },
+    {
+        "file":  "test/data/dialogue_turn_review_store_test.dart",
+        "name":  "manual whole-turn label survives persistence and never rewrites text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0019"
+    },
+    {
+        "file":  "test/data/epub_anchor_integrity_test.dart",
+        "name":  "targets in synthetic separators or beyond end are rejected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0020"
+    },
+    {
+        "file":  "test/data/epub_anchor_integrity_test.dart",
+        "name":  "empty source/spine cannot be silently imported",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0020"
+    },
+    {
+        "file":  "test/data/epub_anchor_integrity_test.dart",
+        "name":  "valid spine, Unicode, links and editorial targets pass unchanged",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0020"
+    },
+    {
+        "file":  "test/data/epub_anchor_integrity_test.dart",
+        "name":  "duplicate spine IDs cannot be used for stable saved anchors",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0020"
+    },
+    {
+        "file":  "test/data/epub_anchor_integrity_test.dart",
+        "name":  "links must be ordered, non-overlapping and wholly in one item",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0020"
+    },
+    {
+        "file":  "test/data/epub_anchor_integrity_test.dart",
+        "name":  "overlap, holes and missing separators all fail",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0020"
+    },
+    {
+        "file":  "test/data/epub_anchor_integrity_test.dart",
+        "name":  "UTF-16 source positions cannot split emoji surrogate pairs",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0020"
+    },
+    {
+        "file":  "test/data/epub_bounded_file_test.dart",
+        "name":  "loading \u003crepo\u003e/test/data/epub_bounded_file_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0021"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "loading \u003crepo\u003e/test/data/epub_embedded_content_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/data/epub_encoding_integration_test.dart",
+        "name":  "loading \u003crepo\u003e/test/data/epub_encoding_integration_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0023"
+    },
+    {
+        "file":  "test/data/epub_import_diagnostics_test.dart",
+        "name":  "report snapshots are immutable and do not expose input URLs",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0024"
+    },
+    {
+        "file":  "test/data/epub_import_diagnostics_test.dart",
+        "name":  "huge EPUB cannot grow unbounded diagnostics or warning text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0024"
+    },
+    {
+        "file":  "test/data/epub_import_diagnostics_test.dart",
+        "name":  "diagnostics group repeated resource failures into fixed categories",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0024"
+    },
+    {
+        "file":  "test/data/epub_inline_style_test.dart",
+        "name":  "loading \u003crepo\u003e/test/data/epub_inline_style_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0025"
+    },
+    {
+        "file":  "test/data/epub_legacy_notes_test.dart",
+        "name":  "loading \u003crepo\u003e/test/data/epub_legacy_notes_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "test/data/epub_navigation_test.dart",
+        "name":  "loading \u003crepo\u003e/test/data/epub_navigation_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0027"
+    },
+    {
+        "file":  "test/data/epub_progress_recovery_test.dart",
+        "name":  "loading \u003crepo\u003e/test/data/epub_progress_recovery_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0028"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "loading \u003crepo\u003e/test/data/epub_reader_preflight_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0029"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "HTML http-equiv charset declaration is recognized",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "recognizable UTF-16 XML signature works with explicit declaration",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "UTF-8 remains the strict default, preserving emoji code units",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "bad UTF-16 odd bytes and lone surrogates are rejected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "malformed UTF-8 and undefined Windows-1252 bytes fail closed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "empty resource, byte budget, and NUL payload",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "contradictory BOM and declaration, or unknown charset, fail",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "Windows-1252 declaration decodes smart quotes and euro",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "conflicting XML and HTML meta charsets do not guess",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "ISO-8859-1 declared HTML remains Latin-1 rather than CP1252",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "Windows-1252 XML encoding declaration works without BOM",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_decoder_test.dart",
+        "name":  "UTF-16LE/BE BOMs decode supplementary-plane characters",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0030"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "loading \u003crepo\u003e/test/data/epub_text_extractor_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0031"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "malformed legacy index is not destroyed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v9 upgrades to v10 without affecting cast and analysis consent",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v10 to v11 migration retains cast, consent and discoveries",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v11 stores pending nicknames and requires explicit attachment",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "imports, deduplicates and restores progress after restart",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "partially downgraded v8 schema skips already existing later columns",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v2 persists source anchor and clears it on legacy writes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "legacy JSON migrates and retains progress across multiple starts",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "v2 SQLite migrates to v3 without losing anchors",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "stale evidence blocks approval, but stale alias can be rejected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "duplicate case-folded names do not create a second cast member",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "upgrade from SQLite v1 preserves existing progress",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "cast is book-isolated and removing a person reverts to narrator",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "overlapping manual assignments are rejected atomically",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "bookmarks persist source anchors across restart",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v9 persists verified backward-only LLM evidence",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v7 persists precise manual speaker labels across reopening",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "cloud is denied by default and reservations stay below hard quota",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "book deletion cascades into bookmarks",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "character discovery is persistent and does not create cast silently",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "v2 EPUB context survives existing SQLite progress-anchor JSON column",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "stream-only picker import deduplicates in the real SQLite library",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "adopts an intact orphan file left after interrupted SQLite commit",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v6 preserves cast and source-anchored speaker turns",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "forged names and cross-book characters cannot enter cast",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v3 keeps global and per-book pronunciations across restart",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v8-to-v9 migration preserves existing cast and approval",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite schema v3 migrates bookmarks without changing old data",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v5 to v6 retains cloud usage and the library",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v4 upgrades cloud policy without dropping bookmarks",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "removing a book leaves the original import file intact",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "LLM analysis is opt-in independently from paid speech",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "speech preferences fall back to global and support book override",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "analysis quota persists and cannot be reduced below prior usage",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "legacy v1 version marker with present anchor column migrates once",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "raising limit retains consumed quota and reducing below used fails",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "deleting a book removes its voice data, preserving global rules",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v7-to-v8 keeps existing cast, voice and consent history",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "SQLite v6-to-v7 preserves legacy cast and cloud consent",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "reimport repairs a lost managed file without resetting progress",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "alias collisions cannot move a nickname to another character",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "rejects invalid extensions, signature and negative positions",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/library_store_test.dart",
+        "name":  "LLM proposals remain pending and cannot overwrite manual labels",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0032"
+    },
+    {
+        "file":  "test/data/narration_crash_recovery_test.dart",
+        "name":  "old reader cannot clear a newer book checkpoint",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0033"
+    },
+    {
+        "file":  "test/data/narration_crash_recovery_test.dart",
+        "name":  "missing original managed file does not offer a broken shortcut",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0033"
+    },
+    {
+        "file":  "test/data/narration_crash_recovery_test.dart",
+        "name":  "crashed narration is offered once; no speech is restarted",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0033"
+    },
+    {
+        "file":  "test/data/narration_crash_recovery_test.dart",
+        "name":  "SQLite v15 upgrade preserves visual PDF position and TTS anchor",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0033"
+    },
+    {
+        "file":  "test/data/narration_crash_recovery_test.dart",
+        "name":  "unknown book fails atomically without a zombie crash marker",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0033"
+    },
+    {
+        "file":  "test/data/narration_crash_recovery_test.dart",
+        "name":  "checkpoint records only book ID and timestamp, not secret or text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0033"
+    },
+    {
+        "file":  "test/data/narration_crash_recovery_test.dart",
+        "name":  "normal pause, completion or explicit stop clears crash marker",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0033"
+    },
+    {
+        "file":  "test/data/narration_crash_recovery_test.dart",
+        "name":  "dismiss notice is memory-only and does not alter reading anchor",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0033"
+    },
+    {
+        "file":  "test/data/narration_crash_recovery_test.dart",
+        "name":  "reopening interrupted book dismisses notice but never auto-plays",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0033"
+    },
+    {
+        "file":  "test/data/narration_crash_recovery_test.dart",
+        "name":  "deleting book cascades cleanup of its recovery checkpoint",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0033"
+    },
+    {
+        "file":  "test/data/narrative_reference_test.dart",
+        "name":  "cross-book suggestion and invalid evidence cannot be imported",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0034"
+    },
+    {
+        "file":  "test/data/narrative_reference_test.dart",
+        "name":  "SQLite v12-to-v13 migration retains book, cast and voice history",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0034"
+    },
+    {
+        "file":  "test/data/narrative_reference_test.dart",
+        "name":  "LLM coreference proposals never create speaker voice assignments",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0034"
+    },
+    {
+        "file":  "test/data/narrative_reference_test.dart",
+        "name":  "model disagreements can be resolved only by manual cast selection",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0034"
+    },
+    {
+        "file":  "test/data/narrative_reference_test.dart",
+        "name":  "second LLM run cannot overwrite existing reviewer decision",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0034"
+    },
+    {
+        "file":  "test/data/narrative_reference_test.dart",
+        "name":  "stale source/evidence blocks approval; rejection always works",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0034"
+    },
+    {
+        "file":  "test/data/narrative_reference_test.dart",
+        "name":  "manual duplicate-identity merge preserves reviewed and pending refs",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0034"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "catalog bounds model count and never loads an unknown pack",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "verified two-file model installs into a private pack directory",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "corrupt installed model is rejected without replacement",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "reinstall refuses a changed stored identity and metadata",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "resource paths, case duplicates and overall byte budget fail closed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "verified eSpeak phonemizer resources install and reverify",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "invalid IDs and untrusted manifest data never create installation",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "persisted model manifest survives reopening after restart",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "tampered phonemizer data blocks reinstall without replacement",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "corrupted voice metadata and unsafe reopen IDs fail closed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "byte ceilings prevent oversized model and tokens installation",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "local catalog distinguishes verified voices from corrupt folders",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "digest mismatch rejects a new pack and removes its staging directory",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "same manifest can be reinstalled without changing existing files",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/offline_voice_pack_test.dart",
+        "name":  "unlisted files cannot hide inside an installed phonemizer tree",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0035"
+    },
+    {
+        "file":  "test/data/pdf_visual_resume_test.dart",
+        "name":  "v14 to v15 migration leaves reading anchor and last open intact",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0036"
+    },
+    {
+        "file":  "test/data/pdf_visual_resume_test.dart",
+        "name":  "removing a PDF also removes its visual position",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0036"
+    },
+    {
+        "file":  "test/data/pdf_visual_resume_test.dart",
+        "name":  "page defaults to one and persists across SQLite restart",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0036"
+    },
+    {
+        "file":  "test/data/pdf_visual_resume_test.dart",
+        "name":  "PDF visual and spoken positions never overwrite each other",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0036"
+    },
+    {
+        "file":  "test/data/pdf_visual_resume_test.dart",
+        "name":  "invalid pages, unknown IDs and non-PDF records are rejected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0036"
+    },
+    {
+        "file":  "test/data/pdf_visual_resume_test.dart",
+        "name":  "unreadable/scanned PDF needs no text to retain its visual page",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0036"
+    },
+    {
+        "file":  "test/data/pdf_visual_resume_test.dart",
+        "name":  "v13 upgrades through v14 and v15 without losing legacy anchors",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0036"
+    },
+    {
+        "file":  "test/data/picked_book_import_test.dart",
+        "name":  "empty streams and import errors also remove their temporary source",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0037"
+    },
+    {
+        "file":  "test/data/picked_book_import_test.dart",
+        "name":  "existing desktop path avoids copying the file or opening SAF stream",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0037"
+    },
+    {
+        "file":  "test/data/picked_book_import_test.dart",
+        "name":  "stream-only Android selection stages bytes and removes temp files",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0037"
+    },
+    {
+        "file":  "test/data/picked_book_import_test.dart",
+        "name":  "oversized streams reject before crossing the bound and clean up",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0037"
+    },
+    {
+        "file":  "test/data/picked_book_import_test.dart",
+        "name":  "missing cached path falls back to provider byte stream",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0037"
+    },
+    {
+        "file":  "test/data/picked_book_import_test.dart",
+        "name":  "unsupported extensions and invalid budgets fail before reading",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0037"
+    },
+    {
+        "file":  "test/data/reading_anchor_test.dart",
+        "name":  "loading \u003crepo\u003e/test/data/reading_anchor_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0038"
+    },
+    {
+        "file":  "test/data/recent_book_resume_test.dart",
+        "name":  "unknown IDs are not silently persisted as a resume target",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0039"
+    },
+    {
+        "file":  "test/data/recent_book_resume_test.dart",
+        "name":  "SQLite v13 migration preserves reading anchors and adds resume field",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0039"
+    },
+    {
+        "file":  "test/data/recent_book_resume_test.dart",
+        "name":  "deleted and unavailable book files are never resumed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0039"
+    },
+    {
+        "file":  "test/data/recent_book_resume_test.dart",
+        "name":  "explicit open remembers last book across process restart",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0039"
+    },
+    {
+        "file":  "test/domain/alias_candidate_test.dart",
+        "name":  "invalid model confidence and half-surrogate offsets rejected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0040"
+    },
+    {
+        "file":  "test/domain/alias_candidate_test.dart",
+        "name":  "previous-context evidence must precede the alias",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0040"
+    },
+    {
+        "file":  "test/domain/alias_candidate_test.dart",
+        "name":  "alias is a source-grounded pending proposition only",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0040"
+    },
+    {
+        "file":  "test/domain/book_bookmark_test.dart",
+        "name":  "accepts source-anchored bookmarked positions",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0041"
+    },
+    {
+        "file":  "test/domain/book_bookmark_test.dart",
+        "name":  "rejects unsafe or empty bookmark metadata",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0041"
+    },
+    {
+        "file":  "test/domain/book_search_test.dart",
+        "name":  "excerpt normalizes newlines but keeps source match location",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0042"
+    },
+    {
+        "file":  "test/domain/book_search_test.dart",
+        "name":  "full-source results start near current position and wrap once",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0042"
+    },
+    {
+        "file":  "test/domain/book_search_test.dart",
+        "name":  "search ignores case and returns stable segment indices",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0042"
+    },
+    {
+        "file":  "test/domain/book_search_test.dart",
+        "name":  "source search paginates beyond the first 100 without repeats",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0042"
+    },
+    {
+        "file":  "test/domain/book_search_test.dart",
+        "name":  "a cursor inside an emoji never splits source or duplicates hits",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0042"
+    },
+    {
+        "file":  "test/domain/book_search_test.dart",
+        "name":  "source page skipping respects UTF-16 offsets near emoji",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0042"
+    },
+    {
+        "file":  "test/domain/book_search_test.dart",
+        "name":  "source search finds unspoken caption and keeps exact UTF-16 offset",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0042"
+    },
+    {
+        "file":  "test/domain/book_search_test.dart",
+        "name":  "search bounds number of results and ignores empty queries",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0042"
+    },
+    {
+        "file":  "test/domain/book_search_test.dart",
+        "name":  "source match offsets survive emoji and excerpt boundaries",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0042"
+    },
+    {
+        "file":  "test/domain/book_search_test.dart",
+        "name":  "literal source queries safely match regex punctuation and quote text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0042"
+    },
+    {
+        "file":  "test/domain/book_search_test.dart",
+        "name":  "source search is bounded and never indexes a hidden network service",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0042"
+    },
+    {
+        "file":  "test/domain/book_test.dart",
+        "name":  "file format detects case insensitive supported extension",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0043"
+    },
+    {
+        "file":  "test/domain/book_test.dart",
+        "name":  "book JSON saves source anchor and migrates old records",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0043"
+    },
+    {
+        "file":  "test/domain/book_test.dart",
+        "name":  "book JSON retains reading position",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0043"
+    },
+    {
+        "file":  "test/domain/cast_span_test.dart",
+        "name":  "source anchor shifts after earlier chapter text grows",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0044"
+    },
+    {
+        "file":  "test/domain/cast_span_test.dart",
+        "name":  "cast spans never break an emoji surrogate pair",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0044"
+    },
+    {
+        "file":  "test/domain/cast_span_test.dart",
+        "name":  "tags only a selected quoted phrase; narrator remains unchanged",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0044"
+    },
+    {
+        "file":  "test/domain/cast_span_test.dart",
+        "name":  "invalid confidence cannot be mistaken for accepted authority",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0044"
+    },
+    {
+        "file":  "test/domain/cast_span_test.dart",
+        "name":  "a pending LLM suggestion never changes the spoken voice",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0044"
+    },
+    {
+        "file":  "test/domain/cast_span_test.dart",
+        "name":  "source digest rejects stale annotations even if offsets still match",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0044"
+    },
+    {
+        "file":  "test/domain/cast_span_test.dart",
+        "name":  "a deliberately unknown speaker masks inherited cast labels",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0044"
+    },
+    {
+        "file":  "test/domain/cast_span_test.dart",
+        "name":  "all nested conflicting labels are discarded, not just neighbors",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0044"
+    },
+    {
+        "file":  "test/domain/character_candidate_test.dart",
+        "name":  "rejects invalid confidence or false approval without a person",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0045"
+    },
+    {
+        "file":  "test/domain/character_candidate_test.dart",
+        "name":  "detects existing names and aliases ignoring case/extra spaces",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0045"
+    },
+    {
+        "file":  "test/domain/character_candidate_test.dart",
+        "name":  "a new candidate refers to exact UTF-16 source text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0045"
+    },
+    {
+        "file":  "test/domain/cloud_speech_consent_test.dart",
+        "name":  "invalid totals are rejected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0046"
+    },
+    {
+        "file":  "test/domain/cloud_speech_consent_test.dart",
+        "name":  "remaining budget never becomes negative",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0046"
+    },
+    {
+        "file":  "test/domain/cloud_speech_consent_test.dart",
+        "name":  "disabled cloud consent is valid but grants no usage",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0046"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "one approved long quote retains voice across multiple TTS chunks",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "explicit narrator mask splits a legacy tagged quote exactly",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "relocated chapter anchor resolves source-hashed legacy range",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "invalid source fingerprints or wrong book never propagate voices",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "two confirmed turns have separate voices with narrator between",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "overlapping legacy records are dropped rather than guessed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "more than provider chunk limit stays split but every part cast",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "UTF-16 emoji remain complete when joining quote pieces",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "unknown tags are never inherited across quote/narrator boundaries",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "disputed precise voices cannot revive a legacy character voice",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "another confirmed speaker takes priority over legacy source range",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "legacy whole-quote tag survives new segment boundaries",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/cross_chunk_cast_test.dart",
+        "name":  "different quote groups are never merged into one TTS utterance",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/domain/dialogue_segmenter_test.dart",
+        "name":  "OPF chapter reset prevents a dangling quotation from speaking prose",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/domain/dialogue_segmenter_test.dart",
+        "name":  "quote boundary cannot split a source chunk or duplicate a reset",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/domain/dialogue_segmenter_test.dart",
+        "name":  "separates quoted speech from the surrounding narration",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/domain/dialogue_segmenter_test.dart",
+        "name":  "unmatched open quote retains exact source instead of guessing",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/domain/dialogue_segmenter_test.dart",
+        "name":  "handles speech across chunks without losing source anchors",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/domain/dialogue_segmenter_test.dart",
+        "name":  "supports ASCII double quotes without rewriting Unicode text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/domain/dialogue_segmenter_test.dart",
+        "name":  "sentence-aware quoted chunks retain speaker turn boundaries",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/domain/dialogue_segmenter_test.dart",
+        "name":  "spine reset in whitespace gap still applies before next word",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "scope and read cap prevent future quote inspection",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "quoted turns keep source text/offsets without inventing speakers",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "unfinished quote is flagged without synthesizing a closing mark",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "ASCII double quotes are separate turns, not implicit same voice",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "pending and stale annotations do not become authoritative",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "overlapping different accepted people produce a conflict, not winner",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "partially attributed quote is not credited as fully confirmed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "invalid source scope and foreign cast are refused",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "explicit narrator/unknown is distinct from missing attribution",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "two adjacent precise labels may jointly cover one turn",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "surrogate pairs remain unmodified at quoted boundaries",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "multiline quoted dialogue is flagged without dropping characters",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "long scope cutoff does not pretend an interrupted quote is unclosed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "interrupted and trailing-off lines are marked for human review",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "two independently approved turns can have different speakers",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_inspector_test.dart",
+        "name":  "legacy source-exact manual segments count but stale ones do not",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "truncated dash line signals incomplete window without auto speaker",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "separate sequential quoted turns and preserve all original offsets",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "ellipses and em dash before closer mark interruptions, not identities",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "LLM pending, unlocked and other-book annotations are ignored",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "explicit narrator/unknown manual selection differs from missing",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "two separately confirmed parts of one quote reveal speaker switch",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "legacy source hash must be exact and can complete whole quote",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "overlapping disagreeing labels are explicitly conflict, not winner",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "emoji offsets and separate quote delimiting are UTF-16 safe",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "partial precise label preserves unknown source on both sides",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "window cannot exceed fixed cap or inspect malformed source ranges",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "unclosed quote or truncated review window is never complete",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "dash-led turn boundaries and interrupted trailing dash are distinct",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/dialogue_turn_review_test.dart",
+        "name":  "anchored precise labels use resolved position and text fingerprints",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "test/domain/epub_anchor_context_test.dart",
+        "name":  "emoji half-surrogate offsets are excluded from matching",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0051"
+    },
+    {
+        "file":  "test/domain/epub_anchor_context_test.dart",
+        "name":  "malformed old or new persisted anchor data fail closed",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0051"
+    },
+    {
+        "file":  "test/domain/epub_anchor_context_test.dart",
+        "name":  "fingerprints match the original UTF-16 source but contain no prose",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0051"
+    },
+    {
+        "file":  "test/domain/epub_anchor_context_test.dart",
+        "name":  "optimized per-side digest remains identical to persisted v2 hashes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0051"
+    },
+    {
+        "file":  "test/domain/epub_anchor_context_test.dart",
+        "name":  "identical repeated text is ambiguous, never proximity-selected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0051"
+    },
+    {
+        "file":  "test/domain/epub_anchor_context_test.dart",
+        "name":  "recovery tolerates inserted XHTML whitespace before a note",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0051"
+    },
+    {
+        "file":  "test/domain/epub_anchor_context_test.dart",
+        "name":  "long chapters avoid unbounded full-scan relocation",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0051"
+    },
+    {
+        "file":  "test/domain/library_catalog_test.dart",
+        "name":  "query and format are combined without mutating storage",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0052"
+    },
+    {
+        "file":  "test/domain/library_catalog_test.dart",
+        "name":  "format ordering and saved progress remain stable",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0052"
+    },
+    {
+        "file":  "test/domain/library_catalog_test.dart",
+        "name":  "case-insensitive title sorting works in both directions",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0052"
+    },
+    {
+        "file":  "test/domain/library_catalog_test.dart",
+        "name":  "newest default has deterministic ties and preserves source order",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0052"
+    },
+    {
+        "file":  "test/domain/llm_cast_proposals_test.dart",
+        "name":  "rejects forged digest, altered schema and out-of-range offsets",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0053"
+    },
+    {
+        "file":  "test/domain/llm_cast_proposals_test.dart",
+        "name":  "literal prompt-injection text remains data, not instructions",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0053"
+    },
+    {
+        "file":  "test/domain/llm_cast_proposals_test.dart",
+        "name":  "rejects a speaker that is not in the local cast",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0053"
+    },
+    {
+        "file":  "test/domain/llm_cast_proposals_test.dart",
+        "name":  "parses bounded suggestions for review but never approves",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0053"
+    },
+    {
+        "file":  "test/domain/llm_cast_proposals_test.dart",
+        "name":  "rejects oversized suggestion responses before decoding JSON",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0053"
+    },
+    {
+        "file":  "test/domain/pronunciation_rule_test.dart",
+        "name":  "accents and Unicode letters honor whole-word boundaries",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0054"
+    },
+    {
+        "file":  "test/domain/pronunciation_rule_test.dart",
+        "name":  "invalid empty replacements or long inputs are rejected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0054"
+    },
+    {
+        "file":  "test/domain/pronunciation_rule_test.dart",
+        "name":  "word matching does not modify compound words or source text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0054"
+    },
+    {
+        "file":  "test/domain/pronunciation_rule_test.dart",
+        "name":  "book-specific override wins over global pronunciation",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0054"
+    },
+    {
+        "file":  "test/domain/pronunciation_rule_test.dart",
+        "name":  "replacements do not cascade or loop",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0054"
+    },
+    {
+        "file":  "test/domain/pronunciation_rule_test.dart",
+        "name":  "literal punctuation is not treated as a regex expression",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0054"
+    },
+    {
+        "file":  "test/domain/pronunciation_rule_test.dart",
+        "name":  "disabled rules and rules for another book are ignored",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0054"
+    },
+    {
+        "file":  "test/domain/speech_preferences_test.dart",
+        "name":  "rejects invalid or non-finite settings",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0055"
+    },
+    {
+        "file":  "test/domain/speech_preferences_test.dart",
+        "name":  "model selection persists while older settings receive a default",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0055"
+    },
+    {
+        "file":  "test/domain/speech_preferences_test.dart",
+        "name":  "round-trip persistent voice settings",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0055"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "rejects too-small chunk sizes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "splits sentences without changing spoken tokens",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "hard TTS boundaries do not cut decomposed accents or ZWJ emoji",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "all spoken spans point to exact source substrings",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "keeps decimal numbers in one utterance",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "sentence-ending punctuation keeps closing dialogue quotes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "splits paragraphs at newlines even below the limit",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "bounded quoted sentence never crosses the provider input cap",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "source-range splitting enforces chapter and Unicode boundaries",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "handles empty and whitespace-only books",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "large single chapter yields exact globally indexed TTS spans",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "overlong single emoji cluster fails closed rather than dropping text",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "does not split utf16 surrogate pairs at a hard limit",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/speech_segment_test.dart",
+        "name":  "global source range matches legacy chapter-local segmentation",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/domain/voice_cast_test.dart",
+        "name":  "source-relative chapter relocation preserves valid character",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0057"
+    },
+    {
+        "file":  "test/domain/voice_cast_test.dart",
+        "name":  "original text remains untouched by cast resolution",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0057"
+    },
+    {
+        "file":  "test/domain/voice_cast_test.dart",
+        "name":  "stale offsets, changed source and missing anchors use narrator",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0057"
+    },
+    {
+        "file":  "test/domain/voice_cast_test.dart",
+        "name":  "valid exact source mapping resolves correct speaker and provider",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0057"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/book_source_search_widget_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "test/features/epub_chapter_navigation_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/epub_chapter_navigation_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0059"
+    },
+    {
+        "file":  "test/features/epub_diagnostics_sheet_test.dart",
+        "name":  "EPUB compatibility report explains skipped optional resources",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0060"
+    },
+    {
+        "file":  "test/features/epub_diagnostics_sheet_test.dart",
+        "name":  "empty diagnostics give a neutral message, not an error",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0060"
+    },
+    {
+        "file":  "test/features/epub_frame_sampler_test.dart",
+        "name":  "fixed ring contains only the most recent bounded sample",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0061"
+    },
+    {
+        "file":  "test/features/epub_frame_sampler_test.dart",
+        "name":  "invalid durations are ignored without allocating more samples",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0061"
+    },
+    {
+        "file":  "test/features/epub_frame_sampler_test.dart",
+        "name":  "nearest-rank percentiles and 60Hz reference counters are exact",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0061"
+    },
+    {
+        "file":  "test/features/epub_frame_sampler_test.dart",
+        "name":  "empty capture has no invented frame timings",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0061"
+    },
+    {
+        "file":  "test/features/epub_link_history_test.dart",
+        "name":  "bounded history discards oldest location and retains recent notes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0062"
+    },
+    {
+        "file":  "test/features/epub_link_history_test.dart",
+        "name":  "links remember visible EPUB source position when narration is paused",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0062"
+    },
+    {
+        "file":  "test/features/epub_link_history_test.dart",
+        "name":  "editorial contents follows visual EPUB offset while paused",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0062"
+    },
+    {
+        "file":  "test/features/epub_link_history_test.dart",
+        "name":  "same-offset taps and invalid offsets do not build a back stack",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0062"
+    },
+    {
+        "file":  "test/features/epub_link_history_test.dart",
+        "name":  "note navigation can return through multiple source anchors",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0062"
+    },
+    {
+        "file":  "test/features/epub_link_history_test.dart",
+        "name":  "return is committed only after explicit success",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0062"
+    },
+    {
+        "file":  "test/features/epub_note_preview_sheet_test.dart",
+        "name":  "auxiliary note dismiss by barrier has no navigation result",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0063"
+    },
+    {
+        "file":  "test/features/epub_note_preview_sheet_test.dart",
+        "name":  "closing a footnote peek returns false without navigation",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0063"
+    },
+    {
+        "file":  "test/features/epub_note_preview_sheet_test.dart",
+        "name":  "opening in book requires a distinct positive user action",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0063"
+    },
+    {
+        "file":  "test/features/epub_note_preview_sheet_test.dart",
+        "name":  "auxiliary note popup never exposes Open in book",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0063"
+    },
+    {
+        "file":  "test/features/epub_note_preview_sheet_test.dart",
+        "name":  "dismissed peek never implies open-in-book permission",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0063"
+    },
+    {
+        "file":  "test/features/epub_note_preview_sheet_test.dart",
+        "name":  "long preview scrolls while retaining its two action buttons",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0063"
+    },
+    {
+        "file":  "test/features/epub_opening_performance_sheet_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/epub_opening_performance_sheet_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0064"
+    },
+    {
+        "file":  "test/features/epub_paragraph_tile_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/epub_paragraph_tile_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0065"
+    },
+    {
+        "file":  "test/features/epub_progressive_layout_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/epub_progressive_layout_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0066"
+    },
+    {
+        "file":  "test/features/epub_visual_layout_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/epub_visual_layout_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0067"
+    },
+    {
+        "file":  "test/features/library_catalog_widget_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/library_catalog_widget_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0068"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "two preceding speakers remain distinct, not proposed referents",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "pending LLM speaker guesses never enter confirmed dialogue",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "anchors must resolve to source accurate original quotes",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "conflicting accepted labels on overlapping words are both hidden",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "manual legacy segment is accepted only with exact source digest",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "prior scope and future material are excluded",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "a precise and a legacy label for the same words are deduplicated",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "foreign book, unknown speaker and duplicate cast identities fail safe",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "a currently speaking character does not become pronoun referent",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "empty cast and no accepted turns never imply the narrator spoke",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "stale hashes and future voice labels are never shown",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "a nominally accepted but non-locked label is never trusted",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/conversation_speaker_inspector_test.dart",
+        "name":  "long utterance preview truncated but retains source fingerprint",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0069"
+    },
+    {
+        "file":  "test/llm/dialogue_analysis_plan_test.dart",
+        "name":  "loading \u003crepo\u003e/test/llm/dialogue_analysis_plan_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0070"
+    },
+    {
+        "file":  "test/llm/historical_character_concordance_test.dart",
+        "name":  "loading \u003crepo\u003e/test/llm/historical_character_concordance_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0071"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "scope beginning prevents using text from earlier chapter",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "bounded lookback ignores distant names and long excerpts",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "nearby different people remain competing cues, never a winner",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "stale approved links are excluded; source fingerprint never lies",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "accepted prior indirect link is shown but not a pending AI guess",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "empty cast produces no verified antecedent even in named scene",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "Unicode and supplementary codepoint boundaries remain intact",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "prior name and alias map to one most-recent cue per person",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "cross-book and duplicate cast identities are rejected",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "whole word matching does not confuse Mira with Amira",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "a newer standalone name outranks an older full alias",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "later book text can never become an antecedent cue",
+        "status":  "success",
+        "issue":  "",
+        "run":  "individual-0072"
+    },
+    {
+        "file":  "test/llm/openai_alias_reconciler_test.dart",
+        "name":  "loading \u003crepo\u003e/test/llm/openai_alias_reconciler_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0073"
+    },
+    {
+        "file":  "test/llm/openai_character_discoverer_test.dart",
+        "name":  "loading \u003crepo\u003e/test/llm/openai_character_discoverer_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0074"
+    },
+    {
+        "file":  "test/llm/openai_dialogue_analyzer_test.dart",
+        "name":  "loading \u003crepo\u003e/test/llm/openai_dialogue_analyzer_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0075"
+    },
+    {
+        "file":  "test/llm/openai_reference_resolver_test.dart",
+        "name":  "loading \u003crepo\u003e/test/llm/openai_reference_resolver_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0076"
+    }
+]
