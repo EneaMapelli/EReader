@@ -1215,3 +1215,28 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   cumulative file size, path traversal, case duplicates and Windows names.
   The model's runtime inference and these authored tests are still unverified
   until the next up-to-date Windows/Android build and test run.
+
+## M3 — verified installed voice catalog after restart (2026-10-25)
+
+- Removed a duplicated, malformed source tail from
+  `lib/data/offline_voice_pack.dart` that made the experimental installer
+  uncompilable. Added a source-structure regression test to catch repeated
+  offline voice pack declarations.
+- The local installer now writes a versioned `voice-pack.json` with the
+  expected SHA-256 hashes, explicit license identifier, locale, voice ID
+  and enumerated phonemizer resources inside the atomic staging directory.
+- Added `loadInstalledOfflineVoicePack` for reopening a voice by ID after
+  app restart, and `inspectOfflineVoicePacks` for explicitly discovering
+  ready vs damaged packs without using the ONNX engine or paid cloud.
+- Reopening rejects manifest mismatch, unexpected files, unsafe pack
+  directories, corrupted file digests and invalid IDs. Verifications now
+  rehash existing ONNX files as streams instead of duplicating potentially
+  hundreds of megabytes into `.check-` directories.
+- Added tests for persistent load, tampered manifest, extra files,
+  malformed metadata, catalog status and count bounds. These tests are
+  authored, not executed on Windows/Android. See
+  [OFFLINE_VOICE_PACKS.md](OFFLINE_VOICE_PACKS.md) for limits, model trust
+  caveats and the remaining native model qualification requirements.
+- The last published Windows suite still targets old source commit
+  `946fc7b9` (589 successful / 5 error outcomes); current M3 remains
+  experimental and hidden from the public TTS selector.
