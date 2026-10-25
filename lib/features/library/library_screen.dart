@@ -5,6 +5,7 @@ import '../../data/library_store.dart';
 import '../../data/picked_book_import.dart';
 import '../../audio/reader_media_handler.dart';
 import '../../domain/book.dart';
+import '../../domain/library_catalog.dart';
 import '../reader/reader_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -18,6 +19,25 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   bool _busy = false;
+  final _searchController = TextEditingController();
+  String _query = '';
+  BookFormat? _formatFilter;
+  LibrarySortOrder _sortOrder = LibrarySortOrder.recentlyImported;
+
+  void _clearFilters() {
+    _searchController.clear();
+    setState(() {
+      _query = '';
+      _formatFilter = null;
+      _sortOrder = LibrarySortOrder.recentlyImported;
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _import() async {
     if (_busy) return;
@@ -98,7 +118,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final books = widget.store.books;
+    final allBooks = widget.store.books;
+    final books = filterAndSortLibraryBooks(
+      allBooks, query: _query, format: _formatFilter, sort: _sortOrder,
+    );
     final lastOpened = widget.store.lastOpenedBook;
     final interrupted = widget.store.interruptedNarrationBook;
     return Scaffold(
@@ -112,7 +135,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         ],
       ),
-      body: books.isEmpty
+      body: allBooks.isEmpty
           ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -170,8 +193,96 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       onTap: () => _open(lastOpened),
                     ),
                   ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                  child: TextField(
+                    key: const ValueKey('library-search'),
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _query = value),
+                    decoration: InputDecoration(
+                      labelText: 'Search library',
+                      prefixIcon: const Icon(Icons.search),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: _query.isEmpty ? null : IconButton(
+                        tooltip: 'Clear library search',
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _query = '');
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Row(
+                    children: [
+                      const Text('Sort'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButton<LibrarySortOrder>(
+                          key: const ValueKey('library-sort'),
+                          value: _sortOrder,
+                          isExpanded: true,
+                          items: const [
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.recentlyImported,
+                              child: Text('Recently imported')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.titleAscending,
+                              child: Text('Title A–Z')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.titleDescending,
+                              child: Text('Title Z–A')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.format,
+                              child: Text('File format')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) setState(() => _sortOrder = value);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Row(
+                    children: [
+                      for (final format in <BookFormat?>[
+                        null, BookFormat.epub, BookFormat.pdf, BookFormat.txt,
+                      ]) ...[
+                        ChoiceChip(
+                          key: ValueKey('library-filter-${format?.name ?? 'all'}'),
+                          label: Text(format?.name.toUpperCase() ?? 'All'),
+                          selected: _formatFilter == format,
+                          onSelected: (_) =>
+                              setState(() => _formatFilter = format),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ],
+                  ),
+                ),
                 Expanded(
-                  child: ListView.builder(
+                  child: books.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('No books match your filters.'),
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: _clearFilters,
+                                child: const Text('Clear filters'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
                     itemCount: books.length,
                     itemBuilder: (context, index) {
                       final book = books[index];
@@ -198,7 +309,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ),
               ],
             ),
-      floatingActionButton: books.isNotEmpty
+      floatingActionButton: allBooks.isNotEmpty
           ? FloatingActionButton.extended(
               onPressed: _busy ? null : _import,
               icon: const Icon(Icons.add),
