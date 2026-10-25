@@ -23,17 +23,31 @@ No release or completed milestone is claimed.
 
 ### Verification evidence, not an estimate
 
-- Last *published* Windows run: `20261025T165839Z-946fc7b9-dc2652`,
-  source `946fc7b9dae008bbe92e89248921bad6430f7a50`, **589 successful,
-  0 assertion failures, 5 error outcomes, 67 test files**; overall FAIL.
-- This report predates the file-picker migration, reader compile fix,
-  bounded EPUB search viewport, stream-only Android document import, and
-  library catalog controls. It does not prove those changes pass.
-- The current repository contains 70 `*_test.dart` files, including new
-  tests that have not run in that published report.
-- No local Dart/Flutter toolchain is available in the GitHub-connected
-  editing environment. Native platform projects `android/` and `windows/`
-  are still absent from the tracked source tree.
+- Latest *published* Windows run:
+  `20261025T193458Z-003d2e13-bfda7f`, source
+  `003d2e132344e6576684d808778dc0fb17befe11`:
+  **414 passed, 1 assertion failure, 24 error outcomes, 76 discovered test
+  files, total 439 parsed outcomes**; result **FAIL**.
+- Flutter and Dart versions and `pub get` succeeded with real exit code 0;
+  `dart format --set-exit-if-changed`, `flutter analyze` and
+  `flutter test` returned exit code 1.
+- The analyzer pinpointed **two concrete signature errors** in
+  `epub_html_preprocess.dart` (`RegExp.firstMatch` was given a start
+  offset). Numerous test files could not compile due to that shared
+  dependency. Additional load locations cited invalid
+  `Wrap(mainAxisSize: ...)` in four Voice Cast review cards.
+- The sole individually parsed assertion failure concerned altered
+  `voice-pack.json` metadata. Local model metadata is not inherently a
+  trusted signature; reopening now optionally accepts an independently
+  trusted expected manifest, and the regression distinguishes these cases.
+- Follow-up fixes **were committed after the reported run**. No updated
+  Windows or Android test suite has validated them yet. Never count
+  source-level fixes as passed native tests.
+- The GitHub-connected development environment has no locally executable
+  Flutter/Dart SDK. The tracked native platform directories
+  `android/` and `windows/` remain absent; local bootstrap scripts
+  generate them and Android manifest installation is explicitly verified
+  in CI source.
 
 ### Highest-impact next steps
 
