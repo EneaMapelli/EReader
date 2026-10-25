@@ -405,3 +405,56 @@ Future<InstalledOfflineVoicePack> loadInstalledOfflineVoicePack({
     modelsDirectory: modelsDirectory,
   );
 }
+
+/// Sanitized catalog entry. An invalid pack is visible as unavailable rather
+/// than silently disappearing or being passed to native inference.
+class OfflineVoicePackInspection {
+  const OfflineVoicePackInspection({
+    required this.id,
+    required this.ready,
+    this.installed,
+  });
+
+  final String id;
+  final bool ready;
+  final InstalledOfflineVoicePack? installed;
+}
+
+/// Explicitly inspect locally installed voices for a future model-manager UI.
+/// This is not called during ordinary reading: SHA-256 verification of a
+/// large model is intentionally opt-in and can consume CPU/disk IO.
+/// Hidden staging directories are ignored, while corrupt named packs are
+/// surfaced without leaking filesystem paths or raw native error text.
+Future<List<OfflineVoicePackInspection>> inspectOfflineVoicePacks({
+  required Directory modelsDirectory,
+  int maxEntries = 128,
+}) async {
+  if (maxEntries < 1 || maxEntries > 256) {
+    throw ArgumentError.value(maxEntries, 'maxEntries');
+  }
+  if (!await modelsDirectory.exists()) return const [];
+  final entries = <OfflineVoicePackInspection>[];
+  var checked = 0;
+  await for (final entity in modelsDirectory.list(followLinks: false)) {
+    final id = p.basename(entity.path);
+    if (id.startsWith('.')) continue; // Interrupted private staging work.
+    if (!RegExp(r'^[a-z0-9][a-z0-9_-]{1,63}$').hasMatch(id)) {
+      continue; // Never interpret arbitrary names as voice identities.
+    }
+    if (++checked > maxEntries) {
+      throw const FormatException('Excessive local voice pack count');
+    }
+    try {
+      final verified = await loadInstalledOfflineVoicePack(
+        packId: id, modelsDirectory: modelsDirectory,
+      );
+      entries.add(OfflineVoicePackInspection(
+        id: id, ready: true, installed: verified,
+      ));
+    } catch (_) {
+      entries.add(OfflineVoicePackInspection(id: id, ready: false));
+    }
+  }
+  entries.sort((a, b) => a.id.compareTo(b.id));
+  return List<OfflineVoicePackInspection>.unmodifiable(entries);
+}
