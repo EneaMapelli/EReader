@@ -27,6 +27,7 @@ void main() {
           castLayoutUs: 24000,
           voiceSetupUs: 5400,
           totalOpenUs: 70000,
+          firstFrameUs: 85000,
         ),
         child: const Text('Inspect opening'),
       ))),
@@ -41,9 +42,13 @@ void main() {
         find.text('70.0 ms'), 120,
         scrollable: find.byType(Scrollable).last);
     expect(find.text('70.0 ms'), findsOneWidget);
+    await tester.scrollUntilVisible(
+        find.text('85.0 ms'), 120,
+        scrollable: find.byType(Scrollable).last);
+    expect(find.text('85.0 ms'), findsOneWidget);
     expect(find.text('Local wall-clock measurements; no book text is '
-        'recorded. The first visible frame and peak memory are not '
-        'measured.'), findsOneWidget);
+        'recorded. Peak memory and frame-rate are not measured.'),
+        findsOneWidget);
     await tester.scrollUntilVisible(
         find.text('4096 bytes'), 120,
         scrollable: find.byType(Scrollable).last);
