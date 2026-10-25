@@ -299,6 +299,37 @@ void main() {
     expect(player.currentIndex, 3);
   });
 
+  test('Stop releases pending lookahead before blocked HTTP responds',
+      () async {
+    final active = engine.speak(
+      'Alpha', language: 'en-US', rate: 0.5, pitch: 1,
+    );
+    await _until(() => http.requests.length == 1);
+    final future = engine.prepareSpeech(
+      'Beta',
+      voice: const SpeechVoice(name: 'marin', locale: 'multi'),
+      language: 'en-US',
+      rate: 0.5,
+      pitch: 1,
+    );
+
+    await engine.stop();
+    // The FIRST paid HTTP request remains deliberately unresolved.
+    // Waiting for that network response to release lookahead would
+    // retain a cancelled task (and potentially hold the next session).
+    await future.timeout(const Duration(seconds: 1));
+    expect(http.pending[0].isCompleted, isFalse);
+    expect(http.requests.map((request) => request.text), ['Alpha']);
+    expect(meter.used, 5);
+    expect(output.warmed, isEmpty);
+
+    http.complete(0);
+    await active;
+    expect(output.clips, isEmpty);
+    expect(http.requests, hasLength(1),
+        reason: 'Stop cannot authorize a second payable synthesis');
+  });
+
   test('a failed first render does not trigger the next paid request',
       () async {
     player.setCloudPrefetch(true);

@@ -156,3 +156,18 @@ Flutter execution result exists: the published status remains NOT_RUN.
   expectations, not proof of a TTS attribution defect.
 - Current published suite still reads **NOT_RUN**. The previous Windows
   errors and the new assertions require a current local rerun.
+
+## Cloud readiness waiters on Stop — 2026-10-25
+
+The current manually summarized Windows run lists 549 passes, 6
+assertion failures and 1 error, without individual case identities.
+Independent code inspection identified a cloud-prefetch cancellation
+leak: speculative synthesis awaited the first HTTP render's readiness
+`Completer<bool>` indefinitely after Stop when HTTP remained stalled.
+
+Both Stop and Dispose now close that gate with `false` without
+starting a second request, freeing the waiting prefetch even if the
+first paid request has not returned. The first request is not
+silently retried or refunded. An unexecuted regression uses a held
+mock HTTP response. This does NOT identify or resolve the seven
+still-unpublished test failures from the Windows run.

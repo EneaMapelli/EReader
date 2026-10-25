@@ -668,3 +668,25 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   publishing raw logs, overwriting historical runs, or force-pushing.
   The normal runner now prints an actionable recovery command if
   auto-publication fails.
+
+## M2 — cancellation releases cloud prefetch readiness waiters (2026-10-25)
+
+- Found a cloud narration liveness problem while investigating the six
+  assertions and one error summarized in the latest manually uploaded
+  Windows run. `prepareSpeech` waits for the active clip to render
+  before reserving any lookahead quota, but a Stop during a delayed
+  active HTTP response did not resolve the readiness gate until the
+  server replied.
+- `OpenAiSpeechEngine.stop` and `dispose` now invalidate the current
+  readiness gate immediately, completing its pending waiters with
+  `false` and clearing its session pointer. A cancelled prefetch
+  therefore exits without initiating a new billed HTTP request; the
+  original request may still finish and remains conservatively metered.
+- Added an unexecuted regression that holds the first HTTP response,
+  requests speculative Beta, stops playback, awaits lookahead completion
+  **before** releasing the old HTTP request, and asserts no second
+  request or decoder playback. This is an independent safety fix, not
+  evidence of resolving any of the seven unidentified Windows cases.
+- The manual report remains 549/556 and the structured reports are
+  still missing from the repository until the existing local run is
+  explicitly published.

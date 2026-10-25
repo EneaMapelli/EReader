@@ -163,6 +163,16 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
   _PreparedCloudClip? _prepared;
   Completer<bool>? _currentAudioReady;
 
+  // A speculative next-chunk task may be waiting for the current HTTP
+  // render's readiness gate. Stop/dispose must release that waiter even
+  // when a remote synthesis request never answers. This gate authorizes
+  // only lookahead; it must not trigger another paid request on cancel.
+  void _cancelCurrentAudioReadiness() {
+    final ready = _currentAudioReady;
+    _currentAudioReady = null;
+    if (ready != null && !ready.isCompleted) ready.complete(false);
+  }
+
   @override
   Future<List<SpeechVoice>> listVoices() async => [
     for (final name in supportedVoices)
@@ -354,6 +364,7 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
   Future<void> stop() async {
     _generation++;
     _prepared = null;
+    _cancelCurrentAudioReadiness();
     await _output.stop();
   }
 
@@ -363,6 +374,7 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
     _disposed = true;
     _generation++;
     _prepared = null;
+    _cancelCurrentAudioReadiness();
     await _output.dispose();
     _transport.dispose();
   }
