@@ -192,6 +192,33 @@ void main() {
     expect(() => blocks.length = 3, throwsUnsupportedError);
   });
 
+  test('monotonic segment cursor matches eager layout across many blocks',
+      () {
+    final source = List.filled(120, 'One segment spans several blocks. ')
+        .join();
+    final doc = chapter(source);
+    const chunkSize = 305;
+    final segments = <SpeechSegment>[];
+    for (var start = 0; start < source.length; start += chunkSize) {
+      final end = start + chunkSize < source.length
+          ? start + chunkSize : source.length;
+      // These are global source-aligned chunks: visual block boundaries
+      // deliberately do not match segment boundaries.
+      segments.add(SpeechSegment(start, end, source.substring(start, end)));
+    }
+    final eager = buildEpubVisualLayout(
+        doc, segments, const [], maxBlockChars: 95);
+    final progressive = buildProgressiveEpubVisualLayout(
+        doc, segments, const [], maxBlockChars: 95, maxCachedBlocks: 4);
+    compareLayouts(eager, progressive, segments);
+    final lazy = progressive.blocks as ProgressiveEpubBlocks;
+    expect(lazy.cachedBlockCount, lessThanOrEqualTo(4));
+    expect(lazy.materializations, eager.blocks.length);
+    expect(progressive.segmentToBlock.first, 0);
+    expect(progressive.segmentToBlock.last,
+        greaterThan(progressive.segmentToBlock.first));
+  });
+
   test('prevents unsafe style, link or TTS metadata at index construction',
       () {
     const source = 'Simple prose.';
