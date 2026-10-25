@@ -98,12 +98,20 @@ Future<BookSourceMatch?> showBookSourceSearch(BuildContext context, String sourc
   final queryController = TextEditingController();
   Timer? searchDebounce;
   var searchTerm = '';
+  var page = 0;
+  const pageSize = 100;
   final result = await showDialog<BookSourceMatch>(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (dialogContext, redraw) {
-        final matches = findSourceTextMatches(
-            source, searchTerm, startOffset: startOffset);
+        // Request one extra result so the Next page button never makes an
+        // unverified promise. Only one page of excerpts is kept in memory.
+        final pageResults = findSourceTextMatches(
+            source, searchTerm, startOffset: startOffset,
+            skipResults: page * pageSize, maxResults: pageSize + 1);
+        final hasMore = pageResults.length > pageSize;
+        final matches = hasMore
+            ? pageResults.sublist(0, pageSize) : pageResults;
         return AlertDialog(
           title: const Text('Search in EPUB'),
           content: ConstrainedBox(
@@ -125,7 +133,10 @@ Future<BookSourceMatch?> showBookSourceSearch(BuildContext context, String sourc
                     searchDebounce = Timer(const Duration(milliseconds: 180),
                         () {
                       if (dialogContext.mounted) {
-                        redraw(() => searchTerm = value.trim());
+                        redraw(() {
+                          searchTerm = value.trim();
+                          page = 0;
+                        });
                       }
                     });
                   },
@@ -133,8 +144,27 @@ Future<BookSourceMatch?> showBookSourceSearch(BuildContext context, String sourc
                 const SizedBox(height: 8),
                 if (searchTerm.isNotEmpty)
                   Text(matches.isEmpty ? 'No matches'
-                      : matches.length == 100 ? 'First 100 matches'
-                      : 'Matches: ${matches.length}'),
+                      : page == 0 && !hasMore ? 'Matches: ${matches.length}'
+                      : 'Matches ${page * pageSize + 1}–'
+                          '${page * pageSize + matches.length}'
+                          '${hasMore ? ' (more available)' : ''}'),
+                if (searchTerm.isNotEmpty && (page > 0 || hasMore))
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: page == 0 ? null
+                            : () => redraw(() => page--),
+                        child: const Text('Previous 100'),
+                      ),
+                      TextButton(
+                        onPressed: hasMore
+                            ? () => redraw(() => page++)
+                            : null,
+                        child: const Text('Next 100'),
+                      ),
+                    ],
+                  ),
                 if (searchTerm.isNotEmpty && startOffset > 0)
                   const Text(
                     'From reading position, then from the beginning',

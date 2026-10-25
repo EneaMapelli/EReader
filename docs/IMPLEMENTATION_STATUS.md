@@ -1037,3 +1037,19 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   offsets and cloud permissions are unchanged.
 - Flutter analyzer/test and Windows/Android integration have NOT run for
   this revision. The latest published Windows failures refer to an older SHA.
+
+## M2 — paged full-source EPUB search (2026-10-25)
+
+- Full-source search now supports explicit Previous 100 / Next 100 paging,
+  rather than permanently hiding matches after the first 100. The first
+  page still begins at the visible/spoken reading position and wraps
+  exactly once; subsequent pages follow the same cyclic source order.
+- Results stay bounded to 100 excerpt entries in memory, with one extra
+  hit used only to verify that a further page exists. The active page
+  resets when the user changes the query. This remains entirely offline,
+  retains the original UTF-16 source offset and never calls cloud TTS.
+- Added domain regressions for 235 matches, wraparound, unique offsets,
+  Unicode cursors and invalid pagination; added a widget test for page
+  three, returning to page two and opening a source-exact hit.
+- Dart/Flutter analyzer, widget tests and Windows/Android device tests
+  have NOT run for this commit; the latest published report is older.

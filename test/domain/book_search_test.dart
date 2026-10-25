@@ -105,6 +105,42 @@ void main() {
     }
   });
 
+
+  test('source search paginates beyond the first 100 without repeats', () {
+    final source = List<String>.generate(
+        235, (i) => 'hit$i').join(' ');
+    final cursor = source.indexOf('hit198');
+    final page1 = findSourceTextMatches(source, 'hit',
+        startOffset: cursor, maxResults: 100);
+    final page2 = findSourceTextMatches(source, 'hit',
+        startOffset: cursor, skipResults: 100, maxResults: 100);
+    final page3 = findSourceTextMatches(source, 'hit',
+        startOffset: cursor, skipResults: 200, maxResults: 100);
+    expect([page1.length, page2.length, page3.length], [100, 100, 35]);
+    expect(page1.first.start, cursor);
+    expect(page2.first.start, source.indexOf('hit63'));
+    expect(page3.last.start, source.indexOf('hit197'));
+    final all = [...page1, ...page2, ...page3];
+    expect(all.map((match) => match.start).toSet().length, 235);
+    expect(findSourceTextMatches(source, 'hit',
+        startOffset: cursor, skipResults: 235), isEmpty);
+    for (final hit in all) {
+      expect(source.substring(hit.start, hit.end), 'hit');
+    }
+  });
+
+  test('source page skipping respects UTF-16 offsets near emoji', () {
+    const source = '📖 echo one, echo two, 📚 echo three';
+    final emojiMiddle = source.indexOf('📚') + 1;
+    final page = findSourceTextMatches(source, 'echo',
+        startOffset: emojiMiddle, skipResults: 1, maxResults: 1,
+        contextChars: 1);
+    expect(page.single.start, source.indexOf('echo'));
+    expect(page.single.excerpt, isNot(contains('\uFFFD')));
+    expect(() => findSourceTextMatches(source, 'echo', skipResults: -1),
+        throwsArgumentError);
+  });
+
   test('search bounds number of results and ignores empty queries', () {
     expect(findMatchingSegments(segments, 'prima', maxResults: 1), [0]);
     expect(findMatchingSegments(segments, '   '), isEmpty);
