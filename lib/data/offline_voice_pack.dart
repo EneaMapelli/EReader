@@ -36,6 +36,51 @@ class OfflineVoicePackManifest {
   final String tokensSha256;
   final List<OfflineVoiceResource> phonemizerResources;
 
+  /// Persist only explicit configuration and expected checksums, never the
+  /// source file paths, book content or API keys.
+  Map<String, Object> toJson() => {
+    'version': 1,
+    'id': id,
+    'displayName': displayName,
+    'locale': locale,
+    'licenseId': licenseId,
+    'modelSha256': modelSha256,
+    'tokensSha256': tokensSha256,
+    'phonemizerResources': [
+      for (final file in phonemizerResources)
+        {'relativePath': file.relativePath, 'sha256': file.sha256},
+    ],
+  };
+
+  factory OfflineVoicePackManifest.fromJson(Map<String, dynamic> json) {
+    if (json['version'] != 1 ||
+        json['phonemizerResources'] is! List) {
+      throw const FormatException('Unsupported offline voice manifest');
+    }
+    final resources = <OfflineVoiceResource>[];
+    for (final entry in json['phonemizerResources'] as List) {
+      if (entry is! Map || entry['relativePath'] is! String ||
+          entry['sha256'] is! String) {
+        throw const FormatException('Invalid phonemizer manifest entry');
+      }
+      resources.add(OfflineVoiceResource(
+        relativePath: entry['relativePath'] as String,
+        sha256: entry['sha256'] as String,
+      ));
+    }
+    final metadata = OfflineVoicePackManifest(
+      id: json['id'] as String,
+      displayName: json['displayName'] as String,
+      locale: json['locale'] as String,
+      licenseId: json['licenseId'] as String,
+      modelSha256: json['modelSha256'] as String,
+      tokensSha256: json['tokensSha256'] as String,
+      phonemizerResources: resources,
+    );
+    metadata.validate();
+    return metadata;
+  }
+
   void validate() {
     if (!RegExp(r'^[a-z0-9][a-z0-9_-]{1,63}$').hasMatch(id)) {
       throw const FormatException('Invalid offline voice pack ID');
