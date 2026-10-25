@@ -23,31 +23,28 @@ No release or completed milestone is claimed.
 
 ### Verification evidence, not an estimate
 
-- Latest *published* Windows run:
-  `20261025T193458Z-003d2e13-bfda7f`, source
-  `003d2e132344e6576684d808778dc0fb17befe11`:
-  **414 passed, 1 assertion failure, 24 error outcomes, 76 discovered test
-  files, total 439 parsed outcomes**; result **FAIL**.
-- Flutter and Dart versions and `pub get` succeeded with real exit code 0;
-  `dart format --set-exit-if-changed`, `flutter analyze` and
-  `flutter test` returned exit code 1.
-- The analyzer pinpointed **two concrete signature errors** in
-  `epub_html_preprocess.dart` (`RegExp.firstMatch` was given a start
-  offset). Numerous test files could not compile due to that shared
-  dependency. Additional load locations cited invalid
-  `Wrap(mainAxisSize: ...)` in four Voice Cast review cards.
-- The sole individually parsed assertion failure concerned altered
-  `voice-pack.json` metadata. Local model metadata is not inherently a
-  trusted signature; reopening now optionally accepts an independently
-  trusted expected manifest, and the regression distinguishes these cases.
-- Follow-up fixes **were committed after the reported run**. No updated
-  Windows or Android test suite has validated them yet. Never count
-  source-level fixes as passed native tests.
-- The GitHub-connected development environment has no locally executable
-  Flutter/Dart SDK. The tracked native platform directories
-  `android/` and `windows/` remain absent; local bootstrap scripts
-  generate them and Android manifest installation is explicitly verified
-  in CI source.
+- Latest published and normalized Windows run:
+  `20261025T201001Z-7c89dfc8-a63603` (source `7c89dfc8`).
+  **641 passed, 0 failed assertions, 7 errors, 76 discovered test files**;
+  overall FAIL. Pub-get and Dart/Flutter version checks succeed.
+- Analyzer: **zero errors**, ten source/test warnings, plus informational
+  lints; nonzero analyzer exit code remains until warnings/info are resolved.
+  Formatting fails for 147 existing Dart files (`dart format` not applied).
+- Six source-search widget cases share a Flutter intrinsic-size crash:
+  `AlertDialog` measures a lazy result ListView that has no intrinsic width.
+  The search dialog now supplies a finite parent width before layout.
+- The remaining EPUB worker preflight test failed while Windows held a
+  temporary EPUB file (sharing violation 32) during teardown. Its fixture
+  cleanup now retries transient Windows locks a bounded number of times.
+- Ten nonblocking analyzer warnings have been addressed, and only sanitized
+  summaries/results of the newest run remain in the current branch.
+  Raw per-command logs were mistakenly committed in a prior commit and
+  are excluded from the current tree; `.gitignore` now prevents accidental
+  restaging. Removing them from the current tree does not erase older Git
+  history.
+- **All remedial commits postdate that run**. No updated platform test suite
+  has verified these changes; do not count them as passing or declare a
+  native Windows/Android milestone completed.
 
 ### Highest-impact next steps
 

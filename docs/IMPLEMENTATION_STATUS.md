@@ -1268,3 +1268,25 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - All new changes still need a fresh run on the latest branch HEAD to
   prove correctness. The previous 589-pass report is older and cannot
   be treated as a newer result.
+
+## Latest Windows run 641/7 and targeted repairs (2026-10-25)
+
+- Located a newer test execution uploaded under a nested `test-results/runs/`
+  directory rather than `latest.json`. Its source commit is `7c89dfc8`:
+  641 pass, 0 assertion failures, 7 errors on 76 test files. Analyzer shows
+  zero compilation errors; `dart format` reports 147 unformatted files.
+- Promoted sanitized summary, cases, failures and Markdown to the standard
+  `test-results/latest.*` and dated run paths. Removed 332 incorrectly
+  committed raw/command/result-log files from the current branch tree and
+  ignored future raw per-run folders. Historical Git commit contents are not
+  rewritten, so old raw objects may still exist in Git history.
+- The six source-search widget errors share an AlertDialog intrinsic-width
+  exception. The whole dialog content now has an explicit responsive width
+  before creating the bounded lazy results viewport.
+- The one remaining EPUB preflight test hit a Windows file-sharing violation
+  during test fixture cleanup, not an assertion failure in the EPUB source.
+  Teardown retries only the transient Windows lock error with a bounded delay.
+- Removed ten analyzer warnings through redundant cast, null assertion and
+  unused-import cleanups; these source edits are not yet verified by Flutter.
+- Outstanding: a fresh local run on current HEAD; format all 147 Dart files
+  and recheck analyzer warnings/info before marking M1/M3 acceptance green.
