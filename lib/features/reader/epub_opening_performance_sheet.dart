@@ -10,6 +10,7 @@ Future<void> showEpubOpeningPerformance(
   required int castLayoutUs,
   required int voiceSetupUs,
   required int totalOpenUs,
+  int? firstFrameUs,
 }) => showModalBottomSheet<void>(
   context: context,
   showDragHandle: true,
@@ -30,7 +31,7 @@ Future<void> showEpubOpeningPerformance(
               title: Text('EPUB opening performance'),
               subtitle: Text(
                 'Local wall-clock measurements; no book text is recorded. '
-                'The first visible frame and peak memory are not measured.',
+                'Peak memory and frame-rate are not measured.',
               ),
             ),
             Expanded(
@@ -46,6 +47,8 @@ Future<void> showEpubOpeningPerformance(
                 timingRow('Cast and progressive layout', castLayoutUs),
                 timingRow('Voice and reader setup', voiceSetupUs),
                 timingRow('Total opening until reader state ready', totalOpenUs),
+                if (firstFrameUs != null)
+                  timingRow('First completed reader frame', firstFrameUs),
                 ListTile(
                   title: const Text('EPUB archive size'),
                   trailing: Text('${worker.compressedBytes} bytes'),
