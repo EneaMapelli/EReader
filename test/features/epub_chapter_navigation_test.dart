@@ -90,6 +90,33 @@ void main() {
     expect(buildEpubChapters(document, merged.segments).length, 2);
   });
 
+
+  test('unclosed quote in prior spine cannot turn next chapter into dialogue',
+      () {
+    const first = '«Old dialogue without a closing mark';
+    const second = 'Narrator text. «Fresh dialogue» follows.';
+    const source = '$' + '{first}\n\n' + '$' + '{second}';
+    final bStart = first.length + 2;
+    final document = DocumentContent(
+      title: 'Book', text: source,
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'a', href: 'a.xhtml',
+            start: 0, end: first.length, title: 'A'),
+        EpubSpineRange(idref: 'b', href: 'b.xhtml',
+            start: bStart, end: source.length, title: 'B'),
+      ],
+    );
+    final quotes = splitQuotedSegmentsWithRegions(
+        segmentEpubSpine(document), resetAt: [bStart]);
+    final narrator = quotes.firstWhere(
+        (item) => item.segment.text.contains('Narrator text.'));
+    final fresh = quotes.firstWhere(
+        (item) => item.segment.text.contains('«Fresh dialogue»'));
+    expect(narrator.quoteGroup, isNull);
+    expect(fresh.quoteGroup, isNotNull);
+    expect(fresh.segment.start, source.indexOf('«Fresh dialogue»'));
+  });
+
   test('fallback chapter labels and missing playable ranges are stable', () {
     const content = DocumentContent(
       title: 'Book',

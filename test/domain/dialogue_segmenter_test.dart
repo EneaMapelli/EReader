@@ -55,6 +55,63 @@ void main() {
         ['A:', '"Hello 😀"', 'then', '"bye"', '.']);
   });
 
+
+  test('OPF chapter reset prevents a dangling quotation from speaking prose',
+      () {
+    const first = 'She called «Wait for me';
+    const next = 'Narration resumes. «New turn» ends.';
+    const source = '$' + '{first}\n\n' + '$' + '{next}';
+    final start = source.indexOf('Narration resumes.');
+    final base = [
+      SpeechSegment(0, first.length, first),
+      SpeechSegment(start, source.length, next),
+    ];
+    final crossChapter = splitQuotedSegmentsWithRegions(base);
+    expect(crossChapter.any((part) =>
+        part.segment.text.contains('Narration resumes.') &&
+        part.quoteGroup != null), isTrue,
+        reason: 'The unreset baseline incorrectly propagates the old quote');
+
+    final reset = splitQuotedSegmentsWithRegions(base, resetAt: [start]);
+    expect(reset.map((part) => part.segment.text).toList(), [
+      'She called', '«Wait for me', 'Narration resumes.',
+      '«New turn»', 'ends.',
+    ]);
+    expect(reset.where((part) => part.segment.text == 'Narration resumes.')
+        .single.quoteGroup, isNull);
+    expect(reset.where((part) => part.segment.text == '«New turn»')
+        .single.quoteGroup, isNotNull);
+    for (final part in reset) {
+      expect(source.substring(part.segment.start, part.segment.end),
+          part.segment.text);
+    }
+  });
+
+  test('spine reset in whitespace gap still applies before next word', () {
+    const first = '«Old incomplete';
+    const next = ' Next chapter is plain text.';
+    const source = '$' + '{first}\n\n' + '$' + '{next}';
+    final spineStart = first.length + 2;
+    final base = [
+      SpeechSegment(0, first.length, first),
+      SpeechSegment(spineStart + 1, source.length, next.substring(1)),
+    ];
+    final quoteParts = splitQuotedSegmentsWithRegions(
+        base, resetAt: [spineStart]);
+    expect(quoteParts.last.quoteGroup, isNull);
+    expect(quoteParts.last.segment.text, 'Next chapter is plain text.');
+  });
+
+  test('quote boundary cannot split a source chunk or duplicate a reset', () {
+    const base = [SpeechSegment(0, 6, '«hello')];
+    expect(() => splitQuotedSegmentsWithRegions(base, resetAt: [3]),
+        throwsFormatException);
+    expect(() => splitQuotedSegmentsWithRegions(base, resetAt: [6, 6]),
+        throwsFormatException);
+    expect(() => splitQuotedSegmentsWithRegions(base, resetAt: [-1]),
+        throwsFormatException);
+  });
+
   test('unmatched open quote retains exact source instead of guessing',
       () {
     const source = 'He said “Hello';

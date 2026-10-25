@@ -65,7 +65,11 @@ void main() {
     expect(worker.document.epubSpineRanges.map((r) => r.idref),
         extracted.epubSpineRanges.map((r) => r.idref));
     final directQuote = splitQuotedSegmentsWithRegions(
-        segmentEpubSpine(extracted));
+      segmentEpubSpine(extracted),
+      resetAt: [
+        for (final range in extracted.epubSpineRanges.skip(1)) range.start,
+      ],
+    );
     expect(worker.quoted.length, directQuote.length);
     for (var i = 0; i < directQuote.length; i++) {
       final a = worker.quoted[i], b = directQuote[i];

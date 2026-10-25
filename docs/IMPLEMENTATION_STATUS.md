@@ -1022,3 +1022,18 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Added widget assertions for Unicode source preservation, click targets,
   and the returned search match range. Windows/Android compilation and tests
   are pending the next local execution.
+
+## M5 — reset dangling dialogue at EPUB spine boundaries (2026-10-25)
+
+- Quote grouping in the EPUB preflight worker now resets at each next OPF
+  spine item start. A chapter-ending unmatched opening quote cannot silently
+  classify the next chapter's narrator or new quotations as the old speaker.
+- Existing quote grouping across chunks within the same EPUB item is
+  preserved. Boundary positions cannot bisect a spoken source chunk, and
+  duplicate/negative reset markers fail closed.
+- Added domain and multi-spine regressions, including a boundary followed by
+  leading whitespace. The worker/reference test now uses the same explicit
+  spine boundaries. Original source text, voice identity overrides, anchor
+  offsets and cloud permissions are unchanged.
+- Flutter analyzer/test and Windows/Android integration have NOT run for
+  this revision. The latest published Windows failures refer to an older SHA.

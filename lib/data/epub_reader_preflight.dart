@@ -231,7 +231,12 @@ EpubReaderPreflight _prepareEpubFile(String localPath, {EpubResumeRequest? resum
   final segmentationUs = stopwatch.elapsedMicroseconds - measureStart;
 
   measureStart = stopwatch.elapsedMicroseconds;
-  final quoted = splitQuotedSegmentsWithRegions(base);
+  final quoted = splitQuotedSegmentsWithRegions(
+    base,
+    resetAt: [
+      for (final range in document.epubSpineRanges.skip(1)) range.start,
+    ],
+  );
   final quoteUs = stopwatch.elapsedMicroseconds - measureStart;
 
   measureStart = stopwatch.elapsedMicroseconds;

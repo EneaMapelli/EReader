@@ -14,13 +14,44 @@ class QuotedSpeechChunk {
 /// speakers or rewriting book text. Carries open-quote state across chunks.
 /// Unbalanced/nested quotations are deliberately not auto-attributed.
 List<QuotedSpeechChunk> splitQuotedSegmentsWithRegions(
-    List<SpeechSegment> original) {
+    List<SpeechSegment> original, {
+    List<int> resetAt = const [],
+  }) {
+  // An unmatched quote at the end of one OPF spine resource must not turn
+  // the following independent chapter into dialogue. The default behavior
+  // retains open quotes across ordinary sentence/word chunk boundaries.
+  final boundaries = resetAt.toList()..sort();
+  for (var i = 0; i < boundaries.length; i++) {
+    if (boundaries[i] < 0 ||
+        (i > 0 && boundaries[i] == boundaries[i - 1])) {
+      throw const FormatException('Invalid quote reset boundary');
+    }
+  }
   final result = <QuotedSpeechChunk>[];
+  var resetCursor = 0;
+  var lastEnd = 0;
   int? expectedClose;
   int? openGroup;
   var nextGroup = 0;
 
   for (final segment in original) {
+    if (segment.start < lastEnd || segment.end < segment.start) {
+      throw const FormatException('Unordered quotation source chunks');
+    }
+    while (resetCursor < boundaries.length &&
+        boundaries[resetCursor] <= segment.start) {
+      if (boundaries[resetCursor] < lastEnd) {
+        throw const FormatException('Quote reset splits a source chunk');
+      }
+      expectedClose = null;
+      openGroup = null;
+      resetCursor++;
+    }
+    if (resetCursor < boundaries.length &&
+        boundaries[resetCursor] < segment.end) {
+      throw const FormatException('Quote reset splits a source chunk');
+    }
+    lastEnd = segment.end;
     final text = segment.text;
     var start = 0;
     void add(int from, int until, int? group) {
