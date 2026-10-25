@@ -202,7 +202,7 @@ Future<void> _verifyPackContents(
 
 Future<int> _copyVerifiedFile(
   File source,
-  File destination, {
+  File? destination, {
   required String expectedDigest,
   required int maxBytes,
 }) async {
@@ -225,7 +225,7 @@ Future<int> _copyVerifiedFile(
     digest = digests.single;
   });
   final hashInput = sha256.startChunkedConversion(digestSink);
-  final out = destination.openWrite();
+  final out = destination?.openWrite();
   var written = 0;
   try {
     await for (final part in source.openRead()) {
@@ -233,18 +233,20 @@ Future<int> _copyVerifiedFile(
         throw const FormatException('Offline voice file grew beyond budget');
       }
       hashInput.add(part);
-      out.add(part);
+      out?.add(part);
       written += part.length;
     }
     hashInput.close();
-    await out.flush();
-    await out.close();
+    if (out != null) {
+      await out.flush();
+      await out.close();
+    }
     if (written < 1 || digest.toString() != expectedDigest) {
       throw const FormatException('Offline voice SHA-256 mismatch');
     }
     return written;
   } catch (_) {
-    await out.close();
+    if (out != null) await out.close();
     rethrow;
   }
 }
@@ -275,7 +277,7 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
   await modelsDirectory.create(recursive: true);
   final target = Directory(p.join(modelsDirectory.path, manifest.id));
 
-  Future<void> copyPhonemizerResources(Directory from, Directory to) async {
+  Future<void> copyPhonemizerResources(Directory from, Directory? to) async {
     var totalBytes = 0;
     for (final resource in manifest.phonemizerResources) {
       final parts = resource.relativePath.split('/');
@@ -289,8 +291,11 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
         }
       }
       final source = File(p.joinAll([from.path, ...parts]));
-      final destination = File(p.joinAll([to.path, ...parts]));
-      await destination.parent.create(recursive: true);
+      final destination =
+          to == null ? null : File(p.joinAll([to.path, ...parts]));
+      if (destination != null) {
+        await destination.parent.create(recursive: true);
+      }
       final remaining = maxPhonemizerBytes - totalBytes;
       if (remaining < 1) {
         throw const FormatException('Offline phonemizer budget exhausted');
@@ -305,8 +310,9 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
   }
 
   Future<InstalledOfflineVoicePack> verify(Directory where) async {
-    // Reuse the same size/hash checks on installed files. The recheck uses a
-    // private ephemeral verification directory and does not alter the pack.
+    // Rehash the installed files as streams without duplicating a large
+    // ONNX file on disk. A changed manifest or unexpected extra file is
+    // rejected before any native runtime can use this directory.
     if (await FileSystemEntity.type(where.path, followLinks: false) !=
         FileSystemEntityType.directory) {
       throw const FormatException('Offline voice pack directory is unsafe');
@@ -316,31 +322,20 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
       throw const FormatException('Installed voice manifest does not match');
     }
     await _verifyPackContents(where, manifest);
-    final verifyDir = await modelsDirectory.createTemp('.check-');
-    try {
-      await _copyVerifiedFile(
-        File(p.join(where.path, 'model.onnx')),
-        File(p.join(verifyDir.path, 'model.onnx')),
-        expectedDigest: manifest.modelSha256,
-        maxBytes: maxModelBytes,
-      );
-      await _copyVerifiedFile(
-        File(p.join(where.path, 'tokens.txt')),
-        File(p.join(verifyDir.path, 'tokens.txt')),
-        expectedDigest: manifest.tokensSha256,
-        maxBytes: maxTokensBytes,
-      );
-      await copyPhonemizerResources(where, verifyDir);
-      return InstalledOfflineVoicePack(
-        manifest: manifest,
-        modelPath: p.join(where.path, 'model.onnx'),
-        tokensPath: p.join(where.path, 'tokens.txt'),
-      );
-    } finally {
-      if (await verifyDir.exists()) {
-        await verifyDir.delete(recursive: true);
-      }
-    }
+    await _copyVerifiedFile(
+      File(p.join(where.path, 'model.onnx')), null,
+      expectedDigest: manifest.modelSha256, maxBytes: maxModelBytes,
+    );
+    await _copyVerifiedFile(
+      File(p.join(where.path, 'tokens.txt')), null,
+      expectedDigest: manifest.tokensSha256, maxBytes: maxTokensBytes,
+    );
+    await copyPhonemizerResources(where, null);
+    return InstalledOfflineVoicePack(
+      manifest: manifest,
+      modelPath: p.join(where.path, 'model.onnx'),
+      tokensPath: p.join(where.path, 'tokens.txt'),
+    );
   }
 
   if (await FileSystemEntity.type(target.path, followLinks: false) !=
