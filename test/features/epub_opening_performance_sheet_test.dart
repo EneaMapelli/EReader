@@ -129,7 +129,16 @@ void main() {
       find.text('P95 frame raster'), 140,
       scrollable: find.byType(Scrollable).last,
     );
-    expect(find.text('21.0 ms'), findsOneWidget);
+    // Raster P95 and slowest raster can both be 21.0 ms. Assert the value
+    // in the intended metric row instead of requiring global uniqueness.
+    final rasterP95Tile = find.ancestor(
+      of: find.text('P95 frame raster'),
+      matching: find.byType(ListTile),
+    );
+    expect(find.descendant(
+      of: rasterP95Tile,
+      matching: find.text('21.0 ms'),
+    ), findsOneWidget);
     await tester.tap(find.text('Sample frames for 12 seconds'));
     await tester.pumpAndSettle();
     expect(started, 1);

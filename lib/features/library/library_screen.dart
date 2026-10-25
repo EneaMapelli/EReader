@@ -22,16 +22,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final result = await FilePicker.platform.pickFiles(
+      // file_picker v12/v13 removed FilePicker.platform and FilePickerResult.
+      // Pick a single PlatformFile directly to keep the Windows/Android
+      // import entrypoint source-compatible with the declared dependency.
+      final selected = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: const ['epub', 'pdf', 'txt'],
       );
-      if (result == null) return;
-      final path = result.files.single.path;
+      if (selected == null) return;
+      final path = selected.path;
       if (path == null) {
         throw const FormatException('File path unavailable from picker');
       }
-      final record = await widget.store.importFile(path, originalName: result.files.single.name);
+      final record = await widget.store.importFile(path, originalName: selected.name);
       if (!mounted) return;
       setState(() {});
       await _open(record);

@@ -1602,7 +1602,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                 ),
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       player.currentPreferences.providerId == 'system'
                           ? 'Engine: system voice'

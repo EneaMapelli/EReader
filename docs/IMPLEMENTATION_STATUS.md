@@ -1067,3 +1067,20 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   avoiding stale deep scroll positions from the previous 100-result page.
   A widget regression verifies returning to page one on query change.
 - These changes require a fresh Dart analyzer/test run on Windows/Android.
+
+## Windows test run follow-up — 2026-10-25
+
+- Inspected newly committed sanitized Windows run `20261025T165839Z-946fc7b9-dc2652`
+  from source `946fc7b9`: 589 successful tests, zero assertion failures,
+  five error outcomes across EPUB worker cancellation, source-search widget,
+  and frame reporting tests. Overall run FAIL, and it predates the newest
+  commits on this branch. The runner's publishable summary does not contain
+  the full exception stacks, which remain local.
+- Corrected two confirmed analyzer findings: library import now uses the
+  `file_picker ^13.1.0` static `FilePicker.pickFile` API and consumes a
+  `PlatformFile` directly; the active TTS provider label no longer sits in
+  an invalid `const Expanded` widget.
+- Made the frame-report regression check the P95 raster row specifically:
+  the same `21.0 ms` measurement can also appear in the slowest-raster row.
+- Pending a new full `tool/run-all-tests.ps1` Windows execution; do not
+  claim that any previously reported test errors are resolved yet.
