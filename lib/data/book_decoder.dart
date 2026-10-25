@@ -146,6 +146,24 @@ class PdfPageRange {
   final int end;
 }
 
+/// The exact metadata adapter for foreground consumer reads and the reader
+/// preparation worker. Keeping one implementation prevents note, TOC, style
+/// or diagnostic fields from silently disappearing in background parsing.
+DocumentContent documentFromExtractedEpub(EpubTextResult content) =>
+    DocumentContent(
+      title: content.title,
+      text: content.text,
+      epubSpineRanges: content.ranges,
+      epubInlineStyles: content.styles,
+      epubImages: content.images,
+      epubLinks: content.links,
+      epubTables: content.tables,
+      epubNavigation: content.navigation,
+      epubFootnotePreviews: content.footnotePreviews,
+      epubAuxiliaryFootnotePreviews: content.auxiliaryFootnotePreviews,
+      epubDiagnostics: content.diagnostics,
+    );
+
 /// Worker-side only: no Flutter widgets/plugins, SQLite connection, network,
 /// TTS engine or user-specific credentials cross the isolate boundary.
 EpubTextResult _extractEpubFile(String localPath) {
@@ -184,20 +202,7 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
           () => _extractEpubFile(record.localPath),
           debugName: 'EReader EPUB import',
         );
-        return DocumentContent(
-          title: content.title,
-          text: content.text,
-          epubSpineRanges: content.ranges,
-          epubInlineStyles: content.styles,
-          epubImages: content.images,
-          epubLinks: content.links,
-          epubTables: content.tables,
-          epubNavigation: content.navigation,
-          epubFootnotePreviews: content.footnotePreviews,
-          epubAuxiliaryFootnotePreviews:
-              content.auxiliaryFootnotePreviews,
-          epubDiagnostics: content.diagnostics,
-        );
+        return documentFromExtractedEpub(content);
       case BookFormat.pdf:
         return _readPdfText(record);
     }
