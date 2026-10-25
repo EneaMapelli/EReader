@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'dart:isolate';
 
 import '../domain/dialogue_segmenter.dart';
 import 'book_decoder.dart';
 import 'epub_text_extractor.dart';
+import 'epub_bounded_file.dart';
 import '../features/reader/epub_chapter_navigation.dart';
 import '../features/reader/epub_visual_layout.dart';
 
