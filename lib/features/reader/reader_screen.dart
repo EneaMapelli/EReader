@@ -71,6 +71,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   int? _epubCastLayoutUs;
   int? _epubVoiceSetupUs;
   int? _epubTotalOpenUs;
+  int? _epubFirstFrameUs;
   double _fontSize = 19;
   EpubReadingPalette _epubPalette = EpubReadingPalette.system;
   bool _pdfTextMode = false;
@@ -265,9 +266,18 @@ class _ReaderScreenState extends State<ReaderScreen>
         _epubVoiceSetupUs = preflight == null ? null : voiceSetupUs;
         _epubTotalOpenUs = preflight == null
             ? null : stopwatch.elapsedMicroseconds;
+        _epubFirstFrameUs = null;
         _loading = false;
       });
       adoptedPlayer = true;
+      if (preflight != null) {
+        // Frame-end time is local wall clock from opening attempt, not
+        // a frame-duration/FPS estimate or peak memory measurement.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || epoch != _loadEpoch) return;
+          setState(() => _epubFirstFrameUs = stopwatch.elapsedMicroseconds);
+        });
+      }
       if (epubRecovery?.needsReview == true || recoveryWriteFailed) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || epoch != _loadEpoch) return;
@@ -930,7 +940,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         title: Text(widget.book.title),
         actions: [
           if (widget.book.format == BookFormat.epub &&
-              _epubWorkerTimings != null)
+              !_loading && _epubWorkerTimings != null)
             IconButton(
               icon: const Icon(Icons.speed_outlined),
               tooltip: 'EPUB opening performance',
@@ -940,6 +950,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                 castLayoutUs: _epubCastLayoutUs!,
                 voiceSetupUs: _epubVoiceSetupUs!,
                 totalOpenUs: _epubTotalOpenUs!,
+                firstFrameUs: _epubFirstFrameUs,
               ),
             ),
           if (widget.book.format == BookFormat.epub &&
