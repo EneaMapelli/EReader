@@ -64,6 +64,12 @@ class _ReaderScreenState extends State<ReaderScreen>
   Map<int, String?> _resolvedSpeakerByStart = const {};
   String? _error;
   bool _loading = true;
+  int _loadEpoch = 0;
+  CancellableEpubPreflight? _activeEpubTask;
+  EpubPreflightTimings? _epubWorkerTimings;
+  int? _epubCastLayoutUs;
+  int? _epubVoiceSetupUs;
+  int? _epubTotalOpenUs;
   double _fontSize = 19;
   EpubReadingPalette _epubPalette = EpubReadingPalette.system;
   bool _pdfTextMode = false;
@@ -95,16 +101,29 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   Future<void> _load() async {
+    // A later reload supersedes all earlier work, including an in-flight
+    // worker that would otherwise continue unpacking ZIP/XHTML offscreen.
+    final epoch = ++_loadEpoch;
+    _activeEpubTask?.cancel();
+    _activeEpubTask = null;
+    final stopwatch = Stopwatch()..start();
+    ReaderPlayer? provisionalPlayer;
+    NarrationRecoveryBinding? provisionalBinding;
+    var adoptedPlayer = false;
     try {
       // On EPUB, the background isolate prepares the immutable source,
       // initial speech chunks, quote group markers and paragraph boundaries
       // together. Only user-specific cast resolution stays in this isolate.
-      final preflight = widget.book.format == BookFormat.epub
-          ? await prepareEpubReader(widget.book.localPath)
+      final task = widget.book.format == BookFormat.epub
+          ? startEpubReaderPreflight(widget.book.localPath)
           : null;
+      _activeEpubTask = task;
+      final preflight = task == null ? null : await task.result;
+      if (identical(_activeEpubTask, task)) _activeEpubTask = null;
       final document = preflight?.document ??
           await PrototypeDocumentDecoder().read(widget.book);
-      if (!mounted) return;
+      if (!mounted || epoch != _loadEpoch) return;
+      final uiPreparationStartUs = stopwatch.elapsedMicroseconds;
       // Resolve both legacy and precise manual speaker tags before coalescing.
       final quoted = preflight?.quoted ??
           splitQuotedSegmentsWithRegions(segmentSpeech(document.text));
@@ -132,6 +151,9 @@ class _ReaderScreenState extends State<ReaderScreen>
       final visualLayout = widget.book.format == BookFormat.epub
           ? buildProgressiveEpubVisualLayout(document, chunks, chapters)
           : const EpubVisualLayout([], []);
+      final uiPreparationUs =
+          stopwatch.elapsedMicroseconds - uiPreparationStartUs;
+      final voiceSetupStartUs = stopwatch.elapsedMicroseconds;
       final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
       final recoveryBinding = NarrationRecoveryBinding(
         store: widget.store,
@@ -139,6 +161,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         anchorFor: (segment) =>
             document.anchorAt(widget.book.format, segment.start),
       );
+      provisionalBinding = recoveryBinding;
       final player = ReaderPlayer(
         engineProviderId: prefs.providerId,
         engine: SpeechEngineFactory(vault: _vault).create(
@@ -149,6 +172,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         segments: chunks,
         onSegmentStarted: recoveryBinding.onSegmentStarted,
       );
+      provisionalPlayer = player;
       final latestBook = widget.store.getBook(widget.book.id) ?? widget.book;
       final EpubProgressRecovery? epubRecovery =
           widget.book.format == BookFormat.epub
@@ -176,14 +200,12 @@ class _ReaderScreenState extends State<ReaderScreen>
           const PronunciationTransformer().apply(
               original, _pronunciationRules, bookId: widget.book.id);
       await player.loadVoices();
+      if (!mounted || epoch != _loadEpoch) return;
       await player.applyPreferences(prefs);
+      if (!mounted || epoch != _loadEpoch) return;
+      final voiceSetupUs = stopwatch.elapsedMicroseconds - voiceSetupStartUs;
       _resolvedSpeakerByStart = prepared.speakerByStart;
       _configureVoiceCast(player);
-      if (!mounted) {
-        recoveryBinding.dispose();
-        player.dispose();
-        return;
-      }
       var recoveryWriteFailed = false;
       if (epubRecovery?.shouldPersist == true) {
         // Persist only an unambiguous recovered v2 anchor. Failure to
@@ -196,11 +218,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         } catch (_) {
           recoveryWriteFailed = true;
         }
-        if (!mounted) {
-          recoveryBinding.dispose();
-          player.dispose();
-          return;
-        }
+        if (!mounted || epoch != _loadEpoch) return;
       }
       final previous = _player;
       if (previous != null) {
@@ -240,11 +258,17 @@ class _ReaderScreenState extends State<ReaderScreen>
         _chapterStarts = {
           for (final chapter in chapters) chapter.segmentIndex: chapter,
         };
+        _epubWorkerTimings = preflight?.timings;
+        _epubCastLayoutUs = preflight == null ? null : uiPreparationUs;
+        _epubVoiceSetupUs = preflight == null ? null : voiceSetupUs;
+        _epubTotalOpenUs = preflight == null
+            ? null : stopwatch.elapsedMicroseconds;
         _loading = false;
       });
+      adoptedPlayer = true;
       if (epubRecovery?.needsReview == true || recoveryWriteFailed) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
+          if (!mounted || epoch != _loadEpoch) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(recoveryWriteFailed
                 ? 'Recovered EPUB position was found, but saving it failed.'
@@ -253,12 +277,19 @@ class _ReaderScreenState extends State<ReaderScreen>
           );
         });
       }
+    } on EpubPreflightCancelled {
+      // Replaced or disposed reader; its old worker was intentionally killed.
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || epoch != _loadEpoch) return;
       setState(() {
         _error = error.toString();
         _loading = false;
       });
+    } finally {
+      if (!adoptedPlayer) {
+        provisionalBinding?.dispose();
+        provisionalPlayer?.dispose();
+      }
     }
   }
 
@@ -871,6 +902,9 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   @override
   void dispose() {
+    ++_loadEpoch;
+    _activeEpubTask?.cancel();
+    _activeEpubTask = null;
     WidgetsBinding.instance.removeObserver(this);
     _saveVisualPositionTimer?.cancel();
     _flushPdfPagePosition();
