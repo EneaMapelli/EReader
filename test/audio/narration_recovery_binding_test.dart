@@ -283,6 +283,30 @@ void main() {
     player.dispose();
   });
 
+  test('closing a reader while narration is live retains recovery hint',
+      () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final player = playerFor(engine, recovery);
+    final speaking = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First.']);
+    expect(activeCheckpoints(), 1);
+
+    // ReaderScreen may detach before native disposal has finished.
+    // It must never claim a clean interruption solely because the
+    // checkpoint listener is being removed.
+    recovery.dispose();
+    await restartStore();
+    expect(store.interruptedNarrationBook?.id, bookId);
+    expect(store.interruptedNarrationBook?.progressAnchor?.localOffset, 0);
+
+    // Simulate native cleanup after the UI was already destroyed.
+    await player.pause();
+    await speaking;
+    player.dispose();
+  });
+
   test('binding can only attach once and dispose is idempotent', () async {
     final engine = _SpeechEngine();
     final recovery = binding();
@@ -290,11 +314,16 @@ void main() {
     expect(() => recovery.attach(player), throwsStateError);
     recovery.dispose();
     recovery.dispose();
-    await player.play();
+    // play() intentionally resolves at the END of the whole book. Start
+    // without awaiting and explicitly stop the mock utterance, otherwise
+    // this test hangs forever before reaching the pause assertion.
+    final speaking = player.play();
     await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First.']);
     // Without an attached checkpoint owner, playback does not produce a
     // persisted crash marker. The audio engine itself remains functional.
     await player.pause();
+    await speaking;
     player.dispose();
     await restartStore();
     expect(store.interruptedNarrationBook, isNull);

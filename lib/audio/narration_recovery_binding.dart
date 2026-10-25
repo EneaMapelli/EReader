@@ -61,10 +61,13 @@ class NarrationRecoveryBinding {
     final player = _player;
     player?.removeListener(_onPlayerChanged);
     _player = null;
-    // The native engine may still be speaking even after the UI closes.
-    // Retain the checkpoint if Stop timed out/failed: dropping it would
-    // falsely declare a clean shutdown and hide possible interrupted audio.
-    if (player?.nativeStopUnconfirmed != true) {
+    // Detaching the reader is NOT proof that audio has stopped: even
+    // without a Stop timeout, dispose() may run while the engine is still
+    // speaking or an auto-resuming seek is awaiting its native callback.
+    // Erase only after a confirmed settled idle. Preserve the crash
+    // checkpoint conservatively if the player has already been disposed,
+    // is playing, has a native Stop in flight, or suffered a Stop failure.
+    if (player == null || player.isSettledIdle) {
       store.clearSpeechRecoveryMarker(bookId);
     }
   }

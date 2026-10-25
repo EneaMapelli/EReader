@@ -94,3 +94,23 @@ the pause-notification race.
 
 These source and test fixes are authored, **not yet executed** against
 the updated Windows/Android application. Re-run all affected tests.
+
+## Recovery disposal and rapid navigation follow-up — 2026-10-25
+
+- The prior individual navigation timeout in `direct Play supersedes a
+  blocked seek` was traced to a test which finished only the restarted
+  first utterance but awaited `ReaderPlayer.play()` for the entire
+  three-segment book. The fixture now finishes and verifies each of
+  the three spoken positions, without weakening latest-wins navigation.
+- The earlier `binding can only attach once` timeout had the same fixture
+  deadlock: `await player.play()` was invoked with an unfinished mock
+  engine. It now begins the session, pauses explicitly, then awaits it.
+- Production `NarrationRecoveryBinding.dispose()` previously removed the
+  crash checkpoint as long as `nativeStopUnconfirmed` was false. This was
+  unsafe when the reader was closed during **active narration** or pending
+  navigation even before native Stop had been requested. It now clears the
+  marker **only** if the player is already confirmed `isSettledIdle`, with
+  a regression test for unmount while audio is still live.
+- No existing failure count is marked fixed: these test and production
+  changes need a fresh execution on the current branch. The historical
+  baseline and `NOT_RUN` current published status remain unchanged.

@@ -209,8 +209,18 @@ void main() {
     await _until(() => engine.spoken.length == 2);
     expect(engine.spoken, ['One', 'One']);
     expect(player.currentIndex, 0);
+    // A direct Play resumes the complete three-segment queue, not just
+    // the first restarted utterance. Resolve each mock segment explicitly
+    // before awaiting the full-book play() future.
+    engine.finish();
+    await _until(() => engine.spoken.length == 3);
+    expect(engine.spoken.last, 'Two');
+    engine.finish();
+    await _until(() => engine.spoken.length == 4);
+    expect(engine.spoken.last, 'Three');
     engine.finish();
     await direct;
+    expect(player.currentIndex, 3);
   });
 
   test('changing narrator voice while paused does not start narration',

@@ -576,3 +576,15 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   native Stop failure test to preserve Android focus until explicit
   teardown. These were informed by real historical failures but are
   **not verified passing** until the newer local test run.
+
+## M2 — crash checkpoint retained on live reader close (2026-10-25)
+
+- `NarrationRecoveryBinding.dispose` now removes the recovery marker
+  only when the attached ReaderPlayer has **confirmed settled idle**.
+  Merely closing a route cannot prove that native TTS output stopped;
+  interrupted, playing, pending-stop, and already-disposed players retain
+  the checkpoint to enable conservative recovery after a process restart.
+- Added an unexecuted SQLite-backed regression for unmount during live
+  narration. Repaired two historical test fixture deadlocks which awaited
+  an unfinished entire-book `play()` Future (navigation and binding
+  idempotency). These must be rerun before any passing status is claimed.
