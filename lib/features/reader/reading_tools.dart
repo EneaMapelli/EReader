@@ -114,9 +114,12 @@ Future<BookSourceMatch?> showBookSourceSearch(BuildContext context, String sourc
             ? pageResults.sublist(0, pageSize) : pageResults;
         return AlertDialog(
           title: const Text('Search in EPUB'),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(
-                maxWidth: 550, maxHeight: 460, minWidth: 280),
+          // AlertDialog asks its contents for intrinsic width, which a
+          // lazy ListView cannot report. Bound the whole content before
+          // Flutter measures the search-results viewport.
+          content: SizedBox(
+            width: (MediaQuery.sizeOf(dialogContext).width - 80)
+                .clamp(180.0, 550.0).toDouble(),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
