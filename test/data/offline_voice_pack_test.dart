@@ -265,7 +265,15 @@ void main() {
     await metadata.writeAsString(jsonEncode(rewritten));
     await expectLater(loadInstalledOfflineVoicePack(
       packId: manifest.id, modelsDirectory: installed,
+      expectedManifest: manifest,
     ), throwsFormatException);
+    // The folder alone cannot authenticate a changed display name: without
+    // an independent expected manifest, both data and hashes are self-supplied.
+    final reopenedWithoutTrust = await loadInstalledOfflineVoicePack(
+      packId: manifest.id, modelsDirectory: installed,
+    );
+    expect(reopenedWithoutTrust.manifest.displayName,
+        'Unexpected changed voice');
     await expectLater(installOfflineVoicePack(
       manifest: manifest, sourceDirectory: input, modelsDirectory: installed,
     ), throwsFormatException);
