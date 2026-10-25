@@ -61,7 +61,9 @@ class OfflineVoicePackManifest {
     final names = <String>{};
     // Windows reserved device basenames must not be created as files.
     final reserved = RegExp(
-      r'^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\\..*)?
+      r'^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$',
+      caseSensitive: false,
+    );
     for (final asset in phonemizerResources) {
       final name = asset.relativePath;
       final parts = name.split('/');
