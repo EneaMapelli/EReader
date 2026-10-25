@@ -293,7 +293,7 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
         // of these SAME paid bytes; never synthesize the text again.
         if (_output is PreloadableSynthesizedAudioOutput) {
           try {
-            await (_output as PreloadableSynthesizedAudioOutput).prepareNext(
+            await _output.prepareNext(
               bytes,
               speed: (rate / 0.5).clamp(0.5, 2.0).toDouble(),
             );

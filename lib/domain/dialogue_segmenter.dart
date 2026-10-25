@@ -147,7 +147,7 @@ PreparedCastSpeech coalesceQuotedSpeech({
         _hasHardBoundary(sortedBoundaries, previous.start, chunk.end);
     if (group != null && group == lastGroup && sameVoice && continuous &&
         !crossesSourceBoundary &&
-        chunk.end - previous!.start <= maxChars) {
+        chunk.end - previous.start <= maxChars) {
       final combined = SpeechSegment(
         previous.start,
         chunk.end,

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -522,9 +521,9 @@ class EpubTextExtractor {
     if (navDocumentPath != null) {
       try {
         final raw = _readRequired(
-            files, navDocumentPath!, maxLength: 2 * 1024 * 1024);
+            files, navDocumentPath, maxLength: 2 * 1024 * 1024);
         navigation = resolveNavigation(
-            parseEpub3Navigation(raw), navDocumentPath!);
+            parseEpub3Navigation(raw), navDocumentPath);
       } on FormatException {
         // Missing, malicious or malformed optional TOC must not block
         // an otherwise readable book.

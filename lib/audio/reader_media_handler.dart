@@ -139,7 +139,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
         await previous;
         if (_focusActive) return true;
         final acquired = _requestFocus != null
-            ? await _requestFocus!()
+            ? await _requestFocus()
             : (await _session?.setActive(true) ?? true);
         _focusActive = acquired;
         return acquired;
