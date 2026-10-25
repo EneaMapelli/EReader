@@ -11,6 +11,8 @@ class MockMp3Decoder implements Mp3Decoder {
   final playing = <Completer<void>>[];
   int stopCalls = 0;
   bool disposed = false;
+  bool loadingNative = false;
+  int stopsDuringNativeLoad = 0;
   Completer<void>? delayedLoad;
   Completer<void>? playbackReturnGate;
 
@@ -19,7 +21,12 @@ class MockMp3Decoder implements Mp3Decoder {
     loadedPaths.add(file);
     speeds.add(speed);
     expect(await File(file).exists(), isTrue);
-    if (delayedLoad != null) await delayedLoad!.future;
+    loadingNative = true;
+    try {
+      if (delayedLoad != null) await delayedLoad!.future;
+    } finally {
+      loadingNative = false;
+    }
   }
   @override
   Future<void> play() async {
@@ -37,6 +44,7 @@ class MockMp3Decoder implements Mp3Decoder {
   @override
   Future<void> stop() async {
     stopCalls++;
+    if (loadingNative) stopsDuringNativeLoad++;
     finish();
   }
   @override
@@ -64,14 +72,17 @@ void main() {
   late List<MockMp3Decoder> decoders;
   late JustAudioMp3Output output;
   Completer<void>? nextLoadGate;
+  Completer<void>? firstLoadGate;
 
   setUp(() async {
     nextLoadGate = null;
+    firstLoadGate = null;
     temp = await Directory.systemTemp.createTemp('ereader-mp3-warm-');
     decoders = [];
     output = JustAudioMp3Output(
       decoderFactory: () {
         final decoder = MockMp3Decoder();
+        if (decoders.isEmpty) decoder.delayedLoad = firstLoadGate;
         if (decoders.length == 1) decoder.delayedLoad = nextLoadGate;
         decoders.add(decoder);
         return decoder;
@@ -166,11 +177,54 @@ void main() {
         Uint8List.fromList([2]), speed: 1);
     await until(() => decoders.length == 2 &&
         decoders[1].loadedPaths.isNotEmpty);
+    final priorWarmStops = decoders[1].stopCalls;
     await output.stop();
+    expect(decoders[1].stopCalls, priorWarmStops,
+        reason: 'Stop must not interrupt native setFilePath on the '
+            'preloading decoder');
     nextLoadGate!.complete();
     await preload;
     await current;
     expect(decoders[1].playing, isEmpty);
+    expect(temp.listSync(), isEmpty);
+  });
+
+  test('Stop waits for the current native load before touching decoder',
+      () async {
+    firstLoadGate = Completer<void>();
+    final opening = output.play(Uint8List.fromList([1]), speed: 1);
+    await until(() => decoders.isNotEmpty &&
+        decoders[0].loadedPaths.isNotEmpty);
+    final stopping = output.stop();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(decoders[0].stopsDuringNativeLoad, 0);
+    firstLoadGate!.complete();
+    await stopping;
+    await opening;
+    expect(decoders[0].playing, isEmpty);
+    expect(decoders[0].stopsDuringNativeLoad, 0);
+    expect(temp.listSync(), isEmpty);
+  });
+
+  test('disposing with slow standby load waits before releasing decoder',
+      () async {
+    nextLoadGate = Completer<void>();
+    final active = output.play(Uint8List.fromList([1]), speed: 1);
+    await until(() => decoders.isNotEmpty &&
+        decoders[0].playing.isNotEmpty);
+    final loading = output.prepareNext(
+        Uint8List.fromList([2]), speed: 1);
+    await until(() => decoders.length == 2 &&
+        decoders[1].loadedPaths.isNotEmpty);
+    final disposal = output.dispose();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(decoders[1].disposed, isFalse,
+        reason: 'Do not free a platform decoder during setFilePath');
+    expect(decoders[1].stopsDuringNativeLoad, 0);
+    nextLoadGate!.complete();
+    await Future.wait([disposal, loading, active]);
+    expect(decoders.every((decoder) => decoder.disposed), isTrue);
+    expect(decoders[1].stopsDuringNativeLoad, 0);
     expect(temp.listSync(), isEmpty);
   });
 

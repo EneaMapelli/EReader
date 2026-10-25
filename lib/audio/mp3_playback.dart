@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -52,6 +53,9 @@ class _Mp3Slot {
   // Native setFilePath/stop must not race on the SAME physical decoder
   // when a new session starts before an older load has completed.
   Future<void> loading = Future<void>.value();
+  // Covers native load as well as the temporary-file write. Stop must
+  // not race setFilePath and must not wait for a hung *idle* decoder.
+  bool loadingInFlight = false;
 }
 
 /// Two reusable, strictly serial players: one playing and one loading.
@@ -117,27 +121,34 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
         // A failed former load should not poison later sessions.
       }
       if (_disposed || generation != _generation) return;
-      await slot.decoder.stop();
-      await _clearFile(slot);
-      if (_disposed || generation != _generation) return;
-      final dir = await _temporaryDirectory();
-      if (_disposed || generation != _generation) return;
-      final filename = 'ereader-tts-' +
-          DateTime.now().microsecondsSinceEpoch.toString() + '-' +
-          (_fileSerial++).toString() + '.mp3';
-      final file = File(p.join(dir.path, filename));
-      slot.file = file;
+      slot.loadingInFlight = true;
       try {
-        await file.writeAsBytes(bytes, flush: true);
+        await slot.decoder.stop();
+        await _clearFile(slot);
         if (_disposed || generation != _generation) return;
-        await slot.decoder.load(file.path, speed: speed);
-      } catch (_) {
-        await _clearFile(slot, expected: file);
-        rethrow;
-      } finally {
-        if (_disposed || generation != _generation) {
+        final dir = await _temporaryDirectory();
+        if (_disposed || generation != _generation) return;
+        final filename = 'ereader-tts-' +
+            DateTime.now().microsecondsSinceEpoch.toString() + '-' +
+            (_fileSerial++).toString() + '.mp3';
+        final file = File(p.join(dir.path, filename));
+        slot.file = file;
+        try {
+          await file.writeAsBytes(bytes, flush: true);
+          if (_disposed || generation != _generation) return;
+          await slot.decoder.load(file.path, speed: speed);
+        } catch (_) {
           await _clearFile(slot, expected: file);
+          rethrow;
+        } finally {
+          // A generation cancelled while native setFilePath is still in
+          // flight owns this file until that operation has actually ended.
+          if (_disposed || generation != _generation) {
+            await _clearFile(slot, expected: file);
+          }
         }
+      } finally {
+        slot.loadingInFlight = false;
       }
     }();
     slot.loading = task;
@@ -247,34 +258,81 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
     }
   }
 
+  /// Serialize Stop and file deletion with every earlier native load and
+  /// previous clip finalizer on this exact physical decoder. A later play()
+  /// chains after this barrier, even if it starts immediately after Stop.
+  Future<void> _stopSlot(_Mp3Slot slot) {
+    final previous = slot.loading;
+    final stopping = () async {
+      try {
+        await previous;
+      } catch (_) {
+        // A failed load must still be followed by native Stop and cleanup.
+      }
+      await slot.decoder.stop();
+      await _clearFile(slot);
+    }();
+    slot.loading = stopping;
+    return stopping;
+  }
+
   @override
   Future<void> stop() async {
+    // Invalidate pending playback synchronously, before any native await.
     _generation++;
     _pendingBytes = null;
     _pendingSpeed = null;
     _pendingSlot = null;
     _preparing = null;
-    final slots = <_Mp3Slot>{if (_active != null) _active!,
-        if (_standby != null) _standby!};
-    await Future.wait([
-      for (final slot in slots) slot.decoder.stop(),
-    ]);
-    await Future.wait([
-      for (final slot in slots) _clearFile(slot),
-    ]);
+
+    final active = _active;
+    final standby = _standby;
+    // Warming must never delay Stop of the audible clip: the old standby
+    // load may be blocked inside platform setFilePath. Queue its cleanup
+    // after that load, but don't wait for the idle decoder in this case.
+    final standbyLoading = standby?.loadingInFlight ?? false;
+    final activeStop = active == null ? null : _stopSlot(active);
+    final standbyStop = standby == null ? null : _stopSlot(standby);
+    if (standbyLoading && standbyStop != null) {
+      unawaited(standbyStop.catchError((Object _) {
+        // Disposing the decoder will retry cleanup after native load ends.
+      }));
+    }
+    if (activeStop != null) await activeStop;
+    if (!standbyLoading && standbyStop != null) await standbyStop;
   }
 
   @override
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
-    await stop();
-    final slots = <_Mp3Slot>{if (_active != null) _active!,
-        if (_standby != null) _standby!};
-    await Future.wait([
-      for (final slot in slots) slot.decoder.dispose(),
-    ]);
-    _active = null;
-    _standby = null;
+    final slots = <_Mp3Slot>{
+      if (_active != null) _active!,
+      if (_standby != null) _standby!,
+    };
+    try {
+      await stop();
+    } finally {
+      // Unlike Stop, disposal must not free a decoder still inside a
+      // native load. Wait for deferred cleanup, then release handles.
+      for (final slot in slots) {
+        try {
+          await slot.loading;
+        } catch (_) {
+          // A failed native load still needs decoder disposal.
+        }
+      }
+      try {
+        await Future.wait([
+          for (final slot in slots) slot.decoder.dispose(),
+        ]);
+      } finally {
+        await Future.wait([
+          for (final slot in slots) _clearFile(slot),
+        ]);
+        _active = null;
+        _standby = null;
+      }
+    }
   }
 }

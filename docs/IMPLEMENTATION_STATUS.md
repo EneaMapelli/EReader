@@ -588,3 +588,9 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   narration. Repaired two historical test fixture deadlocks which awaited
   an unfinished entire-book `play()` Future (navigation and binding
   idempotency). These must be rerun before any passing status is claimed.
+
+## M2 — serialized MP3 decoder Stop vs native preloading (2026-10-25)
+
+- A production interleaving was identified: `stop()` could call native Stop and delete the private MP3 while the same standby decoder was still inside `setFilePath`. Serialized per-slot native operations and file cleanup behind the existing `loading` future; the audible decoder's Stop remains independent from a blocked idle warm load. Decoder disposal waits for all deferred cleanup and retries deletion after native disposal.
+- Added three unexecuted test assertions/cases covering Stop with a held standby load, Stop with a held **active** decoder load and Dispose with a held standby load. See [MP3 Decoder Stop Serialization](MP3_DECODER_STOP_SERIALIZATION.md).
+- No cloud, source text, cache, consent, quota or paid-prefetch policy changed. The Windows/Android analyzer, tests and runtime remain **NOT_RUN** after this commit.
