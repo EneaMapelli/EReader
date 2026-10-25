@@ -1182,7 +1182,7 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   `just_audio`, with temporary WAV cleanup, source/audio language check,
   speed mapping and explicit unsupported-pitch response. A generation token
   rejects synthesis that completes after Stop or dispose, without ever
-  initiating cloud requests. Native inference is not yet hard-cancellable;
+  initiating cloud requests. Isolate termination is now requested on Stop/Dispose, but native FFI may not be instantly interruptible;
   the model is initialized anew for each bounded speech chunk.
 - `SpeechEngineFactory` can route the experimental `sherpa-vits` ID only
   when passed an explicit previously verified offline model pack. It stays
@@ -1197,3 +1197,21 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   (OFFLINE_VOICE_PACKS.md). The latest published Windows report remains
   `20261025T165839Z-946fc7b9-dc2652`: 589 pass, 5 errors, source from
   before this increment. Run the updated local suite before accepting M3.
+
+## M3 — cancellable native jobs and bounded phonemizer admission (2026-10-25)
+
+- Added `lib/audio/sherpa_vits_worker.dart` with cancellable one-utterance
+  isolate handles and terminal result/error status. The VITS engine now requests
+  worker termination when stopped or disposed and ignores late generated WAV
+  output. Native blocking FFI calls may still delay actual termination.
+- Added synthetic-isolate regression tests for success/failure, immediate
+  cancellation and active-player Stop/Dispose; no ONNX model required.
+- Voice-pack manifests now accept explicit SHA-256 hashes for optional
+  eSpeak resources under `espeak-ng-data/`, checking all component paths,
+  file types, individual and overall byte budgets, duplicates and native OS
+  reserved names. The factory derives its phonemizer path from the verified
+  installed pack; no arbitrary dataDir injection is required.
+- Added tests for positive eSpeak installation, re-verification, tampering,
+  cumulative file size, path traversal, case duplicates and Windows names.
+  The model's runtime inference and these authored tests are still unverified
+  until the next up-to-date Windows/Android build and test run.
