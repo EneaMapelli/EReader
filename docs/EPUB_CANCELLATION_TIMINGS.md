@@ -68,9 +68,10 @@ The worker records monotonic `Stopwatch.elapsedMicroseconds` for:
 The reader additionally records the main-isolate time spent on
 cast and progressive layout preparation, voice/reader setup, and
 end-to-end wall-clock time from the start of the `_load` attempt
-until its reader state is ready. These durations are **not CPU times
-nor frame-render timestamps**; inter-isolate transfer, scheduling and
-UI operations may make their totals differ from simple sums.
+until its reader state is ready. An epoch-guarded post-frame callback
+also records the **first completed reader frame** after the book opens.
+These durations are **not CPU times or FPS**; inter-isolate transfer,
+scheduling and UI operations may make their totals differ from simple sums.
 
 The `EPUB opening performance` speedometer button in the reader
 opens a passive, local modal with durations (milliseconds), ZIP byte
@@ -80,8 +81,9 @@ Nothing is stored in SQLite, uploaded to GitHub, exported via
 telemetry or sent to a cloud API. The button is available only for
 successfully opened EPUBs.
 
-The report explicitly states that first visible frame, peak resident
-memory and per-paragraph scroll jank are **not measured yet**.
+The first completed reader frame is now timed as well, but **peak
+resident memory, frame-rate and per-paragraph scroll jank are not
+measured yet**.
 Measure them during final Windows/Android profiling rather than
 claiming performance improvements from these durations.
 
