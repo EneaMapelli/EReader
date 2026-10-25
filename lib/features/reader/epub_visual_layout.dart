@@ -82,11 +82,16 @@ class EpubVisibleReadingPosition {
 class EpubVisualLayout {
   const EpubVisualLayout(this.blocks, this.segmentToBlock, {
     int Function(int)? indexedBlockForSourceOffset,
-  }) : _indexedBlockForSourceOffset = indexedBlockForSourceOffset;
+    EpubVisibleReadingPosition Function(int, List<SpeechSegment>)?
+        indexedPositionForVisibleBlock,
+  }) : _indexedBlockForSourceOffset = indexedBlockForSourceOffset,
+       _indexedPositionForVisibleBlock = indexedPositionForVisibleBlock;
 
   final List<EpubVisualBlock> blocks;
   final List<int> segmentToBlock;
   final int Function(int)? _indexedBlockForSourceOffset;
+  final EpubVisibleReadingPosition Function(int, List<SpeechSegment>)?
+      _indexedPositionForVisibleBlock;
 
   /// Exact source jumps also resolve unspoken internal links and notes.
   /// The progressive callback searches its index without building rich runs.
@@ -112,6 +117,8 @@ class EpubVisualLayout {
   EpubVisibleReadingPosition positionForVisibleBlock(
       int blockIndex, List<SpeechSegment> segments) {
     RangeError.checkValidIndex(blockIndex, blocks);
+    final indexed = _indexedPositionForVisibleBlock;
+    if (indexed != null) return indexed(blockIndex, segments);
     final block = blocks[blockIndex];
     final playable = block.firstSegmentIndex ??
         speechSegmentIndexForOffset(segments, block.start);

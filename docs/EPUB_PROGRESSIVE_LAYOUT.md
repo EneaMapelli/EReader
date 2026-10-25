@@ -168,3 +168,22 @@ guard, not full UAX #29 grapheme-break compliance.
 Added unexecuted eager-versus-progressive regressions for decomposed
 acute accents, a ZWJ astronaut emoji, the Italian flag sequence,
 skin-tone modifiers and an overlong combining sequence.
+
+## Metadata-only visible reading checkpoint lookups (2026-10-25)
+
+Scroll notifications on an EPUB can occur many times per second.
+`positionForVisibleBlock` previously indexed a `ProgressiveEpubBlocks`
+element to find its first source offset and TTS segment. That operation
+silently hydrated all of the paragraph's rich runs and moved the LRU
+even when the tile was offscreen or had no speech.
+
+Progressive `EpubVisualLayout` now supplies a private metadata-only
+callback backed by its existing immutable paragraph bounds. The visible
+position (UTF-16 source offset plus nearest playable speech index)
+is available without invoking the rich block builder. Exact note/TOC
+navigation and cache behavior remain unchanged; eager layouts retain
+the reference implementation.
+
+The authored regressions assert zero materializations for deep positions
+in a 12,000-paragraph EPUB and unspoken captions. Accessing an actual
+visible tile still hydrates just that tile. Pending Flutter validation.

@@ -847,3 +847,15 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Added render-equivalence and source-loss regression cases, including
   a fail-closed oversized cluster. Full Unicode grapheme rules,
   device display and Windows regression execution remain open.
+
+## M2 — avoid rich EPUB materialization for scroll checkpoints (2026-10-25)
+
+- Progressive `positionForVisibleBlock` now reads its compact paragraph
+  metadata rather than implicitly building all text/style/link runs at
+  every scroll checkpoint. This keeps periodic SQLite position updates
+  independent from the rendered-block LRU, particularly for large EPUBs.
+- Enhanced the 12,000-paragraph and unspoken-caption regression tests to
+  require zero rich-block materializations for checkpoint lookup, with
+  lazy hydration occurring only when the actual block is requested.
+- No new run since `20261025T120153Z-7b9bd230-236d92`; tests are authored
+  but remain unverified on Windows and Android.

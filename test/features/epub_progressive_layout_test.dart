@@ -227,6 +227,9 @@ void main() {
     for (final idx in [0, 1, 150, 4000, 8000, 11998, 11999]) {
       expect(layout.blockForSegment(idx), idx);
       expect(layout.blockForSourceOffset(chunks[idx].start + 2), idx);
+      final position = layout.positionForVisibleBlock(idx, chunks);
+      expect(position.sourceOffset, chunks[idx].start);
+      expect(position.segmentIndex, idx);
       expect(blocks.materializations, 0);
     }
     // Seven distinct blocks exceed a six-slot LRU; the old fixture
@@ -353,12 +356,15 @@ void main() {
     final last = progressive.positionForVisibleBlock(2, chunks);
     expect(last.sourceOffset, finalStart);
     expect(last.segmentIndex, 0);
-    expect(lazy.materializations, 2,
-        reason: 'Only the two actually visible blocks are constructed');
+    expect(lazy.materializations, 0,
+        reason: 'Scroll checkpoint lookup must not render rich text runs');
     expect(() => progressive.positionForVisibleBlock(-1, chunks),
         throwsRangeError);
     expect(() => progressive.positionForVisibleBlock(3, chunks),
         throwsRangeError);
+    expect(lazy.materializations, 0);
+    expect(progressive.blocks[1].text, 'Unspoken illustration.');
+    expect(lazy.materializations, 1);
   });
 
   test('monotonic segment cursor matches eager layout across many blocks',

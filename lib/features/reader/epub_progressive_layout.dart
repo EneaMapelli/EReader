@@ -398,10 +398,23 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
     );
   }
 
+  // Scroll/checkpoint events need only this compact index. Avoid
+  // allocating EpubVisualRun objects just to persist a visible block's
+  // UTF-16 position, even on a huge book with no speech for some blocks.
+  EpubVisibleReadingPosition indexedPositionForVisibleBlock(
+      int index, List<SpeechSegment> playable) {
+    RangeError.checkValidIndex(index, bounds);
+    final metadata = bounds[index];
+    final segment = metadata.firstSegmentIndex ??
+        speechSegmentIndexForOffset(playable, metadata.start);
+    return EpubVisibleReadingPosition(metadata.start, segment);
+  }
+
   return EpubVisualLayout(
     ProgressiveEpubBlocks._(bounds, materialize, maxCachedBlocks),
     List<int>.unmodifiable(mapping),
     indexedBlockForSourceOffset: indexedBlockForSourceOffset,
+    indexedPositionForVisibleBlock: indexedPositionForVisibleBlock,
   );
 }
 
