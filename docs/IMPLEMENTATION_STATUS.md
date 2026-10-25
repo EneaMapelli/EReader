@@ -1100,3 +1100,18 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   that checks for Flutter exceptions and 100-result pagination.
 - No new local execution has occurred for these changes. The old report
   cannot prove the new dialog or runner is green; rerun the Windows harness.
+
+## Android SAF stream-only book imports (2026-10-25)
+
+- The v13 `FilePicker.pickFile` UI now accepts content providers that offer a
+  readable byte stream but no usable local filesystem path (common on Android
+  SAF/cloud documents). Direct Windows/accessible Android paths retain the
+  existing fast library-import path.
+- A new Flutter-independent picker staging helper writes the provider stream
+  into a random private temporary directory, enforces the same 100 MB bound
+  as `LibraryStore.importFile`, and deletes the temporary file even if
+  streaming, format verification or database import fails. The managed library
+  still validates signatures, computes content hashes and deduplicates books.
+- Added isolated tests for desktop shortcuts, Android SAF fallback, missing
+  cached paths, oversize/empty streams, error cleanup and unsupported types.
+- Windows/Android tests and builds are pending a fresh current-HEAD run.

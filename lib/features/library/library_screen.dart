@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/library_store.dart';
+import '../../data/picked_book_import.dart';
 import '../../audio/reader_media_handler.dart';
 import '../../domain/book.dart';
 import '../reader/reader_screen.dart';
@@ -22,19 +23,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      // file_picker v12/v13 removed FilePicker.platform and FilePickerResult.
-      // Pick a single PlatformFile directly to keep the Windows/Android
-      // import entrypoint source-compatible with the declared dependency.
+      // file_picker v13 exposes a PlatformFile directly. Some Android SAF
+      // providers expose only a stream, not a readable filesystem path.
       final selected = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: const ['epub', 'pdf', 'txt'],
       );
       if (selected == null) return;
-      final path = selected.path;
-      if (path == null) {
-        throw const FormatException('File path unavailable from picker');
-      }
-      final record = await widget.store.importFile(path, originalName: selected.name);
+      final record = await importPickedBook<BookRecord>(
+        originalName: selected.name,
+        pickedPath: selected.path,
+        readAsByteStream: selected.readAsByteStream,
+        importFile: widget.store.importFile,
+      );
       if (!mounted) return;
       setState(() {});
       await _open(record);
