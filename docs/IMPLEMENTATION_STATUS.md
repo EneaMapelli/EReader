@@ -803,3 +803,17 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   Added deep-book and gap-target regressions for zero lazy hydration.
 - These changes have not been run on Windows/Android yet. The published
   Windows baseline (555/563) is for the earlier source commit.
+
+## M2 — EPUB exact bookmark restoration and note return (2026-10-25)
+
+- Opening an EPUB with a verified source-specific SQLite checkpoint now
+  positions the progressive paragraph list with `blockForSourceOffset`
+  instead of the nearest spoken segment. Returning from a footnote uses
+  the saved exact source offset for visual scroll, independent of TTS.
+- A session-local visual override guards that precise source anchor
+  against the first virtualized list position notification coarsening it
+  to a TTS chunk start. Real scrolling to a different paragraph or
+  starting playback removes the override; manual chunk selections still
+  use the existing speech cursor. No schema or cloud call changes.
+- This source update needs a local widget and Windows/Android check,
+  particularly for initial/return positioning and scrolling events.
