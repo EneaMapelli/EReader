@@ -1052,7 +1052,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
                     ? 'Original mention verified · confidence ' +
                         candidate.confidence.toStringAsFixed(2)
                     : 'Original book text changed: cannot approve'),
-                trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   IconButton(
                     tooltip: 'Review and create this character',
                     icon: const Icon(Icons.person_add_alt_1),
@@ -1100,7 +1100,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
                     ? ' · exact source verified'
                     : ' · source changed: acceptance blocked'),
                 ),
-                trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   IconButton(
                     tooltip: 'Review and attach alias to an existing person',
                     icon: const Icon(Icons.link),
@@ -1145,7 +1145,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
                     ? 'source verified'
                     : 'stale source/evidence'),
                 ),
-                trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   IconButton(
                     tooltip: 'Choose referent (does not change voice)',
                     icon: const Icon(Icons.fact_check_outlined),
@@ -1214,7 +1214,7 @@ class _VoiceCastScreenState extends State<VoiceCastScreen> {
                 (span.confidence?.toStringAsFixed(2) ?? '?') +
                 '\n' + _evidencePreview(span),
               ),
-              trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                 IconButton(
                   icon: const Icon(Icons.check),
                   tooltip: 'Accept this suggestion',
