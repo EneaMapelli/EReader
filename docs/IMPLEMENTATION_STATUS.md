@@ -1240,3 +1240,31 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - The last published Windows suite still targets old source commit
   `946fc7b9` (589 successful / 5 error outcomes); current M3 remains
   experimental and hidden from the public TTS selector.
+
+## Windows test run and source-level remediation — 2026-10-25
+
+- The newest sanitized Windows run at `003d2e13` completed 76 file
+  attempts and reports 414 passing cases, one assertion failure and
+  24 error outcomes (overall FAIL). Dart/Flutter version checks and pub-get
+  are green; format-check, analyzer and test execution exit nonzero.
+- **Compiler errors**: fixed both invalid two-argument `RegExp.firstMatch`
+  calls in `lib/data/epub_html_preprocess.dart` using
+  offset-aware `RegExp.allMatches`. This is a common cause of cascading
+  EPUB, search, reader and LLM test load failures.
+- **Review UI source**: replaced four invalid
+  `Wrap(mainAxisSize: MainAxisSize.min)` expressions with compact `Row`
+  equivalents in the Voice Cast review tiles, addressing additional
+  references in compilation/load diagnostics.
+- **Voice manifest assertion**: added optional
+  `expectedManifest` to `loadInstalledOfflineVoicePack` for callers
+  with an independently trusted reference. Updated the failing test to
+  verify tampering is rejected with that reference, while documenting
+  the inability of a self-contained manifest to authenticate itself.
+- **Windows reporter**: added a sanitized `unformattedFiles` summary
+  and Markdown section to identify which repo-relative Dart paths failed
+  `dart format --set-exit-if-changed`. Unredacted logs remain local.
+- Fixed the analyzer warning for returning an unawaited verification
+  Future inside a `try/finally` cleanup block.
+- All new changes still need a fresh run on the latest branch HEAD to
+  prove correctness. The previous 589-pass report is older and cannot
+  be treated as a newer result.
