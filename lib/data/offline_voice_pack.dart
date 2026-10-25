@@ -386,6 +386,7 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
 Future<InstalledOfflineVoicePack> loadInstalledOfflineVoicePack({
   required String packId,
   required Directory modelsDirectory,
+  OfflineVoicePackManifest? expectedManifest,
 }) async {
   if (!RegExp(r'^[a-z0-9][a-z0-9_-]{1,63}$').hasMatch(packId)) {
     throw const FormatException('Invalid offline voice ID');
@@ -398,6 +399,16 @@ Future<InstalledOfflineVoicePack> loadInstalledOfflineVoicePack({
   final manifest = await _readPersistedVoiceManifest(target);
   if (manifest.id != packId) {
     throw const FormatException('Voice pack identity changed');
+  }
+  // On-disk hashes alone cannot authenticate themselves: when the caller
+  // retained an independently trusted manifest, require a byte-for-byte
+  // match before making a model available to native FFI.
+  if (expectedManifest != null) {
+    expectedManifest.validate();
+    if (jsonEncode(expectedManifest.toJson()) !=
+        jsonEncode(manifest.toJson())) {
+      throw const FormatException('Offline voice metadata changed');
+    }
   }
   return installOfflineVoicePack(
     manifest: manifest,
