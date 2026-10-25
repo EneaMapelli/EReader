@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:ereader/data/offline_voice_pack.dart';
@@ -233,6 +234,71 @@ void main() {
       modelsDirectory: installed, maxPhonemizerBytes: 1,
     ), throwsFormatException);
     expect(await folderContents(), isEmpty);
+  });
+
+
+  test('persisted model manifest survives reopening after restart', () async {
+    final first = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input, modelsDirectory: installed,
+    );
+    final manifestFile = File(p.join(
+        installed.path, manifest.id, 'voice-pack.json'));
+    expect(await manifestFile.exists(), isTrue);
+    final reopened = await loadInstalledOfflineVoicePack(
+      packId: manifest.id, modelsDirectory: installed,
+    );
+    expect(reopened.modelPath, first.modelPath);
+    expect(reopened.manifest.displayName, manifest.displayName);
+    expect(reopened.manifest.modelSha256, manifest.modelSha256);
+    expect(reopened.manifest.phonemizerResources, isEmpty);
+    expect(await folderContents(), [manifest.id]);
+  });
+
+  test('reinstall refuses a changed stored identity and metadata', () async {
+    await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input, modelsDirectory: installed,
+    );
+    final metadata = File(p.join(installed.path, manifest.id,
+        'voice-pack.json'));
+    final rewritten = manifest.toJson()
+      ..['displayName'] = 'Unexpected changed voice';
+    await metadata.writeAsString(jsonEncode(rewritten));
+    await expectLater(loadInstalledOfflineVoicePack(
+      packId: manifest.id, modelsDirectory: installed,
+    ), throwsFormatException);
+    await expectLater(installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input, modelsDirectory: installed,
+    ), throwsFormatException);
+  });
+
+  test('unlisted files cannot hide inside an installed phonemizer tree',
+      () async {
+    final pack = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input, modelsDirectory: installed,
+    );
+    final injected = File(p.join(p.dirname(pack.modelPath), 'extra.onnx'));
+    await injected.writeAsBytes([8]);
+    await expectLater(loadInstalledOfflineVoicePack(
+      packId: manifest.id, modelsDirectory: installed,
+    ), throwsFormatException);
+    expect(await injected.exists(), isTrue,
+        reason: 'Verification must not delete or overwrite tampered sources');
+  });
+
+  test('corrupted voice metadata and unsafe reopen IDs fail closed',
+      () async {
+    await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input, modelsDirectory: installed,
+    );
+    await expectLater(loadInstalledOfflineVoicePack(
+      packId: '../unsafe', modelsDirectory: installed,
+    ), throwsFormatException);
+    final file = File(p.join(installed.path, manifest.id, 'voice-pack.json'));
+    await file.writeAsString('not valid JSON');
+    await expectLater(loadInstalledOfflineVoicePack(
+      packId: manifest.id, modelsDirectory: installed,
+    ), throwsFormatException);
+    expect(await folderContents(), [manifest.id]);
   });
 
   test('invalid IDs and untrusted manifest data never create installation',
