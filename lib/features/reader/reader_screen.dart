@@ -93,7 +93,8 @@ class _ReaderScreenState extends State<ReaderScreen>
   // inside a paragraph. Keep that exact visual source coordinate until
   // the reader visibly moves elsewhere, instead of instantly rewriting
   // its SQLite anchor to the nearest spoken segment during first layout.
-  int? _exactEpubVisualSourceOffset;
+  final EpubVisualSourceCheckpoint _visualCheckpoint =
+      EpubVisualSourceCheckpoint();
   int _lastFollowedIndex = -1;
   Object? _lastReportedPlaybackError;
 
@@ -270,13 +271,13 @@ class _ReaderScreenState extends State<ReaderScreen>
         _recoveryBinding?.dispose();
         previous.dispose();
       }
-      _exactEpubVisualSourceOffset = widget.book.format == BookFormat.epub
+      _visualCheckpoint.hold(widget.book.format == BookFormat.epub
           && chunks.isNotEmpty && saved >= 0 && saved <= document.text.length
-          ? saved : null;
+          ? saved : null);
       _lastFollowedIndex = widget.book.format == BookFormat.epub
-          ? (_exactEpubVisualSourceOffset == null
+          ? (_visualCheckpoint.offset == null
               ? visualLayout.blockForSegment(player.currentIndex)
-              : visualLayout.blockForSourceOffset(_exactEpubVisualSourceOffset!))
+              : visualLayout.blockForSourceOffset(_visualCheckpoint.offset!))
           : player.currentIndex;
       _visiblePositionIndex = player.currentIndex;
       recoveryBinding.attach(player);
@@ -453,15 +454,11 @@ class _ReaderScreenState extends State<ReaderScreen>
     final int index;
     if (widget.book.format == BookFormat.epub) {
       if (firstItem >= _epubLayout.blocks.length) return;
-      final exact = _exactEpubVisualSourceOffset;
-      if (exact != null) {
-        // A virtualized list rebuild may notify the same visible block
-        // immediately after restoring a precise bookmark or note link.
-        // Such a notification is not a user scroll; preserve the
-        // original source anchor and do not coarsen it to a TTS start.
-        if (firstItem == _epubLayout.blockForSourceOffset(exact)) return;
-        _exactEpubVisualSourceOffset = null;
-      }
+      // Do not coarsen an exact restored bookmark to a speech offset
+      // when Flutter reports the initially visible paragraph. A genuinely
+      // different paragraph releases this one-shot visual protection.
+      if (_visualCheckpoint.preserveOnVisibleBlock(
+          firstItem, _epubLayout)) return;
       final firstSegment = _epubLayout.blocks[firstItem].firstSegmentIndex;
       if (firstSegment == null) return;
       index = firstSegment;
@@ -504,7 +501,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (player != null && player.isPlaying && player.segments.isNotEmpty) {
       // Explicit Play changes the active location from a visual-only
       // checkpoint to the spoken segment currently being narrated.
-      _exactEpubVisualSourceOffset = null;
+      _visualCheckpoint.clear();
       // Pause/resume must continue from the audio cursor, even when no
       // manual visual scrolling occurred during the previous utterance.
       _visiblePositionIndex = player.currentIndex
@@ -941,8 +938,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       anchor: _document?.anchorAt(widget.book.format, player.segments[index].start),
     );
     _visiblePositionIndex = index;
-    _exactEpubVisualSourceOffset = widget.book.format == BookFormat.epub
-        ? visualSourceOffset : null;
+    _visualCheckpoint.hold(widget.book.format == BookFormat.epub
+        ? visualSourceOffset : null);
     if (_itemScrollController.isAttached) {
       final visualIndex = widget.book.format == BookFormat.epub
           ? (visualSourceOffset == null
@@ -1245,11 +1242,11 @@ class _ReaderScreenState extends State<ReaderScreen>
                                   itemPositionsListener: _itemPositionsListener,
                                   initialScrollIndex: widget.book.format ==
                                           BookFormat.epub
-                                      ? (_exactEpubVisualSourceOffset == null
+                                      ? (_visualCheckpoint.offset == null
                                           ? _epubLayout.blockForSegment(
                                               player.currentIndex)
                                           : _epubLayout.blockForSourceOffset(
-                                              _exactEpubVisualSourceOffset!))
+                                              _visualCheckpoint.offset!))
                                       : player.currentIndex.clamp(
                                           0, player.segments.length - 1).toInt(),
                                   itemBuilder: (context, index) {

@@ -104,6 +104,37 @@ class EpubVisualLayout {
   }
 }
 
+/// A small UI-independent guard for precise EPUB bookmarks. A link/TOC
+/// target or persisted source anchor may be inside an unspoken paragraph.
+/// The virtual list's initial position notification is not user navigation:
+/// do not rewrite the exact source offset to the first speech segment.
+/// Only a DIFFERENT visible paragraph or explicit speech playback releases
+/// the guard. This object never stores text or mutates SQLite.
+class EpubVisualSourceCheckpoint {
+  int? _offset;
+
+  int? get offset => _offset;
+
+  void hold(int? sourceOffset) {
+    _offset = sourceOffset;
+  }
+
+  void clear() {
+    _offset = null;
+  }
+
+  /// True means this is still the same paragraph: ignore the scroll
+  /// notification without changing the checkpoint. False means the
+  /// previous exact checkpoint has been released (or none was held).
+  bool preserveOnVisibleBlock(int firstVisibleBlock, EpubVisualLayout layout) {
+    final held = _offset;
+    if (held == null) return false;
+    if (layout.blockForSourceOffset(held) == firstVisibleBlock) return true;
+    _offset = null;
+    return false;
+  }
+}
+
 /// Paragraph breaks are also hard narration boundaries for EPUB so a
 /// coalesced quoted turn does not span two independently rendered blocks.
 /// Entries are sorted and refer only to original UTF-16 source positions.

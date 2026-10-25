@@ -817,3 +817,12 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   use the existing speech cursor. No schema or cloud call changes.
 - This source update needs a local widget and Windows/Android check,
   particularly for initial/return positioning and scrolling events.
+
+## M2 — independently testable exact EPUB checkpoint guard (2026-10-25)
+
+- Extracted the visual bookmark protection into `EpubVisualSourceCheckpoint`.
+  Its source-only state ignores initial same-paragraph notifications and
+  releases the precise offset on a real paragraph change/explicit Play.
+- Added a deterministic test for a target inside an unspoken caption,
+  same-paragraph notifications, subsequent navigation and zero rich-block
+  hydration. Runtime/device validation remains pending.

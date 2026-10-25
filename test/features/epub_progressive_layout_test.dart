@@ -250,6 +250,38 @@ void main() {
     expect(progressive.blocks[1].firstSegmentIndex, isNull);
   });
 
+  test('exact EPUB checkpoint resists initial rebuild, not real scrolling',
+      () {
+    const source = 'Narration start.\n\nSilent illustration caption.\n\nThe end.';
+    final doc = chapter(source);
+    final speechStart = source.indexOf('The end.');
+    final spoken = [
+      SpeechSegment(speechStart, source.length, 'The end.'),
+    ];
+    final layout = buildProgressiveEpubVisualLayout(doc, spoken, const []);
+    final blocks = layout.blocks as ProgressiveEpubBlocks;
+    final exact = source.indexOf('illustration');
+    final guard = EpubVisualSourceCheckpoint()..hold(exact);
+
+    expect(guard.offset, exact);
+    expect(guard.preserveOnVisibleBlock(1, layout), isTrue);
+    expect(guard.preserveOnVisibleBlock(1, layout), isTrue);
+    expect(guard.offset, exact);
+    expect(blocks.materializations, 0,
+        reason: 'Restoring a checkpoint must not hydrate every paragraph');
+
+    // Scrolling to another real paragraph releases the original offset.
+    expect(guard.preserveOnVisibleBlock(2, layout), isFalse);
+    expect(guard.offset, isNull);
+    expect(guard.preserveOnVisibleBlock(1, layout), isFalse);
+
+    // An explicit Play/seek ends visual-only checkpoint protection.
+    guard.hold(exact);
+    guard.clear();
+    expect(guard.offset, isNull);
+    expect(blocks.materializations, 0);
+  });
+
   test('monotonic segment cursor matches eager layout across many blocks',
       () {
     final source = List.filled(120, 'One segment spans several blocks. ')

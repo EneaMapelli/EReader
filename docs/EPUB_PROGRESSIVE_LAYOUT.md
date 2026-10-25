@@ -123,3 +123,10 @@ A further authored test covers a wholly unspoken caption paragraph:
 its internal source link must map to that caption, even though the only
 TTS segment belongs to a later paragraph. This directly protects the
 reader's link-navigation behavior without cloud synthesis.
+
+The bookmark protection logic lives in the UI-independent
+`EpubVisualSourceCheckpoint`, which preserves an exact offset on initial
+same-paragraph list notifications, releases it on real navigation to a
+different paragraph or playback, and never hydrates rich paragraph runs.
+A new deterministic, unexecuted test covers preservation on a wholly
+unspoken caption, true scroll invalidation, and explicit clear.
