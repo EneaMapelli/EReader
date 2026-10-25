@@ -90,8 +90,11 @@ function Execute([string]$label, [string]$exe, [string[]]$arguments,
       'exit /b %child_exit%'
     ) -join "`r`n"
     Write-Text $wrapper ($wrapperBody + "`r`n")
+    # cmd.exe /s strips one outer quote pair. Preserve the inner
+    # quotes around a wrapper path that may contain spaces.
+    $cmdLine = '"' + (Quote-Argument $wrapper) + '"'
     $p = Start-Process -FilePath $env:ComSpec -ArgumentList @(
-      '/d','/s','/c',(Quote-Argument $wrapper)
+      '/d','/s','/c',$cmdLine
     ) -WorkingDirectory $script:root -RedirectStandardOutput $out -RedirectStandardError $err -PassThru -WindowStyle Hidden
     if (-not $p.WaitForExit($timeout * 60000)) {
       $timedOut = $true
