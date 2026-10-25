@@ -364,7 +364,8 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
     // installed model even if another installation raced this operation.
     if (await FileSystemEntity.type(target.path, followLinks: false) !=
         FileSystemEntityType.notFound) {
-      return verify(target);
+      // The verification must settle inside try before deleting staging.
+      return await verify(target);
     }
     await temporary.rename(target.path);
     return InstalledOfflineVoicePack(
