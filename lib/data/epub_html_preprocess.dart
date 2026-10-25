@@ -8,10 +8,12 @@ String stripEpubHeadMetadata(String xhtml) {
   final head = RegExp(r'<head\b[^>]*>', caseSensitive: false)
       .firstMatch(xhtml);
   if (head == null) return xhtml;
+  // RegExp.firstMatch accepts only the input string in Dart. allMatches
+  // supports a start offset, so we never pick tags from before <head>.
   final end = RegExp(r'</head\s*>', caseSensitive: false)
-      .firstMatch(xhtml, head.end);
+      .allMatches(xhtml, head.end).firstOrNull;
   final body = RegExp(r'<body\b[^>]*>', caseSensitive: false)
-      .firstMatch(xhtml, head.end);
+      .allMatches(xhtml, head.end).firstOrNull;
   if (end != null && (body == null || end.start < body.start)) {
     return xhtml.replaceRange(head.start, end.end, '');
   }
