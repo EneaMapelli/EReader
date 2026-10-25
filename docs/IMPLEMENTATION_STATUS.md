@@ -650,3 +650,21 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Added one unexecuted regression for the blocked warm-load/foreground
   Play interleaving, re-warming on the same standby decoder, and file
   cleanup. The published test status remains NOT_RUN.
+
+## M2 — Windows run 2026-10-25, partial evidence and recovery publisher
+
+- A Windows Flutter 3.47.8 execution for source commit `0ff39187`
+  was summarized manually in `docs/LOCAL_EXECUTION_REPORT.md`:
+  **549/556 passing, 6 test assertions failing, 1 error, 66 test files**.
+  Unlike earlier historic runs, this includes the recent EPUB, casting
+  and audio fixes. The overall run is still FAIL.
+- As of this source increment, `test-results/latest.json` remained
+  `NOT_RUN` and no structured failures were pushed. Therefore the
+  seven remaining names and root causes cannot responsibly be inferred
+  from the manual summary alone.
+- Added `tool/publish-local-test-report.ps1` to publish the existing
+  sanitizer-generated files from the preserved local run, with branch/
+  SHA ancestry and case consistency checks, without rerunning Flutter,
+  publishing raw logs, overwriting historical runs, or force-pushing.
+  The normal runner now prints an actionable recovery command if
+  auto-publication fails.

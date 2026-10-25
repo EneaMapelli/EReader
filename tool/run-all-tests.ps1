@@ -384,6 +384,9 @@ if (-not $NoPublish) {
     $publishResult = 'failed_raw_results_kept_locally'
     Write-Warning ('Could not automatically publish: ' + $_.Exception.Message)
     Write-Warning ('Results are still available under ' + $raw)
+    Write-Warning ('To publish this completed run without retesting: ' +
+      'powershell -NoProfile -ExecutionPolicy Bypass -File ' +
+      '.\tool\publish-local-test-report.ps1 -RunId ' + $id)
   }
 }
 Write-Host ("Result {0}; pass={1}, fail={2}, errors={3}, skipped={4}; upload={5}" -f

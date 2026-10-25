@@ -27,3 +27,19 @@
 
 ## 4. Azioni correttive residuali
 1. Verificare gli ultimi 6 test falliti e l'unico errore isolato nei log locali per raggiungere il 100% di pass rate.
+
+## 5. Verifica incrociata del report sul branch (2026-10-25)
+
+- Report manuale caricato nel commit `a1820354`, con origine del test
+  `0ff39187`: 66 file, 556 casi, 549 PASS, 6 FAIL, 1 errore.
+- **I report strutturati non erano presenti al momento della verifica**:
+  `test-results/latest.json` era ancora `NOT_RUN`, mentre
+  `latest-failures.json` era `[]`. Pertanto la lista esatta dei sette
+  problemi residui e lo stato di format/analyzer non sono ricostruibili
+  dal solo riepilogo manuale.
+- `tool/publish-local-test-report.ps1` consente di pubblicare il
+  risultato già salvato localmente in
+  `.local-test-results/20261025T092418Z-0ff39187-2aa89e` dopo aver
+  aggiornato il branch, senza ripetere i test e senza pubblicare raw log.
+- Nessuna delle sei asserzioni e dell'errore residuo va dichiarata
+  corretta finché non viene identificata nei risultati verificabili.

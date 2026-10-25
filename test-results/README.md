@@ -123,3 +123,34 @@ GitHub repository without accessing your PC filesystem:
 
 Use these files as authoritative *local* execution evidence. Do not
 claim a green build based only on source code or newly authored tests.
+
+## Publish an already completed local run without retesting
+
+If a prior test execution completed but its report was not pushed
+(for example, the checkout was dirty, `-NoPublish` was used, or another
+commit moved the branch), **do not run all tests again only to upload
+the report**. All sanitized report inputs were already written under
+`.local-test-results/<run-id>/` by the test runner.
+
+Pull the latest branch first, keeping the tracked worktree clean, then:
+
+```powershell
+git switch feature/m0-flutter-foundation
+git pull --ff-only origin feature/m0-flutter-foundation
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tool\publish-local-test-report.ps1 -RunId 20261025T092418Z-0ff39187-2aa89e
+```
+
+Omit `-RunId` to publish the most recent completed local run.
+The helper reads **only** the four existing sanitized files
+`summary.json`, `cases.json`, `failures.json`, `latest.md`.
+It checks source SHA ancestry, branch, report totals and path safety.
+It never reads or uploads raw test stdout/stderr, books, credentials or
+unsanitized local logs; it never reruns Flutter nor force-pushes Git.
+It writes the same `test-results/latest-*` and immutable
+`test-results/runs/<id>*` files as the original runner. If a push is
+rejected, the report remains committed only locally.
+
+This command is particularly useful for the 2026-10-25 run
+`20261025T092418Z-0ff39187-2aa89e` documented separately in
+`docs/LOCAL_EXECUTION_REPORT.md`: its summary is on GitHub, but the
+current structured failure/case files are not yet published.
