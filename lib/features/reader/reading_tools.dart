@@ -92,13 +92,13 @@ Future<int?> showBookSearch(
 /// chunks. A selected hit is an exact UTF-16 offset, so silent captions,
 /// footnotes, and several matches within one sentence remain searchable.
 /// Typing is debounced to avoid rescanning multi-megabyte books per keypress.
-Future<int?> showBookSourceSearch(BuildContext context, String source, {
+Future<BookSourceMatch?> showBookSourceSearch(BuildContext context, String source, {
   int startOffset = 0,
 }) async {
   final queryController = TextEditingController();
   Timer? searchDebounce;
   var searchTerm = '';
-  final result = await showDialog<int>(
+  final result = await showDialog<BookSourceMatch>(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (dialogContext, redraw) {
@@ -150,7 +150,7 @@ Future<int?> showBookSourceSearch(BuildContext context, String source, {
                       return ListTile(
                         title: Text(hit.excerpt, maxLines: 3),
                         subtitle: Text('Source offset ${hit.start}'),
-                        onTap: () => Navigator.pop(dialogContext, hit.start),
+                        onTap: () => Navigator.pop(dialogContext, hit),
                       );
                     },
                   ),

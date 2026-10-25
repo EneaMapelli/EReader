@@ -1007,3 +1007,18 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   and three surviving large EPUB preparations to check result isolation.
 - **Not yet verified on Windows/Android:** the published Windows result
   predates this change, and no new analyzer/test run was performed here.
+
+## M2 — highlight the exact selected EPUB search match (2026-10-25)
+
+- Local full-source search now returns the matched UTF-16 start/end span,
+  not just its paragraph destination. After selection, the virtual EPUB
+  reader highlights precisely that original-source substring, including
+  matches inside styled text or internal links; TTS and hyperlink tap
+  targets remain unchanged. Different search emphasis colors are defined
+  for system, sepia and night reading palettes.
+- A subsequent non-search explicit jump clears the previous match marker.
+  The UI keeps the current result during its own programmatic seek; no
+  book text is rewritten, no additional indexing/network/LLM call occurs.
+- Added widget assertions for Unicode source preservation, click targets,
+  and the returned search match range. Windows/Android compilation and tests
+  are pending the next local execution.

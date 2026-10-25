@@ -1,4 +1,5 @@
 import 'package:ereader/features/reader/epub_paragraph_tile.dart';
+import 'package:ereader/domain/book_search.dart';
 import 'package:ereader/features/reader/epub_visual_layout.dart';
 import 'package:ereader/data/epub_embedded_content.dart';
 import 'dart:convert';
@@ -450,4 +451,71 @@ void main() {
     expect(tapped, [5]);
     expect(rich.text.toPlainText(includeSemanticsLabels: false), 'Another');
   });
+
+  testWidgets('exact Unicode search highlight preserves speech tap target',
+      (tester) async {
+    const source = 'Look 📖 here';
+    final hitStart = source.indexOf('here');
+    final tapped = <int>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: EpubVisualBlock(
+          start: 0, end: source.length, chapterStart: false,
+          heading: false, firstSegmentIndex: 0,
+          runs: [
+            EpubVisualRun(0, source.length, source, 0, italic: true),
+          ],
+        ),
+        activeSegmentIndex: 0,
+        searchMatch: BookSourceMatch(hitStart, source.length, 'here'),
+        fontSize: 19,
+        onSelectSegment: tapped.add,
+      )),
+    ));
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    final spans = leafTextSpans(rich.text);
+    expect(spans.map((span) => span.text).join(), source);
+    expect(spans.map((span) => span.text).toList(), ['Look 📖 ', 'here']);
+    expect(spans.first.style?.fontStyle, FontStyle.italic);
+    expect(spans.last.style?.fontStyle, FontStyle.italic);
+    expect(spans.last.style?.backgroundColor, isNotNull);
+    expect(spans.first.style?.backgroundColor,
+        isNot(spans.last.style?.backgroundColor));
+    (spans.last.recognizer! as TapGestureRecognizer).onTap!();
+    expect(tapped, [0]);
+  });
+
+  testWidgets('search highlight inside verified link keeps navigation target',
+      (tester) async {
+    const source = 'See the link';
+    final targets = <int>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: const EpubVisualBlock(
+          start: 0, end: 12, chapterStart: false,
+          heading: false, firstSegmentIndex: 0,
+          runs: [EpubVisualRun(0, 12, source, 0,
+              linkTargetOffset: 42)],
+        ),
+        activeSegmentIndex: -1,
+        searchMatch: const BookSourceMatch(8, 12, 'link'),
+        fontSize: 18,
+        onSelectSegment: (_) {},
+        onOpenLink: targets.add,
+      )),
+    ));
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    final spans = leafTextSpans(rich.text);
+    expect(spans.map((span) => span.text).join(), source);
+    expect(spans.last.style?.decoration, TextDecoration.underline);
+    (spans.last.recognizer! as TapGestureRecognizer).onTap!();
+    expect(targets, [42]);
+  });
+
 }

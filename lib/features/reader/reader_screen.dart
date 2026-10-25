@@ -21,6 +21,7 @@ import '../../data/epub_reader_preflight.dart';
 import '../../data/epub_progress_recovery.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
+import '../../domain/book_search.dart';
 import '../../domain/speech_segment.dart';
 import '../../domain/dialogue_segmenter.dart';
 import '../../domain/pronunciation_rule.dart';
@@ -104,6 +105,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   // Needed to return to a footnote opened from an unspoken caption or
   // from the middle of a long audio segment.
   int? _currentEpubVisualSourceOffset;
+  BookSourceMatch? _selectedSourceSearchHit;
   int? _lastVisibleEpubBlockIndex;
   // An EPUB link/footnote/verified bookmark may target unspoken text
   // inside a paragraph. Keep that exact visual source coordinate until
@@ -710,13 +712,16 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (player == null || player.segments.isEmpty) return;
     final document = _document;
     if (widget.book.format == BookFormat.epub && document != null) {
-      final sourceOffset = await showBookSourceSearch(
+      final hit = await showBookSourceSearch(
           context, document.text,
           startOffset: _directorySourceOffset(player));
-      if (!mounted || _player != player || sourceOffset == null) return;
-      // Search is only local source navigation. Never start TTS or pay for
-      // cloud synthesis just because a result was selected.
-      _navigateToSourceOffset(sourceOffset, remember: false);
+      if (!mounted || _player != player || _document != document ||
+          hit == null) return;
+      // A search hit is an immutable original-source UTF-16 span.
+      // Highlighting must never rewrite reading anchors or start TTS.
+      setState(() => _selectedSourceSearchHit = hit);
+      _navigateToSourceOffset(hit.start,
+          remember: false, preserveSearchHighlight: true);
       return;
     }
     final result = await showBookSearch(context, player.segments);
@@ -898,7 +903,10 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   /// Internal EPUB links and notes are in-book source offsets only, never
   /// arbitrary URLs. A return position is recorded after a successful seek.
-  void _navigateToSourceOffset(int sourceOffset, {required bool remember}) {
+  void _navigateToSourceOffset(int sourceOffset, {
+    required bool remember,
+    bool preserveSearchHighlight = false,
+  }) {
     Future<void> navigate() async {
       final player = _player;
       final document = _document;
@@ -921,7 +929,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       // _select persists the exact source offset once. A second write of
       // the same position after seeking is unnecessary and can race with
       // user scrolls or turn a failed checkpoint into a partial jump.
-      await _select(index, visualSourceOffset: sourceOffset);
+      await _select(index, visualSourceOffset: sourceOffset,
+          preserveSearchHighlight: preserveSearchHighlight);
       if (!mounted || _player != player) return;
       if (remember) {
         _linkHistory.push(fromOffset, sourceOffset);
@@ -1020,11 +1029,16 @@ class _ReaderScreenState extends State<ReaderScreen>
     ));
   }
 
-  Future<void> _select(int index, {int? visualSourceOffset}) async {
+  Future<void> _select(int index, {
+    int? visualSourceOffset,
+    bool preserveSearchHighlight = false,
+  }) async {
     final player = _player;
     if (player == null || index < 0 || index >= player.segments.length) {
       return;
     }
+    // Navigating elsewhere clears a previous search-result highlight.
+    if (!preserveSearchHighlight) _selectedSourceSearchHit = null;
     // A prior scroll debounce must never overwrite this explicit seek
     // or a source-exact bookmark/search hit after the next frame.
     _cancelPendingVisualSave();
@@ -1369,6 +1383,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                         key: ValueKey(block.start),
                                         block: block,
                                         activeSegmentIndex: player.currentIndex,
+                                        searchMatch: _selectedSourceSearchHit,
                                         fontSize: _fontSize,
                                         palette: _epubPalette,
                                         onSelectSegment: _selectFromVisualTap,

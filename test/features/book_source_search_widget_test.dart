@@ -1,4 +1,5 @@
 import 'package:ereader/features/reader/reading_tools.dart';
+import 'package:ereader/domain/book_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -7,7 +8,7 @@ void main() {
       (tester) async {
     const text = 'Narrated intro.\n\n'
         'Unspoken caption with 🐉 and diagrams.\n\nNarrated ending.';
-    int? selected;
+    BookSourceMatch? selected;
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: Builder(
         builder: (context) => ElevatedButton(
@@ -30,14 +31,15 @@ void main() {
 
     await tester.tap(find.textContaining('Unspoken caption with'));
     await tester.pumpAndSettle();
-    expect(selected, text.indexOf('caption'));
+    expect(selected?.start, text.indexOf('caption'));
+    expect(selected?.end, text.indexOf('caption') + 7);
   });
 
   testWidgets('EPUB search begins near reading position before wrapping',
       (tester) async {
     const text = 'echo one.\n\necho two.\n\necho three.';
     final last = text.lastIndexOf('echo');
-    int? selected;
+    BookSourceMatch? selected;
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: Builder(
         builder: (context) => ElevatedButton(
@@ -61,13 +63,13 @@ void main() {
         matching: find.text('Source offset $last')), findsOneWidget);
     await tester.tap(firstResult);
     await tester.pumpAndSettle();
-    expect(selected, last);
+    expect(selected?.start, last);
   });
 
   testWidgets('closed search dialog never navigates or starts playback',
       (tester) async {
     const book = 'Visible text and a quiet illustration.';
-    int? selected;
+    BookSourceMatch? selected;
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: Builder(
         builder: (context) => ElevatedButton(

@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/epub_embedded_content.dart';
+import '../../domain/book_search.dart';
 import 'epub_visual_layout.dart';
 
 /// Display-only, session-local colors. A future reader-preferences screen
@@ -34,6 +35,20 @@ extension EpubReadingPaletteColors on EpubReadingPalette {
     EpubReadingPalette.sepia => const Color(0xFF302414),
     EpubReadingPalette.night => const Color(0xFFF0F3FF),
   };
+
+  Color searchHighlight(BuildContext context) => switch (this) {
+    EpubReadingPalette.system =>
+        Theme.of(context).colorScheme.tertiaryContainer,
+    EpubReadingPalette.sepia => const Color(0xFFF1B66C),
+    EpubReadingPalette.night => const Color(0xFF7D5B2C),
+  };
+
+  Color searchForeground(BuildContext context) => switch (this) {
+    EpubReadingPalette.system =>
+        Theme.of(context).colorScheme.onTertiaryContainer,
+    EpubReadingPalette.sepia => const Color(0xFF241A12),
+    EpubReadingPalette.night => const Color(0xFFFFFFFF),
+  };
 }
 
 /// Lazy, source-exact EPUB paragraph widget. No HTML WebView, network
@@ -45,6 +60,7 @@ class EpubParagraphTile extends StatefulWidget {
     super.key,
     required this.block,
     required this.activeSegmentIndex,
+    this.searchMatch,
     required this.fontSize,
     required this.onSelectSegment,
     this.onOpenLink,
@@ -55,6 +71,8 @@ class EpubParagraphTile extends StatefulWidget {
 
   final EpubVisualBlock block;
   final int activeSegmentIndex;
+  /// Result positions are relative to the original extracted EPUB text.
+  final BookSourceMatch? searchMatch;
   final double fontSize;
   final ValueChanged<int> onSelectSegment;
   /// Source offset of a verified internal EPUB fragment (never a URL).
@@ -172,6 +190,63 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
     super.dispose();
   }
 
+  /// Split only the on-screen source run where an exact search hit appears.
+  /// Styled/link/TTS text and recognizer identities remain unchanged.
+  TextSpan _renderRun(BuildContext context, EpubVisualRun run) {
+    final palette = widget.palette;
+    final active = run.segmentIndex == widget.activeSegmentIndex;
+    final linked = run.linkTargetOffset != null ||
+        run.auxiliaryFootnoteKey != null;
+    final style = TextStyle(
+      fontWeight: run.bold || run.headingLevel > 0
+          ? FontWeight.w700 : null,
+      fontStyle: run.italic ? FontStyle.italic : null,
+      fontSize: run.headingLevel > 0 && !widget.block.heading
+          ? widget.fontSize + (7 - run.headingLevel).clamp(1, 6) : null,
+      backgroundColor: active ? palette.highlight(context) : null,
+      color: active ? palette.highlightForeground(context)
+          : linked ? Theme.of(context).colorScheme.primary : null,
+      decoration: linked ? TextDecoration.underline : null,
+    );
+    final recognizer = run.auxiliaryFootnoteKey != null &&
+            widget.onOpenAuxiliaryFootnote != null
+        ? _auxiliaryNoteTap(run.auxiliaryFootnoteKey!)
+        : run.linkTargetOffset != null &&
+                (widget.onOpenLink != null ||
+                    run.isFootnote && widget.onOpenFootnote != null)
+            ? _linkTap(run.linkTargetOffset!, run.isFootnote)
+            : run.segmentIndex == null ? null : _tap(run.segmentIndex!);
+    final sourceText = run.text;
+    TextSpan part(int start, int end, {bool match = false}) {
+      final value = sourceText.substring(start - run.start, end - run.start);
+      return TextSpan(
+        text: value,
+        semanticsLabel: run.isFootnote
+            ? value + ', footnote link' : null,
+        style: match
+            ? style.copyWith(
+                backgroundColor: palette.searchHighlight(context),
+                color: palette.searchForeground(context),
+              )
+            : style,
+        recognizer: recognizer,
+      );
+    }
+    final hit = widget.searchMatch;
+    if (hit == null || hit.end <= hit.start ||
+        hit.start >= run.end || hit.end <= run.start) {
+      return part(run.start, run.end);
+    }
+    final start = hit.start > run.start ? hit.start : run.start;
+    final end = hit.end < run.end ? hit.end : run.end;
+    if (start >= end) return part(run.start, run.end);
+    return TextSpan(children: [
+      if (run.start < start) part(run.start, start),
+      part(start, end, match: true),
+      if (end < run.end) part(end, run.end),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = widget.palette;
@@ -202,45 +277,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                   TextSpan(
                     children: [
                   for (final run in widget.block.runs)
-                    TextSpan(
-                      text: run.text,
-                      semanticsLabel: run.isFootnote
-                          ? '${run.text}, footnote link'
-                          : null,
-                      style: TextStyle(
-                        fontWeight: run.bold || run.headingLevel > 0
-                            ? FontWeight.w700 : null,
-                        fontStyle: run.italic ? FontStyle.italic : null,
-                        // An internal h2/h3 must be recognizable even if
-                        // another text element shares this visual block.
-                        fontSize: run.headingLevel > 0 && !heading
-                            ? size + (7 - run.headingLevel).clamp(1, 6)
-                            : null,
-                        backgroundColor:
-                            run.segmentIndex == widget.activeSegmentIndex
-                                ? palette.highlight(context) : null,
-                        color: run.segmentIndex == widget.activeSegmentIndex
-                            ? palette.highlightForeground(context)
-                            : run.linkTargetOffset != null ||
-                                    run.auxiliaryFootnoteKey != null
-                                ? Theme.of(context).colorScheme.primary
-                                : null,
-                        decoration: run.linkTargetOffset == null &&
-                                run.auxiliaryFootnoteKey == null
-                            ? null : TextDecoration.underline,
-                      ),
-                      recognizer: run.auxiliaryFootnoteKey != null &&
-                              widget.onOpenAuxiliaryFootnote != null
-                          ? _auxiliaryNoteTap(run.auxiliaryFootnoteKey!)
-                          : run.linkTargetOffset != null &&
-                              (widget.onOpenLink != null ||
-                                  run.isFootnote &&
-                                      widget.onOpenFootnote != null)
-                              ? _linkTap(run.linkTargetOffset!,
-                                  run.isFootnote)
-                              : run.segmentIndex == null
-                                  ? null : _tap(run.segmentIndex!),
-                    ),
+                    _renderRun(context, run),
                   ],
                 ),
                   style: style,
