@@ -1141,3 +1141,33 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   exit criteria, approximate implementation percentages, acceptance gates
   and priority sequence. An authored code feature is not considered a
   completed platform milestone without the relevant native evidence.
+
+## M0 — Android CI media manifest parity (2026-10-25)
+
+- The manual Android GitHub Actions workflow now installs the tracked
+  `tool/android/AndroidManifest.xml` **after** `flutter create` and
+  **before** analysis/APK compilation, just like both local bootstraps.
+  This covers the AudioServiceActivity, foreground mediaPlayback service,
+  notification/headset receiver and required Android permissions.
+- Added `test/config/android_manifest_bootstrap_test.dart` to detect
+  regressions in committed manifest and build/bootstrap references.
+  It is a source configuration test, **not** a device/media-focus smoke test.
+
+## M3 — offline VITS/Piper voice-pack file admission (2026-10-25)
+
+- Implemented `lib/data/offline_voice_pack.dart`, an entirely local,
+  bounded installer for manually obtained VITS model ONNX and tokens.txt.
+  Callers explicitly supply SHA-256 checksums, locale, ID and license ID.
+  It stages and hashes files as streams; maximum size constraints and
+  cleanup apply on success/failure, and installed packs are reverified
+  rather than overwritten.
+- Added `test/data/offline_voice_pack_test.dart` covering valid installs,
+  rechecking, corrupted installed models, SHA mismatches, caps, malformed
+  manifests and cleaned staging directories.
+- Documented important remaining requirements and model-license checks in
+  [OFFLINE_VOICE_PACKS.md](OFFLINE_VOICE_PACKS.md). This does **NOT** add a
+  selectable sherpa-onnx TTS provider, run a model, bundle pretrained voices
+  or supply a phonemizer. M3 is still incomplete.
+- These tests and the changed Android CI pipeline have not run on this
+  execution environment. The latest published Windows report remains from
+  older SHA `946fc7b9` (589 pass, 5 errors).
