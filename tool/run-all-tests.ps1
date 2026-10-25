@@ -245,6 +245,7 @@ $dartVersion = Execute 'dart-version' $dart @('--version') $ToolTimeoutMinutes
 if (-not $SkipPubGet) {
   $pub = Execute 'pub-get' $flutter @('pub','get') $ToolTimeoutMinutes
 }
+$format = $null
 if (-not $SkipFormat) {
   $format = Execute 'format-check' $dart @(
     'format','--output=none','--set-exit-if-changed','lib','test'
@@ -312,6 +313,23 @@ foreach ($path in @($analyze.Stdout,$analyze.Stderr)) {
     }
   }
 }
+# Sanitized format-check paths only.
+$unformattedFiles = New-Object System.Collections.ArrayList
+if ($null -ne $format) {
+  foreach ($path in @($format.Stdout,$format.Stderr)) {
+    if (-not (Test-Path -LiteralPath $path)) { continue }
+    foreach ($line in [IO.File]::ReadLines($path)) {
+      if ($line -match '^(?:Changed|Formatted)\s+((?:lib|test)[/\\][A-Za-z0-9_./\\-]+\.dart)\s*$') {
+        $relative = $Matches[1] -replace '\\','/'
+        if ($relative -notmatch '(^|/)\.\.(/|$)' -and
+            -not $unformattedFiles.Contains($relative)) {
+          [void]$unformattedFiles.Add($relative)
+        }
+        if ($unformattedFiles.Count -ge 250) { break }
+      }
+    }
+  }
+}
 $totals = [ordered]@{
   passed=$pass;failed=$fail;errors=$errorCount;skipped=$skipped
   testFilesDiscovered=$allFiles.Count;testOutcomesParsed=$cases.Count
@@ -324,6 +342,7 @@ $summary = [ordered]@{
   isolatedFileRuns=@($fileRuns.ToArray())
   compileLocations=@($compilerLocations.ToArray())
   analyzerIssues=@($analyzerIssues.ToArray())
+  unformattedFiles=@($unformattedFiles.ToArray())
   localOnlyRawLogDirectory='.local-test-results/' + $id
   note='Raw logs are local-only; no user file contents or secrets are published.'
 }
@@ -358,6 +377,9 @@ foreach ($loc in @($compilerLocations.ToArray()) | Select-Object -First 100) {
   $md.Add(('| {0} | {1} | {2} | {3} |' -f
     $loc.testFile,$loc.file,$loc.line,$loc.column))
 }
+$md.Add('')
+$md.Add('## Files requiring Dart format (repository paths only)')
+foreach ($name in $unformattedFiles) { $md.Add('- ' + $name) }
 $md.Add('')
 $md.Add('## Analyzer diagnostics')
 foreach ($msg in @($analyzerIssues | Select-Object -First 100)) {
