@@ -563,3 +563,16 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - These changes are **tests and evidence only**: no increased cloud spending
   cap, runtime audio logic change or proof of passing tests. The prior
   baseline is historical and remains non-green until rerun.
+
+## M2 — playback Stop notification and narrator fallback safety (2026-10-25)
+
+- Fixed a production race: `ReaderPlayer._stopCurrent` now marks the
+  native stop pending before notifying state subscribers. Media focus and
+  crash recovery no longer observe a false settled-idle window on Pause.
+- Fixed unavailable cast voices silently bypassing the installed narrator
+  selection; provider catalog validation now falls back to a valid
+  narrator voice.
+- Added a synchronous listener regression test; updated the conflicting
+  native Stop failure test to preserve Android focus until explicit
+  teardown. These were informed by real historical failures but are
+  **not verified passing** until the newer local test run.

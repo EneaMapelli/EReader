@@ -67,3 +67,30 @@ the tests must be rerun.
 No production audio code was modified in this follow-up. Prior
 failures are **not declared resolved** until the updated local suite
 confirms them. Other historical failures remain untriaged.
+
+## Audio safety fix — 2026-10-25
+
+A real bug was identified in `ReaderPlayer._stopCurrent`: it published
+`isPlaying=false` to listeners **before** incrementing the pending native
+Stop count. For direct Pause (not a seek), subscribers saw transient
+`isSettledIdle=true` and could clear SQLite crash recovery markers or
+release Android audio focus while the previous utterance still played.
+The ordering was corrected: pending Stop is recorded before the first
+notification, and settled idle is signaled only on successful actual
+Stop completion.
+
+`ReaderPlayer._voiceFor` also returned null whenever a character voice
+was missing from the installed provider catalog, even if a narrator
+fallback was available. It now selects the cast voice if installed,
+otherwise the configured or default **installed narrator** voice.
+Source speech text and offsets are unchanged.
+
+A historical media-handler test expected focus release and settled
+idle after native Stop threw an exception. That contradicted the
+fail-closed, unconfirmed-stop safety policy and the other native Stop
+tests: it now asserts that focus remains until explicit reader teardown
+and remote Play stays blocked. Added a synchronous listener test for
+the pause-notification race.
+
+These source and test fixes are authored, **not yet executed** against
+the updated Windows/Android application. Re-run all affected tests.

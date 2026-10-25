@@ -87,6 +87,36 @@ void main() {
     expect(player.isPlaying, false);
     player.dispose();
   });
+  test('pause listeners never observe idle until native stop finishes',
+      () async {
+    final engine = FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [SpeechSegment(0, 5, 'Hello')],
+      onSegmentStarted: (_) async {},
+    );
+    final idleEvents = <bool>[];
+    player.addListener(() => idleEvents.add(player.isSettledIdle));
+    final playing = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['Hello']);
+
+    engine.stopGate = Completer<void>();
+    final pausing = player.pause();
+    // This notification is synchronous; the native Stop is still gated.
+    expect(idleEvents.last, isFalse);
+    expect(player.isSettledIdle, isFalse);
+    await Future<void>.delayed(Duration.zero);
+    expect(idleEvents.where((idle) => idle), isEmpty);
+
+    engine.stopGate!.complete();
+    await pausing;
+    await playing;
+    expect(player.isSettledIdle, isTrue);
+    expect(idleEvents.last, isTrue);
+    player.dispose();
+  });
+
   test('rapid pause and play waits for native stop before speaking again', () async {
     final engine = FakeSpeechEngine();
     final player = ReaderPlayer(

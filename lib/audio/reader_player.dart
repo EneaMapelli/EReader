@@ -126,12 +126,17 @@ class ReaderPlayer extends ChangeNotifier {
         }
       }
     }
-    final requested = chosen ?? fallback;
-    if (requested == null) return null;
-    for (final voice in availableVoices) {
-      if (voice.key == requested.key) return voice;
+    // An invalid or no-longer-installed character voice must NOT silence
+    // narrator selection. Match only the provider's current voice catalog
+    // and fall back to its configured/default narrator if cast is stale.
+    SpeechVoice? installedVoice(SpeechVoice? requested) {
+      if (requested == null) return null;
+      for (final voice in availableVoices) {
+        if (voice.key == requested.key) return voice;
+      }
+      return null;
     }
-    return null;
+    return installedVoice(chosen) ?? installedVoice(fallback);
   }
 
 
@@ -380,15 +385,19 @@ class ReaderPlayer extends ChangeNotifier {
     _session++;
     isPlaying = false;
     activeSpeakerId = null;
-    _notify();
 
     // An existing unconfirmed stop cannot safely be overwritten or
     // bypassed. The platform might still be outputting the old utterance.
     if (nativeStopUnconfirmed) {
+      _notify();
       throw StateError('Native speech Stop is still unconfirmed');
     }
 
+    // Mark the stop as pending BEFORE notifying media focus and checkpoint
+    // listeners. Otherwise they observe a transient isSettledIdle=true
+    // and release focus/erase recovery while native speech still plays.
     _pendingNativeStops++;
+    _notify();
     final priorStop = _pendingStop;
     final stopping = () async {
       try {

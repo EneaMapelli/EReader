@@ -471,7 +471,7 @@ void main() {
     player.dispose();
   });
 
-  test('failed native stop still clears focus after settled failure',
+  test('failed native Stop keeps focus until reader teardown',
       () async {
     final engine = _FakeSpeechEngine();
     final player = _reader(engine);
@@ -487,10 +487,16 @@ void main() {
     await expectLater(player.pause(), throwsStateError);
     await Future<void>.delayed(Duration.zero);
     expect(player.isPlaying, isFalse);
-    expect(player.isSettledIdle, isTrue);
-    expect(releases, 1);
+    expect(player.nativeStopUnconfirmed, isTrue);
+    expect(player.isSettledIdle, isFalse,
+        reason: 'A failed Stop is not evidence of silent native output');
+    expect(releases, 0,
+        reason: 'Focus must not be released while speech may remain active');
+    await expectLater(handler.play(), throwsStateError);
     engine.failStop = false;
     await handler.close();
+    expect(releases, 1,
+        reason: 'Detaching the failed player explicitly releases focus');
     player.dispose();
   });
 
