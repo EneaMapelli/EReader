@@ -795,7 +795,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player) return;
-      await _select(index);
+      await _select(index, visualSourceOffset: sourceOffset);
       if (!mounted || _player != player) return;
       // The chosen fragment can lie within a larger spoken segment.
       // Persist the exact verified source anchor, not merely the beginning
@@ -907,7 +907,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     ));
   }
 
-  Future<void> _select(int index) async {
+  Future<void> _select(int index, {int? visualSourceOffset}) async {
     final player = _player;
     if (player == null || index < 0 || index >= player.segments.length) {
       return;
@@ -921,7 +921,9 @@ class _ReaderScreenState extends State<ReaderScreen>
     _visiblePositionIndex = index;
     if (_itemScrollController.isAttached) {
       final visualIndex = widget.book.format == BookFormat.epub
-          ? _epubLayout.blockForSegment(index)
+          ? (visualSourceOffset == null
+              ? _epubLayout.blockForSegment(index)
+              : _epubLayout.blockForSourceOffset(visualSourceOffset))
           : index;
       _lastFollowedIndex = visualIndex;
       _itemScrollController.jumpTo(index: visualIndex, alignment: 0.12);

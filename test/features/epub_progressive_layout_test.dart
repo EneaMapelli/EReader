@@ -177,19 +177,52 @@ void main() {
     expect(blocks.length, 12000);
     expect(blocks.materializations, 0);
     expect(blocks.cachedBlockCount, 0);
-    for (final idx in [0, 1, 150, 4000, 8000, 11999]) {
+    for (final idx in [0, 1, 150, 4000, 8000, 11998, 11999]) {
       expect(layout.blockForSegment(idx), idx);
+      expect(layout.blockForSourceOffset(chunks[idx].start + 2), idx);
+      expect(blocks.materializations, 0);
+    }
+    // Seven distinct blocks exceed a six-slot LRU; the old fixture
+    // checked eviction after six accesses, which cannot evict anything.
+    for (final idx in [0, 1, 150, 4000, 8000, 11998, 11999]) {
       expect(blocks[idx].text, paragraphs[idx]);
     }
     expect(blocks.cachedBlockCount, 6);
-    expect(blocks.materializations, 6);
+    expect(blocks.materializations, 7);
     expect(blocks[0].text, paragraphs[0]); // evicted first block
     expect(blocks.cachedBlockCount, 6);
-    expect(blocks.materializations, 7);
+    expect(blocks.materializations, 8);
     expect(blocks[0].text, paragraphs[0]); // cached
-    expect(blocks.materializations, 7);
+    expect(blocks.materializations, 8);
     expect(() => blocks[0] = blocks[0], throwsUnsupportedError);
     expect(() => blocks.length = 3, throwsUnsupportedError);
+  });
+
+  test('source-offset link in unspoken gap resolves without hydration',
+      () {
+    const source = 'Prelude.\n\nMiddle.\n\nLast.';
+    final doc = chapter(source);
+    final speech = segmentEpubSpine(doc);
+    final layout = buildProgressiveEpubVisualLayout(
+        doc, speech, const [], maxCachedBlocks: 2);
+    final eager = buildEpubVisualLayout(doc, speech, const []);
+    final lazy = layout.blocks as ProgressiveEpubBlocks;
+    expect(lazy.materializations, 0);
+    final targets = <int, int>{
+      -42: 0,
+      0: 0,
+      'Prelude.'.length: 1,
+      source.indexOf('Middle.'): 1,
+      source.indexOf('Last.'): 2,
+      source.length + 100: 2,
+    };
+    for (final entry in targets.entries) {
+      expect(layout.blockForSourceOffset(entry.key), entry.value);
+      expect(eager.blockForSourceOffset(entry.key), entry.value);
+      expect(lazy.materializations, 0);
+    }
+    expect(layout.blocks[2].text, 'Last.');
+    expect(lazy.materializations, 1);
   });
 
   test('monotonic segment cursor matches eager layout across many blocks',

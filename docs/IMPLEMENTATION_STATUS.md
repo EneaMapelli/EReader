@@ -789,3 +789,17 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   chapter heading ends before the following paragraph.
 - This fix targets a plausible common production cause; actual
   resolution requires rerunning the four failing tests on Windows.
+
+## M2 — source-exact EPUB visual navigation (2026-10-25)
+
+- Direct note/link/publisher TOC navigation now scrolls to the correct
+  source paragraph even without a corresponding spoken segment, using
+  `EpubVisualLayout.blockForSourceOffset` and metadata-only binary
+  search for progressive layouts. No eager rich paragraph rendering is
+  introduced by deep links; existing TTS chunk and anchor selection
+  semantics remain unchanged.
+- Fixed the historical 12,000-paragraph test's LRU eviction condition:
+  seven distinct paragraph accesses now exceed the six-entry limit.
+  Added deep-book and gap-target regressions for zero lazy hydration.
+- These changes have not been run on Windows/Android yet. The published
+  Windows baseline (555/563) is for the earlier source commit.

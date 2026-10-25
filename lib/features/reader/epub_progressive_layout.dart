@@ -248,6 +248,21 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
     final idx = nearestBlock(table.start);
     if (idx >= 0) tables.putIfAbsent(idx, () => []).add(table);
   }
+  // O(log paragraphs), with no rich-block materialization.
+  int indexedBlockForSourceOffset(int offset) {
+    if (bounds.isEmpty) return 0;
+    var low = 0, high = bounds.length;
+    while (low < high) {
+      final mid = low + (high - low) ~/ 2;
+      if (bounds[mid].end <= offset) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low < bounds.length ? low : bounds.length - 1;
+  }
+
   final frozenImages = {
     for (final item in images.entries)
       item.key: List<EpubEmbeddedImage>.unmodifiable(item.value),
@@ -389,6 +404,7 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
   return EpubVisualLayout(
     ProgressiveEpubBlocks._(bounds, materialize, maxCachedBlocks),
     List<int>.unmodifiable(mapping),
+    indexedBlockForSourceOffset: indexedBlockForSourceOffset,
   );
 }
 

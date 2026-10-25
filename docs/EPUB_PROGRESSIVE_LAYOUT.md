@@ -85,3 +85,16 @@ A pathological EPUB with more than **300,000** indexed paragraphs is
 rejected to cap paragraph-index memory. EPUB ZIP and decompression limits
 are unchanged. No cloud requests, scripts, CSS execution or consent
 changes are added, and no speedup percentage is claimed until measured.
+
+## Direct source-offset navigation and LRU regression (2026-10-25)
+
+The reader can now scroll to an exact EPUB source paragraph for a note,
+internal link, or publisher TOC target, even when the target falls outside
+spoken TTS segments. The new `blockForSourceOffset` API uses O(log N)
+search over metadata-only bounds in progressive layouts; lookup does
+not hydrate rich runs. Eager layouts expose the same method for behavior
+comparison. TTS selection and persisted source anchors are unchanged.
+
+The 12,000-paragraph cache regression now requests seven distinct blocks
+before checking eviction from a six-slot LRU (previously only six).
+Added an unexecuted source-gap and no-materialization lookup regression.

@@ -70,9 +70,31 @@ class EpubVisualBlock {
 }
 
 class EpubVisualLayout {
-  const EpubVisualLayout(this.blocks, this.segmentToBlock);
+  const EpubVisualLayout(this.blocks, this.segmentToBlock, {
+    int Function(int)? indexedBlockForSourceOffset,
+  }) : _indexedBlockForSourceOffset = indexedBlockForSourceOffset;
+
   final List<EpubVisualBlock> blocks;
   final List<int> segmentToBlock;
+  final int Function(int)? _indexedBlockForSourceOffset;
+
+  /// Exact source jumps also resolve unspoken internal links and notes.
+  /// The progressive callback searches its index without building rich runs.
+  int blockForSourceOffset(int sourceOffset) {
+    if (blocks.isEmpty) return 0;
+    final indexed = _indexedBlockForSourceOffset;
+    if (indexed != null) return indexed(sourceOffset);
+    var low = 0, high = blocks.length;
+    while (low < high) {
+      final mid = low + (high - low) ~/ 2;
+      if (blocks[mid].end <= sourceOffset) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low < blocks.length ? low : blocks.length - 1;
+  }
 
   int blockForSegment(int segmentIndex) {
     if (blocks.isEmpty || segmentToBlock.isEmpty) return 0;
