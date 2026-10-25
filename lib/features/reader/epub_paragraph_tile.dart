@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import '../../data/epub_embedded_content.dart';
 import 'epub_visual_layout.dart';
 
 /// Display-only, session-local colors. A future reader-preferences screen
