@@ -25,7 +25,6 @@ import '../../domain/book_search.dart';
 import '../../domain/speech_segment.dart';
 import '../../domain/dialogue_segmenter.dart';
 import '../../domain/pronunciation_rule.dart';
-import '../../domain/voice_cast.dart';
 import '../../domain/cast_span.dart';
 import 'voice_cast_screen.dart';
 import 'pronunciation_screen.dart';

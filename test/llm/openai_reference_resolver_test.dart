@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:ereader/audio/secret_vault.dart';
-import 'package:ereader/domain/cast_span.dart';
 import 'package:ereader/domain/llm_analysis_consent.dart';
 import 'package:ereader/domain/narrative_reference.dart';
 import 'package:ereader/domain/speech_segment.dart';
