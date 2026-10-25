@@ -89,6 +89,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   int? _pendingPdfPage;
   late int _displayPdfPage;
   int? _visiblePositionIndex;
+  int? _lastVisibleEpubBlockIndex;
   // An EPUB link/footnote/verified bookmark may target unspoken text
   // inside a paragraph. Keep that exact visual source coordinate until
   // the reader visibly moves elsewhere, instead of instantly rewriting
@@ -280,6 +281,8 @@ class _ReaderScreenState extends State<ReaderScreen>
               : visualLayout.blockForSourceOffset(_visualCheckpoint.offset!))
           : player.currentIndex;
       _visiblePositionIndex = player.currentIndex;
+      _lastVisibleEpubBlockIndex = widget.book.format == BookFormat.epub
+          ? _lastFollowedIndex : null;
       recoveryBinding.attach(player);
       player.addListener(_onPlaybackChanged);
       widget.mediaHandler?.attach(
@@ -452,20 +455,27 @@ class _ReaderScreenState extends State<ReaderScreen>
     visible.sort();
     final firstItem = visible.first;
     final int index;
+    final int sourceOffset;
     if (widget.book.format == BookFormat.epub) {
       if (firstItem >= _epubLayout.blocks.length) return;
-      // Do not coarsen an exact restored bookmark to a speech offset
-      // when Flutter reports the initially visible paragraph. A genuinely
-      // different paragraph releases this one-shot visual protection.
+      // The initial notification is not manual scroll and must not
+      // coarsen an exact bookmark to the nearest spoken segment.
       if (_visualCheckpoint.preserveOnVisibleBlock(
           firstItem, _epubLayout)) return;
-      final firstSegment = _epubLayout.blocks[firstItem].firstSegmentIndex;
-      if (firstSegment == null) return;
-      index = firstSegment;
+      final location = _epubLayout.positionForVisibleBlock(
+          firstItem, player.segments);
+      index = location.segmentIndex;
+      sourceOffset = location.sourceOffset;
+      if (index < 0) return;
+      // One TTS segment can span multiple presentation-only paragraphs.
+      // Comparing just its speech index would miss real visual scrolling.
+      if (firstItem == _lastVisibleEpubBlockIndex) return;
+      _lastVisibleEpubBlockIndex = firstItem;
     } else {
       index = firstItem.clamp(0, player.segments.length - 1).toInt();
+      sourceOffset = player.segments[index].start;
+      if (index == _visiblePositionIndex) return;
     }
-    if (index == _visiblePositionIndex) return;
     final previousChapter = _currentChapterIndex;
     _visiblePositionIndex = index;
     if (_chapters.isNotEmpty &&
@@ -476,10 +486,9 @@ class _ReaderScreenState extends State<ReaderScreen>
     _saveVisualPositionTimer = Timer(const Duration(milliseconds: 450), () {
       if (!mounted || player.isPlaying || _player != player ||
           (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
-      final segment = player.segments[index];
       widget.store.savePosition(
-        widget.book.id, segment.start,
-        anchor: _document?.anchorAt(widget.book.format, segment.start),
+        widget.book.id, sourceOffset,
+        anchor: _document?.anchorAt(widget.book.format, sourceOffset),
       );
     });
   }
@@ -940,12 +949,14 @@ class _ReaderScreenState extends State<ReaderScreen>
     _visiblePositionIndex = index;
     _visualCheckpoint.hold(widget.book.format == BookFormat.epub
         ? visualSourceOffset : null);
+    final visualIndex = widget.book.format == BookFormat.epub
+        ? (visualSourceOffset == null
+            ? _epubLayout.blockForSegment(index)
+            : _epubLayout.blockForSourceOffset(visualSourceOffset))
+        : index;
+    _lastVisibleEpubBlockIndex = widget.book.format == BookFormat.epub
+        ? visualIndex : null;
     if (_itemScrollController.isAttached) {
-      final visualIndex = widget.book.format == BookFormat.epub
-          ? (visualSourceOffset == null
-              ? _epubLayout.blockForSegment(index)
-              : _epubLayout.blockForSourceOffset(visualSourceOffset))
-          : index;
       _lastFollowedIndex = visualIndex;
       _itemScrollController.jumpTo(index: visualIndex, alignment: 0.12);
     }

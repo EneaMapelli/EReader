@@ -69,6 +69,16 @@ class EpubVisualBlock {
   String get text => runs.map((run) => run.text).join();
 }
 
+/// The visible reading checkpoint and the nearest playable speech cursor
+/// are deliberately independent: an image caption can be visible even
+/// when it has no TTS speech segment of its own.
+class EpubVisibleReadingPosition {
+  const EpubVisibleReadingPosition(this.sourceOffset, this.segmentIndex);
+
+  final int sourceOffset;
+  final int segmentIndex;
+}
+
 class EpubVisualLayout {
   const EpubVisualLayout(this.blocks, this.segmentToBlock, {
     int Function(int)? indexedBlockForSourceOffset,
@@ -94,6 +104,18 @@ class EpubVisualLayout {
       }
     }
     return low < blocks.length ? low : blocks.length - 1;
+  }
+
+  /// Reading progress follows the actual visible paragraph, even for
+  /// images, captions and otherwise non-spoken EPUB sections. The audio
+  /// cursor still points to a playable segment where available.
+  EpubVisibleReadingPosition positionForVisibleBlock(
+      int blockIndex, List<SpeechSegment> segments) {
+    RangeError.checkValidIndex(blockIndex, blocks);
+    final block = blocks[blockIndex];
+    final playable = block.firstSegmentIndex ??
+        speechSegmentIndexForOffset(segments, block.start);
+    return EpubVisibleReadingPosition(block.start, playable);
   }
 
   int blockForSegment(int segmentIndex) {

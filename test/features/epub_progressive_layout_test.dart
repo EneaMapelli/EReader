@@ -282,6 +282,38 @@ void main() {
     expect(blocks.materializations, 0);
   });
 
+  test('visible unspoken paragraph persists its own source offset',
+      () {
+    const text = 'An opening.\n\nUnspoken illustration.\n\nThe narrated end.';
+    final finalStart = text.indexOf('The narrated end.');
+    final captionStart = text.indexOf('Unspoken illustration.');
+    final doc = chapter(text);
+    final chunks = [
+      SpeechSegment(finalStart, text.length, 'The narrated end.'),
+    ];
+    final eager = buildEpubVisualLayout(doc, chunks, const []);
+    final progressive = buildProgressiveEpubVisualLayout(doc, chunks, const []);
+    final lazy = progressive.blocks as ProgressiveEpubBlocks;
+
+    final caption = progressive.positionForVisibleBlock(1, chunks);
+    final expected = eager.positionForVisibleBlock(1, chunks);
+    expect(caption.sourceOffset, captionStart);
+    expect(caption.segmentIndex, 0);
+    expect((caption.sourceOffset, caption.segmentIndex),
+        (expected.sourceOffset, expected.segmentIndex));
+    expect(caption.sourceOffset, isNot(finalStart),
+        reason: 'Do not save a future spoken paragraph instead of the caption');
+    final last = progressive.positionForVisibleBlock(2, chunks);
+    expect(last.sourceOffset, finalStart);
+    expect(last.segmentIndex, 0);
+    expect(lazy.materializations, 2,
+        reason: 'Only the two actually visible blocks are constructed');
+    expect(() => progressive.positionForVisibleBlock(-1, chunks),
+        throwsRangeError);
+    expect(() => progressive.positionForVisibleBlock(3, chunks),
+        throwsRangeError);
+  });
+
   test('monotonic segment cursor matches eager layout across many blocks',
       () {
     final source = List.filled(120, 'One segment spans several blocks. ')

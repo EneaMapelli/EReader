@@ -826,3 +826,13 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Added a deterministic test for a target inside an unspoken caption,
   same-paragraph notifications, subsequent navigation and zero rich-block
   hydration. Runtime/device validation remains pending.
+
+## M2 — persist positions in unspoken EPUB paragraphs (2026-10-25)
+
+- Reader visual scroll now records the actual first visible EPUB
+  paragraph's UTF-16 source offset, even when it has no corresponding
+  TTS segment, instead of silently skipping the position update.
+  Distinct visual paragraphs are tracked even if they share a single
+  large speech segment. Speech seek remains tied to playable chunks.
+- Added `EpubVisibleReadingPosition` and a synthetic unspoken-caption
+  eager/progressive regression. Real widget/Windows testing remains open.

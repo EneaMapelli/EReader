@@ -130,3 +130,20 @@ same-paragraph list notifications, releases it on real navigation to a
 different paragraph or playback, and never hydrates rich paragraph runs.
 A new deterministic, unexecuted test covers preservation on a wholly
 unspoken caption, true scroll invalidation, and explicit clear.
+
+## Saving progress for non-spoken EPUB paragraphs (2026-10-25)
+
+The read-along listener previously ignored visible paragraphs without
+any TTS segment, and detected reading progress changes solely by the
+speech segment index. That caused caption-only sections to be skipped in
+saved reading position and long multi-paragraph speech segments to share
+one coarse bookmark. The reader now tracks visible paragraph identity
+independently of the nearest audio segment. It saves the **source offset
+of the visible block**, even if no speech segment starts there; the audio
+cursor continues to use its existing index. The visual checkpoint guard
+continues to protect the original exact offset during initial restore.
+
+`EpubVisualLayout.positionForVisibleBlock` supplies both coordinates.
+A synthetic unspoken-caption regression compares eager/progressive
+behavior and source offsets, ensuring the model materializes only the
+visible blocks. Windows/Android execution remains outstanding.
