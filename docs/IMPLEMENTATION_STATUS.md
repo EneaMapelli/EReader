@@ -994,3 +994,16 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   regressions for late-chapter matches, emoji cursors and dialog navigation.
 - The previous Windows test report predates this increment. Dart analysis,
   Windows/Android builds and these tests have not been executed here.
+
+## M2 — bounded worker-exit grace for concurrent EPUB preparation (2026-10-25)
+
+- Enlarged the abnormal-isolate-exit grace from 50 milliseconds to a single,
+  cancellable three-second timer. The worker's final `Isolate.exit` reply can
+  arrive later than the exit notification when a large source model moves
+  between isolates. A valid reply now cancels the fallback immediately;
+  cancellation itself remains immediate, and genuinely missing replies fail
+  after the bounded grace instead of waiting forever.
+- Added a concurrent-worker regression with three independent cancellations
+  and three surviving large EPUB preparations to check result isolation.
+- **Not yet verified on Windows/Android:** the published Windows result
+  predates this change, and no new analyzer/test run was performed here.

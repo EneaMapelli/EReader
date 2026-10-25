@@ -108,6 +108,7 @@ class CancellableEpubPreflight {
   final Completer<EpubReaderPreflight> _completion =
       Completer<EpubReaderPreflight>();
   Isolate? _isolate;
+  Timer? _exitGraceTimer;
   bool _finished = false;
 
   Future<EpubReaderPreflight> get result => _completion.future;
@@ -134,17 +135,16 @@ class CancellableEpubPreflight {
   void _handleMessage(dynamic message) {
     if (_finished) return;
     if (message == null) {
-      // onExit and Isolate.exit(finalResponse) both reach this ReceivePort.
-      // Their notification delivery order is NOT a reliable indication
-      // that a final response is missing. Give the already-sent final
-      // response a bounded opportunity to arrive before treating the
-      // worker exit as abnormal. Cancellation still settles immediately.
-      unawaited(Future<void>.delayed(
-          const Duration(milliseconds: 50), () {
+      // An onExit notification may precede the Isolate.exit(finalResponse)
+      // payload, particularly while a large EPUB model is transferred under
+      // CPU pressure. Do not turn that delivery-order race into a false
+      // failure. Keep a single bounded fallback for genuinely dead workers.
+      // The timer is cancelled immediately when a valid reply arrives.
+      _exitGraceTimer ??= Timer(const Duration(seconds: 3), () {
         if (!_finished) {
           _fail(StateError('EPUB preparation worker exited without a result'));
         }
-      }));
+      });
       return;
     }
     if (message is! List || message.length != 2 || message[0] is! int) {
@@ -175,6 +175,8 @@ class CancellableEpubPreflight {
   }
 
   void _close() {
+    _exitGraceTimer?.cancel();
+    _exitGraceTimer = null;
     unawaited(_listener.cancel());
     _messages.close();
     _isolate = null;

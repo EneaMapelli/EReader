@@ -224,6 +224,34 @@ void main() {
     expect(survivor.isFinished, isTrue);
   });
 
+  test('cancelled sibling never interrupts concurrent valid EPUB workers',
+      () async {
+    final paragraphs = List<String>.generate(
+        400, (i) => '<p>Section $i has a safe sentence.</p>').join();
+    final path = await writeEpub(
+      first: '<html><body>$paragraphs</body></html>',
+    );
+    final tasks = [
+      for (var i = 0; i < 6; i++) startEpubReaderPreflight(path),
+    ];
+    final cancelled = <Future<void>>[];
+    for (final index in [1, 3, 5]) {
+      cancelled.add(expectLater(tasks[index].result,
+          throwsA(isA<EpubPreflightCancelled>())));
+      tasks[index].cancel();
+    }
+    final surviving = await Future.wait([
+      for (final index in [0, 2, 4]) tasks[index].result,
+    ]);
+    await Future.wait(cancelled);
+    for (final prepared in surviving) {
+      expect(prepared.document.text, contains('Section 399'));
+      expect(prepared.document.epubSpineRanges, hasLength(2));
+      expect(prepared.quoted, isNotEmpty);
+    }
+    expect(tasks.every((task) => task.isFinished), isTrue);
+  });
+
   test('multiple worker exit notifications do not mask valid results',
       () async {
     final path = await writeEpub();
