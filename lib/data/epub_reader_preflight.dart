@@ -129,7 +129,7 @@ class CancellableEpubPreflight {
     if (message[0] == 1 && message[1] == 'format') {
       _fail(const FormatException('EPUB format or safety limit failed'));
     } else if (message[0] == 1 && message[1] == 'file') {
-      _fail(const FileSystemExceptionMarker());
+      _fail(const FileSystemException('EPUB local file cannot be read'));
     } else {
       _fail(StateError('EPUB background preparation failed'));
     }
@@ -152,26 +152,14 @@ class CancellableEpubPreflight {
   void cancel() => _fail(const EpubPreflightCancelled());
 }
 
-/// Marker is converted into FileSystemException by wrapper, without
-/// publishing user-specific local paths from the background worker.
-class FileSystemExceptionMarker implements Exception {
-  const FileSystemExceptionMarker();
-}
-
 /// Returns immediately, allowing callers to retain a cancellation handle
 /// even while spawning the isolate is still in progress.
 CancellableEpubPreflight startEpubReaderPreflight(String localPath) =>
     CancellableEpubPreflight._(localPath);
 
 /// Existing one-shot API remains backward compatible with old callers.
-Future<EpubReaderPreflight> prepareEpubReader(String localPath) async {
-  final task = startEpubReaderPreflight(localPath);
-  try {
-    return await task.result;
-  } on FileSystemExceptionMarker {
-    throw const FileSystemException('EPUB local file cannot be read');
-  }
-}
+Future<EpubReaderPreflight> prepareEpubReader(String localPath) =>
+    startEpubReaderPreflight(localPath).result;
 
 /// Worker receives only its send port and local path. It never opens SQLite,
 /// talks to network providers, accesses Flutter plugins or starts narration.
