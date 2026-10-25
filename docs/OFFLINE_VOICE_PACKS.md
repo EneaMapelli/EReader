@@ -115,3 +115,43 @@ References:
 - https://pub.dev/packages/sherpa_onnx
 - https://pub.dev/documentation/sherpa_onnx/latest/sherpa_onnx/OfflineTtsVitsModelConfig-class.html
 - https://github.com/k2-fsa/sherpa-onnx/tree/master/flutter-examples
+
+
+## M3 — persistent catalog and restart verification (2026-10-25)
+
+The offline installer now writes `voice-pack.json` (version 1) into the
+random staging directory alongside `model.onnx`, `tokens.txt`, and any
+explicitly enumerated `espeak-ng-data/` files. The directory is published
+only after checksums pass and the exact expected file inventory is present.
+
+- `loadInstalledOfflineVoicePack(packId, modelsDirectory)` reads the
+  on-disk metadata after restart, rejects invalid IDs, symlinked pack
+  directories, missing metadata, mismatched IDs, unknown files and damaged
+  required assets; model/token/phonemizer hashes are rechecked before a
+  usable pack is returned.
+- `inspectOfflineVoicePacks(modelsDirectory)` performs an explicit,
+  bounded on-demand scan and distinguishes ready from corrupt pack IDs. It
+  never starts inference, contacts the network, deletes invalid models or
+  reveals raw native errors. Hidden staging directories are ignored.
+- Re-verification now streams SHA-256 directly over the installed files,
+  avoiding a second temporary copy of an ONNX model that may exceed
+  hundreds of megabytes. This improves disk requirements but does not
+  make hashing CPU-free; call discovery only when requested by a future
+  settings/model manager screen, not on every reading frame.
+- Added regression tests for restart, altered metadata, unknown resources,
+  unusable pack reporting, catalog bounds and single source declarations.
+  No native model was bundled, selected automatically or synthesized in
+  these tests.
+
+**Trust limitation:** A SHA-256 stored inside the same writable model
+directory is an *integrity consistency check*, not an authenticated
+publisher signature. Someone able to replace both a pack's contents and
+manifest can substitute a different self-consistent model. A future curated
+model catalog must authenticate publisher-provided hashes/signatures and
+review licenses separately. The current UI continues to hide the
+experimental `sherpa-vits` provider pending Windows/Android acceptance.
+
+**Migration:** Previously installed experimental two-file packs without
+a `voice-pack.json` are rejected rather than silently trusted. Reinstall
+them from user-approved sources with complete checksums. No existing OS
+TTS or cloud settings are changed.
