@@ -1,0 +1,137 @@
+import 'dart:io';
+import 'package:crypto/crypto.dart';
+import 'package:ereader/data/offline_voice_pack.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+
+void main() {
+  late Directory root;
+  late Directory input;
+  late Directory installed;
+  late OfflineVoicePackManifest manifest;
+
+  setUp(() async {
+    root = await Directory.systemTemp.createTemp('ereader-offline-voice-');
+    input = await Directory(p.join(root.path, 'input')).create();
+    installed = Directory(p.join(root.path, 'installed'));
+    final model = [1, 2, 3, 4, 5, 6];
+    final tokens = [97, 98, 10, 99, 100, 10];
+    await File(p.join(input.path, 'model.onnx')).writeAsBytes(model);
+    await File(p.join(input.path, 'tokens.txt')).writeAsBytes(tokens);
+    manifest = OfflineVoicePackManifest(
+      id: 'piper-en-test',
+      displayName: 'Local sample',
+      locale: 'en-US',
+      licenseId: 'MIT',
+      modelSha256: sha256.convert(model).toString(),
+      tokensSha256: sha256.convert(tokens).toString(),
+    );
+  });
+
+  tearDown(() async {
+    if (await root.exists()) await root.delete(recursive: true);
+  });
+
+  Future<List<String>> folderContents() async =>
+      (await installed.exists())
+          ? (await installed.list().map((e) => p.basename(e.path)).toList())
+          : const [];
+
+  test('verified two-file model installs into a private pack directory',
+      () async {
+    final pack = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input,
+      modelsDirectory: installed,
+    );
+    expect(p.basename(p.dirname(pack.modelPath)), manifest.id);
+    expect(await File(pack.modelPath).readAsBytes(), [1, 2, 3, 4, 5, 6]);
+    expect(await File(pack.tokensPath).readAsBytes(), [97, 98, 10, 99, 100, 10]);
+    expect(await folderContents(), ['piper-en-test']);
+  });
+
+  test('same manifest can be reinstalled without changing existing files',
+      () async {
+    final first = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input,
+      modelsDirectory: installed,
+    );
+    final originalModified = await File(first.modelPath).lastModified();
+    final second = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input,
+      modelsDirectory: installed,
+    );
+    expect(second.modelPath, first.modelPath);
+    expect(await File(second.modelPath).lastModified(), originalModified);
+    expect(await folderContents(), ['piper-en-test']);
+  });
+
+  test('corrupt installed model is rejected without replacement', () async {
+    final pack = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input,
+      modelsDirectory: installed,
+    );
+    await File(pack.modelPath).writeAsBytes([8, 7, 6]);
+    await expectLater(
+      installOfflineVoicePack(
+        manifest: manifest, sourceDirectory: input,
+        modelsDirectory: installed,
+      ),
+      throwsFormatException,
+    );
+    expect(await File(pack.modelPath).readAsBytes(), [8, 7, 6]);
+    expect(await folderContents(), ['piper-en-test']);
+  });
+
+  test('digest mismatch rejects a new pack and removes its staging directory',
+      () async {
+    await File(p.join(input.path, 'tokens.txt')).writeAsString('altered');
+    await expectLater(
+      installOfflineVoicePack(
+        manifest: manifest, sourceDirectory: input,
+        modelsDirectory: installed,
+      ),
+      throwsFormatException,
+    );
+    expect(await folderContents(), isEmpty);
+  });
+
+  test('byte ceilings prevent oversized model and tokens installation',
+      () async {
+    await expectLater(installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input,
+      modelsDirectory: installed, maxModelBytes: 5,
+    ), throwsFormatException);
+    expect(await folderContents(), isEmpty);
+    await expectLater(installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input,
+      modelsDirectory: installed, maxTokensBytes: 5,
+    ), throwsFormatException);
+    expect(await folderContents(), isEmpty);
+  });
+
+  test('invalid IDs and untrusted manifest data never create installation',
+      () async {
+    for (final id in ['../escape', 'UPPER', 'a/b', '.hidden']) {
+      final bad = OfflineVoicePackManifest(
+        id: id, displayName: 'Invalid', locale: 'en-US',
+        licenseId: 'MIT',
+        modelSha256: manifest.modelSha256,
+        tokensSha256: manifest.tokensSha256,
+      );
+      await expectLater(installOfflineVoicePack(
+        manifest: bad, sourceDirectory: input,
+        modelsDirectory: installed,
+      ), throwsFormatException);
+    }
+    final badDigest = OfflineVoicePackManifest(
+      id: 'legitimate', displayName: 'Invalid', locale: 'en-US',
+      licenseId: 'MIT', modelSha256: 'not-a-digest',
+      tokensSha256: manifest.tokensSha256,
+    );
+    await expectLater(installOfflineVoicePack(
+      manifest: badDigest, sourceDirectory: input,
+      modelsDirectory: installed,
+    ), throwsFormatException);
+    expect(await folderContents(), isEmpty);
+  });
+}
