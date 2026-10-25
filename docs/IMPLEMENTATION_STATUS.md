@@ -550,3 +550,16 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - A manually merged older Windows run (source commit `061bde76`) contains 465 individual-case records: **434 successes, 23 assertion failures and 8 errors**. It predates the new EPUB worker and frame changes; the current release is **not tested or green**. See [Historical Local Test Review](LOCAL_TEST_LOG_REVIEW_2026-10-24.md).
 - Corrected three still-malformed named-parameter signatures in the cast review UI that prevented Dart parsing and formatting. Earlier analyzer import and LLM syntax errors were already corrected by previous commits.
 - Removed mistakenly tracked raw `.local-test-results/` from the current branch tree; existing Git history is not rewritten. Future runner publications must include only filtered test-results summaries.
+
+## M2 — regression test corrections informed by local logs (2026-10-25)
+
+- Read the historical individual cloud-prefetch test errors: they expected no
+  third request after Beta began, despite an approved *one chunk ahead* Gamma
+  render. Updated those tests to check Alpha/Beta/Gamma exactly once,
+  narrator/character/narrator voice order, and strictly serial playback.
+- Eight historical MP3 preloading test failures shared a 80-microtask polling
+  helper that did not allow realistic Windows file I/O time. Replaced it with
+  a bounded five-second monotonic wall-clock wait.
+- These changes are **tests and evidence only**: no increased cloud spending
+  cap, runtime audio logic change or proof of passing tests. The prior
+  baseline is historical and remains non-green until rerun.

@@ -43,3 +43,27 @@ The public, filtered `test-results/latest.json` still says
 to publish current results through the intended sanitized workflow.
 No Flutter analyzer, native build or test execution was performed in
 this development environment for these fixes.
+
+## Incremental test follow-up — 2026-10-25
+
+The historical cloud-prefetch failures were inspected at their actual
+assertions. Both expected exactly **two** HTTP requests after Beta
+playback began, although the approved one-chunk-ahead design
+legitimately requests Gamma at that point. Updated the two fixtures to
+require exactly one render each of Alpha, Beta and Gamma, verify the
+narrator/character/narrator voice order, and prove Gamma is not played
+before Beta finishes. This is a **test expectation correction**, not
+permission for additional speculative requests.
+
+All eight recorded MP3 preload failures in that prior run reported the
+shared `until` helper's "Expected audio operation did not occur";
+that helper yielded to the microtask/event queue only 80 times and
+never waited meaningfully for Windows filesystem flush. Changed it to
+bounded wall-clock polling (5 seconds, 10 ms intervals). This
+distinguishes genuinely stuck audio/file I/O from CPU scheduling
+variability. It does **not** prove MP3 cleanup or playback correctness;
+the tests must be rerun.
+
+No production audio code was modified in this follow-up. Prior
+failures are **not declared resolved** until the updated local suite
+confirms them. Other historical failures remain untriaged.

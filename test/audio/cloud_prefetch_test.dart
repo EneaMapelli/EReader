@@ -192,11 +192,24 @@ void main() {
         reason: 'Prebuffer must not play audio ahead of the active segment');
     output.finish(0);
     await _until(() => output.clips.length == 2);
-    expect(http.requests.length, 2,
-        reason: 'Prefetched Beta must not trigger a duplicate paid call');
     expect(player.currentIndex, 1);
-    await player.pause();
+    // With Beta now playing, Gamma is legitimately the next lookahead.
+    // One request per distinct chunk, not a hard two-request ceiling.
+    await _until(() => http.requests.length == 3);
+    expect(http.requests.map((request) => request.text),
+        ['Alpha', 'Beta', 'Gamma']);
+    expect(meter.used, 14);
+    expect(output.clips, hasLength(2),
+        reason: 'A third paid synthesis must never auto-play over Beta');
+    http.complete(2);
+    await _until(() => output.warmed.length == 2);
+    output.finish(1);
+    await _until(() => output.clips.length == 3);
+    expect(http.requests, hasLength(3),
+        reason: 'Neither Beta nor Gamma may be billed a second time');
+    output.finish(2);
     await playback;
+    expect(player.currentIndex, 3);
   });
 
   test('prefetch snapshots the NEXT character voice without switching now',
@@ -214,7 +227,15 @@ void main() {
     output.finish(0);
     http.complete(1);
     await _until(() => output.clips.length == 2);
-    expect(http.requests.length, 2);
+    await _until(() => http.requests.length == 3);
+    expect(http.requests.map((request) => request.text),
+        ['Alpha', 'Beta', 'Gamma']);
+    expect(http.requests.map((request) => request.voice),
+        ['marin', 'cedar', 'marin'],
+        reason: 'The narrator returns after the assigned character');
+    expect(output.clips, hasLength(2),
+        reason: 'The next narrator clip is synthesized, not yet played');
+    http.complete(2);
     await player.pause();
     await playback;
   });

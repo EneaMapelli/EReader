@@ -46,12 +46,17 @@ class MockMp3Decoder implements Mp3Decoder {
   }
 }
 
+/// Native-style file creation and flush are not guaranteed to complete
+/// within a fixed number of microtask yields, especially on Windows.
 Future<void> until(bool Function() condition) async {
-  for (var i = 0; i < 80; i++) {
+  final elapsed = Stopwatch()..start();
+  const deadline = Duration(seconds: 5);
+  while (elapsed.elapsed < deadline) {
     if (condition()) return;
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
   }
-  fail('Expected audio operation did not occur');
+  if (condition()) return;
+  fail('Expected audio operation was not reached within 5 seconds');
 }
 
 void main() {
