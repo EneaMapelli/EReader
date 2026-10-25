@@ -43,6 +43,9 @@ Future<void> showEpubOpeningPerformance(
                 timingRow('Identify dialogue regions', worker.quoteGroupingUs),
                 timingRow('Paragraph boundaries',
                     worker.paragraphBoundariesUs),
+                if (worker.resumeRecoveryUs != null)
+                  timingRow('Verify saved reading position',
+                      worker.resumeRecoveryUs!),
                 timingRow('Worker preparation total', worker.workerTotalUs),
                 timingRow('Cast and progressive layout', castLayoutUs),
                 timingRow('Voice and reader setup', voiceSetupUs),

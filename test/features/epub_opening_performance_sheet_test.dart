@@ -15,6 +15,7 @@ void main() {
     sourceCodeUnits: 14000,
     spineItems: 7,
     speechSegments: 102,
+    resumeRecoveryUs: 1950,
   );
 
   testWidgets('local opening metrics show only stage numbers, not book text',
@@ -38,6 +39,10 @@ void main() {
     expect(find.text('Read ZIP bytes'), findsOneWidget);
     expect(find.text('2.5 ms'), findsOneWidget);
     expect(find.text('12.3 ms'), findsOneWidget);
+    await tester.scrollUntilVisible(
+        find.text('Verify saved reading position'), 120,
+        scrollable: find.byType(Scrollable).last);
+    expect(find.text('1.9 ms'), findsOneWidget);
     await tester.scrollUntilVisible(
         find.text('70.0 ms'), 120,
         scrollable: find.byType(Scrollable).last);

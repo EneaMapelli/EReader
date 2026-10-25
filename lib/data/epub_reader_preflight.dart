@@ -3,11 +3,25 @@ import 'dart:io';
 import 'dart:isolate';
 
 import '../domain/dialogue_segmenter.dart';
+import '../domain/reading_anchor.dart';
+import 'epub_progress_recovery.dart';
 import 'book_decoder.dart';
 import 'epub_text_extractor.dart';
 import 'epub_bounded_file.dart';
 import '../features/reader/epub_chapter_navigation.dart';
 import '../features/reader/epub_visual_layout.dart';
+
+/// Only the persisted source-relative checkpoint is transferred to the EPUB
+/// worker. The worker has no database access and never receives credentials.
+class EpubResumeRequest {
+  const EpubResumeRequest({
+    required this.anchor,
+    required this.legacyOffset,
+  });
+
+  final ReadingAnchor? anchor;
+  final int legacyOffset;
+}
 
 /// Fixed-size, numeric timing data: never records book text, filenames,
 /// URLs, cloud account details or voice identities.
@@ -23,6 +37,7 @@ class EpubPreflightTimings {
     required this.sourceCodeUnits,
     required this.spineItems,
     required this.speechSegments,
+    this.resumeRecoveryUs,
   });
 
   final int archiveReadUs;
@@ -35,6 +50,8 @@ class EpubPreflightTimings {
   final int sourceCodeUnits;
   final int spineItems;
   final int speechSegments;
+  /// Null when no recovery was requested, including standalone preflights.
+  final int? resumeRecoveryUs;
 
   Map<String, int> toJson() => {
     'archiveReadUs': archiveReadUs,
@@ -47,6 +64,7 @@ class EpubPreflightTimings {
     'sourceCodeUnits': sourceCodeUnits,
     'spineItems': spineItems,
     'speechSegments': speechSegments,
+    if (resumeRecoveryUs != null) 'resumeRecoveryUs': resumeRecoveryUs!,
   };
 }
 
@@ -57,12 +75,15 @@ class EpubReaderPreflight {
     required this.quoted,
     required this.hardBoundaries,
     required this.timings,
+    this.resumeRecovery,
   });
 
   final DocumentContent document;
   final List<QuotedSpeechChunk> quoted;
   final List<int> hardBoundaries;
   final EpubPreflightTimings timings;
+  /// Computed on the worker before transferring the document to Flutter.
+  final EpubProgressRecovery? resumeRecovery;
 }
 
 class EpubPreflightCancelled implements Exception {
@@ -76,10 +97,10 @@ class EpubPreflightCancelled implements Exception {
 /// the reader. No shared database, cloud operations or native TTS state is
 /// ever passed to the worker.
 class CancellableEpubPreflight {
-  CancellableEpubPreflight._(String localPath) {
+  CancellableEpubPreflight._(String localPath, EpubResumeRequest? resume) {
     _messages = ReceivePort();
     _listener = _messages.listen(_handleMessage);
-    unawaited(_spawn(localPath));
+    unawaited(_spawn(localPath, resume));
   }
 
   late final ReceivePort _messages;
@@ -92,11 +113,11 @@ class CancellableEpubPreflight {
   Future<EpubReaderPreflight> get result => _completion.future;
   bool get isFinished => _finished;
 
-  Future<void> _spawn(String localPath) async {
+  Future<void> _spawn(String localPath, EpubResumeRequest? resume) async {
     try {
-      final isolate = await Isolate.spawn<(SendPort, String)>(
+      final isolate = await Isolate.spawn<(SendPort, String, EpubResumeRequest?)>(
         _workerMain,
-        (_messages.sendPort, localPath),
+        (_messages.sendPort, localPath, resume),
         onExit: _messages.sendPort,
         debugName: 'EReader EPUB reader preparation',
       );
@@ -154,20 +175,22 @@ class CancellableEpubPreflight {
 
 /// Returns immediately, allowing callers to retain a cancellation handle
 /// even while spawning the isolate is still in progress.
-CancellableEpubPreflight startEpubReaderPreflight(String localPath) =>
-    CancellableEpubPreflight._(localPath);
+CancellableEpubPreflight startEpubReaderPreflight(
+  String localPath, {EpubResumeRequest? resume}
+) => CancellableEpubPreflight._(localPath, resume);
 
 /// Existing one-shot API remains backward compatible with old callers.
-Future<EpubReaderPreflight> prepareEpubReader(String localPath) =>
-    startEpubReaderPreflight(localPath).result;
+Future<EpubReaderPreflight> prepareEpubReader(
+  String localPath, {EpubResumeRequest? resume}
+) => startEpubReaderPreflight(localPath, resume: resume).result;
 
 /// Worker receives only its send port and local path. It never opens SQLite,
 /// talks to network providers, accesses Flutter plugins or starts narration.
 /// The result and fixed error codes are ordinary isolate-sendable objects.
-void _workerMain((SendPort, String) message) {
+void _workerMain((SendPort, String, EpubResumeRequest?) message) {
   Object response;
   try {
-    response = [0, _prepareEpubFile(message.$2)];
+    response = [0, _prepareEpubFile(message.$2, resume: message.$3)];
   } on FormatException {
     response = [1, 'format'];
   } on FileSystemException {
@@ -180,7 +203,7 @@ void _workerMain((SendPort, String) message) {
   Isolate.exit(message.$1, response);
 }
 
-EpubReaderPreflight _prepareEpubFile(String localPath) {
+EpubReaderPreflight _prepareEpubFile(String localPath, {EpubResumeRequest? resume}) {
   final stopwatch = Stopwatch()..start();
   int measureStart = 0;
   final bytes = readBoundedEpubFile(localPath);
@@ -203,10 +226,24 @@ EpubReaderPreflight _prepareEpubFile(String localPath) {
   final boundaries = epubParagraphHardBoundaries(document);
   final boundariesUs = stopwatch.elapsedMicroseconds - measureStart;
 
+  EpubProgressRecovery? resumeRecovery;
+  int? resumeRecoveryUs;
+  if (resume != null) {
+    // A bounded v2 fingerprint relocation can hash thousands of candidate
+    // offsets. Perform it here while the canonical source is still owned
+    // by this isolate; never copy the whole book into a second worker.
+    measureStart = stopwatch.elapsedMicroseconds;
+    resumeRecovery = resolveEpubReadingProgress(
+      document, anchor: resume.anchor, legacyOffset: resume.legacyOffset,
+    );
+    resumeRecoveryUs = stopwatch.elapsedMicroseconds - measureStart;
+  }
+
   return EpubReaderPreflight(
     document: document,
     quoted: quoted,
     hardBoundaries: boundaries,
+    resumeRecovery: resumeRecovery,
     timings: EpubPreflightTimings(
       archiveReadUs: archiveReadUs,
       xhtmlExtractionUs: extractionUs,
@@ -218,6 +255,7 @@ EpubReaderPreflight _prepareEpubFile(String localPath) {
       sourceCodeUnits: document.text.length,
       spineItems: document.epubSpineRanges.length,
       speechSegments: base.length,
+      resumeRecoveryUs: resumeRecoveryUs,
     ),
   );
 }

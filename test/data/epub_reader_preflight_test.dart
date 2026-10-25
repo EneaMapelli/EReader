@@ -4,6 +4,8 @@ import 'package:archive/archive.dart';
 import 'package:ereader/data/book_decoder.dart';
 import 'package:ereader/domain/book.dart';
 import 'package:ereader/data/epub_reader_preflight.dart';
+import 'package:ereader/data/epub_progress_recovery.dart';
+import 'package:ereader/domain/reading_anchor.dart';
 import 'package:ereader/domain/dialogue_segmenter.dart';
 import 'package:ereader/features/reader/epub_chapter_navigation.dart';
 import 'package:ereader/features/reader/epub_visual_layout.dart';
@@ -95,6 +97,81 @@ void main() {
       expect(preflight.document.text.substring(segment.start, segment.end),
           segment.text);
     }
+  });
+
+  test('worker verifies an exact v2 checkpoint using its own EPUB source',
+      () async {
+    final path = await writeEpub();
+    final first = await prepareEpubReader(path);
+    final offset = first.document.text.indexOf('second paragraph');
+    expect(offset, greaterThan(0));
+    final anchor = first.document.anchorAt(BookFormat.epub, offset);
+    final withResume = await prepareEpubReader(
+      path, resume: EpubResumeRequest(anchor: anchor, legacyOffset: 0),
+    );
+    expect(withResume.resumeRecovery?.status,
+        EpubProgressRecoveryStatus.exact);
+    expect(withResume.resumeRecovery?.offset, offset);
+    expect(withResume.resumeRecovery?.shouldPersist, isFalse);
+    expect(withResume.timings.resumeRecoveryUs, isNotNull);
+    expect(withResume.timings.resumeRecoveryUs, greaterThanOrEqualTo(0));
+    expect(withResume.timings.toJson()['resumeRecoveryUs'], isNotNull);
+    expect(first.resumeRecovery, isNull);
+    expect(first.timings.resumeRecoveryUs, isNull);
+  });
+
+  test('worker relocates a unique changed-chapter anchor, never a stale ID',
+      () async {
+    final path = await writeEpub(
+      first: '<html><body><p>The morning starts. '
+          'A unique passage continues.</p></body></html>',
+    );
+    final original = await prepareEpubReader(path);
+    final oldOffset = original.document.text.indexOf('unique passage');
+    expect(oldOffset, greaterThan(0));
+    final anchor = original.document.anchorAt(BookFormat.epub, oldOffset);
+    await writeEpub(
+      first: '<html><body><p>The morning starts.</p>'
+          '<p>A unique passage continues.</p></body></html>',
+    );
+    final changed = await prepareEpubReader(
+      path, resume: EpubResumeRequest(
+        anchor: anchor, legacyOffset: oldOffset,
+      ),
+    );
+    final relocatedOffset = changed.document.text.indexOf('unique passage');
+    expect(relocatedOffset, greaterThan(oldOffset));
+    expect(changed.resumeRecovery?.status,
+        EpubProgressRecoveryStatus.relocated);
+    expect(changed.resumeRecovery?.offset, relocatedOffset);
+    expect(changed.resumeRecovery?.shouldPersist, isTrue);
+    final unknownSection = await prepareEpubReader(
+      path, resume: const EpubResumeRequest(
+        anchor: ReadingAnchor(
+          kind: AnchorKind.epubSpine, sourceId: 'removed',
+          localOffset: 0,
+        ),
+        legacyOffset: 500,
+      ),
+    );
+    expect(unknownSection.resumeRecovery?.status,
+        EpubProgressRecoveryStatus.needsReview);
+    expect(unknownSection.resumeRecovery?.shouldPersist, isFalse);
+    expect(unknownSection.resumeRecovery?.offset, 0);
+  });
+
+  test('worker handles offset-only legacy checkpoints without rewrites',
+      () async {
+    final path = await writeEpub();
+    final result = await prepareEpubReader(
+      path, resume: const EpubResumeRequest(
+        anchor: null, legacyOffset: 9,
+      ),
+    );
+    expect(result.resumeRecovery?.status,
+        EpubProgressRecoveryStatus.legacyUnverified);
+    expect(result.resumeRecovery?.offset, 9);
+    expect(result.resumeRecovery?.shouldPersist, isFalse);
   });
 
   test('preflight timing report records nonnegative stages and safe counts',

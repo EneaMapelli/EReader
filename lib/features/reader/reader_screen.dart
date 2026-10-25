@@ -116,8 +116,19 @@ class _ReaderScreenState extends State<ReaderScreen>
       // On EPUB, the background isolate prepares the immutable source,
       // initial speech chunks, quote group markers and paragraph boundaries
       // together. Only user-specific cast resolution stays in this isolate.
+      // Capture the latest persisted position before the worker starts.
+      // The source fingerprint lookup is CPU-heavy for long chapters, so
+      // run it beside extraction instead of hashing on the Flutter isolate.
+      final checkpointAtStart = widget.store.getBook(widget.book.id) ??
+          widget.book;
       task = widget.book.format == BookFormat.epub
-          ? startEpubReaderPreflight(widget.book.localPath)
+          ? startEpubReaderPreflight(
+              widget.book.localPath,
+              resume: EpubResumeRequest(
+                anchor: checkpointAtStart.progressAnchor,
+                legacyOffset: checkpointAtStart.progressOffset,
+              ),
+            )
           : null;
       _activeEpubTask = task;
       final preflight = task == null ? null : await task.result;
@@ -176,13 +187,27 @@ class _ReaderScreenState extends State<ReaderScreen>
       );
       provisionalPlayer = player;
       final latestBook = widget.store.getBook(widget.book.id) ?? widget.book;
+      final initialAnchor = checkpointAtStart.progressAnchor;
+      final newestAnchor = latestBook.progressAnchor;
+      final checkpointUnchanged =
+          checkpointAtStart.progressOffset == latestBook.progressOffset &&
+          initialAnchor?.kind == newestAnchor?.kind &&
+          initialAnchor?.sourceId == newestAnchor?.sourceId &&
+          initialAnchor?.localOffset == newestAnchor?.localOffset &&
+          initialAnchor?.contextBefore == newestAnchor?.contextBefore &&
+          initialAnchor?.contextAfter == newestAnchor?.contextAfter;
+      // Another write may have reached SQLite while the worker was active.
+      // Never adopt a computed result for an older checkpoint. The rare
+      // changed-checkpoint case uses the conservative existing resolver.
       final EpubProgressRecovery? epubRecovery =
           widget.book.format == BookFormat.epub
-              ? resolveEpubReadingProgress(
-                  document,
-                  anchor: latestBook.progressAnchor,
-                  legacyOffset: latestBook.progressOffset,
-                )
+              ? (checkpointUnchanged
+                  ? preflight!.resumeRecovery!
+                  : resolveEpubReadingProgress(
+                      document,
+                      anchor: latestBook.progressAnchor,
+                      legacyOffset: latestBook.progressOffset,
+                    ))
               : null;
       final saved = epubRecovery?.offset ??
           (latestBook.progressAnchor == null
