@@ -186,7 +186,7 @@ void main() {
         ['First.', 'Second.']);
     expect(window.contextSegments.first.start, lessThan(
         window.contextSegments.last.start));
-    expect(window.contextExcerpt, 'First.\\nSecond.');
+    expect(window.contextExcerpt, 'First.\nSecond.');
   });
 
   test('reading position cap blocks future incomplete dialogue segment', () {

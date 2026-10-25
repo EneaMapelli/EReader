@@ -158,7 +158,9 @@ void main() {
     ));
     expect(result.footnotePreviews, isEmpty);
     expect(result.links.single.isFootnote, isTrue);
-    expect(result.text, contains(longNote));
+    // The extractor intentionally trims whitespace at the end of a
+    // spine item: every note word survives, not the trailing separator.
+    expect(result.text, contains(longNote.trimRight()));
   });
 
   test('manifest-declared non-spine note previews never join spoken source', () {

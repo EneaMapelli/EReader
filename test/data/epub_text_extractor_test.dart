@@ -171,6 +171,20 @@ void main() {
     expect(italicStarts, isNot(contains(matches[2].start)));
   });
 
+  test('malformed head heading never becomes source or chapter title', () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><head><h1>Invisible metadata heading</h1>'
+          '</head><body><h2>Actual chapter</h2>'
+          '<p>Spoken content.</p></body></html>',
+    ));
+    expect(result.text, isNot(contains('Invisible metadata heading')));
+    expect(result.ranges.first.title, 'Actual chapter');
+    expect(result.text, contains('Spoken content.'));
+    expect(result.styles.every((span) =>
+        result.text.substring(span.start, span.end)
+            != 'Invisible metadata heading'), isTrue);
+  });
+
   test('scripts, NAV and metadata never become styled reading content', () {
     final result = extractor.extract(makeEpub(
       first: '<html><head><h1>Secret title</h1></head><body>'

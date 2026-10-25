@@ -636,7 +636,9 @@ class EpubTextExtractor {
   /// scripts, page metadata, or a navigation-only manifest document).
   /// The source text and UTF-16 offsets remain entirely unchanged.
   static String _extractChapterTitle(String xhtml, int fallbackNumber) {
-    final dom = html_parser.parse(xhtml);
+    // The body-title parser must apply the same preparse head filtering as
+    // spoken text or malformed headings from metadata can be promoted.
+    final dom = html_parser.parse(preprocessEpubVisibleXhtml(xhtml));
     for (final unwanted in dom.querySelectorAll(
         'script,style,nav,svg,head,noscript')) {
       unwanted.remove();

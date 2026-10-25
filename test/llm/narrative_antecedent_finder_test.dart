@@ -50,6 +50,14 @@ void main() {
     expect(result.cues.single.kind, AntecedentCueKind.explicitName);
   });
 
+  test('a newer standalone name outranks an older full alias', () {
+    const text = 'Captain Mira answered. Mira returned. She nodded.';
+    final result = search(text, 'She', cast: const [mira]);
+    expect(result.cues, hasLength(1));
+    expect(result.cues.single.matchedText, 'Mira');
+    expect(result.cues.single.start, text.lastIndexOf('Mira'));
+  });
+
   test('whole word matching does not confuse Mira with Amira', () {
     const text = 'Amira spoke. She answered.';
     final result = search(text, 'She', cast: const [mira]);

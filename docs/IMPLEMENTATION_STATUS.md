@@ -608,3 +608,20 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Authored three unexecuted failure/regression tests with injected
   deletion failure, warm-load failure, and concurrent Dispose callers.
   No assertion of green tests or real Windows/Android validation.
+
+## M2 — EPUB preparse metadata isolation and source-aligned regressions (2026-10-25)
+
+- The common XHTML preprocessor now removes a `<head>…</head>`
+  region before DOM parsing. This prevents HTML5 tag-repair rules from
+  promoting malformed hidden headings into spoken text, visual styles,
+  structural links, or book titles. The title parser now uses the same
+  preprocessor as all other EPUB consumers.
+- Corrected two historical test expectations rather than changing
+  legitimate source normalization: terminal note whitespace is trimmed
+  and displayed paragraphs skip leading spaces while preserving original
+  UTF-16 source offsets and narration boundaries.
+- Antecedent finder now prefers the complete alias at equal end position
+  rather than a nested canonical name; added a newer-name regression.
+  Also corrected a literal `\\n` test expectation to a real newline.
+- Added one EPUB hidden-heading regression and one alias-recency
+  regression; none of these authored tests has yet run on Windows/Android.

@@ -188,7 +188,14 @@ void main() {
       buildEpubChapters(doc, prepared.segments),
     );
     expect(layout.blocks.length, 2);
-    expect(layout.blocks[1].start, boundaries.first);
+    // The source offset still starts at the hard boundary, but a visual
+    // paragraph excludes its leading whitespace without changing speech.
+    expect(layout.blocks[1].start, boundaries.first + 1);
+    expect(layout.blocks[1].text,
+        source.substring(boundaries.first + 1));
+    expect(prepared.segments.any((segment) =>
+        segment.start < boundaries.first &&
+        segment.end > boundaries.first), isFalse);
   });
 
   test('spine chapter boundaries and two paragraphs keep chapter mapping', () {

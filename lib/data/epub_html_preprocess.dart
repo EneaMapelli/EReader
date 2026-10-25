@@ -11,7 +11,16 @@ String preprocessEpubVisibleXhtml(String xhtml) {
     r'''<br\b(?:[^>"']|"[^"]*"|'[^']*')*\/?>''',
     caseSensitive: false,
   );
-  return xhtml
+  // An HTML5 parser can repair malformed XHTML by reparenting invalid
+  // heading elements from <head> into <body>. Remove the entire original
+  // head BEFORE parsing, or hidden metadata can become spoken prose.
+  // All consumers (text, typography, links and images) share this filter,
+  // preserving identical UTF-16 source offsets.
+  final bodyOnly = xhtml.replaceAll(
+    RegExp(r'<head\b[^>]*>[\s\S]*?</head\s*>', caseSensitive: false),
+    '',
+  );
+  return bodyOnly
       .replaceAll(breaks, '\n')
       .replaceAll(
         RegExp(r'</(p|div|h[1-6]|li|blockquote|section)>',

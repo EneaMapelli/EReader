@@ -199,10 +199,16 @@ class NarrativeAntecedentFinder {
       );
     }
 
-    // Recency is a useful *display order* but not an identity verdict.
+    // Recency follows the END of a mention. An alias may contain the
+    // shorter canonical name at its tail ("Captain Mira" vs "Mira").
+    // If both end at the same position, prefer the complete longer alias
+    // rather than discarding it as a duplicate of the shorter substring.
+    // This ordering supplies evidence only, never an identity verdict.
     found.sort((a, b) {
-      final recency = b.start.compareTo(a.start);
-      return recency != 0 ? recency :
+      final recency = b.end.compareTo(a.end);
+      if (recency != 0) return recency;
+      final specificity = a.start.compareTo(b.start);
+      return specificity != 0 ? specificity :
           a.characterId.compareTo(b.characterId);
     });
     final used = <String>{};

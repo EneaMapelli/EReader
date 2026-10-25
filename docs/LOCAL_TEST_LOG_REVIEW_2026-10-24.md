@@ -114,3 +114,27 @@ the updated Windows/Android application. Re-run all affected tests.
 - No existing failure count is marked fixed: these test and production
   changes need a fresh execution on the current branch. The historical
   baseline and `NOT_RUN` current published status remain unchanged.
+
+## EPUB source integrity and narrative cue corrections — 2026-10-25
+
+- HTML5 error recovery promoted a malformed `<h1>` from `<head>` into
+  the parsed XHTML body. Head content is now removed in the common
+  preprocessing stage BEFORE DOM parsing; structural metadata, styles and
+  spoken text therefore continue using identical normalization and offsets.
+  The chapter-title parser also uses that safe preprocessing.
+- The historical oversized-note fixture compared against 500 words with
+  a trailing space, although spine extraction intentionally trims terminal
+  whitespace. Updated to assert all words survive, not that trailing
+  whitespace is preserved.
+- The EPUB visual layout fixture expected a display paragraph to start on
+  a whitespace character. Corrected the assertion to skip the leading
+  space while retaining source-aligned speech and hard spine boundaries.
+- The historical LLM context fixture was written with a literal backslash
+  followed by `n`; the implementation returns the intended newline.
+- Narrative antecedent cues now sort by newest matched END offset and
+  prefer the full overlapping alias when end offsets are identical.
+  This fixes the canonical-name substring winning over `Captain Mira`;
+  added a newer-name regression so a later independent mention still wins.
+
+The EPUB and cue changes are source and test edits only. No updated
+Flutter execution result exists: the published status remains NOT_RUN.
