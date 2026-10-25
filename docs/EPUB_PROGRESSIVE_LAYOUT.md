@@ -235,3 +235,15 @@ source anchor once during seek rather than performing a temporary
 write of the speech segment's earlier or later starting offset.
 An isolated regression covers both modes and invalid/missing visual
 positions. No model casting, text transformation or cloud request changes.
+
+## Bookmark-sheet and paused TTS scroll alignment (2026-10-25)
+
+EPUB bookmarks now capture the actual visual source position when
+narration is paused, including a non-spoken paragraph, and use nearby
+source text for the suggested bookmark title. Reopening a bookmark
+seeks and scrolls to its exact source offset rather than forcing a
+coarse spoken-segment start. While a precise jump happens with audio
+paused, TTS auto-follow does not re-scroll to the nearest spoken chunk.
+Post-frame follow callbacks recheck the same active player and playback
+state to avoid stale scrolls after a pause/reload. Explicit Next/Previous
+still positions the viewport independently of automatic follow.

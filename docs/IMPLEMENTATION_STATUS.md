@@ -908,3 +908,18 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Added a deterministic link-history regression for unspoken captions,
   narration in progress, and missing/invalid visual offsets.
   No local Flutter/Windows run is available for these changes yet.
+
+## M2 — EPUB bookmarks use precise visual sources, not coarse TTS starts (2026-10-25)
+
+- The bookmark sheet now opens on the actual visual UTF-16 source offset
+  for a paused EPUB, even for non-spoken captions or positions inside
+  large speech segments. Its proposed title excerpt comes from the same
+  original source rather than an unrelated future spoken segment.
+- Selecting a saved EPUB bookmark now pauses an active TTS session and
+  uses the exact source-offset visual paragraph, including EOF offsets;
+  the audio seek still uses a binary lookup of playable segments.
+- EPUB speech auto-follow is now triggered only while audio is actually
+  playing. Its queued post-frame scroll also rechecks playback and session
+  identity, so an old TTS follow callback cannot undo a paused exact
+  bookmark/link jump. Manual Next/Previous still scrolls explicitly.
+- No new Flutter/Windows result is claimed; run on-device before release.

@@ -528,7 +528,11 @@ class _ReaderScreenState extends State<ReaderScreen>
             player.segments[_visiblePositionIndex!].start;
       }
     }
-    if (player != null && player.segments.isNotEmpty && _autoFollow) {
+    // An EPUB exact visual jump may seek the native audio cursor while
+    // paused. Never schedule a TTS auto-follow scroll back to its coarse
+    // segment after that jump; follow speech only while actually playing.
+    if (player != null && player.segments.isNotEmpty && _autoFollow &&
+        (widget.book.format != BookFormat.epub || player.isPlaying)) {
       final segmentIndex = player.currentIndex
           .clamp(0, player.segments.length - 1).toInt();
       final target = widget.book.format == BookFormat.epub
@@ -537,7 +541,10 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (target != _lastFollowedIndex) {
         _lastFollowedIndex = target;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || !_autoFollow || !_itemScrollController.isAttached) {
+          if (!mounted || _player != player || !_autoFollow ||
+              !_itemScrollController.isAttached ||
+              (widget.book.format == BookFormat.epub &&
+                  !player.isPlaying)) {
             return;
           }
           _itemScrollController.jumpTo(index: target, alignment: 0.12);
@@ -690,20 +697,40 @@ class _ReaderScreenState extends State<ReaderScreen>
         : (_visiblePositionIndex ?? player.currentIndex)
             .clamp(0, player.segments.length - 1).toInt();
     final segment = player.segments[index];
+    // A bookmarked EPUB position is a source location, not an audio
+    // segment. Silent captions and mid-segment text must be bookmarkable.
+    final sourceOffset = widget.book.format == BookFormat.epub
+        ? epubSourceOffsetForLinkReturn(
+            speechOffset: segment.start,
+            narrationActive: player.isPlaying,
+            visualOffset: _currentEpubVisualSourceOffset,
+          )
+        : segment.start;
+    final excerpt = widget.book.format == BookFormat.epub &&
+            sourceOffset >= 0 && sourceOffset < document.text.length
+        ? document.text.substring(sourceOffset,
+            (sourceOffset + 160).clamp(0, document.text.length).toInt())
+        : segment.text;
     final offset = await showBookBookmarks(
       context: context,
       store: widget.store,
       book: widget.book,
       document: document,
-      currentOffset: segment.start,
-      currentExcerpt: segment.text,
+      currentOffset: sourceOffset,
+      currentExcerpt: excerpt,
     );
-    if (!mounted || offset == null) return;
-    var destination = player.segments.indexWhere(
-      (entry) => entry.end > offset,
-    );
-    if (destination < 0) destination = player.segments.length - 1;
-    await _select(destination);
+    if (!mounted || offset == null || _player != player) return;
+    final destination = speechSegmentIndexForOffset(player.segments, offset);
+    if (destination < 0) return;
+    if (widget.book.format == BookFormat.epub) {
+      if (offset < 0 || offset > document.text.length) return;
+      _saveVisualPositionTimer?.cancel();
+      if (!player.isSettledIdle) await player.pause();
+      if (!mounted || _player != player) return;
+      await _select(destination, visualSourceOffset: offset);
+    } else {
+      await _select(destination);
+    }
   }
 
   Future<void> _openSpeechSettings() async {
@@ -813,6 +840,14 @@ class _ReaderScreenState extends State<ReaderScreen>
         _visualCheckpoint.clear();
         _currentEpubVisualSourceOffset =
             player.segments[player.currentIndex].start;
+        final target = _epubLayout.blockForSegment(player.currentIndex);
+        _visualCheckpoint.hold(
+            _currentEpubVisualSourceOffset, awaitTarget: true);
+        _lastVisibleEpubBlockIndex = target;
+        _lastFollowedIndex = target;
+        if (_itemScrollController.isAttached) {
+          _itemScrollController.jumpTo(index: target, alignment: 0.12);
+        }
       }
       await widget.store.savePosition(
         widget.book.id,
