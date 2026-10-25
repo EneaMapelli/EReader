@@ -498,7 +498,13 @@ class _ReaderScreenState extends State<ReaderScreen>
               ListTile(title: Text(authorial
                   ? 'Book table of contents' : 'EPUB spine sections')),
               Expanded(
-                child: ListView.builder(
+                child: ScrollablePositionedList.builder(
+                  // Keep publisher TOCs with thousands of entries virtual,
+                  // but start near the current EPUB chapter rather than
+                  // building/scanning earlier chapters to scroll there.
+                  initialScrollIndex: authorial
+                      ? (activeTocIndex < 0 ? 0 : activeTocIndex)
+                      : (current < 0 ? 0 : current),
                   itemCount: authorial ? entries.length : _chapters.length,
                   itemBuilder: (_, index) {
                     if (authorial) {
