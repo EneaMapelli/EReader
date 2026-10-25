@@ -1,1 +1,58 @@
-[]
+[
+    {
+        "file":  "E:/GitHub/EReader/test/data/epub_encoding_integration_test.dart",
+        "name":  "declared Windows-1252 chapter keeps punctuation and style offsets",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/data/epub_encoding_integration_test.dart",
+        "name":  "UTF-16LE and BE XHTML chapters yield the same spoken source",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/data/epub_reader_preflight_test.dart",
+        "name":  "independent preflights cannot cancel each other",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0024"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/data/epub_text_extractor_test.dart",
+        "name":  "malformed head heading never becomes source or chapter title",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/data/epub_text_extractor_test.dart",
+        "name":  "spine labels use XHTML body headings, not navigation or head",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0026"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/features/epub_chapter_navigation_test.dart",
+        "name":  "quote coalescing never merges across hard EPUB spine boundary",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0050"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/features/epub_opening_performance_sheet_test.dart",
+        "name":  "frame capture starts only by explicit action, and report shows bounded numeric timings",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0055"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/features/epub_progressive_layout_test.dart",
+        "name":  "12000 paragraphs index without constructing any rich runs",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0057"
+    }
+]
