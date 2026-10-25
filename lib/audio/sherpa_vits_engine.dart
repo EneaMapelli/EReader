@@ -88,9 +88,11 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
     required this.pack,
     this.dataDir = '',
     OfflineWaveSynthesizer? synthesizer,
+    VitsWaveJob Function(VitsWaveRequest)? jobFactory,
     OfflineWaveOutput? output,
     Future<Directory> Function()? temporaryDirectory,
   })  : _synthesizer = synthesizer,
+        _jobFactory = jobFactory ?? VitsWaveJob.new,
         _output = output ?? JustAudioWaveOutput(),
         _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory {
     pack.manifest.validate();
@@ -100,6 +102,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
   final String dataDir;
   /// Optional mock synthesizer; production uses a cancellable isolate job.
   final OfflineWaveSynthesizer? _synthesizer;
+  final VitsWaveJob Function(VitsWaveRequest) _jobFactory;
   VitsWaveJob? _nativeJob;
   final OfflineWaveOutput _output;
   final Future<Directory> Function() _temporaryDirectory;
@@ -175,7 +178,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
         if (_nativeJob != null) {
           throw StateError('Offline synthesis is already running');
         }
-        final job = VitsWaveJob(VitsWaveRequest(
+        final job = _jobFactory(VitsWaveRequest(
           text: text,
           modelPath: pack.modelPath,
           tokensPath: pack.tokensPath,
