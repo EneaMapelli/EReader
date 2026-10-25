@@ -104,6 +104,36 @@ void main() {
     expect(selected?.start, source.indexOf('echo item 100.'));
   });
 
+
+  testWidgets('changing EPUB search query resets the result page',
+      (tester) async {
+    final source = List<String>.generate(
+        205, (i) => 'echo entry $i').join('\n');
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(builder: (context) => ElevatedButton(
+        onPressed: () => showBookSourceSearch(context, source),
+        child: const Text('Search EPUB pages'),
+      ))),
+    ));
+    await tester.tap(find.text('Search EPUB pages'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'echo');
+    await tester.pump(const Duration(milliseconds: 190));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next 100'));
+    await tester.pumpAndSettle();
+    expect(find.text('Matches 101–200 (more available)'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'entry 204');
+    await tester.pump(const Duration(milliseconds: 190));
+    await tester.pumpAndSettle();
+    expect(find.text('Matches: 1'), findsOneWidget);
+    expect(find.text('Source offset ${source.indexOf('entry 204')}'),
+        findsOneWidget);
+    expect(find.text('Next 100'), findsNothing);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('closed search dialog never navigates or starts playback',
       (tester) async {
     const book = 'Visible text and a quiet illustration.';

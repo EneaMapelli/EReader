@@ -1053,3 +1053,17 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   three, returning to page two and opening a source-exact hit.
 - Dart/Flutter analyzer, widget tests and Windows/Android device tests
   have NOT run for this commit; the latest published report is older.
+
+## M1/M2 — malformed XHTML head isolation and search page scroll reset (2026-10-25)
+
+- Strips a broken, unterminated XHTML <head> through the subsequent <body>
+  start when present, instead of letting HTML5 error recovery expose private
+  head headings/metadata as source speech or an OPF chapter title. If an
+  unclosed head has no body, its contents fail closed as hidden text.
+- Adds end-to-end extractor tests for both malformed cases. All EPUB source,
+  styles, structural links and chapter-title consumers already share this
+  same preprocessing function, so they receive identical visible source.
+- An EPUB search page or new query now builds a fresh scrollable result list,
+  avoiding stale deep scroll positions from the previous 100-result page.
+  A widget regression verifies returning to page one on query change.
+- These changes require a fresh Dart analyzer/test run on Windows/Android.

@@ -185,6 +185,37 @@ void main() {
             != 'Invisible metadata heading'), isTrue);
   });
 
+
+  test('unterminated XHTML head does not leak private headings into body',
+      () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><head><title>Private metadata</title>'
+          '<h1>Invisible chapter</h1><body><h2>Public chapter</h2>'
+          '<p>Safe visible content.</p></body></html>',
+    ));
+    expect(result.ranges.first.title, 'Public chapter');
+    expect(result.text, contains('Safe visible content.'));
+    expect(result.text, isNot(contains('Private metadata')));
+    expect(result.text, isNot(contains('Invisible chapter')));
+    for (final span in result.styles) {
+      expect(result.text.substring(span.start, span.end),
+          isNot(contains('Invisible chapter')));
+    }
+  });
+
+  test('unterminated head without body skips hidden spine prose', () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><head><h1>Private draft title</h1>'
+          '<p>Internal notes, never speak.</p>',
+      second: '<html><body><h2>Visible chapter</h2>'
+          '<p>Speak this text.</p></body></html>',
+    ));
+    expect(result.text, isNot(contains('Private draft title')));
+    expect(result.text, isNot(contains('Internal notes')));
+    expect(result.text, contains('Speak this text.'));
+    expect(result.ranges.single.title, 'Visible chapter');
+  });
+
   test('chapter heading stops before following paragraph and metadata',
       () {
     final result = extractor.extract(makeEpub(

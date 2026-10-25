@@ -173,6 +173,9 @@ Future<BookSourceMatch?> showBookSourceSearch(BuildContext context, String sourc
                 const SizedBox(height: 8),
                 Flexible(
                   child: ListView.builder(
+                    // A new result page must begin at the first hit, not
+                    // inherit the previous page's deep scroll position.
+                    key: ValueKey('epub-search:$searchTerm:$page'),
                     shrinkWrap: true,
                     itemCount: matches.length,
                     itemBuilder: (context, index) {
