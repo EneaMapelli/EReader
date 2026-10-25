@@ -1,0 +1,13 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":38248,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/audio/speech_audio_cache_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/audio/speech_audio_cache_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":8,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":1915}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":3,"line":null,"column":null,"url":null},"type":"group","time":1918}
+{"test":{"id":3,"name":"reuses exact data per book and key without leaking to other books","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":19,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/speech_audio_cache_test.dart"},"type":"testStart","time":1919}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1970}
+{"test":{"id":4,"name":"prevents cache directory traversal via book id or clip id","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":33,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/speech_audio_cache_test.dart"},"type":"testStart","time":1971}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1978}
+{"test":{"id":5,"name":"clear all deletes generated local speech files","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":46,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/speech_audio_cache_test.dart"},"type":"testStart","time":1979}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1993}
+{"success":true,"type":"done","time":2018}

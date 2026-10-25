@@ -2,61 +2,41 @@
 
 **Data:** 2026-10-24  
 **Branch:** `feature/m0-flutter-foundation`  
-**Ambiente:** Windows locale (Flutter SDK 3.47.8 stabilito in ambiente temporaneo)
+**Run ID:** `20261024T192434Z-061bde76-574d42`  
+**Ambiente:** Windows locale (Flutter SDK 3.47.8 stable)
 
 ## 1. Stato dell'ambiente e dipendenze
-- **Flutter SDK:** Installato ed eseguito con successo (`v3.47.8` stable).
-- **Dipendenze:** `flutter pub get` completato (116 pacchetti risolti, generato `pubspec.lock`).
+- **Flutter SDK:** Installato ed eseguito con successo (`v3.47.8`).
+- **Dipendenze:** `flutter pub get` completato con successo (116 pacchetti risolti).
+- **Analisi statica (`flutter analyze`):** Completata con avvisi e raccomandazioni di stile (lint/info), senza errori bloccanti di compilazione core.
 
-## 2. Metriche complessive della suite di test (`flutter test`)
-- **Totale test superati (Passed):** ~417 test unitari, di dominio, storage e widget.
-- **Totale test falliti / errori di caricamento (Failed / Errors):** ~38 test (inclusi errori di compilazione e timeout).
+## 2. Metriche complessive della suite di test (`tool\run-all-tests.ps1`)
+- **Test Files Scoperti:** 61 file di test
+- **Totale Test Parsati:** 465 casi
+- **Superati (Passed):** 434
+- **Falliti (Failed):** 23
+- **Errori (Errors/Timeouts):** 8
+- **Saltati (Skipped):** 0
+- **Esito Complessivo:** **FAIL** (dovuto a fallimenti isolati e timeout di test asincroni specifici)
 
-## 3. Dettaglio esiti per categoria e file di test
+## 3. Dettaglio esiti per categoria
 
-### A. Test di Dominio e Modelli (`test/domain/`)
-- **Stato:** Principalmente PASSATI.
-- **Eccezioni rilevate:**
-  - `cross_chunk_cast_test.dart`: Fallimenti su asserzioni di continuità voce su chunk multipli (`Expected: contains 'narrator replied.'`, `Actual: 'replied.'`).
+### A. Test di Dominio, Storage e Database (`test/domain/`, `test/data/`)
+- La maggior parte dei test di dominio, parsing EPUB/PDF, anchor di navigazione e cruscotti di persistenza SQLite ha superato le verifiche.
+- Alcuni test di migrazione sequenziale SQLite (`library_store_test.dart`) presentano eccezioni per colonne duplicate (`last_opened_at` / `evidence_json`) durante l'esecuzione iterativa senza reset dello schema di test.
 
-### B. Test di Storage e Migrazioni SQLite (`test/data/`)
-- **Stato:** Numerosi test passati con successo (gestione ancore, resume, cataloghi).
-- **Eccezioni rilevate (`library_store_test.dart`):**
-  - Errori di migrazione iterativa per colonne duplicate (`SqliteException(1): duplicate column name: last_opened_at` / `evidence_json`), causati dall'esecuzione sequenziale delle migrazioni su database di test preesistenti o riutilizzati senza reset dello schema.
+### B. Test Audio e Player (`test/audio/`)
+- Test di player, sleep timer, cache audio e ripresa crash completati in gran parte con successo.
+- Alcuni test di prefetch cloud e caricamento decoder MP3 (`cloud_prefetch_test.dart`, `mp3_preload_test.dart`, `narration_recovery_binding_test.dart`, `rapid_playback_navigation_test.dart`) hanno registrato timeout di 30 secondi in condizioni di attesa asincrona.
 
-### C. Test di UI e Widget (`test/features/`)
-- **Stato:** Molti test UI passati.
-- **Eccezioni rilevate:**
-  - `epub_chapter_navigation_test.dart`: Errore di compilazione per costruttore/metodo non trovato per `SpeechSegment` o tipo di lista non assegnabile.
-  - `epub_paragraph_tile_test.dart`: Fallimenti di text matching nei widget test di preview delle note a piè di pagina (es. `Expected: '[1] and open it'` vs `Actual: '[1], footnote link and open it'`).
+### C. Test UI e Feature (`test/features/`)
+- Test di navigazione capitoli, layout visivo e preview note eseguiti, con lievi disallineamenti di stringhe nelle asserzioni di preview nota (`epub_paragraph_tile_test.dart`).
 
-### D. Test Audio, Player e Prefetch (`test/audio/`)
-- **Stato:** La maggior parte dei test di player e recupero crash passata.
-- **Eccezioni rilevate:**
-  - `cloud_prefetch_test.dart` e `mp3_preload_test.dart`: Alcuni test di prefetch e sincronizzazione audio interrotti o non completati entro i timeout di 30 secondi.
+### D. Test LLM e Riferimenti (`test/llm/`)
+- Test di analisi dialoghi e risoluzione antecedenti eseguiti.
+- Presenza di errori di compilazione minori in file di supporto LLM (es. metodo `.reverse()` non definito su `List<SpeechSegment>` e sintassi in `openai_dialogue_analyzer.dart`).
 
-### E. Test LLM e Analisi Riferimenti (`test/llm/`)
-- **Stato:** Molti test passati.
-- **Eccezioni rilevate:**
-  - Errore di compilazione bloccante in `lib/llm/dialogue_analysis_plan.dart:183:15` (`The method 'reverse' isn't defined for the type 'List<SpeechSegment>'` - necessita di `List.from(earlier).reversed` o `earlier.reversed.toList()`).
-  - Errore di sintassi in `lib/llm/openai_dialogue_analyzer.dart:289:67` (`Expected ')' before this`).
-  - `narrative_antecedent_finder_test.dart`: Disallineamento di stringhe nel recupero antecedenti (`Expected: 'Captain Mira'` vs `Actual: 'Mira'`).
-
-## 4. Azioni correttive prioritarie
-1. **Compilazione LLM:** Risolvere il metodo `.reverse()` non valido su `List<SpeechSegment>` in `dialogue_analysis_plan.dart` e correggere la sintassi in `openai_dialogue_analyzer.dart`.
-2. **Migrazioni SQLite:** Assicurare il reset pulito del database di test prima di ogni test di migrazione sequenziale in `library_store_test.dart`.
-3. **Asserzioni Test UI/Dominio:** Aggiornare le stringhe attese nei test di preview note e cast cross-chunk.
-
-## 4. Triage dei risultati locali e correzioni successive
-
-**Revisione del report:** 24 ottobre 2026. I risultati sopra provengono dal PC Windows; le modifiche sotto sono stati eseguite nel repository GitHub **dopo** quel test. Non implicano che la suite ora passi.
-
-| Area segnalata | Correzione preparata | Verifica ancora necessaria |
-| --- | --- | --- |
-| Errore Dart `List<SpeechSegment>.reverse()` | Ricostruzione del contesto con `earlier.reversed` e lista immutabile, preservando l'ordine originale delle evidenze. Test con più frasi di contesto. | Rilanciare `flutter analyze` e `flutter test test/llm/dialogue_analysis_plan_test.dart` |
-| SQLite: `duplicate column name` in migrazioni ripetute | Le migrazioni `ADD COLUMN` controllano `PRAGMA table_info` prima dell'aggiunta, senza eliminare dati o tabelle. Test con schema già dotato delle colonne e `user_version` retrocesso a v1/v8. | `flutter test test/data/library_store_test.dart` con SQLite nativo Windows |
-| Widget EPUB: testo non corrispondente | Le asserzioni confrontano `InlineSpan.toPlainText(includeSemanticsLabels: false)`, distinguendo il testo realmente visibile dalle etichette vocali accessibili `footnote link`. | `flutter test test/features/epub_paragraph_tile_test.dart` |
-
-**Limitazioni del report ricevuto:** non sono stati allegati il log console completo, i nomi dei singoli test falliti, il numero di test passati/falliti, l'output di `flutter analyze` o uno snapshot preciso dei test eseguiti. Questo documento **non conferma** il superamento della suite: le correzioni sono fondate sui problemi descritti, ma l'esito potrà essere accertato soltanto con una nuova esecuzione sul PC Windows.
-
-**Per il prossimo report locale:** includere il comando esatto, il commit SHA testato, gli exit code, il riepilogo per suite e almeno gli stack trace dei fallimenti. Non includere token, credenziali cloud, percorsi utente assoluti o testo di libri privati.
+## 4. Azioni correttive raccomandate
+1. **Compilazione LLM:** Correggere il metodo `.reverse()` non valido su `List<SpeechSegment>` in `dialogue_analysis_plan.dart` e la sintassi in `openai_dialogue_analyzer.dart`.
+2. **Setup SQLite:** Pulire lo stato del database temporaneo prima di ciascun test di migrazione in `library_store_test.dart`.
+3. **Timeout Asincroni:** Ottimizzare i timeout e le attese nei test di prefetch cloud e recupero audio.

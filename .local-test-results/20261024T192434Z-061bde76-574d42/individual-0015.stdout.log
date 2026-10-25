@@ -1,0 +1,21 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":35976,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/data/epub_anchor_integrity_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/data/epub_anchor_integrity_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":5}
+{"count":1,"time":14,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2387}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":7,"line":null,"column":null,"url":null},"type":"group","time":2391}
+{"test":{"id":3,"name":"valid spine, Unicode, links and editorial targets pass unchanged","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":16,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_anchor_integrity_test.dart"},"type":"testStart","time":2392}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2414}
+{"test":{"id":4,"name":"duplicate spine IDs cannot be used for stable saved anchors","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":31,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_anchor_integrity_test.dart"},"type":"testStart","time":2415}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2421}
+{"test":{"id":5,"name":"overlap, holes and missing separators all fail","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":41,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_anchor_integrity_test.dart"},"type":"testStart","time":2422}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2425}
+{"test":{"id":6,"name":"links must be ordered, non-overlapping and wholly in one item","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":56,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_anchor_integrity_test.dart"},"type":"testStart","time":2426}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2429}
+{"test":{"id":7,"name":"targets in synthetic separators or beyond end are rejected","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":75,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_anchor_integrity_test.dart"},"type":"testStart","time":2430}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2434}
+{"test":{"id":8,"name":"UTF-16 source positions cannot split emoji surrogate pairs","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":91,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_anchor_integrity_test.dart"},"type":"testStart","time":2435}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2438}
+{"test":{"id":9,"name":"empty source/spine cannot be silently imported","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":111,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_anchor_integrity_test.dart"},"type":"testStart","time":2439}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2442}
+{"success":true,"type":"done","time":2478}

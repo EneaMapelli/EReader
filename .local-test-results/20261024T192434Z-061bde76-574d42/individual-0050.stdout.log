@@ -1,0 +1,15 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":57328,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/features/epub_link_history_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/features/epub_link_history_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3}
+{"count":1,"time":11,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":1658}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":4,"line":null,"column":null,"url":null},"type":"group","time":1662}
+{"test":{"id":3,"name":"note navigation can return through multiple source anchors","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":5,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_link_history_test.dart"},"type":"testStart","time":1663}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1681}
+{"test":{"id":4,"name":"same-offset taps and invalid offsets do not build a back stack","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":18,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_link_history_test.dart"},"type":"testStart","time":1682}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1684}
+{"test":{"id":5,"name":"bounded history discards oldest location and retains recent notes","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":26,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_link_history_test.dart"},"type":"testStart","time":1685}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1688}
+{"test":{"id":6,"name":"return is committed only after explicit success","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":41,"column":3,"url":"file:///E:/GitHub/EReader/test/features/epub_link_history_test.dart"},"type":"testStart","time":1688}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1691}
+{"success":true,"type":"done","time":1718}

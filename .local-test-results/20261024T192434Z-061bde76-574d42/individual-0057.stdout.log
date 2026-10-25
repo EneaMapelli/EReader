@@ -1,0 +1,30 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":31376,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":14,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2584}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":11,"line":null,"column":null,"url":null},"type":"group","time":2588}
+{"test":{"id":3,"name":"nearby different people remain competing cues, never a winner","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":32,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"testStart","time":2590}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2616}
+{"test":{"id":4,"name":"prior name and alias map to one most-recent cue per person","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":43,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"testStart","time":2616}
+{"testID":4,"error":"Expected: 'Captain Mira'\n  Actual: 'Mira'\n   Which: is different.\n          Expected: Captain Mi ...\n            Actual: Mira\n                    ^\n           Differ at offset 0\n","stackTrace":"package:matcher                                      expect\npackage:flutter_test/src/widget_tester.dart 473:18   expect\ntest\\llm\\narrative_antecedent_finder_test.dart 49:5  main.<fn>\n","isFailure":true,"type":"error","time":2637}
+{"testID":4,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":2638}
+{"test":{"id":5,"name":"whole word matching does not confuse Mira with Amira","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":53,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"testStart","time":2639}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2641}
+{"test":{"id":6,"name":"scope beginning prevents using text from earlier chapter","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":60,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"testStart","time":2642}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2644}
+{"test":{"id":7,"name":"later book text can never become an antecedent cue","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":68,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"testStart","time":2645}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2647}
+{"test":{"id":8,"name":"bounded lookback ignores distant names and long excerpts","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":75,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"testStart","time":2648}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2652}
+{"test":{"id":9,"name":"accepted prior indirect link is shown but not a pending AI guess","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":86,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"testStart","time":2652}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2656}
+{"test":{"id":10,"name":"stale approved links are excluded; source fingerprint never lies","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":114,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"testStart","time":2656}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2660}
+{"test":{"id":11,"name":"Unicode and supplementary codepoint boundaries remain intact","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":138,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"testStart","time":2660}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2663}
+{"test":{"id":12,"name":"cross-book and duplicate cast identities are rejected","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":148,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"testStart","time":2664}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2668}
+{"test":{"id":13,"name":"empty cast produces no verified antecedent even in named scene","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":162,"column":3,"url":"file:///E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart"},"type":"testStart","time":2669}
+{"testID":13,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2671}
+{"success":false,"type":"done","time":2699}

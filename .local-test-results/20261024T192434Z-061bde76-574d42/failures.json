@@ -1,0 +1,219 @@
+[
+    {
+        "file":  "E:/GitHub/EReader/test/audio/cloud_prefetch_test.dart",
+        "name":  "opted-in prefetch waits until current audio is ready",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0001"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/cloud_prefetch_test.dart",
+        "name":  "prefetch snapshots the NEXT character voice without switching now",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0001"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/mp3_preload_test.dart",
+        "name":  "stop invalidates staged audio and removes private files",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/mp3_preload_test.dart",
+        "name":  "dispose releases both native decoders and all temp MP3 files",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/mp3_preload_test.dart",
+        "name":  "staged next clip loads on a second player and plays only once",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/mp3_preload_test.dart",
+        "name":  "an older slow decoder load must not erase newer warmed MP3",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/mp3_preload_test.dart",
+        "name":  "old clip finalizer cannot stop a new playing clip after seek",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/mp3_preload_test.dart",
+        "name":  "different rate must not use previously decoded speed settings",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/mp3_preload_test.dart",
+        "name":  "only one future clip may be staged at a time",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/mp3_preload_test.dart",
+        "name":  "stop during slow native warm-load leaves no playable stale MP3",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0002"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart",
+        "name":  "pause preserves marker until native stop completes, then clears",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart",
+        "name":  "uncertain native Stop retains recovery checkpoint after dispose",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/narration_recovery_binding_test.dart",
+        "name":  "binding can only attach once and dispose is idempotent",
+        "status":  "error",
+        "issue":  "timeout",
+        "run":  "individual-0003"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/native_stop_timeout_test.dart",
+        "name":  "Android remote Play refuses uncertain Stop without acquiring focus",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0004"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart",
+        "name":  "direct Play supersedes a blocked seek without a late jump",
+        "status":  "error",
+        "issue":  "timeout",
+        "run":  "individual-0006"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/reader_media_handler_test.dart",
+        "name":  "direct player Pause releases Android focus after native stop",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/reader_media_handler_test.dart",
+        "name":  "failed native stop still clears focus after settled failure",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0008"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/audio/reader_player_test.dart",
+        "name":  "unsupported character voice falls back without extra narration",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/data/epub_navigation_test.dart",
+        "name":  "oversize note falls back to safe link navigation and preserves source",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0021"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/data/epub_text_extractor_test.dart",
+        "name":  "scripts, NAV and metadata never become styled reading content",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0024"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/domain/cross_chunk_cast_test.dart",
+        "name":  "unknown tags are never inherited across quote/narrator boundaries",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0038"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/domain/cross_chunk_cast_test.dart",
+        "name":  "one approved long quote retains voice across multiple TTS chunks",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0038"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/features/epub_chapter_navigation_test.dart",
+        "name":  "loading E:/GitHub/EReader/test/features/epub_chapter_navigation_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/features/epub_visual_layout_test.dart",
+        "name":  "spine boundaries prevent adjacent paragraphs from merging",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0053"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/llm/dialogue_analysis_plan_test.dart",
+        "name":  "multiple earlier context segments retain chronological evidence order",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0055"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart",
+        "name":  "loading E:/GitHub/EReader/test/llm/historical_character_concordance_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/llm/narrative_antecedent_finder_test.dart",
+        "name":  "prior name and alias map to one most-recent cue per person",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0057"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/llm/openai_alias_reconciler_test.dart",
+        "name":  "loading E:/GitHub/EReader/test/llm/openai_alias_reconciler_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0058"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/llm/openai_character_discoverer_test.dart",
+        "name":  "loading E:/GitHub/EReader/test/llm/openai_character_discoverer_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0059"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/llm/openai_dialogue_analyzer_test.dart",
+        "name":  "loading E:/GitHub/EReader/test/llm/openai_dialogue_analyzer_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0060"
+    },
+    {
+        "file":  "E:/GitHub/EReader/test/llm/openai_reference_resolver_test.dart",
+        "name":  "loading E:/GitHub/EReader/test/llm/openai_reference_resolver_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0061"
+    }
+]

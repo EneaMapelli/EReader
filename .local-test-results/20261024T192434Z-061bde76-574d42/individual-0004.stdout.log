@@ -1,0 +1,24 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":33740,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/audio/native_stop_timeout_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/audio/native_stop_timeout_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":7,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2252}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":8,"line":null,"column":null,"url":null},"type":"group","time":2256}
+{"test":{"id":3,"name":"timeout is bounded but cannot authorize another speech stream","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":68,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/native_stop_timeout_test.dart"},"type":"testStart","time":2257}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2311}
+{"test":{"id":4,"name":"timed-out Seek cannot resume a newer segment after late Stop","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":105,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/native_stop_timeout_test.dart"},"type":"testStart","time":2312}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2335}
+{"test":{"id":5,"name":"queued Play before timeout is cancelled rather than resumed late","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":125,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/native_stop_timeout_test.dart"},"type":"testStart","time":2336}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2358}
+{"test":{"id":6,"name":"repeated Pause while Stop hangs does not spawn another native Stop","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":147,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/native_stop_timeout_test.dart"},"type":"testStart","time":2359}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2381}
+{"test":{"id":7,"name":"failed native Stop remains unsafe even after error completes","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":165,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/native_stop_timeout_test.dart"},"type":"testStart","time":2381}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2388}
+{"test":{"id":8,"name":"late native Stop failure after timeout must not unlock playback","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":181,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/native_stop_timeout_test.dart"},"type":"testStart","time":2388}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2411}
+{"test":{"id":9,"name":"Android remote Play refuses uncertain Stop without acquiring focus","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":198,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/native_stop_timeout_test.dart"},"type":"testStart","time":2412}
+{"testID":9,"error":"Expected: <0>\n  Actual: <1>\nNative output is not confirmed stopped; focus stays held\n","stackTrace":"package:matcher                                     expect\npackage:flutter_test/src/widget_tester.dart 473:18  expect\ntest\\audio\\native_stop_timeout_test.dart 217:5      main.<fn>\n","isFailure":true,"type":"error","time":2470}
+{"testID":9,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":2471}
+{"test":{"id":10,"name":"positive timeout is required","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":231,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/native_stop_timeout_test.dart"},"type":"testStart","time":2472}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2480}
+{"success":false,"type":"done","time":2517}

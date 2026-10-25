@@ -1,0 +1,45 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":14636,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/audio/reader_media_handler_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":8,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2988}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":18,"line":null,"column":null,"url":null},"type":"group","time":2993}
+{"test":{"id":3,"name":"bind publishes book and transport; unbind removes orphan controls","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":60,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":2994}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3029}
+{"test":{"id":4,"name":"remote play returns before book completion and seeks one segment","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":86,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3030}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3050}
+{"test":{"id":5,"name":"lock-screen Play cannot bypass book cloud consent","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":116,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3051}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3062}
+{"test":{"id":6,"name":"focus denial and pending focus superseded by Pause never speak","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":136,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3063}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3069}
+{"test":{"id":7,"name":"focus reacquisition waits for an earlier native release","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":160,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3070}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3076}
+{"test":{"id":8,"name":"late focus grant is released after a superseding Pause","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":198,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3077}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3082}
+{"test":{"id":9,"name":"task removal stops and clears the media session","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":226,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3083}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3090}
+{"test":{"id":10,"name":"task removal detaches even if native stop throws","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":244,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3091}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3099}
+{"test":{"id":11,"name":"notification removal pauses without forcing a new play","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":263,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3100}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3105}
+{"test":{"id":12,"name":"system interruption pauses without automatic resume","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":278,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3106}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3112}
+{"test":{"id":13,"name":"incoming call during in-flight seek cancels latent audio resume","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":299,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3113}
+{"testID":13,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3118}
+{"test":{"id":14,"name":"seek keeps focus during native stop and resumes original session","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":325,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3119}
+{"testID":14,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3125}
+{"test":{"id":15,"name":"direct player Pause releases Android focus after native stop","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":357,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3126}
+{"testID":15,"error":"Expected: <0>\n  Actual: <1>\nFocus must be held until the native speech stop finishes\n","stackTrace":"package:matcher                                     expect\npackage:flutter_test/src/widget_tester.dart 473:18  expect\ntest\\audio\\reader_media_handler_test.dart 373:5     main.<fn>\n","isFailure":true,"type":"error","time":3155}
+{"testID":15,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":3156}
+{"test":{"id":16,"name":"sleep timer release works without a media command","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":385,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3157}
+{"testID":16,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3175}
+{"test":{"id":17,"name":"two Play requests waiting for cloud consent start speech once","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":416,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3176}
+{"testID":17,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3182}
+{"test":{"id":18,"name":"two Play calls pending on audio focus acquire native focus once","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":446,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3183}
+{"testID":18,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3191}
+{"test":{"id":19,"name":"failed native stop still clears focus after settled failure","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":474,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3192}
+{"testID":19,"error":"Expected: true\n  Actual: <false>\n","stackTrace":"package:matcher                                     expect\npackage:flutter_test/src/widget_tester.dart 473:18  expect\ntest\\audio\\reader_media_handler_test.dart 490:5     main.<fn>\n","isFailure":true,"type":"error","time":3211}
+{"testID":19,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":3212}
+{"test":{"id":20,"name":"detached reader cannot hijack a newly attached book","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":497,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/reader_media_handler_test.dart"},"type":"testStart","time":3213}
+{"testID":20,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3219}
+{"success":false,"type":"done","time":3261}

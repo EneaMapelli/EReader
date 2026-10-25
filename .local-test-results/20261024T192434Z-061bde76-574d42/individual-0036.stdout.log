@@ -1,0 +1,13 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":23604,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/domain/character_candidate_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/domain/character_candidate_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":9,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2397}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":3,"line":null,"column":null,"url":null},"type":"group","time":2402}
+{"test":{"id":3,"name":"a new candidate refers to exact UTF-16 source text","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":22,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/character_candidate_test.dart"},"type":"testStart","time":2403}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2434}
+{"test":{"id":4,"name":"detects existing names and aliases ignoring case/extra spaces","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":30,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/character_candidate_test.dart"},"type":"testStart","time":2435}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2440}
+{"test":{"id":5,"name":"rejects invalid confidence or false approval without a person","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":37,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/character_candidate_test.dart"},"type":"testStart","time":2440}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2447}
+{"success":true,"type":"done","time":2481}

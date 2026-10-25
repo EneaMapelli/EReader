@@ -1,0 +1,26 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":17092,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":8,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":1787}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":9,"line":null,"column":null,"url":null},"type":"group","time":1792}
+{"test":{"id":3,"name":"rapid seeks retain only the last target and still resume once","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":101,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart"},"type":"testStart","time":1793}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1834}
+{"test":{"id":4,"name":"explicit pause supersedes an outstanding auto-resuming seek","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":120,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart"},"type":"testStart","time":1835}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1843}
+{"test":{"id":5,"name":"two overlapping native voice choices preserve the last choice","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":135,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart"},"type":"testStart","time":1843}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1852}
+{"test":{"id":6,"name":"committed speed restarts same source segment, not another chapter","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":156,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart"},"type":"testStart","time":1853}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1859}
+{"test":{"id":7,"name":"settings commit during an explicit pause does not auto-play","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":170,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart"},"type":"testStart","time":1860}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1867}
+{"test":{"id":8,"name":"dispose during an outstanding voice change prevents later speech","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":183,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart"},"type":"testStart","time":1868}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1874}
+{"test":{"id":9,"name":"direct Play supersedes a blocked seek without a late jump","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":199,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart"},"type":"testStart","time":1875}
+{"testID":9,"error":"TimeoutException after 0:00:30.000000: Test timed out after 30 seconds. See https://pub.dev/packages/test#timeouts","stackTrace":"dart:isolate  _RawReceivePort._handleMessage\n","isFailure":false,"type":"error","time":31891}
+{"testID":9,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":31893}
+{"test":{"id":10,"name":"changing narrator voice while paused does not start narration","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":216,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart"},"type":"testStart","time":31894}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":31898}
+{"test":{"id":11,"name":"direct Play is denied after disposal","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":226,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/rapid_playback_navigation_test.dart"},"type":"testStart","time":31899}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":31904}
+{"success":false,"type":"done","time":31943}

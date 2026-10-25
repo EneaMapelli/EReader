@@ -23,9 +23,12 @@ $ProgressPreference = 'SilentlyContinue'
 $branch = 'feature/m0-flutter-foundation'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location -LiteralPath $root
-$git = (Get-Command git -ErrorAction Stop).Source
-$flutter = (Get-Command flutter -ErrorAction Stop).Source
-$dart = (Get-Command dart -ErrorAction Stop).Source
+$gitCmd = Get-Command git -ErrorAction SilentlyContinue
+$git = if ($gitCmd) { $gitCmd.Source } else { "git" }
+$flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
+$flutter = if ($flutterCmd) { $flutterCmd.Source } else { "C:\Users\eneam\AppData\Local\Temp\flutter\bin\flutter.bat" }
+$dartCmd = Get-Command dart -ErrorAction SilentlyContinue
+$dart = if ($dartCmd) { $dartCmd.Source } else { "C:\Users\eneam\AppData\Local\Temp\flutter\bin\dart.bat" }
 $sourceSha = (& $git rev-parse HEAD).Trim()
 if ($sourceSha -notmatch '^[0-9a-f]{40}$') { throw 'Invalid git HEAD' }
 $localBranch = (& $git branch --show-current).Trim()
@@ -194,7 +197,7 @@ if ($global.ExitCode -eq 0) {
   for ($i = 0; $i -lt $allFiles.Count; $i++) {
     $relative = $allFiles[$i].FullName.Substring($root.Length).TrimStart('\','/').Replace('\','/')
     $name = ('individual-{0:D4}' -f ($i+1))
-    Write-Host ("[{0}/{1}] {2}" -f ($i+1,$allFiles.Count,$relative))
+    Write-Host ("[{0}/{1}] {2}" -f ($i+1), $allFiles.Count, $relative)
     $one = Execute $name $flutter @(
       'test','--reporter','json','--no-pub',$relative
     ) $TestTimeoutMinutes

@@ -1,0 +1,27 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":40244,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":5}
+{"count":1,"time":12,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2338}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":10,"line":null,"column":null,"url":null},"type":"group","time":2342}
+{"test":{"id":3,"name":"EPUB2 superscript and classed in-spine note are paired","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":41,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart"},"type":"testStart","time":2343}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2490}
+{"test":{"id":4,"name":"EPUB2 classed note-ref opens declared auxiliary list note only","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":58,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart"},"type":"testStart","time":2491}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2504}
+{"test":{"id":5,"name":"leading EPUB2 named anchor identifies a verified classed note","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":79,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart"},"type":"testStart","time":2504}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2518}
+{"test":{"id":6,"name":"ordinary numbered superscript to non-note paragraph stays a link","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":96,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart"},"type":"testStart","time":2519}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2531}
+{"test":{"id":7,"name":"ordinary unmarked link cannot turn into auxiliary note reference","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":110,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart"},"type":"testStart","time":2532}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2544}
+{"test":{"id":8,"name":"class substring likeness cannot masquerade as footnote markup","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":122,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart"},"type":"testStart","time":2544}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2556}
+{"test":{"id":9,"name":"named anchor after unrelated prose is not a note target","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":134,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart"},"type":"testStart","time":2557}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2571}
+{"test":{"id":10,"name":"manifest declaration is required even for correctly marked notes","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":147,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart"},"type":"testStart","time":2572}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2585}
+{"test":{"id":11,"name":"multiple legacy references never duplicate auxiliary speech text","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":158,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart"},"type":"testStart","time":2586}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2599}
+{"test":{"id":12,"name":"oversized legacy auxiliary note fails closed, main book still opens","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":173,"column":3,"url":"file:///E:/GitHub/EReader/test/data/epub_legacy_notes_test.dart"},"type":"testStart","time":2600}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2617}
+{"success":true,"type":"done","time":2649}

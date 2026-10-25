@@ -1,0 +1,24 @@
+Could not format because the source could not be parsed:
+
+line 590, column 58 of lib\features\reader\voice_cast_screen.dart: Expected to find ')'.
+    ╷
+590 │     CharacterCandidate candidate, {required bool approve},
+    │                                                          ^
+    ╵
+line 692, column 54 of lib\features\reader\voice_cast_screen.dart: Expected to find ')'.
+    ╷
+692 │     AliasCandidate candidate, {required bool approve},
+    │                                                      ^
+    ╵
+line 774, column 67 of lib\features\reader\voice_cast_screen.dart: Expected to find ')'.
+    ╷
+774 │     NarrativeReferenceCandidate candidate, {required bool approve},
+    │                                                                   ^
+    ╵
+Could not format because the source could not be parsed:
+
+line 289, column 67 of lib\llm\openai_dialogue_analyzer.dart: Expected to find ')'.
+    ╷
+289 │     DialogueAnalysisWindow window, {String model = 'gpt-5.4-mini'},
+    │                                                                   ^
+    ╵

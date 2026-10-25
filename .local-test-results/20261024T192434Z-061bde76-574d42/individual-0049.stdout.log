@@ -1,0 +1,11 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":7336,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/features/epub_diagnostics_sheet_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/features/epub_diagnostics_sheet_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":8,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":1657}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":2,"line":null,"column":null,"url":null},"type":"group","time":1661}
+{"test":{"id":3,"name":"EPUB compatibility report explains skipped optional resources","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":7,"root_column":3,"root_url":"file:///E:/GitHub/EReader/test/features/epub_diagnostics_sheet_test.dart"},"type":"testStart","time":1662}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2634}
+{"test":{"id":4,"name":"empty diagnostics give a neutral message, not an error","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":31,"root_column":3,"root_url":"file:///E:/GitHub/EReader/test/features/epub_diagnostics_sheet_test.dart"},"type":"testStart","time":2635}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2714}
+{"success":true,"type":"done","time":2749}

@@ -1,0 +1,15 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":42308,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/domain/dialogue_segmenter_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/domain/dialogue_segmenter_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3}
+{"count":1,"time":10,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":1701}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":4,"line":null,"column":null,"url":null},"type":"group","time":1705}
+{"test":{"id":3,"name":"separates quoted speech from the surrounding narration","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":6,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/dialogue_segmenter_test.dart"},"type":"testStart","time":1706}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1726}
+{"test":{"id":4,"name":"handles speech across chunks without losing source anchors","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":18,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/dialogue_segmenter_test.dart"},"type":"testStart","time":1727}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1731}
+{"test":{"id":5,"name":"supports ASCII double quotes without rewriting Unicode text","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":29,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/dialogue_segmenter_test.dart"},"type":"testStart","time":1732}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1735}
+{"test":{"id":6,"name":"unmatched open quote retains exact source instead of guessing","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":38,"column":3,"url":"file:///E:/GitHub/EReader/test/domain/dialogue_segmenter_test.dart"},"type":"testStart","time":1736}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1738}
+{"success":true,"type":"done","time":1765}

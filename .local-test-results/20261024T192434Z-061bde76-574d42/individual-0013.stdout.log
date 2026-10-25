@@ -1,0 +1,25 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":56800,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/data/cast_merge_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/data/cast_merge_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":8,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2350}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":9,"line":null,"column":null,"url":null},"type":"group","time":2353}
+{"test":{"id":3,"name":"merge retargets all dialogue references and preserves voice choices","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":46,"column":3,"url":"file:///E:/GitHub/EReader/test/data/cast_merge_test.dart"},"type":"testStart","time":2354}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2537}
+{"test":{"id":4,"name":"missing voice conflict decisions never causes partial changes","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":162,"column":3,"url":"file:///E:/GitHub/EReader/test/data/cast_merge_test.dart"},"type":"testStart","time":2538}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2602}
+{"test":{"id":5,"name":"preview becomes invalid after cast changed","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":192,"column":3,"url":"file:///E:/GitHub/EReader/test/data/cast_merge_test.dart"},"type":"testStart","time":2603}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2661}
+{"test":{"id":6,"name":"merge fails across books or onto the same character","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":209,"column":3,"url":"file:///E:/GitHub/EReader/test/data/cast_merge_test.dart"},"type":"testStart","time":2661}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2724}
+{"test":{"id":7,"name":"SQLite v11 upgrade adds merge audit without altering saved cast","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":222,"column":3,"url":"file:///E:/GitHub/EReader/test/data/cast_merge_test.dart"},"type":"testStart","time":2724}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2798}
+{"test":{"id":8,"name":"reviewed character discovery and approved alias links survive merge","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":246,"column":3,"url":"file:///E:/GitHub/EReader/test/data/cast_merge_test.dart"},"type":"testStart","time":2799}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2862}
+{"test":{"id":9,"name":"stale preview detects changed source hashes even when counts match","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":303,"column":3,"url":"file:///E:/GitHub/EReader/test/data/cast_merge_test.dart"},"type":"testStart","time":2862}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2922}
+{"test":{"id":10,"name":"merge refuses exceeding 50 aliases, without deleting source","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":332,"column":3,"url":"file:///E:/GitHub/EReader/test/data/cast_merge_test.dart"},"type":"testStart","time":2923}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2976}
+{"test":{"id":11,"name":"late audit write failure rolls back voice and dialogue migrations","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":349,"column":3,"url":"file:///E:/GitHub/EReader/test/data/cast_merge_test.dart"},"type":"testStart","time":2977}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3055}
+{"success":true,"type":"done","time":3092}
