@@ -968,3 +968,16 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   exact UTF-16 source hit. Canceling the dialog returns no position.
 - These tests exercise the view and local search without a speech engine
   or a cloud credential; execution on Windows/Android is still pending.
+
+## M2 — prevent stale scroll saves after explicit seeks/search/bookmarks (2026-10-25)
+
+- A delayed viewport checkpoint is now canceled on any explicit speech
+  seek, Next/Previous, book reload or playback start. A monotonically
+  increasing revision, original document identity and current EPUB visual
+  source offset also guard the 450-ms debounce callback. This prevents
+  a stale scroll report from overwriting a newly selected, verified
+  full-text search match or precise EPUB bookmark in SQLite.
+- All EPUB explicit seeks now await their destination paragraph before
+  accepting subsequent viewport checkpoints, even if no distinct visual
+  offset argument was supplied (e.g. chapter or speech search).
+- Runtime integration and Windows Flutter tests remain pending.

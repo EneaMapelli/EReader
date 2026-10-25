@@ -85,6 +85,17 @@ class _ReaderScreenState extends State<ReaderScreen>
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
   Timer? _saveVisualPositionTimer;
+  // Discard a deferred scroll write after any explicit seek, playback
+  // change, reload or newer viewport event. Canceling the Timer normally
+  // suffices, but the revision is a second guard for queued callbacks.
+  int _visualSaveRevision = 0;
+
+  void _cancelPendingVisualSave() {
+    _visualSaveRevision++;
+    _saveVisualPositionTimer?.cancel();
+    _saveVisualPositionTimer = null;
+  }
+
   Timer? _savePdfPageTimer;
   int? _pendingPdfPage;
   late int _displayPdfPage;
@@ -122,6 +133,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // A later reload supersedes all earlier work, including an in-flight
     // worker that would otherwise continue unpacking ZIP/XHTML offscreen.
     final epoch = ++_loadEpoch;
+    _cancelPendingVisualSave();
     _activeEpubTask?.cancel();
     _activeEpubTask = null;
     _stopFrameCapture(discard: true);
@@ -491,13 +503,18 @@ class _ReaderScreenState extends State<ReaderScreen>
         _currentDirectoryIndex != previousDirectory) {
       setState(() {});
     }
-    _saveVisualPositionTimer?.cancel();
+    _cancelPendingVisualSave();
+    final revision = _visualSaveRevision;
+    final document = _document;
     _saveVisualPositionTimer = Timer(const Duration(milliseconds: 450), () {
       if (!mounted || player.isPlaying || _player != player ||
+          _visualSaveRevision != revision || _document != document ||
+          (widget.book.format == BookFormat.epub &&
+              _currentEpubVisualSourceOffset != sourceOffset) ||
           (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
       widget.store.savePosition(
         widget.book.id, sourceOffset,
-        anchor: _document?.anchorAt(widget.book.format, sourceOffset),
+        anchor: document?.anchorAt(widget.book.format, sourceOffset),
       );
     });
   }
@@ -517,6 +534,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       });
     }
     if (player != null && player.isPlaying && player.segments.isNotEmpty) {
+      _cancelPendingVisualSave();
       // Explicit Play changes the active location from a visual-only
       // checkpoint to the spoken segment currently being narrated.
       _visualCheckpoint.clear();
@@ -829,6 +847,7 @@ class _ReaderScreenState extends State<ReaderScreen>
           await _openSpeechSettings();
           return;
         }
+        _cancelPendingVisualSave();
         // If the user browsed the pages manually, start audio where the
         // reading viewport is, not at the last audio-only position.
         final visible = _visiblePositionIndex;
@@ -849,6 +868,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   Future<void> _move(int delta) async {
     final player = _player;
     if (player == null) return;
+    _cancelPendingVisualSave();
     await player.seekTo(player.currentIndex + delta);
     if (player.segments.isNotEmpty) {
       _visiblePositionIndex = player.currentIndex;
@@ -1003,6 +1023,9 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (player == null || index < 0 || index >= player.segments.length) {
       return;
     }
+    // A prior scroll debounce must never overwrite this explicit seek
+    // or a source-exact bookmark/search hit after the next frame.
+    _cancelPendingVisualSave();
     await player.seekTo(index);
     if (!mounted || _player != player) return;
     // A verified EPUB link may point inside the current audio segment
@@ -1018,13 +1041,13 @@ class _ReaderScreenState extends State<ReaderScreen>
     _visiblePositionIndex = index;
     _currentEpubVisualSourceOffset = widget.book.format == BookFormat.epub
         ? sourceOffset : null;
+    // Protect all explicit EPUB seeks from a transient stale viewport,
+    // not only jumps with an additional user-specified source offset.
     _visualCheckpoint.hold(widget.book.format == BookFormat.epub
-        ? visualSourceOffset : null, awaitTarget: visualSourceOffset != null);
+        ? sourceOffset : null,
+        awaitTarget: widget.book.format == BookFormat.epub);
     final visualIndex = widget.book.format == BookFormat.epub
-        ? (visualSourceOffset == null
-            ? _epubLayout.blockForSegment(index)
-            : _epubLayout.blockForSourceOffset(visualSourceOffset))
-        : index;
+        ? _epubLayout.blockForSourceOffset(sourceOffset) : index;
     _lastVisibleEpubBlockIndex = widget.book.format == BookFormat.epub
         ? visualIndex : null;
     if (_itemScrollController.isAttached) {
