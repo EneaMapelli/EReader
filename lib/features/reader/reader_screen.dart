@@ -35,6 +35,7 @@ import 'epub_visual_layout.dart';
 import 'epub_progressive_layout.dart';
 import 'epub_paragraph_tile.dart';
 import 'epub_diagnostics_sheet.dart';
+import 'epub_opening_performance_sheet.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -926,6 +927,19 @@ class _ReaderScreenState extends State<ReaderScreen>
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
+          if (widget.book.format == BookFormat.epub &&
+              _epubWorkerTimings != null)
+            IconButton(
+              icon: const Icon(Icons.speed_outlined),
+              tooltip: 'EPUB opening performance',
+              onPressed: () => showEpubOpeningPerformance(
+                context,
+                worker: _epubWorkerTimings!,
+                castLayoutUs: _epubCastLayoutUs!,
+                voiceSetupUs: _epubVoiceSetupUs!,
+                totalOpenUs: _epubTotalOpenUs!,
+              ),
+            ),
           if (widget.book.format == BookFormat.epub &&
               (_document?.epubDiagnostics.isNotEmpty ?? false))
             IconButton(
