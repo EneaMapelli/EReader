@@ -224,6 +224,26 @@ void main() {
     expect(survivor.isFinished, isTrue);
   });
 
+  test('multiple worker exit notifications do not mask valid results',
+      () async {
+    final path = await writeEpub();
+    // Launch several isolated preflights at the same time, each owning
+    // a distinct ReceivePort and its own final Isolate.exit payload.
+    // No exit notification may be mistaken for a missing response.
+    final tasks = [
+      for (var i = 0; i < 4; i++) startEpubReaderPreflight(path),
+    ];
+    final outcomes = await Future.wait(
+      [for (final task in tasks) task.result],
+    );
+    expect(outcomes.length, 4);
+    for (var i = 0; i < tasks.length; i++) {
+      expect(tasks[i].isFinished, isTrue);
+      expect(outcomes[i].document.text, contains('Chapter One'));
+      expect(outcomes[i].quoted, isNotEmpty);
+    }
+  });
+
   test('worker fails closed on missing or invalid input', () async {
     final missing = p.join(temporary.path, 'missing.epub');
     await expectLater(prepareEpubReader(missing),

@@ -134,7 +134,17 @@ class CancellableEpubPreflight {
   void _handleMessage(dynamic message) {
     if (_finished) return;
     if (message == null) {
-      _fail(StateError('EPUB preparation worker exited without a result'));
+      // onExit and Isolate.exit(finalResponse) both reach this ReceivePort.
+      // Their notification delivery order is NOT a reliable indication
+      // that a final response is missing. Give the already-sent final
+      // response a bounded opportunity to arrive before treating the
+      // worker exit as abnormal. Cancellation still settles immediately.
+      unawaited(Future<void>.delayed(
+          const Duration(milliseconds: 50), () {
+        if (!_finished) {
+          _fail(StateError('EPUB preparation worker exited without a result'));
+        }
+      }));
       return;
     }
     if (message is! List || message.length != 2 || message[0] is! int) {

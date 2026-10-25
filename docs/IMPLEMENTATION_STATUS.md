@@ -753,3 +753,19 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - The other six failures (EPUB encoding/title, preflight isolation,
   progressive layout) require further diagnosis. No passing status is
   claimed for any authored fix before a new local Windows test run.
+
+## EPUB preflight worker exit race mitigation (2026-10-25)
+
+- The published Windows run marked `independent preflights cannot cancel
+  each other` as an error. Code review identified a plausible race:
+  `onExit` sends a null notification to the same `ReceivePort` used
+  by `Isolate.exit(finalResponse)`, so an exit notification can arrive
+  before the final value. Immediate failure therefore rejects a healthy
+  preflight. The worker now allows a bounded 50-ms delivery grace period
+  after `onExit` before failing if no final result arrived.
+- Explicit `cancel()` still settles immediately and kills the isolate;
+  unexpected exits still fail rather than leaving callers waiting
+  indefinitely. Added an unexecuted four-worker concurrent regression.
+- This is a suspected cause, **not confirmed** by detailed raw exception
+  messages, which remain on the Windows machine. New local execution
+  must confirm whether the prior test error is resolved.
