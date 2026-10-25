@@ -185,6 +185,19 @@ void main() {
             != 'Invisible metadata heading'), isTrue);
   });
 
+  test('chapter heading stops before following paragraph and metadata',
+      () {
+    final result = extractor.extract(makeEpub(
+      first: '<html><head><title>Private title</title></head><body>'
+          '<h1>Chapter One</h1><p>Next paragraph is not a title.</p>'
+          '</body></html>',
+    ));
+    expect(result.ranges.first.title, 'Chapter One');
+    expect(result.text, 'Chapter One\n\nNext paragraph is not a title.'
+        '\n\nSecond page.');
+    expect(result.text, isNot(contains('Private title')));
+  });
+
   test('scripts, NAV and metadata never become styled reading content', () {
     final result = extractor.extract(makeEpub(
       first: '<html><head><h1>Secret title</h1></head><body>'

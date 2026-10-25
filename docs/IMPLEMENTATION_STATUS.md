@@ -769,3 +769,23 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - This is a suspected cause, **not confirmed** by detailed raw exception
   messages, which remain on the Windows machine. New local execution
   must confirm whether the prior test error is resolved.
+
+## EPUB heading labels vs speech-text preprocessing (2026-10-25)
+
+- The new published Windows test outcomes identify four related
+  assertions involving visible body chapter labels: Windows-1252
+  XHTML, UTF-16 LE/BE XHTML, "spine labels use XHTML body headings",
+  and "malformed head heading never becomes source or chapter title".
+- Root-cause code review found that `_extractChapterTitle` called
+  `preprocessEpubVisibleXhtml`, a transformation intended only for
+  extracting **spoken text**. It replaces `</h1>`/`</h2>` with two
+  newlines, leaving the HTML parser to repair an *unclosed heading* and
+  potentially attribute the next paragraph's text to that heading.
+- Added a narrower `stripEpubHeadMetadata` filter shared by the
+  visible-text preprocessor and chapter-title extraction. Title parsing
+  keeps original heading closing tags intact, excludes hidden head
+  metadata and nav/script elements as before, and does not touch
+  source text/offset alignment. Added a regression that checks the
+  chapter heading ends before the following paragraph.
+- This fix targets a plausible common production cause; actual
+  resolution requires rerunning the four failing tests on Windows.

@@ -636,9 +636,12 @@ class EpubTextExtractor {
   /// scripts, page metadata, or a navigation-only manifest document).
   /// The source text and UTF-16 offsets remain entirely unchanged.
   static String _extractChapterTitle(String xhtml, int fallbackNumber) {
-    // The body-title parser must apply the same preparse head filtering as
-    // spoken text or malformed headings from metadata can be promoted.
-    final dom = html_parser.parse(preprocessEpubVisibleXhtml(xhtml));
+    // Strip hidden metadata first, but KEEP actual </h1>, </h2> etc.
+    // Speech preprocessing replaces heading closing tags with newlines:
+    // using that text-only transformation here can cause HTML5 error
+    // recovery to nest subsequent paragraphs inside a heading, silently
+    // corrupting chapter titles in UTF-8 and legacy encoded EPUBs.
+    final dom = html_parser.parse(stripEpubHeadMetadata(xhtml));
     for (final unwanted in dom.querySelectorAll(
         'script,style,nav,svg,head,noscript')) {
       unwanted.remove();

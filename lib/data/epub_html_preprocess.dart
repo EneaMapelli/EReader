@@ -1,3 +1,12 @@
+/// Remove original XHTML head metadata before HTML5 error recovery can
+/// promote malformed hidden elements into the rendered body. This does NOT
+/// alter any closing body elements: chapter titles need genuine heading
+/// boundaries instead of the speech extractor's newline substitutions.
+String stripEpubHeadMetadata(String xhtml) => xhtml.replaceAll(
+  RegExp(r'<head\b[^>]*>[\s\S]*?</head\s*>', caseSensitive: false),
+  '',
+);
+
 /// Identical presentation-source preprocessing for extracted speech text,
 /// structural metadata and inline styles. A single transformation is critical:
 /// if any parser normalizes differently, source UTF-16 offsets are unsafe.
@@ -16,10 +25,7 @@ String preprocessEpubVisibleXhtml(String xhtml) {
   // head BEFORE parsing, or hidden metadata can become spoken prose.
   // All consumers (text, typography, links and images) share this filter,
   // preserving identical UTF-16 source offsets.
-  final bodyOnly = xhtml.replaceAll(
-    RegExp(r'<head\b[^>]*>[\s\S]*?</head\s*>', caseSensitive: false),
-    '',
-  );
+  final bodyOnly = stripEpubHeadMetadata(xhtml);
   return bodyOnly
       .replaceAll(breaks, '\n')
       .replaceAll(
