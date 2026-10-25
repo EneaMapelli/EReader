@@ -923,3 +923,17 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   identity, so an old TTS follow callback cannot undo a paused exact
   bookmark/link jump. Manual Next/Previous still scrolls explicitly.
 - No new Flutter/Windows result is claimed; run on-device before release.
+
+## M2 — publisher TOC and chapter indicator follow the visible EPUB source (2026-10-25)
+
+- EPUB chapter and publisher NAV/NCX selection now resolve the actual
+  visual UTF-16 source offset when narration is paused. A caption or
+  unspoken section no longer displays the chapter of a future playable
+  TTS segment. While playing, the current speech segment still controls
+  the indicator. The same helper drives link-return and bookmark locations.
+- Scrolling refreshes both chapter and publisher directory indicators;
+  a change between two editorial entries in the same OPF spine now
+  triggers a UI update. Programmatic seeks explicitly refresh the
+  indicator even if a virtual-list position callback is not emitted.
+- Added an editorial contents regression for silent caption vs future
+  narrated section. The new code is not yet validated on Windows/Android.

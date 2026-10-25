@@ -1,3 +1,4 @@
+import 'package:ereader/data/epub_navigation.dart';
 import 'package:ereader/features/reader/epub_link_history.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,6 +33,28 @@ void main() {
       narrationActive: false,
       visualOffset: -1,
     ), nearestSpeechStart);
+  });
+
+  test('editorial contents follows visual EPUB offset while paused',
+      () {
+    const toc = <EpubNavigationEntry>[
+      EpubNavigationEntry('Illustrations', 10, 0),
+      EpubNavigationEntry('Chapter Two', 80, 0),
+    ];
+    const visualCaption = 24;
+    const futureTts = 80;
+    final pausedOffset = epubSourceOffsetForLinkReturn(
+      speechOffset: futureTts,
+      narrationActive: false,
+      visualOffset: visualCaption,
+    );
+    expect(navigationIndexForOffset(toc, pausedOffset), 0);
+    final playingOffset = epubSourceOffsetForLinkReturn(
+      speechOffset: futureTts,
+      narrationActive: true,
+      visualOffset: visualCaption,
+    );
+    expect(navigationIndexForOffset(toc, playingOffset), 1);
   });
 
   test('note navigation can return through multiple source anchors', () {

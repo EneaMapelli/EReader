@@ -461,6 +461,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (visible.isEmpty) return;
     visible.sort();
     final firstItem = visible.first;
+    final previousChapter = _currentChapterIndex;
+    final previousDirectory = _currentDirectoryIndex;
     final int index;
     final int sourceOffset;
     if (widget.book.format == BookFormat.epub) {
@@ -484,10 +486,9 @@ class _ReaderScreenState extends State<ReaderScreen>
       sourceOffset = player.segments[index].start;
       if (index == _visiblePositionIndex) return;
     }
-    final previousChapter = _currentChapterIndex;
     _visiblePositionIndex = index;
-    if (_chapters.isNotEmpty &&
-        _currentChapterIndex != previousChapter) {
+    if (_currentChapterIndex != previousChapter ||
+        _currentDirectoryIndex != previousDirectory) {
       setState(() {});
     }
     _saveVisualPositionTimer?.cancel();
@@ -554,31 +555,37 @@ class _ReaderScreenState extends State<ReaderScreen>
     setState(() {});
   }
 
+  // Publisher NAV/NCX can contain entries inside a chapter and inside
+  // unspoken captions. When paused, use the actual source position
+  // rather than a nearby TTS segment that may be in another section.
+  int _directorySourceOffset(ReaderPlayer player) {
+    final selected = player.isPlaying
+        ? player.currentIndex
+        : (_visiblePositionIndex ?? player.currentIndex);
+    final cursor = selected.clamp(0, player.segments.length - 1).toInt();
+    return widget.book.format == BookFormat.epub
+        ? epubSourceOffsetForLinkReturn(
+            speechOffset: player.segments[cursor].start,
+            narrationActive: player.isPlaying,
+            visualOffset: _currentEpubVisualSourceOffset,
+          )
+        : player.segments[cursor].start;
+  }
+
   int get _currentChapterIndex {
     final player = _player;
     if (player == null || player.segments.isEmpty || _chapters.isEmpty) {
       return -1;
     }
-    // During manual browsing, show the chapter visible on screen. During
-    // playback, the audio cursor is authoritative for the chapter indicator.
-    final selected = player.isPlaying
-        ? player.currentIndex
-        : (_visiblePositionIndex ?? player.currentIndex);
-    final cursor = selected.clamp(0, player.segments.length - 1).toInt();
-    return chapterIndexForOffset(
-      _chapters, player.segments[cursor].start,
-    );
+    return chapterIndexForOffset(_chapters, _directorySourceOffset(player));
   }
 
   int get _currentDirectoryIndex {
     if (_authorToc.isEmpty) return _currentChapterIndex;
     final player = _player;
     if (player == null || player.segments.isEmpty) return -1;
-    final selected = player.isPlaying
-        ? player.currentIndex : (_visiblePositionIndex ?? player.currentIndex);
-    final cursor = selected.clamp(0, player.segments.length - 1).toInt();
     return navigationIndexForOffset(
-        _authorToc, player.segments[cursor].start);
+        _authorToc, _directorySourceOffset(player));
   }
 
   void _jumpDirectoryIndex(int index) {
@@ -988,6 +995,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       return;
     }
     await player.seekTo(index);
+    if (!mounted || _player != player) return;
     // A verified EPUB link may point inside the current audio segment
     // or into a paragraph without any speech. Save that exact source
     // position, rather than saving a coarse TTS start and then rewriting.
@@ -1013,6 +1021,12 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (_itemScrollController.isAttached) {
       _lastFollowedIndex = visualIndex;
       _itemScrollController.jumpTo(index: visualIndex, alignment: 0.12);
+    }
+    if (mounted && _player == player &&
+        widget.book.format == BookFormat.epub) {
+      // A programmatic jump may not emit a new visible-item notification:
+      // update the chapter and publisher directory indicator explicitly.
+      setState(() {});
     }
   }
 
