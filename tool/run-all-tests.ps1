@@ -83,7 +83,15 @@ function Execute([string]$label, [string]$exe, [string[]]$arguments,
       & taskkill.exe /F /T /PID $p.Id 2>$null | Out-Null
       $exitCode = 124
     } else {
-      $exitCode = $p.ExitCode
+      # Windows PowerShell can surface an unrefreshed/null ExitCode from
+      # Start-Process -PassThru even after WaitForExit. Never serialize null
+      # as success or ignore a command that failed to report its status.
+      $p.Refresh()
+      if ($null -eq $p.ExitCode) {
+        $exitCode = 125
+      } else {
+        $exitCode = [int]$p.ExitCode
+      }
     }
   } catch {
     Write-Text $err 'Tool invocation failed; check local PowerShell error output.'
@@ -98,7 +106,13 @@ function Execute([string]$label, [string]$exe, [string[]]$arguments,
 }
 function Redact([string]$value) {
   if ($null -eq $value) { return '' }
-  $s = $value.Replace($script:root, '<repo>')
+  # Flutter JSON suite paths frequently use forward slashes while the
+  # PowerShell checkout path uses backslashes. Normalize BEFORE redaction
+  # so no Windows absolute path or private home path reaches GitHub.
+  $s = $value.Replace('\', '/')
+  $normalizedRoot = $script:root.Replace('\', '/')
+  $s = [regex]::Replace($s, [regex]::Escape($normalizedRoot),
+      '<repo>', [Text.RegularExpressions.RegexOptions]::IgnoreCase)
   if ($env:USERPROFILE) { $s = $s.Replace($env:USERPROFILE, '<home>') }
   $s = [regex]::Replace($s, '(?i)(?:sk-proj-|sk-|ghp_|github_pat_)[A-Za-z0-9_-]{8,}', '<token>')
   $s = [regex]::Replace($s, '(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}', '<token>')
@@ -155,9 +169,11 @@ function Read-TestEvents([string]$log, [string]$defaultFile,
         $source = $defaultFile
         $suiteId = [string]$e.test.suiteID
         if ($suites.ContainsKey($suiteId)) { $source = $suites[$suiteId] }
-        if ($source.StartsWith($script:root,
+        $source = $source.Replace('\', '/')
+        $rootUnix = $script:root.Replace('\', '/')
+        if ($source.StartsWith($rootUnix + '/',
             [StringComparison]::OrdinalIgnoreCase)) {
-          $source = $source.Substring($script:root.Length).TrimStart('\','/')
+          $source = $source.Substring($rootUnix.Length + 1)
         }
         $tests[$id] = [ordered]@{
           file=(Redact $source.Replace('\','/'))

@@ -79,7 +79,14 @@ void main() {
     );
     expect(merged.segments.where((segment) =>
         segment.start < bStart && segment.end > bStart), isEmpty);
-    expect(merged.segments.any((part) => part.start == bStart), isTrue);
+    // The second spine begins with a leading space, which the speech
+    // splitter intentionally excludes from spoken text. It must not
+    // invent a spoken segment at that whitespace-only source offset.
+    final secondSpine = merged.segments.where(
+        (part) => part.start >= bStart).toList();
+    expect(secondSpine, isNotEmpty);
+    expect(secondSpine.first.start, bStart + 1);
+    expect(secondSpine.every((part) => part.start >= bStart), isTrue);
     expect(buildEpubChapters(document, merged.segments).length, 2);
   });
 

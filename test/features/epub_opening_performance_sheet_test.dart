@@ -118,6 +118,12 @@ void main() {
       find.text('On-demand reader frame sample'), 140,
       scrollable: find.byType(Scrollable).last,
     );
+    // The count is a lazy ListView child below the section header.
+    // First scrolling to the header doesn't materialize its rows.
+    await tester.scrollUntilVisible(
+      find.text('2 / 2'), 140,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('2 / 2'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('P95 frame raster'), 140,

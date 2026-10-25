@@ -728,3 +728,28 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Added source-exact no-loss and oversized-cluster regression tests.
   This deliberately does not claim full Unicode grapheme compliance.
   Windows/Android tests are pending for the new segmentation code.
+
+## Windows report verification and targeted EPUB test fixes (2026-10-25)
+
+- Verified an actual published sanitized run:
+  `20261025T120153Z-7b9bd230-236d92` on source `7b9bd230`.
+  It contains 555 passing cases, 6 assertions, 2 errors, across 66 files
+  (563 cases). Cloud audio prefetch and MP3 preload suites were green.
+  The 8 named failing cases are now published in
+  `test-results/latest-failures.json`; this run precedes the edits below.
+- Corrected a historical EPUB spine test expectation: chapter two begins
+  with an intentional leading space. The TTS splitter removes whitespace
+  from spoken chunks; therefore its first segment begins at
+  `spine.start + 1`, not at the raw spine boundary.
+- Corrected a lazy widget test that asserted a ListView child's frame
+  count immediately after scrolling only to its section header; the test
+  now scrolls to the actual count row before asserting it.
+- Hardened the PowerShell runner: refresh the process before reading its
+  ExitCode, use fail-closed exit 125 when the status is unexpectedly
+  null, and normalize backslashes before redacting Flutter JSON suite
+  paths. The published old summary had `null` exit codes and absolute
+  Windows test paths; these are reporting defects, not evidence of
+  a passing analyzer or command stage.
+- The other six failures (EPUB encoding/title, preflight isolation,
+  progressive layout) require further diagnosis. No passing status is
+  claimed for any authored fix before a new local Windows test run.
