@@ -20,8 +20,24 @@ void main() {
   });
 
   tearDown(() async {
-    if (await temporary.exists()) {
-      await temporary.delete(recursive: true);
+    // On Windows an EPUB worker can release its last file handle shortly
+    // after sending its final isolate result or responding to cancellation.
+    // Retry only transient sharing violations, not genuine cleanup errors.
+    for (var attempt = 0; attempt < 12; attempt++) {
+      if (!await temporary.exists()) return;
+      try {
+        await temporary.delete(recursive: true);
+        return;
+      } on FileSystemException catch (error) {
+        if (!Platform.isWindows ||
+            error.osError?.errorCode != 32 ||
+            attempt == 11) {
+          rethrow;
+        }
+        await Future<void>.delayed(
+          Duration(milliseconds: 25 * (attempt + 1)),
+        );
+      }
     }
   });
 
