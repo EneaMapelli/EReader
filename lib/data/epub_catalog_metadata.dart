@@ -156,7 +156,7 @@ class EpubCatalogMetadataReader {
   }
 
   static String _safeZipPath(String name) {
-    if (name.isEmpty || name.contains(r'\') || name.startsWith('/') ||
+    if (name.isEmpty || name.contains('\\') || name.startsWith('/') ||
         name.contains('\x00') || name.contains(':')) {
       throw const FormatException('Unsafe EPUB internal path');
     }
