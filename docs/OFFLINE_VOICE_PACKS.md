@@ -254,3 +254,18 @@ or guarantee a model's training-data rights. The source, model license,
 packaged phonemizer assets and redistribution rights require independent
 review. There is no remote authenticated model catalog, model automatic
 activation, forced purchase, or fallback to paid narration.
+
+## Real model qualification
+
+The optional local Windows qualification runner and PCM integrity checker
+are documented in
+[OFFLINE_TTS_QUALIFICATION.md](OFFLINE_TTS_QUALIFICATION.md).
+
+The opt-in runner generates two public fixed test phrases in Italian or
+English, reads WAV duration and inference metrics, and removes intermediate
+WAVs by default. The `-RetainWav` flag retains only those samples locally
+for listening. `-PublishSummary` can push a sanitized numeric result on
+the same branch, without model paths or private passages.
+
+This does **not** enable the neural engine in the app, authenticate source
+signatures or supply the missing device acceptance evidence.
