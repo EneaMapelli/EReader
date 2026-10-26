@@ -1579,7 +1579,12 @@ class _ReaderScreenState extends State<ReaderScreen>
                                     if (widget.book.format == BookFormat.epub) {
                                       final block = _epubLayout.blocks[index];
                                       return EpubParagraphTile(
-                                        key: ValueKey(block.start),
+                                        // Multiple illustrated OPF sections may
+                                        // share the exact same source offset.
+                                        // List-child keys must be unique or
+                                        // Flutter can reuse another cover's
+                                        // image/gesture widget state.
+                                        key: ValueKey((block.start, index)),
                                         block: block,
                                         activeSegmentIndex: player.currentIndex,
                                         searchMatch: _selectedSourceSearchHit,
