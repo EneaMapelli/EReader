@@ -16,6 +16,8 @@ on:
       - lib/audio/sherpa_vits_engine.dart
       - lib/features/reader/reader_screen.dart
       - lib/features/reader/speech_provider_screen.dart
+      - lib/data/offline_voice_pack.dart
+      - test/audio/free_tts_selection_test.dart
   workflow_dispatch:
 
 # A private GitHub prerelease is written only AFTER a verified Windows
