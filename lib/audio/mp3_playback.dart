@@ -180,6 +180,16 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
           slot.needsNativeStop = true;
           await slot.decoder.load(file.path, speed: speed);
         } catch (_) {
+          // setFilePath may have opened a native handle before failing.
+          // Settle Stop BEFORE deleting the working MP3; if native Stop
+          // itself fails, retain the obligation for the next retry.
+          try {
+            await slot.decoder.stop();
+            slot.needsNativeStop = false;
+          } catch (_) {
+            // The next Stop/load must try again; Windows may still hold
+            // this file open, and deletion will be deferred safely.
+          }
           await _clearFile(slot, expected: file);
           rethrow;
         } finally {
