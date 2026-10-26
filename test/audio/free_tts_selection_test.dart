@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/audio/speech_engine_factory.dart';
 import 'package:ereader/audio/secret_vault.dart';
@@ -11,7 +13,7 @@ void main() {
   final store = LibraryStore();
 
   test('free system voices expose interpreted and native punctuation modes',
-      () async {
+      () {
     expect(SpeechEngineFactory.availableProviders, contains('system'));
     expect(SpeechEngineFactory.availableProviders,
         contains('system-native'));
@@ -23,8 +25,7 @@ void main() {
         bookId: 'test', store: store);
     expect(interpreted, isA<SystemSpeechEngine>());
     expect(native, isA<SystemSpeechEngine>());
-    await interpreted.dispose();
-    await native.dispose();
+    // No native platform channel calls in pure selection tests.
   });
 
   test('Piper/VITS cannot be enabled without a selected verified pack', () {
@@ -59,13 +60,13 @@ void main() {
           providerId: 'sherpa-vits',
           modelId: 'another-pack', language: 'it-IT'),
       bookId: 'test', store: store,
-    ), throwsFormatException);
+    ), Platform.isWindows ? throwsFormatException : throwsUnsupportedError);
     expect(() => withPack.create(
       preferences: const SpeechPreferences(
           providerId: 'sherpa-vits',
           modelId: 'piper-it-paola', language: 'it-IT'),
       bookId: 'test', store: store,
-    ), throwsFormatException,
+    ), Platform.isWindows ? throwsFormatException : throwsUnsupportedError,
         reason: 'Without an installed eSpeak phonemizer no native VITS trial');
   });
 
