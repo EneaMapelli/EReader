@@ -406,11 +406,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     itemCount: books.length,
                     itemBuilder: (context, index) {
                       final book = books[index];
+                      final cover = book.format == BookFormat.epub
+                          ? widget.store.coverFile(book.id) : null;
+                      Widget fallback() => Icon(
+                        book.format == BookFormat.pdf
+                            ? Icons.picture_as_pdf_outlined
+                            : Icons.menu_book_outlined,
+                      );
                       return ListTile(
-                        leading: Icon(
-                          book.format == BookFormat.pdf
-                              ? Icons.picture_as_pdf_outlined
-                              : Icons.menu_book_outlined,
+                        leading: cover == null ? fallback() : ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: SizedBox(
+                            key: ValueKey('library-cover-${book.id}'),
+                            width: 40,
+                            height: 56,
+                            child: Image.file(
+                              cover,
+                              fit: BoxFit.cover,
+                              cacheWidth: 120,
+                              errorBuilder: (context, error, stack) =>
+                                  Center(child: fallback()),
+                            ),
+                          ),
                         ),
                         title: Text(book.title),
                         subtitle: Text(
