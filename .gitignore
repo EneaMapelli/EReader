@@ -28,3 +28,4 @@ windows/flutter/ephemeral/
 # Generated test results under test-results/ are intentionally tracked,
 # after filtering. Do not ignore test-results/ globally.
 
+example/
