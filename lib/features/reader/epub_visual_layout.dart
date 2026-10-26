@@ -71,29 +71,46 @@ class EpubVisualRun {
 /// the whole paragraph. No source characters, speech chunks or anchors
 /// are inserted by this presentation-only structure.
 class EpubVisualFlowItem {
-  const EpubVisualFlowItem.text(this.runs) : image = null;
-  const EpubVisualFlowItem.image(this.image) : runs = const [];
+  const EpubVisualFlowItem.text(this.runs)
+      : image = null, table = null;
+  const EpubVisualFlowItem.image(this.image)
+      : runs = const [], table = null;
+  const EpubVisualFlowItem.table(this.table)
+      : runs = const [], image = null;
 
   final List<EpubVisualRun> runs;
   final EpubEmbeddedImage? image;
+  /// Non-destructive, user-expanded preview after original table source.
+  final EpubTablePreview? table;
 }
 
-/// Stable positional interleave for a lazy rendered EPUB paragraph.
-/// Equal-offset images keep the OPF traversal order. Metadata on a
-/// visually split run (including dialogue and footnote links) is retained.
-/// Complexity is O(runs + images log images), with at most 32 images/book.
+/// Stable source-order interleave of original text, local images and an
+/// optional bounded table preview. Tables stay in the TTS/source text; their
+/// visual previews are collapsed by default and anchored at table.end,
+/// so a preview does not render at the bottom of an unrelated paragraph.
+/// Equal-offset images preserve extraction order; table previews follow
+/// the tied images. No synthetic text is passed to TTS or search.
 List<EpubVisualFlowItem> epubVisualFlow(EpubVisualBlock block) {
-  if (block.images.isEmpty) {
+  if (block.images.isEmpty && block.tables.isEmpty) {
     return block.runs.isEmpty
         ? const []
         : [EpubVisualFlowItem.text(block.runs)];
   }
-  final ordered = [
+  final events = <({
+    int offset, int kind, int order,
+    EpubEmbeddedImage? image, EpubTablePreview? table
+  })>[
     for (var i = 0; i < block.images.length; i++)
-      (index: i, value: block.images[i]),
+      (offset: block.images[i].offset, kind: 0, order: i,
+       image: block.images[i], table: null),
+    for (var i = 0; i < block.tables.length; i++)
+      (offset: block.tables[i].end, kind: 1, order: i,
+       image: null, table: block.tables[i]),
   ]..sort((a, b) {
-    final order = a.value.offset.compareTo(b.value.offset);
-    return order != 0 ? order : a.index.compareTo(b.index);
+    var order = a.offset.compareTo(b.offset);
+    if (order != 0) return order;
+    order = a.kind.compareTo(b.kind);
+    return order != 0 ? order : a.order.compareTo(b.order);
   });
   final pieces = <EpubVisualFlowItem>[];
   final pendingText = <EpubVisualRun>[];
@@ -107,44 +124,46 @@ List<EpubVisualFlowItem> epubVisualFlow(EpubVisualBlock block) {
     pendingText.clear();
   }
 
-  for (final entry in ordered) {
-    var beforeImage =
-        entry.value.offset.clamp(block.start, block.end).toInt();
-    // Extracted XHTML image offsets fall on Unicode character boundaries.
-    // Defensive handling for synthetic/stale metadata: never visually
-    // divide a high/low surrogate pair into two malformed TextSpans.
+  for (final event in events) {
+    var position = event.offset.clamp(block.start, block.end).toInt();
+    // A malformed image offset inside an emoji surrogate pair must not
+    // cause two invalid Flutter text spans. The already source-aligned
+    // table-end position is handled by the same safeguard.
     for (var i = cursor; i < runs.length; i++) {
       final run = runs[i];
-      if (run.start >= beforeImage) break;
-      if (run.end <= beforeImage) continue;
+      if (run.start >= position) break;
+      if (run.end <= position) continue;
       final runText = run.text;
-      final relative = beforeImage - run.start;
+      final relative = position - run.start;
       if (relative > 0 && relative < runText.length) {
         final before = runText.codeUnitAt(relative - 1);
         final after = runText.codeUnitAt(relative);
         if (before >= 0xd800 && before <= 0xdbff &&
             after >= 0xdc00 && after <= 0xdfff) {
-          beforeImage++;
+          position++;
         }
       }
       break;
     }
     while (cursor < runs.length) {
       final run = runs[cursor];
-      if (run.start >= beforeImage) break;
-      if (run.end <= beforeImage) {
+      if (run.start >= position) break;
+      if (run.end <= position) {
         pendingText.add(run);
         cursor++;
       } else {
-        // The image fell inside a spoken/styled/linked source run.
-        // Only the *visual* fragment is split: the TTS index is shared.
-        pendingText.add(run.visualSlice(run.start, beforeImage));
-        runs[cursor] = run.visualSlice(beforeImage, run.end);
+        // The fragment is split for painting, never for TTS/casting.
+        pendingText.add(run.visualSlice(run.start, position));
+        runs[cursor] = run.visualSlice(position, run.end);
         break;
       }
     }
     emitText();
-    pieces.add(EpubVisualFlowItem.image(entry.value));
+    if (event.image case final picture?) {
+      pieces.add(EpubVisualFlowItem.image(picture));
+    } else if (event.table case final preview?) {
+      pieces.add(EpubVisualFlowItem.table(preview));
+    }
   }
   while (cursor < runs.length) {
     pendingText.add(runs[cursor++]);
