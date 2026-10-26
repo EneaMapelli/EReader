@@ -559,6 +559,20 @@ class ReaderPlayer extends ChangeNotifier {
     }
   }
 
+  /// Explicitly navigate to a silent trailing source section or speech EOF.
+  /// This is NOT Play: it never starts a new utterance and cannot resume a
+  /// previous auto-seek after the native Stop. The visual reader separately
+  /// persists the exact text/source location in its original document.
+  Future<void> seekToSourceEnd() async {
+    if (_disposed) return;
+    final epoch = ++_navigationEpoch;
+    _resumeAfterNavigation = false;
+    await _stopCurrent();
+    if (_disposed || epoch != _navigationEpoch) return;
+    currentIndex = _segments.length;
+    _notify();
+  }
+
   /// Called only when the user COMMITS a rate/pitch/language adjustment.
   /// Cancels stale prefetched audio and restarts the current source segment
   /// with updated settings; no new read position or speaker is inferred.
