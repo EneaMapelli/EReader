@@ -1647,3 +1647,15 @@ a successful job and manual Windows smoke tests. See
   DLLs. Previous compile blockers addressed. No automated tests or
   human/device launch testing were executed; release remains **unsigned
   and user-test-only**, not a production installer.
+
+### 2026-10-26 — Windows system punctuation interpreted as pauses
+
+Some Windows native voices read punctuation names out loud. The
+Windows-only `SystemSpeechEngine` now plans speech-only phrases with
+timed pauses for narration punctuation and strips decorative quote
+marks from spoken input, while keeping decimals, word apostrophes,
+compound hyphens and source/TTS segment bookmarks immutable.
+Native Stop/Seek cancels the remaining phrase playback.
+The new `test/audio/windows_speech_punctuation_test.dart` is authored
+but not run; a Windows portable Release rebuild was requested.
+[Details and user listening checklist](WINDOWS_TTS_PUNCTUATION.md).
