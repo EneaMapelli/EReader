@@ -87,16 +87,24 @@ class EpubVisualLayout {
   const EpubVisualLayout(this.blocks, this.segmentToBlock, {
     int Function(int)? indexedBlockForSourceOffset,
     Map<String, int> spineBlockIndices = const {},
+    Map<int, String> silentSpineIdsByBlock = const {},
     EpubVisibleReadingPosition Function(int, List<SpeechSegment>)?
         indexedPositionForVisibleBlock,
   }) : _indexedBlockForSourceOffset = indexedBlockForSourceOffset,
        _spineBlockIndices = spineBlockIndices,
+       _silentSpineIdsByBlock = silentSpineIdsByBlock,
        _indexedPositionForVisibleBlock = indexedPositionForVisibleBlock;
 
   final List<EpubVisualBlock> blocks;
   final List<int> segmentToBlock;
   final int Function(int)? _indexedBlockForSourceOffset;
   final Map<String, int> _spineBlockIndices;
+  final Map<int, String> _silentSpineIdsByBlock;
+
+  /// This block has no text source coordinates unique to itself.
+  /// Never infer its identity solely from its (possibly shared) offset.
+  String? silentSpineIdrefForBlock(int index) =>
+      _silentSpineIdsByBlock[index];
 
   /// Empty XHTML spine entries may share a source offset with the following
   /// section. Only the OPF idref uniquely selects the correct visual block.
