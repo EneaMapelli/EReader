@@ -105,7 +105,7 @@ void main() {
     expect(() => store.updateBookMetadata(book.id,
       title: 'Legitimate', language: '../unsafe'), throwsFormatException);
     expect(() => store.updateBookMetadata(book.id,
-      title: 'Line\\nBreak'), throwsFormatException);
+      title: 'Line\nBreak'), throwsFormatException);
     expect(() => store.updateBookMetadata('unknown',
       title: 'Legitimate'), throwsStateError);
     expect(store.getBook(book.id)!.title, book.title);
