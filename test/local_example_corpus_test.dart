@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:ereader/data/book_decoder.dart';
 import 'package:ereader/data/epub_reader_preflight.dart';
 import 'package:ereader/data/library_store.dart';
+import 'package:ereader/data/pdf_text_navigation.dart';
 import 'package:ereader/domain/book.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -170,6 +171,19 @@ void main() {
           }
           final nonempty = ranges.where((r) => r.end > r.start).toList();
           expect(nonempty, isNotEmpty, reason: 'No readable source range');
+          if (format == BookFormat.pdf) {
+            // Exercise visual-page to spoken-text round trips on the real
+            // local document, without logging page contents.
+            result['readablePdfPages'] = document.pdfPageRanges.length;
+            for (final page in document.pdfPageRanges) {
+              if (page.end <= page.start) continue;
+              final chosen = pdfTextOffsetForVisualPage(
+                document.pdfPageRanges, page.pageNumber);
+              expect(chosen, page.start);
+              expect(pdfVisualPageForTextOffset(
+                document.pdfPageRanges, chosen!), page.pageNumber);
+            }
+          }
           final sampleIndices = <int>{0, nonempty.length ~/ 2,
               nonempty.length - 1};
           for (final sample in sampleIndices) {
