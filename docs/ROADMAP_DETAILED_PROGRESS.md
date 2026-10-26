@@ -213,3 +213,17 @@ chiudere prima il ciclo sui dispositivi reali.
   preparato, senza esecuzione reale. Nessun guadagno di latenza misurato:
   M2 ancora 70%, complessivo ~55%.
   [Specifica](MP3_NATIVE_STOP_DEDUP.md).
+
+### Audio focus Android e avanzamento segnalibro dopo clip completata (2026-10-26)
+
+- M2: le interruzioni audio duplicate vengono raggruppate in una sola
+  attesa dello Stop nativo, invalidando ogni comando Play successivo ma
+  precedente all'ultima interruzione. Non si riparte automaticamente dopo
+  la riconquista del focus.
+- Il checkpoint SQLite avanza al prossimo segmento effettivamente narrabile
+  solo **dopo** il completamento della clip precedente; un'interruzione a
+  metà mantiene l'offset iniziale, evitando di saltare parole. Note EPUB
+  espressamente escluse non spostano l'ancora su segmenti silenziosi.
+- Aggiunti test per race media/focus e verifica integrata storage, non
+  eseguiti. Stime invariate M2 ~70%, M0–M6 ~55%.
+  [Specifiche e casi manuali](AUDIO_INTERRUPTION_CHECKPOINTS.md).
