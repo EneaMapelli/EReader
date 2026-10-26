@@ -93,8 +93,23 @@ Actions o allegati a issue. `example/` resta ignorata da Git.
 
 ## Stato verifiche
 
-Al momento dell'introduzione del packaging, la prima esecuzione di
-GitHub Actions era partita, ma il suo risultato di compilazione e la
-presenza dell'artefatto andavano ancora verificati. Una build riuscita
-prova soltanto che l'applicazione si compila: non ne garantisce
-l'assenza di bug e non sostituisce test utente su Windows.
+**Prima Release x64 riuscita e verificata:**
+
+- [GitHub Actions run #40382035244](https://github.com/EneaMapelli/EReader/actions/runs/40382035244):
+  compilazione Flutter Windows Release **success**, upload artefatto **success**.
+- Pacchetto: `EReader-Windows-x64-c1f783ca.zip`;
+  commit sorgente `c1f783cabef22b2aa1be9fbe197208e8b0ebb966`.
+  Artefatto GitHub: `EReader-Windows-x64-portable`, 14 giorni di retention
+  (fino al 9 novembre 2026).
+- Ispezione archivio: ZIP integro; `ereader.exe`,
+  `flutter_windows.dll`, `data/flutter_assets/`,
+  `sqlite3.dll`, `pdfium.dll`, `just_audio_windows_plugin.dll`,
+  `onnxruntime.dll` e le altre librerie richieste sono presenti.
+- La prima compilazione fallì per un problema di parsing PowerShell;
+  la seconda individuò il metodo `PdfViewerController.dispose()` non
+  disponibile in `pdfrx 2.4.8`. La terza individuò incompatibilità
+  di `just_audio_windows` con MSVC 14.51. Corretto il Dart e fissato
+  Windows Server 2022/Visual Studio 2022, la quarta è stata completata.
+- Non sono stati eseguiti test automatici, avvio grafico su macchina
+  utente, lettura TTS nativa o test di installazione. Il successo
+  del compilatore non dimostra che tutte le funzionalità siano prive di bug.
