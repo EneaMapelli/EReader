@@ -13,6 +13,9 @@ class EpubEmbeddedImage {
   final Uint8List bytes;
   final String alt;
   final String resourcePath;
+  /// OPF identity disambiguates illustrated sections with the same empty
+  /// UTF-16 source offset. Display-only; it never enters spoken text.
+  final String? spineIdref;
 }
 
 class EpubInternalLink {
