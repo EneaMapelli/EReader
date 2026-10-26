@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
@@ -7,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/book.dart';
+import 'epub_catalog_metadata.dart';
 import '../domain/reading_anchor.dart';
 import '../domain/pronunciation_rule.dart';
 import '../domain/speech_preferences.dart';
@@ -626,9 +628,27 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         return getBook(id)!;
       }
 
+      EpubCatalogMetadata? catalog;
+      if (format == BookFormat.epub) {
+        try {
+          // Never block the UI isolate with OPF ZIP/XML parsing, and do not
+          // require fully readable XHTML simply to import a book.
+          catalog = await Isolate.run(
+            () => const EpubCatalogMetadataReader().read(bytes),
+            debugName: 'EReader EPUB catalog metadata',
+          );
+        } catch (_) {
+          // EPUB signature alone does not guarantee readable OPF content.
+          // Let the user import it under its filename; the reader's decoder
+          // will report corruption when the file is opened.
+        }
+      }
       final record = BookRecord(
         id: id,
-        title: p.basenameWithoutExtension(displayName),
+        title: catalog?.title ?? p.basenameWithoutExtension(displayName),
+        author: catalog?.author,
+        series: catalog?.series,
+        language: catalog?.language,
         localPath: target.path,
         format: format,
         importedAt: DateTime.now().toUtc(),
