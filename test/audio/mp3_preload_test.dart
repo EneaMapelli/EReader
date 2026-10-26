@@ -82,14 +82,12 @@ void main() {
   Completer<void>? firstLoadGate;
   int failFileDeletions = 0;
   bool failStandbyFirstLoad = false;
-  bool failActiveFirstLoad = false;
 
   setUp(() async {
     nextLoadGate = null;
     firstLoadGate = null;
     failFileDeletions = 0;
     failStandbyFirstLoad = false;
-    failActiveFirstLoad = false;
     temp = await Directory.systemTemp.createTemp('ereader-mp3-warm-');
     decoders = [];
     output = JustAudioMp3Output(
@@ -192,7 +190,6 @@ void main() {
       () async {
     // Install a failing first native decoder before its first file write.
     // The decoder might retain an OS handle despite throwing on load.
-    failActiveFirstLoad = true;
     // A new output receives the updated flag from the injected factory.
     await output.dispose();
     output = JustAudioMp3Output(
