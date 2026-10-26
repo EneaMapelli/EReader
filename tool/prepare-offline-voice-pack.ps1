@@ -27,6 +27,9 @@ if ([string]::IsNullOrWhiteSpace($DisplayName)) {
   throw 'DisplayName cannot be blank.'
 }
 $root = $source.FullName.TrimEnd('\')
+if ($source.FullName -eq [IO.Path]::GetPathRoot($source.FullName)) {
+  throw 'Choose a dedicated model folder, not an entire drive.'
+}
 $metadata = Join-Path $root 'voice-pack.json'
 if (Test-Path -LiteralPath $metadata) {
   throw 'voice-pack.json already exists; review it instead of overwriting.'
