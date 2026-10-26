@@ -112,6 +112,16 @@ class ReaderPlayer extends ChangeNotifier {
   /// lookahead can spend quota before the reader reaches that passage.
   bool prefetchNextCloudChunk = false;
 
+  /// This is local cache IO/decoder work only, never paid synthesis.
+  /// The separate speculative HTTP toggle remains OFF by default.
+  bool warmCachedCloudChunk = true;
+
+  void setCachedCloudWarmup(bool enabled) {
+    if (engineProviderId != 'openai-speech') return;
+    warmCachedCloudChunk = enabled;
+    _notify();
+  }
+
   void setCloudPrefetch(bool enabled) {
     if (engineProviderId != 'openai-speech') return;
     prefetchNextCloudChunk = enabled;
@@ -346,28 +356,45 @@ class ReaderPlayer extends ChangeNotifier {
             speechTextTransform?.call(segment.text) ?? segment.text;
         final playing = _engine.speak(spokenText,
             language: language, rate: rate, pitch: pitch);
-        // The cloud implementation waits until current audio is ready
-        // before spending any quota on the next chunk. Only ONE future
-        // clip is prepared; actual audio output stays strictly serial.
-        if (prefetchNextCloudChunk &&
-            engineProviderId == 'openai-speech' &&
-            _engine is AheadOfTimeSpeechEngine &&
-            currentIndex + 1 < _segments.length) {
-          final next = _segments[currentIndex + 1];
-          // A speculative request for an intentionally silent note would
-          // still send its text and debit quota. Do not prefetch it.
-          if (!(shouldSkipSegment?.call(next) ?? false)) {
+        // Only the NEXT actually audible chunk is eligible. Skippable
+        // EPUB footnotes may contain several silent segments in a row;
+        // neither private cache warming nor paid prefetch should preload
+        // those silent chunks or interrupt the eventual narrator/actor.
+        if (engineProviderId == 'openai-speech' &&
+            (prefetchNextCloudChunk || warmCachedCloudChunk)) {
+          var nextIndex = currentIndex + 1;
+          while (nextIndex < _segments.length &&
+              (shouldSkipSegment?.call(_segments[nextIndex]) ?? false)) {
+            nextIndex++;
+          }
+          if (nextIndex < _segments.length) {
+            final next = _segments[nextIndex];
             final nextText =
                 speechTextTransform?.call(next.text) ?? next.text;
-            final cap = _engine as AheadOfTimeSpeechEngine;
-            unawaited(cap.prepareSpeech(
-              nextText,
-              voice: _voiceFor(next),
-              language: language, rate: rate, pitch: pitch,
-            ).catchError((Object _) {
-              // A failed prefetch is retained and surfaced by the next
-              // speak() without a second charged API request.
-            }));
+            final nextVoice = _voiceFor(next);
+            if (prefetchNextCloudChunk &&
+                _engine is AheadOfTimeSpeechEngine) {
+              final cap = _engine as AheadOfTimeSpeechEngine;
+              unawaited(cap.prepareSpeech(
+                nextText,
+                voice: nextVoice,
+                language: language, rate: rate, pitch: pitch,
+              ).catchError((Object _) {
+                // Prepared errors remain attached to the paid clip and
+                // are surfaced once when its source segment is played.
+              }));
+            } else if (warmCachedCloudChunk &&
+                _engine is CachedAheadSpeechEngine) {
+              final cap = _engine as CachedAheadSpeechEngine;
+              unawaited(cap.prepareCachedSpeech(
+                nextText,
+                voice: nextVoice,
+                language: language, rate: rate, pitch: pitch,
+              ).catchError((Object _) {
+                // Cache-only warming is best effort; the normal speech
+                // path handles a cache miss without speculative billing.
+              }));
+            }
           }
         }
         await playing;
