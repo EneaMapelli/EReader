@@ -311,12 +311,12 @@ void main() {
     ));
     expect(find.byType(ExpansionTile), findsOneWidget);
     expect(find.text('Table preview (1 rows)'), findsOneWidget);
-    final text = tester.widgetList<RichText>(find.byType(RichText))
-        .map((widget) => widget.text.toPlainText()).join();
-    expect(text.contains('Before.North10'), isTrue);
-    expect(text.contains('After.'), isTrue);
-    expect(text.contains('North10After.'), isFalse,
-        reason: 'Preview must be between source-backed text pieces');
+    final painted = tester.widgetList<RichText>(find.byType(RichText))
+        .map((widget) => widget.text.toPlainText()).toList();
+    expect(painted, contains('Before.North10'));
+    expect(painted, contains('After.'));
+    expect(painted, isNot(contains('Before.North10After.')),
+        reason: 'The table preview splits two painted source groups');
     await tester.tap(find.text('Table preview (1 rows)'));
     await tester.pumpAndSettle();
     expect(find.text('North'), findsOneWidget);
