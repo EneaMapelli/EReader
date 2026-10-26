@@ -275,7 +275,13 @@ class ReaderMediaHandler extends BaseAudioHandler {
   Future<void> pauseForSystemInterruption() {
     if (_closed || _player == null) return Future<void>.value();
     final pending = _interruptionPause;
-    if (pending != null) return pending;
+    if (pending != null) {
+      // A fresh user/remote Play may have arrived since the first event.
+      // Even when sharing its Stop Future, the newer interruption must
+      // invalidate every later, not-yet-dispatched Play command.
+      _commandEpoch++;
+      return pending;
+    }
     // A seek/voice switch can already be awaiting native Stop with
     // isPlaying=false and an auto-resume queued. Only a real pause()
     // invalidates that pending navigation and its crash marker safely.
