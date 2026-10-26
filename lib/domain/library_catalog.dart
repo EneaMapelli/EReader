@@ -1,7 +1,7 @@
 import 'book.dart';
 
 /// Library-only view controls. Filtering never changes SQLite records.
-enum LibrarySortOrder { recentlyImported, titleAscending, titleDescending, format }
+enum LibrarySortOrder { recentlyImported, titleAscending, titleDescending, authorAscending, seriesAscending, format }
 
 List<BookRecord> filterAndSortLibraryBooks(
   Iterable<BookRecord> books, {
@@ -13,7 +13,10 @@ List<BookRecord> filterAndSortLibraryBooks(
   final matching = <BookRecord>[
     for (final book in books)
       if ((format == null || book.format == format) &&
-          (needle.isEmpty || book.title.toLowerCase().contains(needle)))
+          (needle.isEmpty ||
+              book.title.toLowerCase().contains(needle) ||
+              (book.author?.toLowerCase().contains(needle) ?? false) ||
+              (book.series?.toLowerCase().contains(needle) ?? false)))
         book,
   ];
   int compare(BookRecord a, BookRecord b) {
@@ -28,6 +31,18 @@ List<BookRecord> filterAndSortLibraryBooks(
         break;
       case LibrarySortOrder.titleDescending:
         if (title != 0) return -title;
+        break;
+      case LibrarySortOrder.authorAscending:
+        final author = (a.author ?? '').toLowerCase().compareTo(
+          (b.author ?? '').toLowerCase());
+        if (author != 0) return author;
+        if (title != 0) return title;
+        break;
+      case LibrarySortOrder.seriesAscending:
+        final series = (a.series ?? '').toLowerCase().compareTo(
+          (b.series ?? '').toLowerCase());
+        if (series != 0) return series;
+        if (title != 0) return title;
         break;
       case LibrarySortOrder.format:
         final byFormat = a.format.name.compareTo(b.format.name);
