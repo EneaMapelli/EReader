@@ -54,6 +54,64 @@ void main() {
   });
 
 
+  test('catalog details persist, remain searchable, and never reset position',
+      () async {
+    final input = File(p.join(root.path, 'catalog-details.txt'));
+    await input.writeAsString('A local book with a saved position.');
+    final book = await store.importFile(input.path);
+    await store.savePosition(book.id, 19);
+    final edited = store.updateBookMetadata(book.id,
+      title: '  Revised title  ',
+      author: '  Ada Example  ',
+      series: '  Example Cycle ',
+      language: 'it_IT',
+    );
+    expect(edited.title, 'Revised title');
+    expect(edited.author, 'Ada Example');
+    expect(edited.series, 'Example Cycle');
+    expect(edited.language, 'it-IT');
+    expect(edited.progressOffset, 19);
+    expect(edited.id, book.id);
+    expect(edited.localPath, book.localPath);
+    expect((await store.importFile(input.path)).title, 'Revised title');
+
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    final restored = store.getBook(book.id)!;
+    expect(restored.title, 'Revised title');
+    expect(restored.author, 'Ada Example');
+    expect(restored.series, 'Example Cycle');
+    expect(restored.language, 'it-IT');
+    expect(restored.progressOffset, 19);
+    expect(restored.atOffset(21).author, 'Ada Example');
+    expect(BookRecord.fromJson(restored.toJson()).series, 'Example Cycle');
+
+    final cleared = store.updateBookMetadata(
+      book.id, title: restored.title, author: '', series: '', language: '',
+    );
+    expect(cleared.author, isNull);
+    expect(cleared.series, isNull);
+    expect(cleared.language, isNull);
+    expect(cleared.progressOffset, 19);
+  });
+
+  test('invalid book metadata never changes the stored record', () async {
+    final source = File(p.join(root.path, 'metadata-validation.txt'));
+    await source.writeAsString('Validation does not rewrite the source');
+    final book = await store.importFile(source.path);
+    expect(() => store.updateBookMetadata(book.id,
+      title: '  ', author: 'Other'), throwsFormatException);
+    expect(() => store.updateBookMetadata(book.id,
+      title: 'Legitimate', language: '../unsafe'), throwsFormatException);
+    expect(() => store.updateBookMetadata(book.id,
+      title: 'Line\\nBreak'), throwsFormatException);
+    expect(() => store.updateBookMetadata('unknown',
+      title: 'Legitimate'), throwsStateError);
+    expect(store.getBook(book.id)!.title, book.title);
+    expect(store.getBook(book.id)!.author, isNull);
+  });
+
   test('stream-only picker import deduplicates in the real SQLite library',
       () async {
     final source = utf8.encode('The same EPUB-independent reading source.');
@@ -414,7 +472,7 @@ void main() {
 
     final upgraded = sqlite3.open(file);
     expect(upgraded.select('PRAGMA user_version').single['user_version'],
-        16);
+        17);
     expect(upgraded.select('PRAGMA table_info(books)')
         .where((row) => row['name'] == 'last_opened_at').length, 1);
     expect(upgraded.select('PRAGMA table_info(cast_spans)')
