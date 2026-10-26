@@ -342,6 +342,62 @@ void main() {
     ), isEmpty);
   });
 
+
+  test('removal clears one installed pack and is idempotent', () async {
+    final original = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input, modelsDirectory: installed,
+    );
+    expect(await File(original.modelPath).exists(), isTrue);
+    expect(await removeInstalledOfflineVoicePack(
+      packId: manifest.id, modelsDirectory: installed,
+    ), isTrue);
+    expect(await File(original.modelPath).exists(), isFalse);
+    expect(await inspectOfflineVoicePacks(modelsDirectory: installed), isEmpty);
+    expect(await removeInstalledOfflineVoicePack(
+      packId: manifest.id, modelsDirectory: installed,
+    ), isFalse);
+    expect(await installed.list().toList(), isEmpty);
+  });
+
+  test('removal refuses traversal and foreign files', () async {
+    final unrelated = File(p.join(root.path, 'do-not-delete.txt'));
+    await unrelated.writeAsString('unchanged');
+    for (final name in ['../do-not-delete', '/absolute', '..', 'A', '.hidden']) {
+      await expectLater(removeInstalledOfflineVoicePack(
+        packId: name, modelsDirectory: installed,
+      ), throwsFormatException);
+    }
+    await installed.create();
+    final wrongType = File(p.join(installed.path, 'not-a-folder'));
+    await wrongType.writeAsString('not a voice');
+    await expectLater(removeInstalledOfflineVoicePack(
+      packId: 'not-a-folder', modelsDirectory: installed,
+    ), throwsFormatException);
+    expect(await wrongType.exists(), isTrue);
+    expect(await unrelated.readAsString(), 'unchanged');
+  });
+
+  test('deletion removes only selected pack and leaves other voices', () async {
+    await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input, modelsDirectory: installed,
+    );
+    final second = OfflineVoicePackManifest(
+      id: 'second-model', displayName: 'Second voice', locale: 'en-US',
+      licenseId: manifest.licenseId,
+      modelSha256: manifest.modelSha256,
+      tokensSha256: manifest.tokensSha256,
+    );
+    await installOfflineVoicePack(
+      manifest: second, sourceDirectory: input, modelsDirectory: installed,
+    );
+    expect(await removeInstalledOfflineVoicePack(
+      packId: manifest.id, modelsDirectory: installed,
+    ), isTrue);
+    final survivors = await inspectOfflineVoicePacks(modelsDirectory: installed);
+    expect(survivors.map((x) => x.id), ['second-model']);
+    expect(survivors.single.ready, isTrue);
+  });
+
   test('invalid IDs and untrusted manifest data never create installation',
       () async {
     for (final id in ['../escape', 'UPPER', 'a/b', '.hidden']) {
