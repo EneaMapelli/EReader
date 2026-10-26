@@ -392,3 +392,17 @@ Actual ZIP fixture tests added/updated but not executed.
   and manual verification. **Windows user launch / real audio still
   unverified**, even though the Release compiled successfully.
   [User test guide](WINDOWS_USER_TEST_BUILD.md).
+
+### Windows voices: punctuation-aware TTS phrasing (2026-10-26)
+
+- The native Windows `SystemSpeechEngine` now uses a bounded, source-
+  independent punctuation planner: commas, periods, questions, quotations
+  and narrative dashes become timed, cancellable pauses between phrases,
+  rather than literal symbols to be spoken by Windows TTS voices.
+- Decimal commas/dots, clock colons, Unicode contractions and hyphenated
+  words remain intact; displayed book text, checkpoints, cast indices
+  and user pronunciation rules are unchanged. Other TTS providers are
+  unaffected. Native Stop cancels remaining phrase pauses.
+- Authored new focused planner regressions (NOT RUN); requested a fresh
+  Windows x64 portable build so user can check the audio quality manually.
+  [Guide](WINDOWS_TTS_PUNCTUATION.md). Estimates unchanged until real audio QA.
