@@ -291,6 +291,38 @@ void main() {
         bad, speech, chapters), throwsFormatException);
   });
 
+  testWidgets('collapsible table stays between earlier and later text',
+      (tester) async {
+    const source = 'Before.North10After.';
+    final end = source.indexOf('After.');
+    final block = EpubVisualBlock(
+      start: 0, end: source.length,
+      chapterStart: false, heading: false, firstSegmentIndex: 0,
+      runs: [EpubVisualRun.fromSource(0, source.length, source, 0)],
+      tables: [EpubTablePreview(7, end, const [
+        ['North', '10'],
+      ])],
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: block, activeSegmentIndex: 0, fontSize: 18,
+        onSelectSegment: (_) {},
+      )),
+    ));
+    expect(find.byType(ExpansionTile), findsOneWidget);
+    expect(find.text('Table preview (1 rows)'), findsOneWidget);
+    final text = tester.widgetList<RichText>(find.byType(RichText))
+        .map((widget) => widget.text.toPlainText()).join();
+    expect(text.contains('Before.North10'), isTrue);
+    expect(text.contains('After.'), isTrue);
+    expect(text.contains('North10After.'), isFalse,
+        reason: 'Preview must be between source-backed text pieces');
+    await tester.tap(find.text('Table preview (1 rows)'));
+    await tester.pumpAndSettle();
+    expect(find.text('North'), findsOneWidget);
+    expect(find.text('10'), findsOneWidget);
+  });
+
   testWidgets('widget paints image between the preceding and following text',
       (tester) async {
     const source = 'Before the image. After the image.';
