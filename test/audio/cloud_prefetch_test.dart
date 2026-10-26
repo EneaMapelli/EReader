@@ -119,7 +119,7 @@ class _Cache implements SpeechAudioCache {
 
 String _keyFor(String text, {String voice = 'marin'}) =>
     sha256.convert(
-      utf8.encode('gpt-4o-mini-tts\\u0000$voice\\u0000$text'),
+      utf8.encode('gpt-4o-mini-tts\u0000$voice\u0000$text'),
     ).toString();
 
 Future<void> _until(bool Function() predicate) async {
