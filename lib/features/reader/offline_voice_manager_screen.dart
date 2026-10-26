@@ -52,7 +52,7 @@ class _OfflineVoiceManagerScreenState
   }
 
   Future<void> _refresh({bool clearMessage = true}) async {
-    if (_loading || _busyId != null) return;
+    if (!mounted || _loading || _busyId != null) return;
     setState(() {
       _loading = true;
       if (clearMessage) _message = null;
@@ -74,7 +74,7 @@ class _OfflineVoiceManagerScreenState
   }
 
   Future<void> _remove(OfflineVoicePackInspection entry) async {
-    if (_loading || _busyId != null) return;
+    if (!mounted || _loading || _busyId != null) return;
     final approve = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
@@ -124,7 +124,7 @@ class _OfflineVoiceManagerScreenState
 
 
   Future<void> _chooseImportFolder() async {
-    if (_loading || _busyId != null) return;
+    if (!mounted || _loading || _busyId != null) return;
     setState(() {
       _loading = true;
       _importPreview = null;
@@ -162,7 +162,7 @@ class _OfflineVoiceManagerScreenState
 
   Future<void> _installSelectedFolder() async {
     final preview = _importPreview;
-    if (_loading || _busyId != null ||
+    if (!mounted || _loading || _busyId != null ||
         !_licenseReviewed || preview == null) return;
     setState(() {
       _loading = true;
