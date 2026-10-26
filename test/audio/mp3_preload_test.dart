@@ -204,11 +204,12 @@ void main() {
       output.play(Uint8List.fromList([4]), speed: 1),
       throwsStateError,
     );
-    expect(decoders.single.stopCalls, 0);
+    expect(decoders.single.stopCalls, 1,
+        reason: 'A partially failed native file load requires immediate Stop');
     final second = output.play(Uint8List.fromList([5]), speed: 1);
     await until(() => decoders.single.playing.isNotEmpty);
     expect(decoders.single.stopCalls, 1,
-        reason: 'Failed setFilePath remains dirty until Stop confirms');
+        reason: 'Confirmed load-failure Stop must not be repeated on retry');
     decoders.single.finish();
     await second;
     expect(decoders.single.stopCalls, 2);
