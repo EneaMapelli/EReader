@@ -55,6 +55,7 @@ class EpubVisualBlock {
     required this.firstSegmentIndex,
     this.images = const [],
     this.tables = const [],
+    this.visualOnlySectionTitle,
   });
 
   final int start;
@@ -65,6 +66,9 @@ class EpubVisualBlock {
   final int? firstSegmentIndex;
   final List<EpubEmbeddedImage> images;
   final List<EpubTablePreview> tables;
+  /// Display-only, for an OPF item whose XHTML produced no readable text.
+  /// This label is not present in source text and must NEVER reach TTS.
+  final String? visualOnlySectionTitle;
 
   String get text => runs.map((run) => run.text).join();
 }
@@ -82,14 +86,22 @@ class EpubVisibleReadingPosition {
 class EpubVisualLayout {
   const EpubVisualLayout(this.blocks, this.segmentToBlock, {
     int Function(int)? indexedBlockForSourceOffset,
+    Map<String, int> spineBlockIndices = const {},
     EpubVisibleReadingPosition Function(int, List<SpeechSegment>)?
         indexedPositionForVisibleBlock,
   }) : _indexedBlockForSourceOffset = indexedBlockForSourceOffset,
+       _spineBlockIndices = spineBlockIndices,
        _indexedPositionForVisibleBlock = indexedPositionForVisibleBlock;
 
   final List<EpubVisualBlock> blocks;
   final List<int> segmentToBlock;
   final int Function(int)? _indexedBlockForSourceOffset;
+  final Map<String, int> _spineBlockIndices;
+
+  /// Empty XHTML spine entries may share a source offset with the following
+  /// section. Only the OPF idref uniquely selects the correct visual block.
+  int blockForSpine(String idref, int sourceOffset) =>
+      _spineBlockIndices[idref] ?? blockForSourceOffset(sourceOffset);
   final EpubVisibleReadingPosition Function(int, List<SpeechSegment>)?
       _indexedPositionForVisibleBlock;
 
