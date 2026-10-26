@@ -59,6 +59,7 @@ class EpubStructure {
     this.links = const [],
     this.targets = const [],
     this.tables = const [],
+    this.captions = const [],
     this.footnotes = const [],
   });
 
@@ -66,6 +67,7 @@ class EpubStructure {
   final List<EpubRawLink> links;
   final List<EpubRawTarget> targets;
   final List<EpubRawTable> tables;
+  final List<EpubRawCaption> captions;
   final List<EpubRawFootnote> footnotes;
 }
 
@@ -155,6 +157,7 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
   final links = <EpubRawLink>[];
   final targets = <EpubRawTarget>[];
   final tables = <EpubRawTable>[];
+  final captions = <EpubRawCaption>[];
   final footnotes = <EpubRawFootnote>[];
   var invalid = false;
   const maxNodeDepth = 256;
@@ -164,7 +167,8 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
     if (invalid) return;
     if (depth > maxNodeDepth ||
         images.length + links.length + targets.length +
-            tables.length + footnotes.length > maxAnnotations) {
+            tables.length + captions.length + footnotes.length >
+            maxAnnotations) {
       invalid = true;
       return;
     }
@@ -217,6 +221,13 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
       if (isNote && footnotes.length < 200) {
         footnotes.add(EpubRawFootnote(noteId, start, end));
       }
+    }
+    if (node.localName == 'figcaption' && start < end &&
+        captions.length < 120) {
+      // Only actual, source-verified XHTML figure captions qualify.
+      // They remain in the original flattened speech text, with no
+      // extra caption string introduced by the visual annotation.
+      captions.add(EpubRawCaption(start, end));
     }
     if (node.localName == 'table' && start < end) {
       final rowElements = node.querySelectorAll('tr');
@@ -306,6 +317,11 @@ EpubStructure extractEpubStructure(String xhtml, String expectedText) {
         if (project(item.start) < project(item.end))
           EpubRawTable(
             project(item.start), project(item.end), item.rows),
+    ]),
+    captions: List.unmodifiable([
+      for (final item in captions)
+        if (project(item.start) < project(item.end))
+          EpubRawCaption(project(item.start), project(item.end)),
     ]),
     footnotes: List.unmodifiable([
       for (final item in footnotes)
