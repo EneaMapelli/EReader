@@ -240,3 +240,15 @@ included as completed features by merely having been designed in the roadmap.
   not run on Windows/Android; no gapless claim.
 - M2 stays 70%, total M0–M6 ~55%; see
   [CACHED_AUDIO_WARMUP.md](CACHED_AUDIO_WARMUP.md).
+
+### M2 — native MP3 decoder Stop optimization (2026-10-26)
+
+- Removed unnecessary `Mp3Decoder.stop()` before first playback and after
+  a previously confirmed finalizer Stop, without allowing overlapping audio.
+- Failed/partially opened `setFilePath` now triggers Stop before temporary
+  file removal; a failed native Stop remains mandatory on retry.
+- Added delayed-Stop, cold/warm decoder and partial-failure mock tests.
+  **Not executed** (no Dart/Flutter/native SDK in this environment).
+- No measured native playback-latency gain is claimed. M2 remains 70%;
+  overall roadmap estimate remains ~55%. See
+  [MP3_NATIVE_STOP_DEDUP.md](MP3_NATIVE_STOP_DEDUP.md).
