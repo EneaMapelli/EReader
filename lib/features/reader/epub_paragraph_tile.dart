@@ -286,19 +286,6 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                     ),
                   ),
                 ),
-              if (widget.block.runs.isNotEmpty)
-                Semantics(
-                  header: heading,
-                  child: Text.rich(
-                    TextSpan(children: [
-                      for (final run in widget.block.runs)
-                        _renderRun(context, run),
-                    ]),
-                    style: style,
-                    textAlign: heading ? TextAlign.start : TextAlign.justify,
-                    softWrap: true,
-                  ),
-                ),
               if (widget.block.visualOnlySectionTitle != null &&
                   widget.block.images.isEmpty)
                 Text(
@@ -309,25 +296,43 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                     fontSize: size,
                   ),
                 ),
-              for (final image in widget.block.images)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Semantics(
-                    image: true,
-                    label: image.alt.isEmpty
-                        ? 'Embedded book illustration' : image.alt,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 440),
-                      child: Image.memory(
-                        image.bytes,
-                        fit: BoxFit.contain,
-                        cacheWidth: 1200,
-                        errorBuilder: (context, error, stack) =>
-                            const Text('Illustration unavailable'),
+              // Physical XHTML ordering: split ONLY painted text runs at
+              // image source positions. No mutation of original TTS chunks
+              // or quote, search, link and UTF-16 source coordinates.
+              for (final part in epubVisualFlow(widget.block))
+                if (part.image case final image?)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Semantics(
+                      image: true,
+                      label: image.alt.isEmpty
+                          ? 'Embedded book illustration' : image.alt,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 440),
+                        child: Image.memory(
+                          image.bytes,
+                          fit: BoxFit.contain,
+                          cacheWidth: 1200,
+                          errorBuilder: (context, error, stack) =>
+                              const Text('Illustration unavailable'),
+                        ),
                       ),
                     ),
+                  )
+                else if (part.runs.isNotEmpty)
+                  Semantics(
+                    header: heading,
+                    child: Text.rich(
+                      TextSpan(children: [
+                        for (final run in part.runs)
+                          _renderRun(context, run),
+                      ]),
+                      style: style,
+                      textAlign: heading
+                          ? TextAlign.start : TextAlign.justify,
+                      softWrap: true,
+                    ),
                   ),
-                ),
               for (final table in widget.block.tables)
                 _tablePreview(context, table),
             ],
