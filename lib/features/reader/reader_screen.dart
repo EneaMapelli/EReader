@@ -239,6 +239,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         ),
         segments: chunks,
         onSegmentStarted: recoveryBinding.onSegmentStarted,
+        onSegmentCompleted: recoveryBinding.onSegmentCompleted,
       );
       provisionalPlayer = player;
       // Source-only, local policy. The default is always to narrate notes,
