@@ -39,6 +39,7 @@ Future<void> main(List<String> args) async {
     'samples': <Object>[],
   };
   Directory? staging;
+  var stage = 'arguments';
   try {
     final flags = <String, String>{};
     for (var i = 0; i < args.length; i++) {
@@ -67,6 +68,7 @@ Future<void> main(List<String> args) async {
           'Explicit opt-in, an absolute models directory, and ID required');
     }
 
+    stage = 'model-integrity';
     final pack = await loadInstalledOfflineVoicePack(
       packId: packId,
       modelsDirectory: Directory(modelPath),
@@ -82,11 +84,13 @@ Future<void> main(List<String> args) async {
     result['localManifestVerified'] = true;
     result['licensePublisherAuthenticated'] = false;
 
+    stage = 'temporary-output';
     staging = await Directory.systemTemp.createTemp(
       'ereader-voice-qualification-',
     );
     final measurements = <Map<String, Object?>>[];
     for (var i = 0; i < passages.length; i++) {
+      stage = 'native-inference';
       final out = File(p.join(staging.path, 'sample-${i + 1}.wav'));
       final watch = Stopwatch()..start();
       final job = VitsWaveJob(VitsWaveRequest(
@@ -104,6 +108,7 @@ Future<void> main(List<String> args) async {
         throw const FormatException('Native synthesis exceeded time budget');
       }
       watch.stop();
+      stage = 'wav-validation';
       final audio = await inspectOfflinePcmWave(out);
       final rtf = watch.elapsedMilliseconds / audio.durationMs;
       measurements.add({
@@ -116,6 +121,7 @@ Future<void> main(List<String> args) async {
         'processRssMiB': (ProcessInfo.currentRss / (1024 * 1024)).round(),
       });
       if (flags['--retain-wav'] == 'true') {
+        stage = 'retained-local-audio';
         final outputDir = Directory(
             p.join(Directory.current.path, '.local-test-results',
                 'offline-voice-listening'));
@@ -127,6 +133,7 @@ Future<void> main(List<String> args) async {
     result['samples'] = measurements;
 
     if (flags['--exercise-stop'] == 'true') {
+      stage = 'native-stop';
       // Separate opt-in: on some native platforms terminating an isolate
       // during blocking FFI might not be immediately preemptible.
       final job = VitsWaveJob(VitsWaveRequest(
@@ -162,6 +169,7 @@ Future<void> main(List<String> args) async {
     }
     result['status'] = 'PASS';
   } catch (_) {
+    result['failureStage'] = stage;
     // Never emit native errors, input paths, book excerpts, API credentials,
     // model names from unverified manifests, or private stack traces.
     result['status'] = 'FAIL';
