@@ -64,6 +64,10 @@ jobs:
           compression-level: 0
           retention-days: 14
       - name: Publish downloadable private GitHub prerelease
+        # Some private-repo integration tokens have read-only release
+        # permissions despite job-level contents: write. Compilation and
+        # the downloadable Actions artifact are still valid in that case.
+        continue-on-error: true
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
