@@ -347,7 +347,11 @@ class _ReaderScreenState extends State<ReaderScreen>
               ? visualLayout.blockForSegment(player.currentIndex)
               : visualLayout.blockForSourceOffset(_visualCheckpoint.offset!))
           : player.currentIndex;
-      _visiblePositionIndex = player.currentIndex;
+      // A completed speech cursor equals chunks.length, which is NOT a
+      // visual-list index. Show the last text block without allowing its
+      // initial viewport notification to rewrite an EOF bookmark.
+      _visiblePositionIndex = chunks.isEmpty ? null
+          : player.currentIndex.clamp(0, chunks.length - 1).toInt();
       _currentEpubVisualSourceOffset = widget.book.format == BookFormat.epub
           ? saved : null;
       _lastVisibleEpubBlockIndex = widget.book.format == BookFormat.epub
@@ -940,7 +944,12 @@ class _ReaderScreenState extends State<ReaderScreen>
         // If the user browsed the pages manually, start audio where the
         // reading viewport is, not at the last audio-only position.
         final visible = _visiblePositionIndex;
-        if (visible != null && visible != player.currentIndex) {
+        if (visible != null && visible != player.currentIndex &&
+            // After a *completed* book, Play means start again, not
+            // replay just its final segment. Explicit prior visual
+            // navigation to an earlier part still takes precedence.
+            (player.currentIndex < player.segments.length ||
+                visible < player.segments.length - 1)) {
           await player.seekTo(visible);
         }
         await (widget.mediaHandler?.play() ?? player.play());
@@ -1603,8 +1612,12 @@ class _ReaderScreenState extends State<ReaderScreen>
                   );
                 }),
               ],
-              Text('Segment ${player.currentIndex + 1} of $count',
-                  style: Theme.of(context).textTheme.labelMedium),
+              Text(
+                player.currentIndex >= count
+                    ? 'Reading complete — Play to restart'
+                    : 'Segment ${player.currentIndex + 1} of $count',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
               if (player.activeSpeakerId != null)
                 Text('Speaker: ' +
                     (_castNames[player.activeSpeakerId] ?? 'Unknown')
