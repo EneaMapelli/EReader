@@ -90,7 +90,7 @@ Per provare l'app senza installare Flutter sul PC di test:
 
 1. Apri [Windows portable build](https://github.com/EneaMapelli/EReader/actions/workflows/windows-user-build.yml) e scegli l'ultima esecuzione **riuscita** sul branch `feature/m0-flutter-foundation`.
 2. Scarica l'artefatto `EReader-Windows-x64-portable` (visibile nella sezione **Artifacts** della run con accesso al repo privato).
-3. Estrai tutto: nello ZIP incluso trovi `ereader.exe`, le DLL e `data/`. Avvia `ereader.exe` senza separarlo dai file allegati.
+3. Estrai lo ZIP scaricato da GitHub; al suo interno trovi un secondo ZIP `EReader-Windows-x64-<commit>.zip`. Estrai **anche quello**: contiene `ereader.exe`, le DLL e `data/`. Avvia `ereader.exe` mantenendo tutti i file nella stessa cartella.
 4. Verifica il commit compilato in `BUILD_INFO.txt` e segui la [checklist manuale Windows](docs/WINDOWS_USER_TEST_CHECKLIST.md).
 
 La build è **unsigned**, senza installer e non ancora validata in uso reale.
