@@ -501,6 +501,37 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     return getBook(bookId)!;
   }
 
+  /// Explicit, opt-in enrichment of already imported EPUB books. A null
+  /// field is filled from the local OPF, but previously set/user-edited
+  /// fields (including the display title) are never replaced.
+  Future<BookRecord> fillMissingEpubMetadata(String bookId) async {
+    final existing = getBook(bookId);
+    if (existing == null) throw StateError('Unknown book');
+    if (existing.format != BookFormat.epub) {
+      throw const FormatException('Only EPUB has OPF metadata');
+    }
+    final source = File(existing.localPath);
+    final length = await source.length();
+    if (length < 4 || length > 100 * 1024 * 1024) {
+      throw const FormatException('Invalid EPUB size for metadata recovery');
+    }
+    final bytes = await source.readAsBytes();
+    final catalog = await Isolate.run(
+      () => const EpubCatalogMetadataReader().read(bytes),
+      debugName: 'EReader recover EPUB catalog',
+    );
+    _transaction(_database, () {
+      _database.execute('''
+        UPDATE books SET
+          author = COALESCE(author, ?),
+          series = COALESCE(series, ?),
+          language = COALESCE(language, ?)
+        WHERE id = ?
+      ''', [catalog.author, catalog.series, catalog.language, bookId]);
+    });
+    return getBook(bookId)!;
+  }
+
   BookRecord? getBook(String id) {
     final rows = _database.select('SELECT * FROM books WHERE id = ?', [id]);
     return rows.isEmpty ? null : _fromRow(rows.first);
