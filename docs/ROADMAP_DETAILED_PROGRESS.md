@@ -185,3 +185,17 @@ chiudere prima il ciclo sui dispositivi reali.
 - Test per confini, voci multiple, UTF-16 e riproduzione fake aggiunti,
   **non eseguiti**. M2 rimane **70%**; totale circa **55%**.
   [Note tecniche](NARRATOR_PARAGRAPH_CONTINUITY.md).
+
+### Precaricamento MP3 già presenti nella cache locale (2026-10-26)
+
+- M2: l'audio cloud già generato viene precaricato nel decoder MP3 inattivo
+  tramite cache privata; comportamento **abilitato di default** ma
+  disattivabile dall'utente. Nessuna richiesta HTTPS/chiave/quota aggiuntiva
+  da questo preriscaldamento: cache miss = nessuna sintesi anticipata.
+- Resta separata e **disabilitata di default** la sintesi cloud a pagamento
+  della clip successiva. Entrambi i percorsi saltano i segmenti di note EPUB
+  verificate esclusi volontariamente dalla narrazione e scelgono il primo
+  successivo segmento pronunciabile.
+- Test mock per cache, voci, note, quote cloud, Stop e consenso aggiunti
+  ma **non eseguiti**. Percentuali invariate: M2 ~70%; totale ~55%.
+  [Dettagli e prove manuali](CACHED_AUDIO_WARMUP.md).
