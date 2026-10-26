@@ -126,7 +126,7 @@ class EpubCatalogMetadataReader {
     String? coverId;
     for (final el in manifestItems) {
       final props = (el.getAttribute('properties') ?? '')
-          .split(RegExp(r'\\s+'));
+          .split(RegExp(r'\s+'));
       if (props.contains('cover-image')) {
         coverId = el.getAttribute('id');
         break;
