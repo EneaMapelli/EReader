@@ -122,7 +122,8 @@ class _PreparedCloudClip {
 /// Paid audio may be prepared ONE chunk ahead, but only after a separate
 /// session toggle is enabled and playback has already started. Every remote
 /// render rechecks per-book permission, key and quota. No background chapters.
-class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
+class OpenAiSpeechEngine implements SpeechEngine,
+    AheadOfTimeSpeechEngine, CachedAheadSpeechEngine {
   OpenAiSpeechEngine({
     required this.bookId,
     required this.modelId,
@@ -312,6 +313,69 @@ class OpenAiSpeechEngine implements SpeechEngine, AheadOfTimeSpeechEngine {
       // exactly once rather than automatically paying for another request.
       rethrow;
     }
+  }
+
+  /// Warm only an exact, already cached clip; unlike prepareSpeech this
+  /// never falls back to HTTP, secure key access or quota reservations.
+  /// It is safe to schedule on every cloud narration session, independent
+  /// of the separate OFF-by-default speculative *paid* prefetch toggle.
+  @override
+  Future<void> prepareCachedSpeech(
+    String text, {
+    required SpeechVoice? voice,
+    required String language,
+    required double rate,
+    required double pitch,
+  }) async {
+    _validateText(text);
+    if (text.isEmpty) return;
+    final intended = voice?.name ?? _voice;
+    if (!supportedVoices.contains(intended)) {
+      throw const FormatException('Unsupported cached voice');
+    }
+    final token = _generation;
+    final current = _currentAudioReady;
+    // The active segment MUST have cleared its synthesis gate first.
+    // Stop, dispose and failed synthesis unblock this without preloading.
+    if (current == null || !await current.future || !_live(token) ||
+        !identical(_currentAudioReady, current)) return;
+    if (!access.getConsent(bookId, providerId).allowed) return;
+
+    final key = _cacheKey(intended, text);
+    final existing = _prepared;
+    if (existing != null && existing.generation == token) {
+      if (existing.key == key) await existing.audio;
+      return; // one prepared clip, never evict a previously paid request
+    }
+
+    final bytes = await _cache.read(bookId, key);
+    if (!_live(token) || !identical(_currentAudioReady, current) ||
+        !access.getConsent(bookId, providerId).allowed || bytes == null ||
+        bytes.isEmpty || bytes.length > 20 * 1024 * 1024) return;
+    // A paid prefetch may have started while the filesystem was read.
+    if (_prepared != null && _prepared!.generation == token) return;
+
+    final clip = _PreparedCloudClip(
+      key: key,
+      generation: token,
+      audio: () async {
+        // Decoder initialization uses only this private cached MP3; it
+        // cannot acquire an API key or emit another provider request.
+        if (_output is PreloadableSynthesizedAudioOutput) {
+          try {
+            await _output.prepareNext(
+              bytes, speed: (rate / 0.5).clamp(0.5, 2.0).toDouble(),
+            );
+          } catch (_) {
+            // A native load failure falls back to the identical cached
+            // bytes on the normal cold playback path, without synthesis.
+          }
+        }
+        return bytes;
+      }(),
+    );
+    _prepared = clip;
+    await clip.audio;
   }
 
   @override
