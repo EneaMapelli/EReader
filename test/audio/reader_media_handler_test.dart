@@ -12,6 +12,7 @@ class _FakeSpeechEngine implements SpeechEngine {
   Completer<void>? waiting;
   Completer<void>? stopGate;
   bool failStop = false;
+  int stopCalls = 0;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => const [];
@@ -32,6 +33,7 @@ class _FakeSpeechEngine implements SpeechEngine {
 
   @override
   Future<void> stop() async {
+    stopCalls++;
     if (stopGate != null) await stopGate!.future;
     if (failStop) throw StateError('native stop failed');
     finish();
@@ -271,6 +273,93 @@ void main() {
     expect(player.isPlaying, isFalse);
     expect(engine.spoken, ['First']);
     expect(handler.hasActiveBook, isTrue);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('idle interrupted focus acquisition cancels Play without native Stop',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final granted = Completer<bool>();
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () => granted.future,
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(player, bookId: 'b', title: 'B');
+    final pendingPlay = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    final interruption = handler.pauseForSystemInterruption();
+    // Idle player cannot require native Stop, but focus granted later
+    // still has to be relinquished before the interruption resolves.
+    granted.complete(true);
+    await Future.wait([pendingPlay, interruption]);
+    expect(engine.spoken, isEmpty);
+    expect(engine.stopCalls, 0);
+    expect(releases, 1);
+    expect(player.isSettledIdle, isTrue);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('repeated system interruptions share one Stop and preserve cursor',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'b', title: 'B');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First']);
+    engine.stopGate = Completer<void>();
+    final first = handler.pauseForSystemInterruption();
+    final duplicate = handler.pauseForSystemInterruption();
+    expect(identical(first, duplicate), isTrue,
+        reason: 'Repeated phone/audio focus events share one Stop Future');
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.stopCalls, 1);
+    expect(player.isSettledIdle, isFalse);
+    expect(player.currentIndex, 0);
+    engine.stopGate!.complete();
+    await Future.wait([first, duplicate]);
+    expect(engine.stopCalls, 1);
+    expect(player.isSettledIdle, isTrue);
+    expect(engine.spoken, ['First'],
+        reason: 'Focus regained never automatically synthesizes a clip');
+    await handler.close();
+    player.dispose();
+  });
+
+  test('duplicate interruption cancels a newer Play waiting for focus',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final laterFocus = Completer<bool>();
+    var focusCalls = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () {
+        focusCalls++;
+        if (focusCalls == 1) return Future<bool>.value(true);
+        return laterFocus.future;
+      },
+    );
+    handler.attach(player, bookId: 'b', title: 'B');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.stopGate = Completer<void>();
+    final first = handler.pauseForSystemInterruption();
+    // The new Play is queued after focus release, so it is cancellable
+    // by a second noisy/phone event while the native Stop still runs.
+    final laterPlay = handler.play();
+    handler.pauseForSystemInterruption();
+    engine.stopGate!.complete();
+    laterFocus.complete(true);
+    await Future.wait([first, laterPlay]);
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First']);
+    expect(engine.stopCalls, 1);
+    expect(player.currentIndex, 0);
     await handler.close();
     player.dispose();
   });
