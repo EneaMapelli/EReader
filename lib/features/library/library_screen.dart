@@ -94,77 +94,73 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _editMetadata(BookRecord book) async {
-    if (_busy) return;
-    final title = TextEditingController(text: book.title);
-    final author = TextEditingController(text: book.author ?? '');
-    final series = TextEditingController(text: book.series ?? '');
-    final language = TextEditingController(text: book.language ?? '');
-    Map<String, String>? entered;
-    try {
-      entered = await showDialog<Map<String, String>>(
-        context: context,
-        builder: (dialog) => AlertDialog(
-          title: const Text('Edit book details'),
-          content: SingleChildScrollView(
-            child: SizedBox(
-              width: 440,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    key: const ValueKey('book-edit-title'),
-                    controller: title,
-                    maxLength: 160,
-                    decoration: const InputDecoration(labelText: 'Title'),
+    if (_busy || !mounted) return;
+    var title = book.title;
+    var author = book.author ?? '';
+    var series = book.series ?? '';
+    var language = book.language ?? '';
+    final entered = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Edit book details'),
+        content: SingleChildScrollView(
+          child: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  key: const ValueKey('book-edit-title'),
+                  initialValue: title,
+                  onChanged: (value) => title = value,
+                  maxLength: 160,
+                  decoration: const InputDecoration(labelText: 'Title'),
+                ),
+                TextFormField(
+                  key: const ValueKey('book-edit-author'),
+                  initialValue: author,
+                  onChanged: (value) => author = value,
+                  maxLength: 160,
+                  decoration: const InputDecoration(labelText: 'Author'),
+                ),
+                TextFormField(
+                  key: const ValueKey('book-edit-series'),
+                  initialValue: series,
+                  onChanged: (value) => series = value,
+                  maxLength: 160,
+                  decoration: const InputDecoration(labelText: 'Series'),
+                ),
+                TextFormField(
+                  key: const ValueKey('book-edit-language'),
+                  initialValue: language,
+                  onChanged: (value) => language = value,
+                  maxLength: 24,
+                  decoration: const InputDecoration(
+                    labelText: 'Language (e.g. it-IT)',
+                    helperText: 'TTS voice is configured separately.',
                   ),
-                  TextField(
-                    key: const ValueKey('book-edit-author'),
-                    controller: author,
-                    maxLength: 160,
-                    decoration: const InputDecoration(labelText: 'Author'),
-                  ),
-                  TextField(
-                    key: const ValueKey('book-edit-series'),
-                    controller: series,
-                    maxLength: 160,
-                    decoration: const InputDecoration(labelText: 'Series'),
-                  ),
-                  TextField(
-                    key: const ValueKey('book-edit-language'),
-                    controller: language,
-                    maxLength: 24,
-                    decoration: const InputDecoration(
-                      labelText: 'Language (e.g. it-IT)',
-                      helperText: 'Library metadata; TTS voice is configured separately.',
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialog),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialog, {
-                'title': title.text,
-                'author': author.text,
-                'series': series.text,
-                'language': language.text,
-              }),
-              child: const Text('Save details'),
-            ),
-          ],
         ),
-      );
-    } finally {
-      title.dispose();
-      author.dispose();
-      series.dispose();
-      language.dispose();
-    }
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, {
+              'title': title,
+              'author': author,
+              'series': series,
+              'language': language,
+            }),
+            child: const Text('Save details'),
+          ),
+        ],
+      ),
+    );
     if (entered == null || !mounted) return;
     try {
       widget.store.updateBookMetadata(
