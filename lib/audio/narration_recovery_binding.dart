@@ -13,11 +13,15 @@ class NarrationRecoveryBinding {
     required this.store,
     required this.bookId,
     required this.anchorFor,
+    this.anchorAtOffset,
   });
 
   final LibraryStore store;
   final String bookId;
   final ReadingAnchor Function(SpeechSegment) anchorFor;
+  /// Optional exact end-of-book mapping from canonical source offsets.
+  /// EPUB keeps spine ID/context and PDF keeps physical page provenance.
+  final ReadingAnchor Function(int offset)? anchorAtOffset;
 
   ReaderPlayer? _player;
   bool _disposed = false;
@@ -53,13 +57,14 @@ class NarrationRecoveryBinding {
       SpeechSegment finished, SpeechSegment? nextAudible) async {
     final player = _player;
     if (_disposed || player == null || !player.isPlaying) return;
-    final anchorSegment = nextAudible ?? finished;
     final offset = nextAudible?.start ?? finished.end;
-    // anchorFor(finished) is valid at the beginning, not necessarily at
-    // its end (an EPUB spine boundary may follow). For the very last clip,
-    // use the same spine/page identity with a source-position-independent
-    // book offset to be resolved at next opening. Never invent a CFI.
-    final anchor = nextAudible == null ? null : anchorFor(anchorSegment);
+    // A final source end belongs to an actual EPUB spine/PDF page, not
+    // necessarily to the clip START (or to an arbitrary chapter). Keep
+    // canonical source and context instead of degrading to a legacy
+    // offset-only checkpoint when a source-offset mapper is provided.
+    final anchor = nextAudible != null
+        ? anchorFor(nextAudible)
+        : anchorAtOffset?.call(offset);
     store.recordSpeechSegmentStart(bookId, offset, anchor: anchor);
   }
 
