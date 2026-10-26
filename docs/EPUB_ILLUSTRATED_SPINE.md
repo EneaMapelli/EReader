@@ -110,3 +110,13 @@ navigation destination for those resources.
 **Status:** code/test/documentation ready for manual validation.
 No analyzer/test results or performance improvements are asserted here.
 M2 qualitative estimate ~70%; full roadmap ~55%.
+
+## Follow-up 2026-10-26: illustrations inside *spoken* XHTML
+
+Picture positioning is no longer limited to visual-only XHTML sections:
+regular narrated paragraphs also paint source-ordered images **between**
+text fragments, preserving source/TTS indices, styles and links. The
+eager/reference renderer now supports the same section ownership and
+independent zero-text blocks as the progressive renderer. No full CSS
+reconstruction is claimed. Test fixtures and manual QA:
+[EPUB_INLINE_IMAGE_FLOW.md](EPUB_INLINE_IMAGE_FLOW.md).
