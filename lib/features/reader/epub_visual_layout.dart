@@ -161,6 +161,7 @@ class EpubVisualSourceCheckpoint {
   final Duration pendingTargetTimeout;
   final Stopwatch _targetWait = Stopwatch();
   int? _offset;
+  int? _targetBlockIndex;
   bool _awaitingTarget = false;
 
   int? get offset => _offset;
@@ -168,8 +169,12 @@ class EpubVisualSourceCheckpoint {
   /// [awaitTarget] is used for a programmatic jump or initial restore:
   /// Flutter may briefly report the PREVIOUS viewport while jumpTo or
   /// initialScrollIndex is still being laid out.
-  void hold(int? sourceOffset, {bool awaitTarget = false}) {
+  void hold(int? sourceOffset, {
+    bool awaitTarget = false,
+    int? targetBlockIndex,
+  }) {
     _offset = sourceOffset;
+    _targetBlockIndex = sourceOffset == null ? null : targetBlockIndex;
     _awaitingTarget = sourceOffset != null && awaitTarget;
     _targetWait
       ..stop()
@@ -179,6 +184,7 @@ class EpubVisualSourceCheckpoint {
 
   void clear() {
     _offset = null;
+    _targetBlockIndex = null;
     _awaitingTarget = false;
     _targetWait
       ..stop()
@@ -193,7 +199,8 @@ class EpubVisualSourceCheckpoint {
       Iterable<int> visibleBlocks, EpubVisualLayout layout) {
     final held = _offset;
     if (held == null) return false;
-    final targetBlock = layout.blockForSourceOffset(held);
+    final targetBlock = _targetBlockIndex ??
+        layout.blockForSourceOffset(held);
     if (visibleBlocks.contains(targetBlock)) {
       _awaitingTarget = false;
       _targetWait.stop();
