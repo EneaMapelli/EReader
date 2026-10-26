@@ -226,3 +226,17 @@ included as completed features by merely having been designed in the roadmap.
   tests and Windows/Android playback were NOT RUN; M2 stays 70%, overall
   M0-M6 ~55%. See
   [NARRATOR_PARAGRAPH_CONTINUITY.md](NARRATOR_PARAGRAPH_CONTINUITY.md).
+
+### M2 — cache-only next clip warmup (2026-10-26)
+
+- New separate cached-MP3 lookahead is default ON for cloud narration,
+  user-configurable, and strictly local: without an exact private cached
+  hit, it does **not** send HTTPS, reserve characters or synthesize ahead.
+- Existing **paid** next-chunk synthesis remains OFF by default and requires
+  the already documented explicit opt-in. Both paths now seek the next
+  *audible* chunk past user-skipped verified EPUB notes.
+- Added fake HTTP/cache/native-output regressions for voice snapshots,
+  cache hits/misses, speed, consent revoke and cancellation. Authored but
+  not run on Windows/Android; no gapless claim.
+- M2 stays 70%, total M0–M6 ~55%; see
+  [CACHED_AUDIO_WARMUP.md](CACHED_AUDIO_WARMUP.md).
