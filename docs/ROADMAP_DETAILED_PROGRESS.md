@@ -262,3 +262,19 @@ producono testo restano come intervalli a lunghezza zero e nell'ordine
 OPF, invece di essere scartati prima di costruire l'indice. Un libro
 interamente privo di testo leggibile viene ancora rifiutato. Test ZIP
 aggiornati, non eseguiti; nessuna illustrazione inventata.
+
+### Immagini EPUB in sezioni OPF senza testo pronunciabile (2026-10-26)
+
+- M2: l'estrattore EPUB ora riconosce immagini PNG/JPEG incorporate anche
+  in XHTML senza testo, senza inventare caratteri sorgente né TTS.
+  Mantiene i controlli locali su manifest, MIME, dimensioni e budget.
+- L'audit delle ancore ora ammette spine OPF a lunghezza zero valide
+  mantenendo i rifiuti per corruzione, collisioni ID e separatori.
+- Rendering EPUB progressivo: un blocco visuale autonomo per ciascun
+  elemento illustrato, con immagini associate all'idref OPF; le sezioni
+  che condividono l'offset restano distinte anche per scorrimento,
+  segnalibri, chiusura e riapertura. Il TTS resta indipendente.
+- Test ZIP, pure Dart e widget aggiunti ma non eseguiti. Non è un
+  renderer XHTML/CSS completo né supporta libri composti solo da immagini.
+  Stime invariate M2 ~70%, totale ~55%.
+  [Specifiche](EPUB_ILLUSTRATED_SPINE.md).
