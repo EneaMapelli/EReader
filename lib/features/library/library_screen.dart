@@ -406,28 +406,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     itemCount: books.length,
                     itemBuilder: (context, index) {
                       final book = books[index];
-                      final cover = book.format == BookFormat.epub
-                          ? widget.store.coverFile(book.id) : null;
-                      Widget fallback() => Icon(
-                        book.format == BookFormat.pdf
-                            ? Icons.picture_as_pdf_outlined
-                            : Icons.menu_book_outlined,
-                      );
                       return ListTile(
-                        leading: cover == null ? fallback() : ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: SizedBox(
-                            key: ValueKey('library-cover-${book.id}'),
-                            width: 40,
-                            height: 56,
-                            child: Image.file(
-                              cover,
-                              fit: BoxFit.cover,
-                              cacheWidth: 120,
-                              errorBuilder: (context, error, stack) =>
-                                  Center(child: fallback()),
-                            ),
-                          ),
+                        leading: LibraryBookCover(
+                          key: ValueKey('cover-tile-${book.id}'),
+                          store: widget.store,
+                          book: book,
                         ),
                         title: Text(book.title),
                         subtitle: Text(
@@ -470,6 +453,83 @@ class _LibraryScreenState extends State<LibraryScreen> {
               label: const Text('Import'),
             )
           : null,
+    );
+  }
+}
+
+/// EPUB covers are read from the existing cache synchronously. PDF previews
+/// are generated lazily only for visible rows and never block importing,
+/// searching or opening a book. A failed render keeps the format icon.
+class LibraryBookCover extends StatefulWidget {
+  const LibraryBookCover({
+    super.key,
+    required this.store,
+    required this.book,
+  });
+
+  final LibraryStore store;
+  final BookRecord book;
+
+  @override
+  State<LibraryBookCover> createState() => _LibraryBookCoverState();
+}
+
+class _LibraryBookCoverState extends State<LibraryBookCover> {
+  Future<File?>? _pending;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant LibraryBookCover oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.book.id != widget.book.id ||
+        oldWidget.store != widget.store) {
+      _loadIfNeeded();
+    }
+  }
+
+  void _loadIfNeeded() {
+    _pending = widget.book.format == BookFormat.pdf &&
+            widget.store.coverFile(widget.book.id) == null
+        ? widget.store.ensurePdfCover(widget.book.id)
+        : null;
+  }
+
+  Widget _fallback() => Icon(
+        widget.book.format == BookFormat.pdf
+            ? Icons.picture_as_pdf_outlined
+            : Icons.menu_book_outlined,
+      );
+
+  Widget _image(File file) => ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: SizedBox(
+          key: ValueKey('library-cover-${widget.book.id}'),
+          width: 40,
+          height: 56,
+          child: Image.file(
+            file,
+            fit: BoxFit.cover,
+            cacheWidth: 120,
+            errorBuilder: (_, __, ___) => Center(child: _fallback()),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final existing = widget.store.coverFile(widget.book.id);
+    if (existing != null) return _image(existing);
+    final pending = _pending;
+    if (pending == null) return _fallback();
+    return FutureBuilder<File?>(
+      future: pending,
+      builder: (context, result) =>
+          result.data == null ? _fallback() : _image(result.data!),
     );
   }
 }
