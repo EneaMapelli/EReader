@@ -111,6 +111,15 @@ void main() {
             originalName: p.basename(source.path));
         expect(duplicate.id, first.id);
         expect(library.books, hasLength(1));
+        // Only boolean discovery statistics; do not echo book title,
+        // author, series or language into any shareable summary.
+        if (format == BookFormat.epub) {
+          result['opfAuthorDetected'] = first.author != null;
+          result['opfSeriesDetected'] = first.series != null;
+          result['opfLanguageDetected'] = first.language != null;
+          result['opfTitleDetected'] =
+              first.title != p.basenameWithoutExtension(source.path);
+        }
         result['importAndDedupMs'] = clock.elapsedMilliseconds;
 
         if (format == BookFormat.pdf) {
