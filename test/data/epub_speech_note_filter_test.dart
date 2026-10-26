@@ -34,6 +34,7 @@ Uint8List _book(String chapter, {String? footnotes}) {
   final other = footnotes == null ? '' :
       '<item id="notes" href="notes.xhtml" '
       'media-type="application/xhtml+xml"/>';
+  final spineNotes = footnotes == null ? '' : '<itemref idref="notes"/>';
   final zip = Archive()
     ..add(ArchiveFile.string('mimetype', 'application/epub+zip'))
     ..add(ArchiveFile.string('META-INF/container.xml',
@@ -44,7 +45,7 @@ Uint8List _book(String chapter, {String? footnotes}) {
         '<manifest><item id="body" href="body.xhtml" '
         'media-type="application/xhtml+xml"/>$other</manifest>'
         '<spine><itemref idref="body"/>'
-        '${footnotes == null ? "" : "<itemref idref=\\"notes\\"/>"}'
+        '$spineNotes'
         '</spine></package>'))
     ..add(ArchiveFile.string('OPS/body.xhtml', chapter));
   if (footnotes != null) {
