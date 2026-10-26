@@ -1597,3 +1597,17 @@ checkpoints and persisted ReadingAnchor. Image-only trailing sections
 resolve to speech EOF, never the previous narration. New ZIP-backed and
 Flutter widget tests authored but not executed. See
 [EPUB_ILLUSTRATED_SPINE.md](EPUB_ILLUSTRATED_SPINE.md).
+
+### 2026-10-26 — source-ordered EPUB inline illustrations
+
+A new bounded `epubVisualFlow` interleaves original XHTML raster images
+with spoken/styled text fragments at their source UTF-16 positions.
+Splits are presentation-only, retaining cast segment indices,
+internal-link/footnote metadata, search coordinates and persisted bookmarks.
+The eager/reference and progressive/LRU layouts now both constrain image
+attachment by originating OPF section and represent zero-text illustrated
+sections. Original image order is stable at tied offsets; malformed
+surrogate-pair image positions are adjusted to avoid corrupt Flutter text.
+No new downloads/TTS synthesis or scope expansion to CSS/table layout.
+Pure unit and Flutter widget regressions authored but NOT run; see
+[EPUB_INLINE_IMAGE_FLOW.md](EPUB_INLINE_IMAGE_FLOW.md).
