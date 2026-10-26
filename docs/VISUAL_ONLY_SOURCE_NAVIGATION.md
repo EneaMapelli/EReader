@@ -14,6 +14,18 @@ silently jump backward, invent OCR text or start paid cloud synthesis.
 
 ## EPUB OPF sections
 
+- The EPUB ZIP/XHTML extractor itself now records **zero-length OPF
+  source ranges** for XHTML spine items with no extracted text; earlier
+  extraction discarded those items before directory construction. It
+  preserves diagnostics and does not append synthetic source characters.
+  A book whose entire spine has no readable text still fails explicitly
+  as unsupported for text-only narration.
+- Multiple empty OPF items may share the same numeric UTF-16 offset:
+  that offset is intentionally not a unique EPUB fragment/CFI. Their
+  directory titles and ordering are retained, but precise independent
+  visual positioning of those resources requires future graphical
+  EPUB rendering; the current reader never claims to display their
+  illustration from a nonexistent text layer.
 - `buildEpubChapters` now preserves **every OPF spine range**, including
   whitespace-only and zero-length text ranges. The directory and section
   indicator can therefore show an unspoken section rather than silently
@@ -61,6 +73,9 @@ original illustrated layout requires later graphical EPUB rendering.
 
 ## Regression tests (authored, not executed)
 
+- `test/data/epub_text_extractor_test.dart`: real ZIP fixtures with
+  initially/trailing empty XHTML and an all-empty rejected book.
+  The previous empty-spine expectation was updated to retain metadata.
 - `test/features/reader/epub_silent_chapter_navigation_test.dart`:
   unspoken middle/trailing OPF sections, zero-length source ranges,
   exact chapter offsets, next-audible cursor and EOF without final
