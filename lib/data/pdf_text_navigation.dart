@@ -16,11 +16,9 @@ int? pdfTextOffsetForVisualPage(
       return range.start;
     }
   }
-  // If the selected physical page and all following pages are image-only,
-  // resume narration at the start of the last readable page.
-  for (var i = ranges.length - 1; i >= 0; i--) {
-    if (ranges[i].end > ranges[i].start) return ranges[i].start;
-  }
+  // If the selected page and everything after it are image-only, do
+  // NOT silently narrate an earlier physical page (which the user did not
+  // choose). The caller can explain that no text is available here.
   return null;
 }
 
