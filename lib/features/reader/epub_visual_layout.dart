@@ -486,6 +486,16 @@ EpubVisualLayout buildEpubVisualLayout(
     previousEnd = segment.end;
   }
 
+  var lastCaptionEnd = 0;
+  for (final caption in document.epubFigureCaptions) {
+    if (caption.start < lastCaptionEnd ||
+        caption.end <= caption.start ||
+        caption.end > source.length) {
+      throw const FormatException('Invalid EPUB figure caption source ranges');
+    }
+    lastCaptionEnd = caption.end;
+  }
+
   final blocks = <EpubVisualBlock>[];
   final silentSpineBlocks = <String, int>{};
   final spineBlockBounds = <String, ({int first, int last})>{};
@@ -611,7 +621,7 @@ EpubVisualLayout buildEpubVisualLayout(
     blocks.add(EpubVisualBlock(
       start: start,
       end: end,
-      runs: List.unmodifiable(runs),
+      runs: epubApplyFigureCaptions(runs, document.epubFigureCaptions),
       chapterStart: chapterStart,
       heading: semanticHeading || publisherHeading,
       firstSegmentIndex: firstSegment,
