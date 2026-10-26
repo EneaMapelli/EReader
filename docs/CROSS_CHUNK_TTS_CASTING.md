@@ -89,3 +89,14 @@ PR #1 remains draft until those checks are completed.
 ## One-chunk cloud synthesis prebuffer
 
 When OpenAI Speech is explicitly selected and the new session-only prebuffer checkbox is enabled, the reader may synthesize the immediately following chunk while the current MP3 plays, with its exact planned voice and input text. It is still capped at one speculative clip and requires the same book-specific consent/key and character budget; output is sequential, so device playback may still have a small gap. See [Cloud TTS Prefetch](CLOUD_TTS_PREFETCH.md). Tests and builds are deferred.
+
+### EPUB narrator continuation (2026-10-26; native checks pending)
+
+`coalesceQuotedSpeech` has an optional `coalesceNarration` flag (default
+false) for joining source-adjacent, unassigned narrator chunks inside an EPUB
+paragraph while remaining <=400 UTF-16 units. The reader supplies verified
+chapter/paragraph breaks and note body start/end points. Quoted turns,
+different character voices, and explicit narrator masks are kept distinct.
+This reduces eligible engine handoffs but does not claim gapless native audio
+or word-level timing. Test cases are authored, **not executed**.
+[Design and manual gates](NARRATOR_PARAGRAPH_CONTINUITY.md).
