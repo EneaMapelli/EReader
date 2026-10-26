@@ -62,7 +62,9 @@ jobs:
 
   windows:
     name: Windows build + Dart tests
-    runs-on: windows-latest
+    # Match the user-release compiler; MSVC 14.51 on windows-latest
+    # currently rejects just_audio_windows' experimental coroutine header.
+    runs-on: windows-2022
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
