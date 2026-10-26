@@ -16,29 +16,41 @@ class PdfPageNavigation extends StatelessWidget {
   Future<void> _showPageJump(BuildContext context) async {
     final count = pageCount;
     if (count == null || count < 1) return;
-    final controller = TextEditingController(text: '$pageNumber');
+    final formKey = GlobalKey<FormState>();
+    var entered = '$pageNumber';
     int? chosen;
-    try {
-      chosen = await showDialog<int>(
-        context: context,
-        builder: (dialog) => AlertDialog(
+    chosen = await showDialog<int>(
+      context: context,
+      builder: (dialog) {
+        void submit() {
+          if (formKey.currentState?.validate() == true) {
+            Navigator.pop(dialog, int.parse(entered.trim()));
+          }
+        }
+
+        return AlertDialog(
           title: const Text('Go to PDF page'),
-          content: TextField(
-            key: const ValueKey('pdf-page-input'),
-            controller: controller,
-            autofocus: true,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Page number',
-              helperText: 'Between 1 and $count',
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              key: const ValueKey('pdf-page-input'),
+              initialValue: entered,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Page number',
+                helperText: 'Between 1 and $count',
+              ),
+              onChanged: (value) => entered = value,
+              validator: (raw) {
+                final page = int.tryParse((raw ?? '').trim());
+                if (page == null || page < 1 || page > count) {
+                  return 'Choose a page from 1 to $count';
+                }
+                return null;
+              },
+              onFieldSubmitted: (_) => submit(),
             ),
-            onSubmitted: (text) {
-              final requested = int.tryParse(text.trim());
-              if (requested != null && requested >= 1 &&
-                  requested <= count) {
-                Navigator.pop(dialog, requested);
-              }
-            },
           ),
           actions: [
             TextButton(
@@ -46,21 +58,13 @@ class PdfPageNavigation extends StatelessWidget {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () {
-                final requested = int.tryParse(controller.text.trim());
-                if (requested != null && requested >= 1 &&
-                    requested <= count) {
-                  Navigator.pop(dialog, requested);
-                }
-              },
+              onPressed: submit,
               child: const Text('Go'),
             ),
           ],
-        ),
-      );
-    } finally {
-      controller.dispose();
-    }
+        );
+      },
+    );
     if (chosen != null && context.mounted) onPageRequested(chosen);
   }
 
