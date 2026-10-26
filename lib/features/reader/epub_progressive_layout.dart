@@ -81,6 +81,7 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
   final source = document.text;
   final styles = document.epubInlineStyles;
   final links = document.epubLinks;
+  final captions = document.epubFigureCaptions;
   final safeKeys = {
     for (final entry in document.epubAuxiliaryFootnotePreviews) entry.key,
   };
@@ -117,6 +118,15 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
       throw const FormatException('Invalid progressive EPUB internal link');
     }
     previous = link.end;
+  }
+
+  var lastCaptionEnd = 0;
+  for (final caption in captions) {
+    if (caption.start < lastCaptionEnd ||
+        caption.end <= caption.start || caption.end > source.length) {
+      throw const FormatException('Invalid EPUB figure caption source ranges');
+    }
+    lastCaptionEnd = caption.end;
   }
 
   // End-position binary searches also handle sparse speech segments and
@@ -422,7 +432,7 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
     return EpubVisualBlock(
       start: meta.start,
       end: meta.end,
-      runs: List<EpubVisualRun>.unmodifiable(runs),
+      runs: epubApplyFigureCaptions(runs, captions),
       chapterStart: meta.chapterStart,
       heading: semantic || named,
       firstSegmentIndex: meta.firstSegmentIndex,
