@@ -108,6 +108,17 @@ int speechSegmentIndexForOffset(List<SpeechSegment> segments, int offset) {
   return low < segments.length ? low : segments.length - 1;
 }
 
+/// Resolve a source-exact VISUAL destination to the next narrated clip.
+/// Unlike an ordinary "jump to previous playable clip" action, a link to
+/// trailing non-narratable EPUB content MUST NOT replay the last sentence.
+/// The persisted visual offset remains separate from this speech cursor.
+int speechSourceDestinationIndexForOffset(
+    List<SpeechSegment> segments, int offset) {
+  if (segments.isEmpty) return -1;
+  if (offset >= segments.last.end) return segments.length;
+  return speechSegmentIndexForOffset(segments, offset);
+}
+
 /// Restore a saved spoken cursor, keeping an already completed book
 /// completed. Unlike an explicit bookmark/TOC jump, a checkpoint at or
 /// beyond the last utterance must NOT replay the final clip on opening.
