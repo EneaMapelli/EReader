@@ -15,6 +15,7 @@ class EpubVisualRun {
     this.linkTargetOffset,
     this.auxiliaryFootnoteKey,
     this.isFootnote = false,
+    this.figureCaption = false,
   }) : _text = text, _source = null;
 
   /// Keep source offsets rather than allocating thousands of overlapping
@@ -27,6 +28,7 @@ class EpubVisualRun {
     this.linkTargetOffset,
     this.auxiliaryFootnoteKey,
     this.isFootnote = false,
+    this.figureCaption = false,
   }) : _source = source, _text = null;
 
   final int start;
@@ -41,6 +43,19 @@ class EpubVisualRun {
   final int? linkTargetOffset;
   final String? auxiliaryFootnoteKey;
   final bool isFootnote;
+  final bool figureCaption;
+
+  EpubVisualRun asFigureCaption() => _source == null
+      ? EpubVisualRun(start, end, _text!, segmentIndex,
+          bold: bold, italic: italic, headingLevel: headingLevel,
+          linkTargetOffset: linkTargetOffset,
+          auxiliaryFootnoteKey: auxiliaryFootnoteKey,
+          isFootnote: isFootnote, figureCaption: true)
+      : EpubVisualRun.fromSource(start, end, _source!, segmentIndex,
+          bold: bold, italic: italic, headingLevel: headingLevel,
+          linkTargetOffset: linkTargetOffset,
+          auxiliaryFootnoteKey: auxiliaryFootnoteKey,
+          isFootnote: isFootnote, figureCaption: true);
 
   /// A source-exact visual fragment. Slicing does NOT create a new speech
   /// segment or alter link/footnote/speaker styling. For source-backed runs
@@ -56,14 +71,49 @@ class EpubVisualRun {
             bold: bold, italic: italic, headingLevel: headingLevel,
             linkTargetOffset: linkTargetOffset,
             auxiliaryFootnoteKey: auxiliaryFootnoteKey,
-            isFootnote: isFootnote)
+            isFootnote: isFootnote, figureCaption: figureCaption)
         : EpubVisualRun.fromSource(from, to, _source!, segmentIndex,
             bold: bold, italic: italic, headingLevel: headingLevel,
             linkTargetOffset: linkTargetOffset,
             auxiliaryFootnoteKey: auxiliaryFootnoteKey,
-            isFootnote: isFootnote);
+            isFootnote: isFootnote, figureCaption: figureCaption);
     return visible;
   }
+}
+
+/// Only annotate actual source-verified <figcaption> spans. Existing
+/// speech, quotes, internal links and saved UTF-16 coordinates are
+/// untouched. Processed lazily for progressive EPUB blocks.
+List<EpubVisualRun> epubApplyFigureCaptions(
+    List<EpubVisualRun> original, List<EpubFigureCaption> captions) {
+  if (captions.isEmpty || original.isEmpty) return original;
+  final rendered = <EpubVisualRun>[];
+  var annotation = 0;
+  for (final run in original) {
+    var cursor = run.start;
+    while (cursor < run.end) {
+      while (annotation < captions.length &&
+          captions[annotation].end <= cursor) {
+        annotation++;
+      }
+      if (annotation >= captions.length ||
+          captions[annotation].start >= run.end) {
+        rendered.add(run.visualSlice(cursor, run.end));
+        break;
+      }
+      final caption = captions[annotation];
+      if (cursor < caption.start) {
+        final before = caption.start < run.end ? caption.start : run.end;
+        rendered.add(run.visualSlice(cursor, before));
+        cursor = before;
+        continue;
+      }
+      final until = caption.end < run.end ? caption.end : run.end;
+      rendered.add(run.visualSlice(cursor, until).asFigureCaption());
+      cursor = until;
+    }
+  }
+  return List<EpubVisualRun>.unmodifiable(rendered);
 }
 
 /// A display-only row in the original XHTML text/image sequence. Each
