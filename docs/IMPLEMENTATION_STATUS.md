@@ -1611,3 +1611,17 @@ surrogate-pair image positions are adjusted to avoid corrupt Flutter text.
 No new downloads/TTS synthesis or scope expansion to CSS/table layout.
 Pure unit and Flutter widget regressions authored but NOT run; see
 [EPUB_INLINE_IMAGE_FLOW.md](EPUB_INLINE_IMAGE_FLOW.md).
+
+### 2026-10-26 — semantic EPUB figure captions + source-positioned tables
+
+Bounded, normalized XHTML `<figcaption>` intervals propagate from
+`EpubStructure` to `EpubTextResult` and `DocumentContent`. Both
+reader layouts annotate only the corresponding source-aligned visual
+runs, retaining source/TTS/cast/navigation text and metadata. Caption
+ranges are validated fail-closed. Optional collapsed table previews
+now interleave with images and text at table end, owned by the block
+containing the original table's last UTF-16 source position, rather
+than being appended after the paragraph. Original table text remains
+spoken once; complex HTML/CSS table reconstruction is unsupported.
+New ZIP/import, pure and widget regressions authored but NOT RUN.
+See [EPUB_FIGURE_CAPTION_TABLE_FLOW.md](EPUB_FIGURE_CAPTION_TABLE_FLOW.md).
