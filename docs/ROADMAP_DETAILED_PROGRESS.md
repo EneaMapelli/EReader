@@ -161,3 +161,16 @@ chiudere prima il ciclo sui dispositivi reali.
   PDFium su Windows/Android. M1 resta **83%**, media M0–M6 circa **55%**;
   la verifica nativa e il corpus reale restano criteri d'uscita aperti.
 - [Nota implementativa e piano manuale](PDF_LIBRARY_THUMBNAILS.md).
+
+### Controllo lettura vocale delle note EPUB (2026-10-26)
+
+- ER-032/M2: aggiunta opzione di sessione (di default disattivata) per non
+  pronunciare i segmenti completamente contenuti in note EPUB verificate.
+  Note visuali, link, testo sorgente, cast e posizioni persistenti restano
+  invariati. Gli intervalli misti nota/prosa **non** vengono saltati.
+- Il filtro entra prima della sintesi e del prefetch cloud: nessuna nuova
+  richiesta anticipata per il segmento escluso, salvo richieste già partite
+  prima del cambio d'impostazione.
+- Test sintetici per parsing, UTF-16, continuità e cloud prefetch aggiunti
+  ma **non eseguiti**. La percentuale M2 rimane 70% e quella aggregata ~55%.
+  [Specifica e checklist](EPUB_SPOKEN_NOTE_CONTROL.md).
