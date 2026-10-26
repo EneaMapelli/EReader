@@ -11,11 +11,12 @@ import 'epub_visual_layout.dart';
 /// This index is cheap enough to build before opening the scrolling reader.
 class _ParagraphBounds {
   const _ParagraphBounds(this.start, this.end, this.chapterStart,
-      this.firstSegmentIndex);
+      this.firstSegmentIndex, {this.visualOnlySectionTitle});
   final int start;
   final int end;
   final bool chapterStart;
   final int? firstSegmentIndex;
+  final String? visualOnlySectionTitle;
 }
 
 /// Read-only virtual list: materializes a single paragraph on demand.
@@ -135,6 +136,7 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
   }
 
   final bounds = <_ParagraphBounds>[];
+  final silentSpineBlocks = <String, int>{};
   final mapping = List<int>.filled(segments.length, -1);
   // Blocks are visited in monotonically increasing source order. Advance
   // a single segment cursor rather than binary-searching every paragraph.
@@ -202,6 +204,19 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
       throw const FormatException('Invalid progressive EPUB spine');
     }
     previousEnd = spine.end;
+    if (spine.start == spine.end) {
+      // A real OPF XHTML item with no selectable text gets its own
+      // display-only block, even when its offset equals the adjacent
+      // spoken chapter. No source characters or TTS segments are added.
+      if (bounds.length >= maxIndexedParagraphs) {
+        throw const FormatException('EPUB paragraph index budget exceeded');
+      }
+      silentSpineBlocks[spine.idref] = bounds.length;
+      bounds.add(_ParagraphBounds(spine.start, spine.end, true, null,
+          visualOnlySectionTitle: spine.title.trim().isEmpty
+              ? 'Illustrated section' : spine.title.trim()));
+      continue;
+    }
     var cursor = spine.start;
     var first = true;
     for (final match in separators.allMatches(source, spine.start)) {
@@ -235,7 +250,10 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
   final images = <int, List<EpubEmbeddedImage>>{};
   for (final image in document.epubImages) {
     if (image.offset < 0 || image.offset > source.length) continue;
-    final idx = nearestBlock(image.offset);
+    // Offset alone cannot distinguish two image-only OPF items at the
+    // same UTF-16 boundary. Prefer the validated originating idref.
+    final idx = silentSpineBlocks[image.spineIdref] ??
+        nearestBlock(image.offset);
     if (idx >= 0) images.putIfAbsent(idx, () => []).add(image);
   }
   final tables = <int, List<EpubTablePreview>>{};
@@ -395,6 +413,7 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
       firstSegmentIndex: meta.firstSegmentIndex,
       images: frozenImages[blockIndex] ?? const [],
       tables: frozenTables[blockIndex] ?? const [],
+      visualOnlySectionTitle: meta.visualOnlySectionTitle,
     );
   }
 
@@ -414,6 +433,7 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
     ProgressiveEpubBlocks._(bounds, materialize, maxCachedBlocks),
     List<int>.unmodifiable(mapping),
     indexedBlockForSourceOffset: indexedBlockForSourceOffset,
+    spineBlockIndices: Map<String, int>.unmodifiable(silentSpineBlocks),
     indexedPositionForVisibleBlock: indexedPositionForVisibleBlock,
   );
 }
