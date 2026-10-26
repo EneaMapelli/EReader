@@ -48,6 +48,13 @@ class EpubAuxiliaryFootnotePreview {
   final String text;
 }
 
+/// Verified XHTML figcaption source interval, never invented text.
+class EpubFigureCaption {
+  const EpubFigureCaption(this.start, this.end);
+  final int start;
+  final int end;
+}
+
 class EpubTablePreview {
   const EpubTablePreview(this.start, this.end, this.rows);
   final int start;
