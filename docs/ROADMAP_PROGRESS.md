@@ -268,3 +268,19 @@ included as completed features by merely having been designed in the roadmap.
 - Mock focus/Stop race and real SQLite recovery integration tests authored,
   NOT RUN. M2 estimate 70%, total ~55%; see
   [AUDIO_INTERRUPTION_CHECKPOINTS.md](AUDIO_INTERRUPTION_CHECKPOINTS.md).
+
+### M2 — PDF page-aligned speech and correct EOF restore (2026-10-26)
+
+- Restored completed-book checkpoints now map to the **finished** speech
+  cursor (segment count) instead of replaying the final sentence. An
+  explicit EPUB TOC/bookmark/search jump still resolves to a real clip.
+  Reader UI shows a completed state and treats Play as restart.
+- Final narration checkpoint now stores exact EPUB spine or physical PDF
+  page source anchor, and old offset-only EPUB checkpoints preserve a
+  valid `source.length` EOF instead of clamping backwards.
+- PDF text-layer chunks are segmented independently per physical page,
+  with exact UTF-16 offsets and quotation reset at page boundaries.
+  PDF visual page turning remains independent from narrated progress.
+- Added targeted source, PDF pages/UTF-16/quote and EOF recovery tests,
+  NOT RUN; native Windows/Android QA still pending. M2 remains 70%;
+  total M0–M6 ~55%. [Design and manual QA](READER_SOURCE_SYNC.md).
