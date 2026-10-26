@@ -48,6 +48,10 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // A delayed gain must never override a newer Pause/release.
   Future<void> _focusOperation = Future<void>.value();
   bool _focusActive = false;
+  // AudioSession may deliver several interruption/noisy callbacks for one
+  // incident. Coalesce their Stop into one native operation per attached
+  // player; a later book attachment starts with a fresh interruption scope.
+  Future<void>? _interruptionPause;
 
   bool get hasActiveBook => _player != null;
 
@@ -77,6 +81,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (expected != null && !identical(expected, _player)) return;
     _bindingEpoch++;
     _commandEpoch++;
+    _interruptionPause = null;
     _player?.removeListener(_onPlayerChanged);
     _player = null;
     _canStart = null;
@@ -219,13 +224,22 @@ class ReaderMediaHandler extends BaseAudioHandler {
 
   @override
   Future<void> pause() async {
+    // Invalidate pending remote Play even when focus acquisition is still
+    // awaiting Android and ReaderPlayer itself never started speaking.
     _commandEpoch++;
     final player = _player;
     if (player == null) return;
+    if (player.isSettledIdle) {
+      // No native utterance and no seek/voice auto-resume exist. Calling
+      // SpeechEngine.stop here would create a needless native round trip
+      // and can interrupt a newly attached book's media pipeline.
+      await _releaseAudioFocus();
+      return;
+    }
     try {
       await player.pause();
     } finally {
-      // The listener releases focus when native stop actually settles.
+      // The listener releases focus when native Stop actually settles.
       // Await that queued release before resolving the transport command.
       if (identical(player, _player) && player.isSettledIdle) {
         await _focusOperation;
@@ -253,18 +267,38 @@ class ReaderMediaHandler extends BaseAudioHandler {
     await player.seekTo(player.currentIndex - 1);
   }
 
-  /// Conservative policy for phone calls, competing audio and unplugged
-  /// headphones: pause; never resume on a subsequent focus-gain event.
+  /// Conservative policy for calls, competing audio and unplugged
+  /// headphones: pause; NEVER auto-resume on a focus-gain event.
+  ///
+  /// Returnable Future supports deterministic control-plane tests and
+  /// allows repeated native interruptions to share one Stop barrier.
+  Future<void> pauseForSystemInterruption() {
+    if (_closed || _player == null) return Future<void>.value();
+    final pending = _interruptionPause;
+    if (pending != null) return pending;
+    // A seek/voice switch can already be awaiting native Stop with
+    // isPlaying=false and an auto-resume queued. Only a real pause()
+    // invalidates that pending navigation and its crash marker safely.
+    final pausing = pause();
+    _interruptionPause = pausing;
+    unawaited(pausing.then((_) {
+      if (identical(_interruptionPause, pausing)) {
+        _interruptionPause = null;
+      }
+    }, onError: (Object _, StackTrace __) {
+      if (identical(_interruptionPause, pausing)) {
+        _interruptionPause = null;
+      }
+    }));
+    return pausing;
+  }
+
   void handleSystemInterruption() {
-    _commandEpoch++;
-    final player = _player;
-    // Seek and voice switches can be waiting for native stop with
-    // isPlaying=false but an automatic resume still pending. pause()
-    // invalidates that navigation as well; merely checking isPlaying
-    // would let a late seek restart speech after an incoming call.
-    if (player == null) return;
-    unawaited(pause().catchError((Object _, StackTrace __) {
-      // Native stop errors are not permitted to crash an event subscription.
+    unawaited(pauseForSystemInterruption()
+        .catchError((Object _, StackTrace __) {
+      // AudioSession events must not expose uncaught platform errors.
+      // Native Stop failures remain recorded by ReaderPlayer; its crash
+      // checkpoint stays intact until Stop is confirmed.
     }));
   }
 
