@@ -17,6 +17,8 @@ import '../../audio/openai_speech_engine.dart';
 import '../../audio/secret_vault.dart';
 import 'speech_provider_screen.dart';
 import '../../data/book_decoder.dart';
+import '../../data/pdf_text_navigation.dart';
+import 'pdf_page_navigation.dart';
 import '../../data/epub_reader_preflight.dart';
 import '../../data/epub_progress_recovery.dart';
 import '../../data/library_store.dart';
@@ -99,6 +101,8 @@ class _ReaderScreenState extends State<ReaderScreen>
   Timer? _savePdfPageTimer;
   int? _pendingPdfPage;
   late int _displayPdfPage;
+  int? _pdfPageCount;
+  final PdfViewerController _pdfController = PdfViewerController();
   int? _visiblePositionIndex;
   // Actual EPUB source offset on screen, independent of the TTS cursor.
   // Needed to return to a footnote opened from an unspoken caption or
@@ -130,7 +134,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
-  Future<void> _load() async {
+  Future<void> _load({int? requestedPdfPage}) async {
     // A later reload supersedes all earlier work, including an in-flight
     // worker that would otherwise continue unpacking ZIP/XHTML offscreen.
     final epoch = ++_loadEpoch;
@@ -241,11 +245,21 @@ class _ReaderScreenState extends State<ReaderScreen>
                       legacyOffset: latestBook.progressOffset,
                     ))
               : null;
-      final saved = epubRecovery?.offset ??
+      var saved = epubRecovery?.offset ??
           (latestBook.progressAnchor == null
               ? latestBook.progressOffset
               : document.offsetOf(latestBook.progressAnchor!) ??
                   latestBook.progressOffset);
+      if (widget.book.format == BookFormat.pdf &&
+          requestedPdfPage != null) {
+        // Only an explicit "Read text aloud" action transfers the current
+        // physical page into the voice cursor. Merely turning PDF pages
+        // never writes or replaces the stored TTS source anchor.
+        final pageOffset = pdfTextOffsetForVisualPage(
+          document.pdfPageRanges, requestedPdfPage,
+        );
+        if (pageOffset != null) saved = pageOffset;
+      }
       // An EPUB recovery fallback must never auto-play or inject offsets
       // into the TTS segments; the index is only a visual starting point.
       // Source-aligned chunks are ordered: locate the containing/next
@@ -437,12 +451,44 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   /// A PDF page is a visual bookmark, not an offset within extracted text.
   /// Saving this must never overwrite a scanned PDF's null TTS anchor.
+  void _onPdfReady(PdfDocument document, PdfViewerController controller) {
+    if (!mounted || widget.book.format != BookFormat.pdf ||
+        _pdfTextMode) return;
+    final count = document.pages.length;
+    if (count < 1 || count > 3000) return;
+    if (_pdfPageCount != count) {
+      setState(() => _pdfPageCount = count);
+    }
+  }
+
+  Future<void> _goToPdfPage(int number) async {
+    final count = _pdfPageCount;
+    if (!mounted || widget.book.format != BookFormat.pdf ||
+        _pdfTextMode || count == null || number < 1 || number > count ||
+        !_pdfController.isReady) return;
+    try {
+      await _pdfController.goToPage(
+        pageNumber: number, anchor: PdfPageAnchor.top,
+      );
+      if (!mounted || _pdfTextMode) return;
+      _onPdfPageChanged(number);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Cannot navigate to this PDF page.'),
+        ));
+      }
+    }
+  }
+
   void _onPdfPageChanged(int? pageNumber) {
     if (!mounted || widget.book.format != BookFormat.pdf ||
         _pdfTextMode || pageNumber == null ||
         pageNumber < 1 || pageNumber > 100000) return;
     if (_pendingPdfPage == pageNumber) return;
-    _displayPdfPage = pageNumber;
+    if (_displayPdfPage != pageNumber) {
+      setState(() => _displayPdfPage = pageNumber);
+    }
     _pendingPdfPage = pageNumber;
     _savePdfPageTimer?.cancel();
     _savePdfPageTimer = Timer(
@@ -1152,6 +1198,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     WidgetsBinding.instance.removeObserver(this);
     _saveVisualPositionTimer?.cancel();
     _flushPdfPagePosition();
+    _pdfController.dispose();
     _itemPositionsListener.itemPositions.removeListener(_onVisiblePositions);
     final player = _player;
     if (player != null) {
@@ -1283,7 +1330,21 @@ class _ReaderScreenState extends State<ReaderScreen>
               onPressed: () async {
                 await _player?.pause();
                 _saveVisualPositionTimer?.cancel();
-                if (mounted) setState(() => _pdfTextMode = false);
+                if (!mounted) return;
+                final speech = _player;
+                final document = _document;
+                if (speech != null && document != null &&
+                    speech.segments.isNotEmpty) {
+                  final offset = speech.segments[
+                      speech.currentIndex.clamp(
+                          0, speech.segments.length - 1).toInt()].start;
+                  final page = pdfVisualPageForTextOffset(
+                    document.pdfPageRanges, offset,
+                  );
+                  if (page != null) _displayPdfPage = page;
+                }
+                setState(() => _pdfTextMode = false);
+                _onPdfPageChanged(_displayPdfPage);
               },
             ),
           if (widget.book.format != BookFormat.pdf || _pdfTextMode)
@@ -1325,19 +1386,26 @@ class _ReaderScreenState extends State<ReaderScreen>
                                   _loading = true;
                                   _error = null;
                                 });
-                                _load();
+                                _load(requestedPdfPage: _displayPdfPage);
                               },
                               icon: const Icon(Icons.record_voice_over),
                               label: const Text('Read text aloud'),
                             ),
                           ],
                         ),
+                        PdfPageNavigation(
+                          pageNumber: _displayPdfPage,
+                          pageCount: _pdfPageCount,
+                          onPageRequested: _goToPdfPage,
+                        ),
                         Expanded(
                           child: PdfViewer.file(
                             widget.book.localPath,
+                            controller: _pdfController,
                             initialPageNumber: _displayPdfPage,
                             params: PdfViewerParams(
                               onPageChanged: _onPdfPageChanged,
+                              onViewerReady: _onPdfReady,
                             ),
                           ),
                         ),
