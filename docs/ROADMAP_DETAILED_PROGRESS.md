@@ -17,7 +17,7 @@ dispositivi resta **parziale**.
 | Milestone | Copertura stimata | Concretamente presente | Non completo / condizione di uscita mancante |
 |---|---:|---|---|
 | **M0 — Fondazione e POC** | **60%** | Flutter/Dart modulari, SQLite con migrazioni fino a v17, parser e adattatori, bootstrap Windows/Android, runner e CI manuale | Progetti nativi generati fuori da Git; POC realmente passati su Windows e Android, ABI/minSDK/licenze, corpus EPUB/PDF e voci sherpa-onnx native |
-| **M1 — Reader MVP** | **82%** | Import EPUB/PDF/TXT e dedup, lettura, TOC, source anchors, progressi, segnalibri e ricerca, anteprime note, temi/layout, biblioteca con ricerca/ordinamento e editor di titolo/autore/serie/lingua | Test su 20 libri reali e due piattaforme, copertine, estrazione metadati automatica, CSS/CFI complessi, PDF multicolonna, drag&drop Windows e condivisione Android da verificare |
+| **M1 — Reader MVP** | **83%** | Import EPUB/PDF/TXT e dedup, lettura, TOC, source anchors, progressi, segnalibri e ricerca, anteprime note, temi/layout, biblioteca con ricerca/ordinamento e editor di titolo/autore/serie/lingua | Test su 20 libri reali e due piattaforme, copertine, estrazione metadati automatica, CSS/CFI complessi, PDF multicolonna, drag&drop Windows e condivisione Android da verificare |
 | **M2 — TTS gratuito e read-along** | **70%** | Sistema TTS, voci e rate/pitch per capacità, segmentazione, seek, posizione sorgente, sleep timer, media handler e policy Stop/recovery | Capitolo continuativo provato su dispositivi, audio focus/interruzioni/cuffie/lock screen e chiavi multimediali Windows reali; timing parola non promesso |
 | **M3 — Offline neurale + cloud** | **35%** | Cloud Speech transitorio con consenso/quote per libro, chiavi protette, cache/prefetch; prototipo sherpa VITS con job cancellabili, gestore modelli, import locale e benchmark opt-in | VITS non abilitato/qualificato con voce reale, catalogo firme/licenze, SAF cartella Android, OpenAI Realtime, secondo provider cloud, cost ceiling monetario per sessione/mese e fallback esplicito |
 | **M4 — Cast manuale** | **75%** | Identità/alias, segmentation dialoghi, editor, revisioni, speaker unknown, profili voce e mappatura persistente per fonte | Demo audio nativa con narratore + 3 personaggi, prosodia e misure su dialoghi reali |
@@ -135,3 +135,14 @@ chiudere prima il ciclo sui dispositivi reali.
 - Rimangono da implementare le anteprime PDF, il rilevamento di copertine
   non dichiarate, cataloghi remoti/OPDS e l'audit visuale sui dispositivi.
   Percentuale M1 aggiornata a 82%; media complessiva stimata ~55%.
+
+### Navigazione PDF e sincronizzazione pagina/testo (2026-10-26)
+
+- Implementati i comandi pagina precedente/successiva, pagina N su totale,
+  salto validato, zoom e mappatura esplicita da pagina visuale a inizio testo
+  TTS, con supporto a pagine senza text layer.
+- Il checkpoint visuale resta separato dall'anchor della narrazione; il
+  pulsante per tornare alle pagine individua il segmento testuale attivo.
+- **Non** è ancora stato risolto l'ordine dei blocchi multicolonna,
+  la segmentazione di note/tabelle o l'OCR dei PDF scannerizzati.
+- La verifica nativa resta aperta. M1 stimato **83%**.

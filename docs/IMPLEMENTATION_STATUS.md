@@ -1465,3 +1465,30 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Added parser/cache/persistence/removal and widget tests; the local
   `example/` report records only `opfCoverDetected` as a boolean.
   All changes are source-authored and unverified with Flutter SDK.
+
+## M1 — PDF page navigation, zoom and speech handoff (2026-10-26)
+
+- The visual PDF reader now shows **physical page / total page count**,
+  previous/next page controls, a validated page-jump dialog and explicit
+  zoom-in/out buttons. It uses the real `pdfrx` viewer controller;
+  page bounds and navigation callbacks are guarded until the document
+  is initialized.
+- When the user deliberately chooses **Read text aloud**, the reader
+  maps the displayed physical page to the start of its extracted text span
+  (or the next available text page, falling back to the final readable
+  page for trailing image-only pages). Merely scrolling pages never
+  overwrites the independent stored TTS source anchor.
+- Returning to physical PDF pages uses the currently selected speech
+  segment to select the corresponding visual page, without rewriting
+  the saved spoken text position. Native PDF page changes still persist
+  visual-page checkpoints independently of speech progress.
+- New pure `pdf_text_navigation.dart` helpers and a reusable
+  `PdfPageNavigation` widget are covered by mapping tests (including
+  scanned gaps, page ends and no-text cases) and widget tests for page
+  boundaries, jump validation and zoom separation.
+- The local private `example/` PDF corpus now checks physical-page ↔
+  source-text mappings for each readable page without publishing text.
+  No OCR, corrected multicolumn reading order, native device rendering
+  acceptance or guaranteed PDFium text-layer accessibility is claimed.
+- No Flutter/Windows/Android SDK is executable in this GitHub editing
+  session. Changes are published but are **not yet compiled or run**.

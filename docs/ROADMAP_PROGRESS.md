@@ -12,7 +12,7 @@ No release or completed milestone is claimed.
 | Original milestone | Estimated implementation | Evidence already in repository | Key unmet exit criteria |
 |---|---:|---|---|
 | M0 Foundation and POCs | 60% | Flutter modules, SQLite migrations, EPUB/PDF/system TTS source, bootstrap scripts and test runner | Native `android/` and `windows/` generated projects are not tracked; sherpa-onnx, native platform POCs, licensing/ABI results |
-| M1 Reader MVP | 82% | SQLite book library and dedup, EPUB2/3/PDF/TXT, anchors/TOC/bookmarks/search, user-editable title/author/series/language via SQLite v17 and catalog sort/filter | 20-book real corpus, Windows and Android smoke tests, richer EPUB/CSS/CFI and complex PDF reading order |
+| M1 Reader MVP | 83% | SQLite book library and dedup, EPUB2/3/PDF/TXT, anchors/TOC/bookmarks/search, user-editable title/author/series/language via SQLite v17 and catalog sort/filter | 20-book real corpus, Windows and Android smoke tests, richer EPUB/CSS/CFI and complex PDF reading order |
 | M2 Free TTS and read-along | 70% | OS speech adapter, voice controls, text/audio checkpoints, source highlight and scrolling, segment navigation, sleep timer, media session source, interruption guards | Real Android lock-screen, phone-call/audio-focus and Windows key tests; guaranteed chapter-long playback and accurate engine timing |
 | M3 Offline neural and cloud | 35% | Secure cloud keys/consent/cache; guarded sherpa VITS worker and manifest-verified assets; local voice status/removal screen | No native ONNX voice qualification, guided model installer or authenticated catalog, no Realtime/second provider, live-cloud validation or monetary ceiling |
 | M4 Manual multivoice cast | 75% | Character identities, manual and locked cast spans, voice profiles, quote segmentation, no-speaker fallback, review/editor UI | 3+ character/native audio listening gate, richer segmentation and prosody, speaker performance verification |
@@ -170,3 +170,15 @@ included as completed features by merely having been designed in the roadmap.
   milestone-weighted overall estimate remains **~55%** pending device-level
   verification. PDF thumbnails, richer EPUB cover art, and packaging remain
   outside this increment.
+
+### Progress note — PDF navigation and spoken-page alignment (2026-10-26)
+
+- Added physical PDF page stepper, jump-to-page with strict boundaries,
+  current/total indicator, and zoom controls backed by `pdfrx`.
+- Explicit **Read text aloud** starts narration at the current readable
+  physical page while leaving an independent visual checkpoint; returning
+  to pages can align to the active spoken PDF text page. Scanned or blank
+  page gaps never fabricate text/OCR content.
+- M1 rises cautiously from 82% to **83% estimated feature coverage**,
+  overall milestone-weighted coverage remains **~55%**. Real PDF testing
+  on Windows/Android and multi-column reading order remain unresolved.

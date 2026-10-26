@@ -82,3 +82,11 @@ La suite registra anche `opfCoverDetected` (`true` o `false`) per
 ciascun EPUB, senza copiare né pubblicare l'immagine di copertina.
 L'assenza di una copertina dichiarata nel manifest non rende il libro
 illeggibile e non costituisce da sola un errore del decoder.
+
+## Controllo navigazione e ancore dei PDF
+
+Per ogni PDF dotato di testo estraibile, la suite verifica ora che l'inizio
+di ciascuna pagina leggibile sia mappabile dalla pagina fisica all'offset
+usato dalla narrazione e viceversa. Il report locale registra soltanto il
+numero di pagine con testo (`readablePdfPages`), mai estratti del libro.
+Le pagine scannerizzate senza testo continuano a richiedere OCR.
