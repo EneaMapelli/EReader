@@ -89,6 +89,23 @@ foreach ($item in $files) {
     sha256=(Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
   })
 }
+# Ensure the source has no empty/unlisted phonemizer directories.
+# The Flutter importer requires an exact file and directory inventory.
+$expectedFolders = @{}
+foreach ($resource in $resources) {
+  $parts = $resource['relativePath'].Split('/')
+  for ($index = 1; $index -lt $parts.Length; $index++) {
+    $folder = ($parts[0..($index - 1)] -join '/')
+    $expectedFolders[$folder] = $true
+  }
+}
+foreach ($item in $files) {
+  if (-not $item.PSIsContainer) { continue }
+  $relative = $item.FullName.Substring($root.Length + 1).Replace('\','/')
+  if (-not $expectedFolders.ContainsKey($relative)) {
+    throw 'Empty or unlisted phonemizer subdirectory in voice pack.'
+  }
+}
 $orderedResources = @($resources | Sort-Object -Property {
   $_['relativePath']
 })
