@@ -31,6 +31,12 @@ class EpubRawTarget {
   final int offset;
 }
 
+class EpubRawCaption {
+  const EpubRawCaption(this.start, this.end);
+  final int start;
+  final int end;
+}
+
 class EpubRawTable {
   const EpubRawTable(this.start, this.end, this.rows);
   final int start;
