@@ -1537,3 +1537,17 @@ future reuse. Added unexecuted fake-decoder regressions for cold/warm
 handoffs, partial-load exceptions, failed and delayed Stop. No audio gap,
 latency metric or platform acceptance claim. See
 [MP3_NATIVE_STOP_DEDUP.md](MP3_NATIVE_STOP_DEDUP.md).
+
+### 2026-10-26 — interrupted focus and exact next-audible checkpoint
+
+Android media interruptions now coalesce identical pending native Stop
+operations; duplicate events also revoke later pending Play requests.
+An already settled idle player does not issue redundant platform Stop,
+but still relinquishes native audio focus. Native pending Seek/Stop remains
+strictly serialized. After confirmed utterance completion only, an optional
+ReaderPlayer callback persists the next actual spoken source offset
+(including beyond explicitly skipped EPUB notes). Interrupted utterances
+retain their starting position. New mock focus and SQLite recovery
+regression cases authored, NOT executed. No auto-resume. No device builds
+or measured native playback results. See
+[AUDIO_INTERRUPTION_CHECKPOINTS.md](AUDIO_INTERRUPTION_CHECKPOINTS.md).
