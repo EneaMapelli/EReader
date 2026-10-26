@@ -384,7 +384,10 @@ class _ReaderScreenState extends State<ReaderScreen>
         _linkHistory.clear();
         _epubLayout = visualLayout;
         _chapterStarts = {
-          for (final chapter in chapters) chapter.segmentIndex: chapter,
+          // Silent chapters share the next section's playable cursor.
+          // They must not replace the real heading for that clip.
+          for (final chapter in chapters)
+            if (chapter.hasSpeech) chapter.segmentIndex: chapter,
         };
         _pronunciationRules = pronunciationRules;
         _castNames = castNames;
@@ -714,9 +717,11 @@ class _ReaderScreenState extends State<ReaderScreen>
         chapterIndex >= _chapters.length) return;
     try {
       _saveVisualPositionTimer?.cancel();
-      if (player.isPlaying) await player.pause();
+      if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player) return;
-      await _select(_chapters[chapterIndex].segmentIndex);
+      final chapter = _chapters[chapterIndex];
+      await _select(chapter.segmentIndex,
+          visualSourceOffset: chapter.start);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -774,8 +779,10 @@ class _ReaderScreenState extends State<ReaderScreen>
                           ? const Icon(Icons.menu_book)
                           : const Icon(Icons.article_outlined),
                       title: Text(chapter.title),
-                      subtitle: Text(
-                          'Section ${index + 1} of ${_chapters.length}'),
+                      subtitle: Text(chapter.hasSpeech
+                          ? 'Section ${index + 1} of ${_chapters.length}'
+                          : 'Section ${index + 1} of ${_chapters.length} · '
+                            'no spoken text'),
                       selected: index == current,
                       onTap: () => Navigator.of(sheetContext).pop(index),
                     );
@@ -1127,15 +1134,20 @@ class _ReaderScreenState extends State<ReaderScreen>
     bool preserveSearchHighlight = false,
   }) async {
     final player = _player;
-    if (player == null || index < 0 || index >= player.segments.length) {
-      return;
-    }
+    final visualOnlyEnd = widget.book.format == BookFormat.epub &&
+        visualSourceOffset != null && index == player?.segments.length;
+    if (player == null || index < 0 ||
+        (index >= player.segments.length && !visualOnlyEnd)) return;
     // Navigating elsewhere clears a previous search-result highlight.
     if (!preserveSearchHighlight) _selectedSourceSearchHit = null;
     // A prior scroll debounce must never overwrite this explicit seek
     // or a source-exact bookmark/search hit after the next frame.
     _cancelPendingVisualSave();
-    await player.seekTo(index);
+    if (visualOnlyEnd) {
+      await player.seekToSourceEnd();
+    } else {
+      await player.seekTo(index);
+    }
     if (!mounted || _player != player) return;
     // A verified EPUB link may point inside the current audio segment
     // or into a paragraph without any speech. Save that exact source
@@ -1147,7 +1159,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       widget.book.id, sourceOffset,
       anchor: _document?.anchorAt(widget.book.format, sourceOffset),
     );
-    _visiblePositionIndex = index;
+    _visiblePositionIndex = player.segments.isEmpty ? null
+        : index.clamp(0, player.segments.length - 1).toInt();
     _currentEpubVisualSourceOffset = widget.book.format == BookFormat.epub
         ? sourceOffset : null;
     // Protect all explicit EPUB seeks from a transient stale viewport,
