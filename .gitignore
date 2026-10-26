@@ -29,3 +29,5 @@ windows/flutter/ephemeral/
 # after filtering. Do not ignore test-results/ globally.
 
 example/
+# User-owned EPUB/PDF evaluation corpus: local only, never commit.
+/example/
