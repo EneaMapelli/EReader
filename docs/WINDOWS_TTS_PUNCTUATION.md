@@ -84,3 +84,16 @@ suite Flutter; un'eventuale disponibilità ZIP vale solo dopo un
    il libro né API key).
 
 **Nessuna validazione audio dal dispositivo è stata ancora eseguita.**
+
+## Build Windows con correzione disponibile
+
+Compilazione e pubblicazione della prerelease concluse con successo:
+
+- [Primo ZIP Windows TTS corretto](https://github.com/EneaMapelli/EReader/releases/tag/windows-test-40aa3c6a)
+- Asset: `EReader-Windows-x64-40aa3c6a.zip`
+- Commit della build: `40aa3c6a69d2fd590863cb0b469d32479f7cccfe`
+- [GitHub Actions](https://github.com/EneaMapelli/EReader/actions/runs/40387914806):
+  Windows x64 Release, upload dell'artefatto e prerelease tutti riusciti.
+
+Questa è una verifica di **compilazione**, non una misura della qualità
+della pronuncia. Per validarla servono i primi ascolti su Windows.
