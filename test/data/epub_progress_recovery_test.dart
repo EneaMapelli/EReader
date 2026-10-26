@@ -126,6 +126,32 @@ void main() {
     expect(result.offset, source.length);
   });
 
+  test('zero-text illustrated OPF anchor retains identity on reopen',
+      () {
+    const document = DocumentContent(
+      title: 'Illustrated opening',
+      text: 'A readable chapter.',
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'cover', href: 'cover.xhtml',
+            start: 0, end: 0, title: 'Cover'),
+        EpubSpineRange(idref: 'chapter', href: 'chapter.xhtml',
+            start: 0, end: 19, title: 'Chapter'),
+      ],
+    );
+    const cover = ReadingAnchor(
+      kind: AnchorKind.epubSpine,
+      sourceId: 'cover', localOffset: 0,
+    );
+    final result = resolveEpubReadingProgress(
+      document, anchor: cover, legacyOffset: 0,
+    );
+    expect(document.offsetOf(cover), 0);
+    expect(result.offset, 0);
+    expect(result.status, EpubProgressRecoveryStatus.legacyUnverified);
+    expect(cover.sourceId, 'cover',
+        reason: 'The OPF sourceId disambiguates a shared chapter offset');
+  });
+
   test('v1 anchors and offset-only old library entries remain compatible', () {
     final doc = oneChapter('Some legacy text is still readable.');
     final v1 = ReadingAnchor.fromJson({
