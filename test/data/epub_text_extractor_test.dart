@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:ereader/data/epub_text_extractor.dart';
+import 'package:ereader/data/book_decoder.dart';
 import 'package:ereader/data/epub_import_diagnostics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -288,6 +289,23 @@ void main() {
     final strong = result.styles.firstWhere((span) => span.bold);
     expect(result.text.substring(em.start, em.end).trim(), 'text');
     expect(result.text.substring(strong.start, strong.end), 'After');
+  });
+
+  test('figcaption survives ZIP import and document adapter without TTS copy',
+      () {
+    final extracted = const EpubTextExtractor().extract(makeEpub(
+      first: '<html><body><p>Before.</p><figure>'
+          '<figcaption>Figure 4. North map.</figcaption>'
+          '</figure><p>After.</p></body></html>',
+    ));
+    final doc = documentFromExtractedEpub(extracted);
+    expect(doc.epubFigureCaptions, hasLength(1));
+    final caption = doc.epubFigureCaptions.single;
+    expect(doc.text.substring(caption.start, caption.end),
+        'Figure 4. North map.');
+    expect(extracted.figureCaptions, hasLength(1));
+    expect(doc.text.split('Figure 4. North map.').length, 2,
+        reason: 'Caption is in canonical source exactly once');
   });
 
   test('only manifest-declared local raster assets are loaded', () {
