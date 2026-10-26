@@ -1659,3 +1659,7 @@ Native Stop/Seek cancels the remaining phrase playback.
 The new `test/audio/windows_speech_punctuation_test.dart` is authored
 but not run; a Windows portable Release rebuild was requested.
 [Details and user listening checklist](WINDOWS_TTS_PUNCTUATION.md).
+
+### 2026-10-26 — free Windows speech engine choices
+
+Native/free speech can be selected with interpreted pauses or OS-native punctuation; both use the installed Windows voice list. Existing native VITS can now be explicitly selected in a Windows alpha after a user-supplied local voice pack has been installed and checked, re-verifying on open and never downloading model data or falling back to the paid cloud. Kokoro 82M and Chatterbox are research candidates, not working providers. Source/checkbox and factory tests are authored but not executed. Native audio and End/Stop stability are manual gates. Details: [FREE_TTS_ENGINES.md](FREE_TTS_ENGINES.md).
