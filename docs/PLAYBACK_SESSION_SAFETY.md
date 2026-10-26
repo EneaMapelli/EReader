@@ -42,3 +42,15 @@ This increment does not initiate any additional TTS HTTP calls or background syn
 ## Integration still required
 
 `dart format`, `flutter analyze`, `flutter test`, native Windows/Android builds and end-to-end timing tests should cover repeated rapid chapter seeking, slider interactions, asynchronous failed voice selection, Android lifecycle/backgrounding, Windows decoder file handles, cloud input quota accounting and native voice restoration. These tests must run during the owner's final build phase before PR #1 can leave draft status.
+## 2026-10-26 — audio focus interruptions and accurate clip checkpoints
+
+Android AudioSession noisy/interruption events share one in-flight native
+Stop per attached reader, including notification of newer Play invalidation.
+A settled idle player releases focus without an unnecessary TTS Stop, while
+a pending Seek or unconfirmed native Stop still requires a real stop barrier.
+ReaderPlayer now offers an optional completed-utterance hook; the actual
+reader persists the next audible source position only after a finished
+clip, never after cancelling it. EPUB note skip ranges are respected.
+Authored but **not executed** tests for interruption floods and persistent
+SQLite checkpoints. See
+[AUDIO_INTERRUPTION_CHECKPOINTS.md](AUDIO_INTERRUPTION_CHECKPOINTS.md).
