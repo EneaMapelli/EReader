@@ -522,3 +522,95 @@ Future<bool> removeInstalledOfflineVoicePack({
     }
   }
 }
+
+
+/// A local folder selected by the user, checked for a complete and bounded
+/// manifest. The manifest is self-declared: this step does NOT authenticate
+/// its publisher or grant a voice license.
+class OfflineVoiceImportPreview {
+  const OfflineVoiceImportPreview({
+    required this.manifest,
+    required this.sourceDirectory,
+    required this.totalBytes,
+  });
+
+  final OfflineVoicePackManifest manifest;
+  final Directory sourceDirectory;
+  final int totalBytes;
+}
+
+/// Preview an explicitly selected folder before consent and installation.
+/// Reading the small manifest and file metadata does not run native inference,
+/// follow links, perform network requests, or copy potentially large ONNX
+/// assets. SHA-256 is verified by [installOfflineVoicePack] after approval.
+Future<OfflineVoiceImportPreview> inspectOfflineVoiceImportFolder({
+  required Directory sourceDirectory,
+}) async {
+  if (await FileSystemEntity.type(
+          sourceDirectory.path, followLinks: false) !=
+      FileSystemEntityType.directory) {
+    throw const FormatException('Offline voice source must be a directory');
+  }
+  final manifest = await _readPersistedVoiceManifest(sourceDirectory);
+  await _verifyPackContents(sourceDirectory, manifest);
+
+  Future<int> regularSize(String relative, int maxBytes) async {
+    final file = File(p.join(sourceDirectory.path, relative));
+    if (await FileSystemEntity.type(file.path, followLinks: false) !=
+        FileSystemEntityType.file) {
+      throw const FormatException('Offline voice contains unsafe files');
+    }
+    final bytes = await file.length();
+    if (bytes < 1 || bytes > maxBytes) {
+      throw const FormatException('Offline voice source exceeds size limit');
+    }
+    return bytes;
+  }
+
+  var total = await regularSize('model.onnx', 600 * 1024 * 1024);
+  total += await regularSize('tokens.txt', 4 * 1024 * 1024);
+  var phonemizerSize = 0;
+  for (final resource in manifest.phonemizerResources) {
+    final parts = resource.relativePath.split('/');
+    var ancestor = sourceDirectory.path;
+    for (final segment in parts.take(parts.length - 1)) {
+      ancestor = p.join(ancestor, segment);
+      if (await FileSystemEntity.type(ancestor, followLinks: false) !=
+          FileSystemEntityType.directory) {
+        throw const FormatException('Unsafe phonemizer subdirectory');
+      }
+    }
+    phonemizerSize += await regularSize(
+      resource.relativePath, 8 * 1024 * 1024,
+    );
+    if (phonemizerSize > 64 * 1024 * 1024) {
+      throw const FormatException('Offline phonemizer size limit exceeded');
+    }
+  }
+  total += phonemizerSize;
+  return OfflineVoiceImportPreview(
+    manifest: manifest, sourceDirectory: sourceDirectory,
+    totalBytes: total,
+  );
+}
+
+/// Approve and install the *same* selected folder. Files are revalidated,
+/// size-capped and streamed through SHA-256 by the canonical installer,
+/// so a file changed between preview and approval is rejected.
+Future<InstalledOfflineVoicePack> installPreviewedOfflineVoicePack({
+  required OfflineVoiceImportPreview preview,
+  required Directory modelsDirectory,
+}) async {
+  final fresh = await inspectOfflineVoiceImportFolder(
+    sourceDirectory: preview.sourceDirectory,
+  );
+  if (jsonEncode(fresh.manifest.toJson()) !=
+      jsonEncode(preview.manifest.toJson())) {
+    throw const FormatException('Voice manifest changed after approval');
+  }
+  return installOfflineVoicePack(
+    manifest: preview.manifest,
+    sourceDirectory: preview.sourceDirectory,
+    modelsDirectory: modelsDirectory,
+  );
+}
