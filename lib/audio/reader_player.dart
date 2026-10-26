@@ -354,17 +354,21 @@ class ReaderPlayer extends ChangeNotifier {
             _engine is AheadOfTimeSpeechEngine &&
             currentIndex + 1 < _segments.length) {
           final next = _segments[currentIndex + 1];
-          final nextText =
-              speechTextTransform?.call(next.text) ?? next.text;
-          final cap = _engine as AheadOfTimeSpeechEngine;
-          unawaited(cap.prepareSpeech(
-            nextText,
-            voice: _voiceFor(next),
-            language: language, rate: rate, pitch: pitch,
-          ).catchError((Object _) {
-            // A failed prefetch is retained and surfaced by the next
-            // speak() without a second charged API request.
-          }));
+          // A speculative request for an intentionally silent note would
+          // still send its text and debit quota. Do not prefetch it.
+          if (!(shouldSkipSegment?.call(next) ?? false)) {
+            final nextText =
+                speechTextTransform?.call(next.text) ?? next.text;
+            final cap = _engine as AheadOfTimeSpeechEngine;
+            unawaited(cap.prepareSpeech(
+              nextText,
+              voice: _voiceFor(next),
+              language: language, rate: rate, pitch: pitch,
+            ).catchError((Object _) {
+              // A failed prefetch is retained and surfaced by the next
+              // speak() without a second charged API request.
+            }));
+          }
         }
         await playing;
         if (token != _session) return;
