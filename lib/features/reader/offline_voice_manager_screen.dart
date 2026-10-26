@@ -42,11 +42,11 @@ class _OfflineVoiceManagerScreenState
     unawaited(_refresh());
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh({bool clearMessage = true}) async {
     if (_loading || _busyId != null) return;
     setState(() {
       _loading = true;
-      _message = null;
+      if (clearMessage) _message = null;
     });
     try {
       final result = await inspectOfflineVoicePacks(
@@ -110,7 +110,7 @@ class _OfflineVoiceManagerScreenState
       if (mounted) setState(() => _busyId = null);
     }
     // Refresh after the mutation settles, regardless of removal result.
-    await _refresh();
+    await _refresh(clearMessage: false);
   }
 
   @override
