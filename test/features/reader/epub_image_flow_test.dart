@@ -104,6 +104,22 @@ void main() {
         reason: 'The untouched source-backed run still exists for TTS');
   });
 
+  test('stale image offset inside surrogate pair snaps after entire emoji',
+      () {
+    const source = 'A 🐉 end';
+    final lowSurrogateOffset = source.indexOf('🐉') + 1;
+    final flow = epubVisualFlow(EpubVisualBlock(
+      start: 0, end: source.length, heading: false, chapterStart: false,
+      firstSegmentIndex: 0,
+      runs: [EpubVisualRun.fromSource(0, source.length, source, 0)],
+      images: [picture(lowSurrogateOffset, 'safe-emoji')],
+    ));
+    expect(flattened(flow),
+        ['TXT:A 🐉', 'IMG:safe-emoji', 'TXT: end']);
+    expect(flow.expand((part) => part.runs).map((run) => run.text).join(),
+        source);
+  });
+
   test('no image retains original runs without speech change', () {
     const block = EpubVisualBlock(
       start: 0, end: 5, chapterStart: false, heading: false,
