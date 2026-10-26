@@ -1577,3 +1577,9 @@ PDF pages now fail the explicit Read Aloud request instead of rewinding
 to a prior page; image-only gaps ahead of readable pages still use the
 next actual physical text-layer page. Tests authored, NOT run; see
 [VISUAL_ONLY_SOURCE_NAVIGATION.md](VISUAL_ONLY_SOURCE_NAVIGATION.md).
+
+**Extractor consistency follow-up:** EpubTextExtractor now retains
+navigation-only empty OPF XHTML as zero-length source ranges, while
+rejecting fully non-textual books. The old empty-XHTML import regression
+was revised and new ZIP fixtures added. No source characters, cloud
+requests, or synthetic graphical content introduced.
