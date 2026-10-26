@@ -425,7 +425,7 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
     RangeError.checkValidIndex(index, bounds);
     final metadata = bounds[index];
     final segment = metadata.firstSegmentIndex ??
-        speechSegmentIndexForOffset(playable, metadata.start);
+        speechSourceDestinationIndexForOffset(playable, metadata.start);
     return EpubVisibleReadingPosition(metadata.start, segment);
   }
 
