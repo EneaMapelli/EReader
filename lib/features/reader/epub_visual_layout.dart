@@ -399,6 +399,8 @@ EpubVisualLayout buildEpubVisualLayout(
   }
 
   final blocks = <EpubVisualBlock>[];
+  final silentSpineBlocks = <String, int>{};
+  final spineBlockBounds = <String, ({int first, int last})>{};
   final mapping = List<int>.filled(segments.length, -1);
   var segmentCursor = 0;
   var styleCursor = 0;
@@ -560,6 +562,19 @@ EpubVisualLayout buildEpubVisualLayout(
       throw const FormatException('Invalid EPUB visual spine range');
     }
     previousSpineEnd = spine.end;
+    final spineFirstBlock = blocks.length;
+    if (spine.start == spine.end) {
+      silentSpineBlocks[spine.idref] = blocks.length;
+      blocks.add(EpubVisualBlock(
+        start: spine.start, end: spine.end, runs: const [],
+        chapterStart: true, heading: false, firstSegmentIndex: null,
+        visualOnlySectionTitle: spine.title.trim().isEmpty
+            ? 'Illustrated section' : spine.title.trim(),
+      ));
+      spineBlockBounds[spine.idref] = (
+        first: spineFirstBlock, last: blocks.length - 1);
+      continue;
+    }
     var cursor = spine.start;
     var isFirst = true;
     // Scan the existing string directly. Whole-spine substrings are
@@ -575,6 +590,10 @@ EpubVisualLayout buildEpubVisualLayout(
     }
     if (cursor < spine.end) {
       addBounded(cursor, spine.end, isFirst);
+    }
+    if (blocks.length > spineFirstBlock) {
+      spineBlockBounds[spine.idref] = (
+        first: spineFirstBlock, last: blocks.length - 1);
     }
   }
 
@@ -598,7 +617,11 @@ EpubVisualLayout buildEpubVisualLayout(
   final imageByBlock = <int, List<EpubEmbeddedImage>>{};
   for (final image in document.epubImages) {
     if (image.offset < 0 || image.offset > source.length) continue;
-    final block = findBlock(image.offset);
+    final owner = image.spineIdref == null
+        ? null : spineBlockBounds[image.spineIdref];
+    final nearest = findBlock(image.offset);
+    final block = owner == null || nearest < 0
+        ? nearest : nearest.clamp(owner.first, owner.last).toInt();
     if (block >= 0) {
       imageByBlock.putIfAbsent(block, () => []).add(image);
     }
@@ -619,6 +642,11 @@ EpubVisualLayout buildEpubVisualLayout(
     return EpubVisualLayout(
       List.unmodifiable(blocks),
       List.unmodifiable(mapping),
+      spineBlockIndices: Map<String, int>.unmodifiable(silentSpineBlocks),
+      silentSpineIdsByBlock: Map<int, String>.unmodifiable({
+        for (final entry in silentSpineBlocks.entries)
+          entry.value: entry.key,
+      }),
     );
   }
   final enriched = List<EpubVisualBlock>.of(blocks);
@@ -633,11 +661,17 @@ EpubVisualLayout buildEpubVisualLayout(
       firstSegmentIndex: block.firstSegmentIndex,
       images: List.unmodifiable(imageByBlock[index] ?? const []),
       tables: List.unmodifiable(tablesByBlock[index] ?? const []),
+      visualOnlySectionTitle: block.visualOnlySectionTitle,
     );
   }
   return EpubVisualLayout(
     List.unmodifiable(enriched),
     List.unmodifiable(mapping),
+    spineBlockIndices: Map<String, int>.unmodifiable(silentSpineBlocks),
+    silentSpineIdsByBlock: Map<int, String>.unmodifiable({
+      for (final entry in silentSpineBlocks.entries)
+        entry.value: entry.key,
+    }),
   );
 }
 
