@@ -227,3 +227,18 @@ chiudere prima il ciclo sui dispositivi reali.
 - Aggiunti test per race media/focus e verifica integrata storage, non
   eseguiti. Stime invariate M2 ~70%, M0–M6 ~55%.
   [Specifiche e casi manuali](AUDIO_INTERRUPTION_CHECKPOINTS.md).
+
+### Sincronizzazione posizione, capitoli EPUB e pagine PDF (2026-10-26)
+
+- M2: il cursore narrativo ripristinato a fine libro rimane **completato**,
+  senza ripetere l'ultima clip; un salto esplicito da TOC, ricerca o
+  segnalibro continua invece a scegliere un segmento pronunciabile.
+  Interfaccia con stato finale e Play che riparte dall'inizio.
+- Fine libro ora salva anche l'ancora sorgente EPUB/PDF corretta.
+  Ripristino legacy EPUB senza ancora conserva la posizione `text.length`.
+- Sintesi PDF segmentata per **pagina fisica**, senza clip a cavallo,
+  mantenendo offset UTF-16 e azzerando gli stati di citazione a ogni pagina.
+  Voltare pagine PDF resta indipendente dalla posizione audio.
+- Aggiunti test sintetici, non eseguiti. Stime invariate: M2 ~70% e
+  complessivo ~55%; validazione nativa ancora aperta.
+  [Specifica](READER_SOURCE_SYNC.md).
