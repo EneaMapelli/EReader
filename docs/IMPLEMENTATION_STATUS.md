@@ -1420,3 +1420,30 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Since `example/` intentionally lives only on the user's PC, no actual
   private EPUB/PDF books were available in this GitHub editing session.
   The suite is written and pushed but **has not yet been executed**.
+
+## M1 — automatic EPUB OPF metadata and safe backfill (2026-10-26)
+
+- New `lib/data/epub_catalog_metadata.dart` reads only bounded EPUB ZIP
+  container/OPF metadata, not XHTML or network resources. It extracts
+  title, up to three creator names, BCP-47-style locale, Calibre series
+  metadata and EPUB3 collections explicitly labelled `series`.
+  XML DTD/entities, archive paths escaping the ZIP, duplicate entries,
+  oversized files and out-of-budget metadata are rejected.
+- `LibraryStore.importFile` now runs OPF catalog extraction in a background
+  isolate for **new EPUB imports**, before its SQLite insertion; title
+  falls back to the filename when metadata is absent/invalid. Corrupted
+  OPF metadata cannot block import of an archive whose signature passed
+  the existing admission checks; normal reader decode still reports
+  unreadable EPUB content when opened.
+- An explicit `Fill from EPUB` action in the library metadata editor
+  repairs missing author, series and language for **already imported**
+  EPUB books. It deliberately leaves the current book title, any non-null
+  user-edited metadata, book identity, progress, bookmarks and TTS cast
+  untouched. Nothing is fetched from a remote metadata provider.
+- Added OPF2/OPF3/Calibre, hostile XML/path, missing field, SQLite import,
+  duplicate/manual-override and explicit-backfill tests. Aligned an old
+  PDF migration test with SQLite v17. These authored tests have **not**
+  run in this GitHub editing environment.
+- The local real-book corpus report now records **booleans only** for
+  recognized author/series/language/OPF title, not the metadata values.
+  This increment does not yet include cover extraction or PDF metadata.

@@ -66,3 +66,12 @@ Il comando stampa in console esito, formato, nome file e durata di ogni caso. Il
 Se un libro non viene aperto, viene riportato un test fallito: EPUB corrotto o fuori limite, PDF cifrato/non supportato, errore dell'estrattore, posizione non stabile oppure libreria non ripristinabile. Un PDF scannerizzato **senza** text layer non è invece un crash: compare una classificazione che identifica la necessità futura dell'OCR.
 
 Questi test documentali non sostituiscono le prove visive del reader Flutter (impaginazione, scorrimento, zoom e selezione), né test completi di TTS/Android. I risultati sono una base riproducibile per individuare errori su libri reali.
+
+## Controllo dei metadati automatici EPUB
+
+Il report locale `latest.json` include ora i valori booleani
+`opfAuthorDetected`, `opfSeriesDetected`, `opfLanguageDetected` e
+`opfTitleDetected` per segnalare la copertura dei campi letti dal
+manifest OPF. Non include i nomi degli autori, il titolo effettivo,
+la lingua o il nome della serie. Un campo assente può dipendere dal
+file d'origine e non deve necessariamente essere considerato un errore.

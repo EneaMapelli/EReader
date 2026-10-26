@@ -12,7 +12,7 @@ No release or completed milestone is claimed.
 | Original milestone | Estimated implementation | Evidence already in repository | Key unmet exit criteria |
 |---|---:|---|---|
 | M0 Foundation and POCs | 60% | Flutter modules, SQLite migrations, EPUB/PDF/system TTS source, bootstrap scripts and test runner | Native `android/` and `windows/` generated projects are not tracked; sherpa-onnx, native platform POCs, licensing/ABI results |
-| M1 Reader MVP | 78% | SQLite book library and dedup, EPUB2/3/PDF/TXT, anchors/TOC/bookmarks/search, user-editable title/author/series/language via SQLite v17 and catalog sort/filter | 20-book real corpus, Windows and Android smoke tests, EPUB OPF auto metadata/cover extraction, fuller CSS and PDF reading order |
+| M1 Reader MVP | 80% | SQLite book library and dedup, EPUB2/3/PDF/TXT, anchors/TOC/bookmarks/search, user-editable title/author/series/language via SQLite v17 and catalog sort/filter | 20-book real corpus, Windows and Android smoke tests, EPUB OPF auto metadata/cover extraction, fuller CSS and PDF reading order |
 | M2 Free TTS and read-along | 70% | OS speech adapter, voice controls, text/audio checkpoints, source highlight and scrolling, segment navigation, sleep timer, media session source, interruption guards | Real Android lock-screen, phone-call/audio-focus and Windows key tests; guaranteed chapter-long playback and accurate engine timing |
 | M3 Offline neural and cloud | 35% | Secure cloud keys/consent/cache; guarded sherpa VITS worker and manifest-verified assets; local voice status/removal screen | No native ONNX voice qualification, guided model installer or authenticated catalog, no Realtime/second provider, live-cloud validation or monetary ceiling |
 | M4 Manual multivoice cast | 75% | Character identities, manual and locked cast spans, voice profiles, quote segmentation, no-speaker fallback, review/editor UI | 3+ character/native audio listening gate, richer segmentation and prosody, speaker performance verification |
@@ -141,3 +141,16 @@ included as completed features by merely having been designed in the roadmap.
 - Existing M0/M1 feature percentages remain **60% / 78%**, and overall
   milestone coverage remains **~55%** until real corpus and native client
   results demonstrate what works and what needs repair.
+
+### Progress note — EPUB2/3 OPF auto catalog (2026-10-26)
+
+- Newly imported EPUBs now receive metadata from their embedded OPF
+  (title, creator, language and Calibre/EPUB3 series). Pre-existing
+  entries can explicitly fill missing fields without replacing user
+  edits via the library dialog. Extraction is local, bounded and runs
+  on an isolate; no web, LLM or cloud metadata lookup.
+- M1 rises qualitatively to **80% feature coverage**; the seven-milestone
+  overall rounded estimate remains **~55%**, since no real device or
+  local book corpus run has validated this new work.
+- Cover thumbnails, complex metadata, PDF reading order, OCR and
+  verified Windows/Android rendering remain open.
