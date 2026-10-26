@@ -26,6 +26,7 @@ import '../../data/epub_progress_recovery.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
 import '../../domain/book_search.dart';
+import '../../domain/reading_anchor.dart';
 import '../../domain/speech_segment.dart';
 import '../../domain/dialogue_segmenter.dart';
 import '../../domain/pronunciation_rule.dart';
@@ -112,6 +113,8 @@ class _ReaderScreenState extends State<ReaderScreen>
   // Needed to return to a footnote opened from an unspoken caption or
   // from the middle of a long audio segment.
   int? _currentEpubVisualSourceOffset;
+  // Disambiguates visual-only OPF items sharing identical UTF-16 offsets.
+  String? _selectedVisualSpineIdref;
   BookSourceMatch? _selectedSourceSearchHit;
   int? _lastVisibleEpubBlockIndex;
   // An EPUB link/footnote/verified bookmark may target unspoken text
@@ -342,6 +345,11 @@ class _ReaderScreenState extends State<ReaderScreen>
         }
         if (!mounted || epoch != _loadEpoch) return;
       }
+      final savedSilentSpine = widget.book.format == BookFormat.epub &&
+          latestBook.progressAnchor?.kind == AnchorKind.epubSpine &&
+          chapters.any((chapter) => !chapter.hasSpeech &&
+              chapter.idref == latestBook.progressAnchor?.sourceId)
+          ? latestBook.progressAnchor!.sourceId : null;
       final previous = _player;
       if (previous != null) {
         widget.mediaHandler?.detach(previous);
@@ -349,13 +357,18 @@ class _ReaderScreenState extends State<ReaderScreen>
         _recoveryBinding?.dispose();
         previous.dispose();
       }
+      final restoredBlock = savedSilentSpine == null
+          ? visualLayout.blockForSourceOffset(saved)
+          : visualLayout.blockForSpine(savedSilentSpine, saved);
       _visualCheckpoint.hold(widget.book.format == BookFormat.epub
           && chunks.isNotEmpty && saved >= 0 && saved <= document.text.length
-          ? saved : null, awaitTarget: true);
+          ? saved : null, awaitTarget: true,
+          targetBlockIndex: widget.book.format == BookFormat.epub
+              ? restoredBlock : null);
       _lastFollowedIndex = widget.book.format == BookFormat.epub
           ? (_visualCheckpoint.offset == null
               ? visualLayout.blockForSegment(player.currentIndex)
-              : visualLayout.blockForSourceOffset(_visualCheckpoint.offset!))
+              : restoredBlock)
           : player.currentIndex;
       // A completed speech cursor equals chunks.length, which is NOT a
       // visual-list index. Show the last text block without allowing its
@@ -364,6 +377,7 @@ class _ReaderScreenState extends State<ReaderScreen>
           : player.currentIndex.clamp(0, chunks.length - 1).toInt();
       _currentEpubVisualSourceOffset = widget.book.format == BookFormat.epub
           ? saved : null;
+      _selectedVisualSpineIdref = savedSilentSpine;
       _lastVisibleEpubBlockIndex = widget.book.format == BookFormat.epub
           ? _lastFollowedIndex : null;
       recoveryBinding.attach(player);
@@ -592,6 +606,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       // One TTS segment can span multiple presentation-only paragraphs.
       // Comparing just its speech index would miss real visual scrolling.
       if (firstItem == _lastVisibleEpubBlockIndex) return;
+      _selectedVisualSpineIdref = null;
       _lastVisibleEpubBlockIndex = firstItem;
       _currentEpubVisualSourceOffset = sourceOffset;
     } else {
@@ -639,6 +654,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       // Explicit Play changes the active location from a visual-only
       // checkpoint to the spoken segment currently being narrated.
       _visualCheckpoint.clear();
+      _selectedVisualSpineIdref = null;
       // Pause/resume must continue from the audio cursor, even when no
       // manual visual scrolling occurred during the previous utterance.
       _visiblePositionIndex = player.currentIndex
@@ -696,6 +712,11 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (player == null || player.segments.isEmpty || _chapters.isEmpty) {
       return -1;
     }
+    if (!player.isPlaying && _selectedVisualSpineIdref != null) {
+      final chosen = _chapters.indexWhere(
+          (chapter) => chapter.idref == _selectedVisualSpineIdref);
+      if (chosen >= 0) return chosen;
+    }
     return chapterIndexForOffset(_chapters, _directorySourceOffset(player));
   }
 
@@ -729,7 +750,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (!mounted || _player != player) return;
       final chapter = _chapters[chapterIndex];
       await _select(chapter.segmentIndex,
-          visualSourceOffset: chapter.start);
+          visualSourceOffset: chapter.start,
+          visualSpineIdref: chapter.hasSpeech ? null : chapter.idref);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1141,6 +1163,7 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   Future<void> _select(int index, {
     int? visualSourceOffset,
+    String? visualSpineIdref,
     bool preserveSearchHighlight = false,
   }) async {
     final player = _player;
@@ -1165,21 +1188,33 @@ class _ReaderScreenState extends State<ReaderScreen>
     final sourceOffset = widget.book.format == BookFormat.epub &&
             visualSourceOffset != null
         ? visualSourceOffset : player.segments[index].start;
+    final explicitSilentAnchor = widget.book.format == BookFormat.epub &&
+        visualSpineIdref != null
+        ? ReadingAnchor(kind: AnchorKind.epubSpine,
+            sourceId: visualSpineIdref, localOffset: 0)
+        : null;
     await widget.store.savePosition(
       widget.book.id, sourceOffset,
-      anchor: _document?.anchorAt(widget.book.format, sourceOffset),
+      anchor: explicitSilentAnchor ??
+          _document?.anchorAt(widget.book.format, sourceOffset),
     );
+    _selectedVisualSpineIdref = visualSpineIdref;
     _visiblePositionIndex = player.segments.isEmpty ? null
         : index.clamp(0, player.segments.length - 1).toInt();
     _currentEpubVisualSourceOffset = widget.book.format == BookFormat.epub
         ? sourceOffset : null;
     // Protect all explicit EPUB seeks from a transient stale viewport,
     // not only jumps with an additional user-specified source offset.
+    final visualIndex = widget.book.format == BookFormat.epub
+        ? (visualSpineIdref == null
+            ? _epubLayout.blockForSourceOffset(sourceOffset)
+            : _epubLayout.blockForSpine(visualSpineIdref, sourceOffset))
+        : index;
     _visualCheckpoint.hold(widget.book.format == BookFormat.epub
         ? sourceOffset : null,
-        awaitTarget: widget.book.format == BookFormat.epub);
-    final visualIndex = widget.book.format == BookFormat.epub
-        ? _epubLayout.blockForSourceOffset(sourceOffset) : index;
+        awaitTarget: widget.book.format == BookFormat.epub,
+        targetBlockIndex: widget.book.format == BookFormat.epub
+            ? visualIndex : null);
     _lastVisibleEpubBlockIndex = widget.book.format == BookFormat.epub
         ? visualIndex : null;
     if (_itemScrollController.isAttached) {
@@ -1520,8 +1555,12 @@ class _ReaderScreenState extends State<ReaderScreen>
                                       ? (_visualCheckpoint.offset == null
                                           ? _epubLayout.blockForSegment(
                                               player.currentIndex)
-                                          : _epubLayout.blockForSourceOffset(
-                                              _visualCheckpoint.offset!))
+                                          : _selectedVisualSpineIdref == null
+                                              ? _epubLayout.blockForSourceOffset(
+                                                  _visualCheckpoint.offset!)
+                                              : _epubLayout.blockForSpine(
+                                                  _selectedVisualSpineIdref!,
+                                                  _visualCheckpoint.offset!))
                                       : player.currentIndex.clamp(
                                           0, player.segments.length - 1).toInt(),
                                   itemBuilder: (context, index) {
