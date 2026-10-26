@@ -197,3 +197,19 @@ included as completed features by merely having been designed in the roadmap.
   PDFium su Windows/Android. M1 resta **83%**, media M0–M6 circa **55%**;
   la verifica nativa e il corpus reale restano criteri d'uscita aperti.
 - [Nota implementativa e piano manuale](PDF_LIBRARY_THUMBNAILS.md).
+
+### M2 — controllable EPUB narration of footnotes (2026-10-26)
+
+- A session-only OFF-by-default toggle can skip only fully contained source
+  segments of semantically recognized, preview-verified EPUB footnotes.
+- Canonical EPUB text, offsets, bookmarks, per-character voices, original
+  links and on-screen footnotes are unchanged. Crossing/ambiguous segments
+  remain audible rather than removing main prose.
+- The player applies the skip before speech, segment-start persistence and
+  cloud lookahead: the next skippable chunk is no longer sent for speculative
+  synthesis. Already in-flight prebuffering cannot be withdrawn.
+- Synthetic EPUB, UTF-16, false-positive, player and cloud-lookahead regression
+  tests authored; they have **not** been run with Flutter/Dart nor on devices.
+- M2 remains **70%** and the overall feature estimate remains about **55%**,
+  since neither continuous playback nor native acceptance gates have closed.
+  Implementation and manual acceptance: [EPUB_SPOKEN_NOTE_CONTROL.md](EPUB_SPOKEN_NOTE_CONTROL.md).
