@@ -51,10 +51,13 @@ silently jump backward, invent OCR text or start paid cloud synthesis.
   deliberately restarts from the beginning. For silent middle chapters,
   Play starts at the next available spoken chunk only when requested.
 
-A fully textless/zero-length spine item may have **no independent visual
-paragraph** to scroll to in today's EPUB text-only renderer. Its OPF
-index entry and exact source bookmark are retained, but drawing the
-original illustrated layout requires later graphical EPUB rendering.
+A zero-length OPF XHTML item now receives an independent visual
+placeholder/block in the progressive reader, and validated local PNG/JPEG
+images from that XHTML can be shown there. Its bookmark retains OPF
+identity so repeated source offsets remain distinguishable. This is
+not full author-defined XHTML/CSS layout, and all-image books still need
+a separate graphical EPUB mode. See
+[EPUB_ILLUSTRATED_SPINE.md](EPUB_ILLUSTRATED_SPINE.md).
 
 ## PDF physical pages without selectable text
 
