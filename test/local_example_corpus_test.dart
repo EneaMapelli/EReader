@@ -23,6 +23,8 @@ void main() {
         skip: 'Run tool/run-example-corpus.ps1 locally');
     return;
   }
+  // Required when the native PDF backend uses Flutter's test services.
+  TestWidgetsFlutterBinding.ensureInitialized();
   if (!folder.existsSync()) {
     test('example corpus directory exists', () =>
         fail('Create example/ in the repo root and add EPUB/PDF files.'));
@@ -229,8 +231,26 @@ void main() {
         result['elapsedMs'] = clock.elapsedMilliseconds;
         outcomes.add(result);
         library?.dispose();
-        if (sandbox != null && await sandbox.exists()) {
-          await sandbox.delete(recursive: true);
+        if (sandbox != null) {
+          // Native PDF/EPUB handles may be released just after the last
+          // isolate/result completes on Windows. Retry only lock code 32.
+          for (var attempt = 0; attempt < 12; attempt++) {
+            if (!await sandbox.exists()) break;
+            try {
+              await sandbox.delete(recursive: true);
+              break;
+            } on FileSystemException catch (error) {
+              if (!Platform.isWindows ||
+                  error.osError?.errorCode != 32 || attempt == 11) {
+                result['outcome'] = 'failed';
+                result['failureType'] = 'cleanup';
+                rethrow;
+              }
+              await Future<void>.delayed(
+                Duration(milliseconds: 25 * (attempt + 1)),
+              );
+            }
+          }
         }
       }
     }, timeout: const Timeout(Duration(minutes: 8)));
