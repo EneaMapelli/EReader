@@ -406,3 +406,7 @@ Actual ZIP fixture tests added/updated but not executed.
 - Authored new focused planner regressions (NOT RUN); requested a fresh
   Windows x64 portable build so user can check the audio quality manually.
   [Guide](WINDOWS_TTS_PUNCTUATION.md). Estimates unchanged until real audio QA.
+
+### Free offline TTS choices (2026-10-26)
+
+System speech offers two Windows punctuation profiles. The existing VITS/Piper adapter is now opt-in for locally installed, checked voice packs on Windows. No automatic model download, cloud call, or default activation. Kokoro and Chatterbox remain future research candidates. See docs/FREE_TTS_ENGINES.md. Unit tests authored but not executed; device audio quality and stability need manual validation.
