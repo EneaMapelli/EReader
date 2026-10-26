@@ -41,6 +41,97 @@ class EpubVisualRun {
   final int? linkTargetOffset;
   final String? auxiliaryFootnoteKey;
   final bool isFootnote;
+
+  /// A source-exact visual fragment. Slicing does NOT create a new speech
+  /// segment or alter link/footnote/speaker styling. For source-backed runs
+  /// it also avoids copying the underlying text until Flutter paints it.
+  EpubVisualRun visualSlice(int from, int to) {
+    if (from < start || to > end || from >= to) {
+      throw RangeError.range(from, start, end, 'from');
+    }
+    if (from == start && to == end) return this;
+    final visible = _source == null
+        ? EpubVisualRun(from, to,
+            _text!.substring(from - start, to - start), segmentIndex,
+            bold: bold, italic: italic, headingLevel: headingLevel,
+            linkTargetOffset: linkTargetOffset,
+            auxiliaryFootnoteKey: auxiliaryFootnoteKey,
+            isFootnote: isFootnote)
+        : EpubVisualRun.fromSource(from, to, _source!, segmentIndex,
+            bold: bold, italic: italic, headingLevel: headingLevel,
+            linkTargetOffset: linkTargetOffset,
+            auxiliaryFootnoteKey: auxiliaryFootnoteKey,
+            isFootnote: isFootnote);
+    return visible;
+  }
+}
+
+/// A display-only row in the original XHTML text/image sequence. Each
+/// image is embedded AT its normalized source offset, not appended after
+/// the whole paragraph. No source characters, speech chunks or anchors
+/// are inserted by this presentation-only structure.
+class EpubVisualFlowItem {
+  const EpubVisualFlowItem.text(this.runs) : image = null;
+  const EpubVisualFlowItem.image(this.image) : runs = const [];
+
+  final List<EpubVisualRun> runs;
+  final EpubEmbeddedImage? image;
+}
+
+/// Stable positional interleave for a lazy rendered EPUB paragraph.
+/// Equal-offset images keep the OPF traversal order. Metadata on a
+/// visually split run (including dialogue and footnote links) is retained.
+/// Complexity is O(runs + images log images), with at most 32 images/book.
+List<EpubVisualFlowItem> epubVisualFlow(EpubVisualBlock block) {
+  if (block.images.isEmpty) {
+    return block.runs.isEmpty
+        ? const []
+        : [EpubVisualFlowItem.text(block.runs)];
+  }
+  final ordered = [
+    for (var i = 0; i < block.images.length; i++)
+      (index: i, value: block.images[i]),
+  ]..sort((a, b) {
+    final order = a.value.offset.compareTo(b.value.offset);
+    return order != 0 ? order : a.index.compareTo(b.index);
+  });
+  final pieces = <EpubVisualFlowItem>[];
+  final pendingText = <EpubVisualRun>[];
+  final runs = List<EpubVisualRun>.of(block.runs);
+  var cursor = 0;
+
+  void emitText() {
+    if (pendingText.isEmpty) return;
+    pieces.add(EpubVisualFlowItem.text(
+        List<EpubVisualRun>.unmodifiable(pendingText)));
+    pendingText.clear();
+  }
+
+  for (final entry in ordered) {
+    final beforeImage =
+        entry.value.offset.clamp(block.start, block.end).toInt();
+    while (cursor < runs.length) {
+      final run = runs[cursor];
+      if (run.start >= beforeImage) break;
+      if (run.end <= beforeImage) {
+        pendingText.add(run);
+        cursor++;
+      } else {
+        // The image fell inside a spoken/styled/linked source run.
+        // Only the *visual* fragment is split: the TTS index is shared.
+        pendingText.add(run.visualSlice(run.start, beforeImage));
+        runs[cursor] = run.visualSlice(beforeImage, run.end);
+        break;
+      }
+    }
+    emitText();
+    pieces.add(EpubVisualFlowItem.image(entry.value));
+  }
+  while (cursor < runs.length) {
+    pendingText.add(runs[cursor++]);
+  }
+  emitText();
+  return List<EpubVisualFlowItem>.unmodifiable(pieces);
 }
 
 /// One paragraph-sized, text-only display unit. Reading anchors always
