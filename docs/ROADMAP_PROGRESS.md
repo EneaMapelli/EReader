@@ -213,3 +213,16 @@ included as completed features by merely having been designed in the roadmap.
 - M2 remains **70%** and the overall feature estimate remains about **55%**,
   since neither continuous playback nor native acceptance gates have closed.
   Implementation and manual acceptance: [EPUB_SPOKEN_NOTE_CONTROL.md](EPUB_SPOKEN_NOTE_CONTROL.md).
+
+### M2 narrator paragraph continuity (2026-10-26)
+
+- Enabled a **source-safe, <=400 UTF-16** narrator-chunk coalescing option
+  only for EPUB. No cross-chapter/paragraph, quote group, manual voice
+  assignment/mask or verified footnote boundary merges.
+- Original source/reader anchors and opt-in note skipping remain intact.
+  Fewer TTS handoffs are expected for short prose sentences; no gapless
+  playback, lower billed characters, or device-quality result is claimed.
+- Added synthetic domain and sequential fake-player cases. Flutter analyze,
+  tests and Windows/Android playback were NOT RUN; M2 stays 70%, overall
+  M0-M6 ~55%. See
+  [NARRATOR_PARAGRAPH_CONTINUITY.md](NARRATOR_PARAGRAPH_CONTINUITY.md).
