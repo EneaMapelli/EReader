@@ -180,16 +180,19 @@ void main() {
             result['diagnostics'] = document.epubDiagnostics.length;
             if (_deep) {
               final prepared = await prepareEpubReader(first.localPath);
-              expect(prepared.document.text, document.text,
-                  reason: 'Background preparation changed the book text');
+              if (prepared.document.text != document.text) {
+                fail('Background EPUB preparation changed the source text');
+              }
               expect(prepared.document.epubSpineRanges.length,
                   document.epubSpineRanges.length);
               for (final quoted in prepared.quoted) {
                 final segment = quoted.segment;
                 expect(segment.start, greaterThanOrEqualTo(0));
                 expect(segment.end, lessThanOrEqualTo(document.text.length));
-                expect(document.text.substring(segment.start, segment.end),
-                    segment.text, reason: 'Speech text altered by segmentation');
+                if (document.text.substring(segment.start, segment.end) !=
+                    segment.text) {
+                  fail('Narration segment text diverges from EPUB source');
+                }
               }
               result['speechSegments'] = prepared.timings.speechSegments;
               result['epubPreflightMs'] =
