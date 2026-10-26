@@ -137,6 +137,7 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
 
   final bounds = <_ParagraphBounds>[];
   final silentSpineBlocks = <String, int>{};
+  final spineBlockBounds = <String, ({int first, int last})>{};
   final mapping = List<int>.filled(segments.length, -1);
   // Blocks are visited in monotonically increasing source order. Advance
   // a single segment cursor rather than binary-searching every paragraph.
@@ -204,6 +205,7 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
       throw const FormatException('Invalid progressive EPUB spine');
     }
     previousEnd = spine.end;
+    final spineFirstBlock = bounds.length;
     if (spine.start == spine.end) {
       // A real OPF XHTML item with no selectable text gets its own
       // display-only block, even when its offset equals the adjacent
@@ -215,6 +217,8 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
       bounds.add(_ParagraphBounds(spine.start, spine.end, true, null,
           visualOnlySectionTitle: spine.title.trim().isEmpty
               ? 'Illustrated section' : spine.title.trim()));
+      spineBlockBounds[spine.idref] = (
+          first: spineFirstBlock, last: bounds.length - 1);
       continue;
     }
     var cursor = spine.start;
@@ -228,6 +232,10 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
       cursor = match.end;
     }
     if (cursor < spine.end) indexBounded(cursor, spine.end, first);
+    if (bounds.length > spineFirstBlock) {
+      spineBlockBounds[spine.idref] = (
+          first: spineFirstBlock, last: bounds.length - 1);
+    }
   }
 
   // Resource attachment is indexed once; accessing a block cannot cause
@@ -252,8 +260,12 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
     if (image.offset < 0 || image.offset > source.length) continue;
     // Offset alone cannot distinguish two image-only OPF items at the
     // same UTF-16 boundary. Prefer the validated originating idref.
-    final idx = silentSpineBlocks[image.spineIdref] ??
-        nearestBlock(image.offset);
+    final origin = image.spineIdref == null
+        ? null : spineBlockBounds[image.spineIdref];
+    final nearest = nearestBlock(image.offset);
+    final idx = origin == null || nearest < 0
+        ? nearest
+        : nearest.clamp(origin.first, origin.last).toInt();
     if (idx >= 0) images.putIfAbsent(idx, () => []).add(image);
   }
   final tables = <int, List<EpubTablePreview>>{};
