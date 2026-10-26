@@ -344,3 +344,19 @@ Actual ZIP fixture tests added/updated but not executed.
   full XHTML/CSS geometry, image-only books and table-cell images are
   still separate work. See [EPUB_INLINE_IMAGE_FLOW.md](EPUB_INLINE_IMAGE_FLOW.md).
   M2 qualitative estimate remains ~70%, overall ~55%.
+
+### M2 — XHTML figcaption and in-place table previews (2026-10-26)
+
+- Semantic `<figcaption>` source intervals are extracted, validated and
+  preserved through the ZIP/isolate `DocumentContent` adapter. Both eager
+  and progressive readers italicize/smaller-style only the original caption
+  run: no cloned text, voice, link, note, search or bookmark offset.
+- EPUB table previews now enter the source-ordered image/text flow at the
+  table **END**, in the correct lazy/eager text block, instead of always
+  appearing below the entire paragraph. Source text stays selected/spoken;
+  structured `ExpansionTile` preview remains optional and collapsed.
+- Added source projection, renderer parity, validation and widget tests,
+  authored but NOT RUN. Complex CSS/table merging and full graphical
+  EPUB rendering remain outside this increment.
+  [EPUB_FIGURE_CAPTION_TABLE_FLOW.md](EPUB_FIGURE_CAPTION_TABLE_FLOW.md).
+  M2 remains ~70%, roadmap total ~55%.
