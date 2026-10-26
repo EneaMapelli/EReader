@@ -1,3 +1,6 @@
+import 'package:ereader/audio/reader_player.dart';
+import 'package:ereader/audio/speech_engine.dart';
+import 'package:ereader/domain/speech_preferences.dart';
 import 'package:ereader/domain/dialogue_segmenter.dart';
 import 'package:ereader/domain/speech_segment.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +33,35 @@ void _assertSourceExact(String source, PreparedCastSpeech prepared) {
     expect(source.substring(part.start, part.end), part.text);
     lastEnd = part.end;
   }
+}
+
+class _RecordedSpeechEngine implements SpeechEngine {
+  String? selected;
+  final passages = <String>[];
+  final voices = <String?>[];
+
+  @override
+  Future<List<SpeechVoice>> listVoices() async => const [
+    SpeechVoice(name: 'Narrator', locale: 'en-US'),
+    SpeechVoice(name: 'Actor', locale: 'en-US'),
+  ];
+  @override
+  Future<void> chooseVoice(SpeechVoice voice) async {
+    selected = voice.name;
+  }
+  @override
+  Future<void> speak(String text, {
+    required String language,
+    required double rate,
+    required double pitch,
+  }) async {
+    passages.add(text);
+    voices.add(selected);
+  }
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> dispose() async {}
 }
 
 void main() {
@@ -131,4 +163,48 @@ void main() {
         part.start < changed && part.end > changed), isFalse);
     _assertSourceExact(source, result);
   });
+  test('coalesced narrator to character to narrator is sequential audio',
+      () async {
+    const source = 'First sentence. Another line. '
+        '«Actor speaks.» Final sentence. Narrator finishes.';
+    final quoted = splitQuotedSegmentsWithRegions(
+      segmentSpeech(source, maxChars: 20),
+    );
+    final actorStart = source.indexOf('«');
+    final grouped = coalesceQuotedSpeech(
+      source: source,
+      chunks: [for (final part in quoted) part.segment],
+      quotedChunks: quoted,
+      speakerByStart: {actorStart: 'actor'},
+      coalesceNarration: true,
+    );
+    expect(grouped.segments, hasLength(3));
+    final engine = _RecordedSpeechEngine();
+    final checkpoints = <int>[];
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: grouped.segments,
+      onSegmentStarted: (segment) async {
+        checkpoints.add(segment.start);
+      },
+    );
+    await player.loadVoices();
+    await player.applyPreferences(const SpeechPreferences(
+      voiceName: 'Narrator', voiceLocale: 'en-US', language: 'en-US',
+    ));
+    player.castSpeakerForSegment =
+        (part) => grouped.speakerByStart[part.start];
+    player.castVoiceForSegment = (part) =>
+        grouped.speakerByStart[part.start] == 'actor'
+            ? const SpeechVoice(name: 'Actor', locale: 'en-US') : null;
+    await player.play();
+    expect(engine.passages, hasLength(3));
+    expect(engine.voices, ['Narrator', 'Actor', 'Narrator']);
+    expect(checkpoints, [
+      for (final part in grouped.segments) part.start,
+    ]);
+    _assertSourceExact(source, grouped);
+    player.dispose();
+  });
+
 }
