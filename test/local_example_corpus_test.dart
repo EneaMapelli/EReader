@@ -117,6 +117,7 @@ void main() {
           result['opfAuthorDetected'] = first.author != null;
           result['opfSeriesDetected'] = first.series != null;
           result['opfLanguageDetected'] = first.language != null;
+          result['opfCoverDetected'] = library.coverFile(first.id) != null;
           result['opfTitleDetected'] =
               first.title != p.basenameWithoutExtension(source.path);
         }
