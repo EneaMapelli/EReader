@@ -1397,6 +1397,16 @@ class _ReaderScreenState extends State<ReaderScreen>
                           pageNumber: _displayPdfPage,
                           pageCount: _pdfPageCount,
                           onPageRequested: _goToPdfPage,
+                          onZoomOut: () {
+                            if (_pdfController.isReady) {
+                              unawaited(_pdfController.zoomDown());
+                            }
+                          },
+                          onZoomIn: () {
+                            if (_pdfController.isReady) {
+                              unawaited(_pdfController.zoomUp());
+                            }
+                          },
                         ),
                         Expanded(
                           child: PdfViewer.file(
