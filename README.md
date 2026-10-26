@@ -86,7 +86,14 @@ report automatici](test-results/README.md).
 
 ## Test utente Windows — versione EXE portatile
 
-Per provare l'app senza installare Flutter sul PC di test:
+Per provare l'app senza installare Flutter sul PC di test, usa
+preferibilmente la [sezione Releases](https://github.com/EneaMapelli/EReader/releases):
+dopo ogni compilazione riuscita, il workflow pubblica una prerelease
+`windows-test-<sha>` con lo ZIP `EReader-Windows-x64-<sha>.zip`
+direttamente sotto **Assets**. Estrai quello ZIP e avvia `ereader.exe`
+tenendo DLL e cartella `data/` assieme. La prerelease è privata e non
+modifica `main`. Se non è ancora disponibile una nuova prerelease,
+puoi usare la procedura alternativa di GitHub Actions:
 
 1. Apri [Windows portable build](https://github.com/EneaMapelli/EReader/actions/workflows/windows-user-build.yml) e scegli l'ultima esecuzione **riuscita** sul branch `feature/m0-flutter-foundation`.
 2. Scarica l'artefatto `EReader-Windows-x64-portable` (visibile nella sezione **Artifacts** della run con accesso al repo privato).
