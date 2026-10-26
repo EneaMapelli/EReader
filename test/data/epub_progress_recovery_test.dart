@@ -140,6 +140,11 @@ void main() {
         doc, anchor: null, legacyOffset: 11);
     expect(offsetOnly.offset, 11);
     expect(offsetOnly.status, EpubProgressRecoveryStatus.legacyUnverified);
+    final finished = resolveEpubReadingProgress(
+      doc, anchor: null, legacyOffset: doc.text.length,
+    );
+    expect(finished.offset, doc.text.length,
+        reason: 'Completed EPUB narration must not replay the final clip');
   });
 
   test('out-of-range v1 local offset starts at its original chapter', () {
