@@ -4,6 +4,21 @@ Data: 26 ottobre 2026. Branch da provare: `feature/m0-flutter-foundation`.
 La versione prodotta da questa procedura è **Release unsigned per test manuali**,
 non un installer firmato, né una release pubblica collaudata.
 
+## Download preferito: GitHub Releases (prerelease privata)
+
+Le nuove build Windows riuscite vengono anche pubblicate come
+**prerelease** privata, con un asset ZIP installazione-zero:
+[Releases di EReader](https://github.com/EneaMapelli/EReader/releases).
+
+Quando è presente la versione `windows-test-<sha>`, aprila e scarica
+da **Assets** il file `EReader-Windows-x64-<sha>.zip`. Estrai il
+contenuto una sola volta e avvia `ereader.exe`. Questa Release non
+modifica il branch `main` né crea un installer MSI: è pensata per
+test manuali. Se l'ultima compilazione fallisce, nessuna nuova
+prerelease viene pubblicata; usa invece l'ultima versione riuscita
+oppure consulta il log del workflow. La compilazione può anche
+pubblicare l'artefatto Actions con scadenza di 14 giorni.
+
 ## Percorso semplice: scarica lo ZIP creato da GitHub Actions
 
 1. Apri [EReader Windows portable user build](https://github.com/EneaMapelli/EReader/actions/workflows/windows-user-build.yml).
