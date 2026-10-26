@@ -14,9 +14,23 @@ void main() {
     expect(pdfTextOffsetForVisualPage(spans, 2), 122);
     expect(pdfTextOffsetForVisualPage(spans, 3), 122);
     expect(pdfTextOffsetForVisualPage(spans, 4), 202);
-    expect(pdfTextOffsetForVisualPage(spans, 7), 202);
+    expect(pdfTextOffsetForVisualPage(spans, 7), isNull,
+        reason: 'Trailing scanned pages must not read an older page');
     expect(pdfTextOffsetForVisualPage(spans, 0), isNull);
     expect(pdfTextOffsetForVisualPage([], 1), isNull);
+  });
+
+  test('multiple empty pages seek forward, never backward', () {
+    const pages = [
+      PdfPageRange(2, 0, 9),
+      PdfPageRange(7, 11, 18),
+    ];
+    expect(pdfTextOffsetForVisualPage(pages, 1), 0);
+    expect(pdfTextOffsetForVisualPage(pages, 3), 11);
+    expect(pdfTextOffsetForVisualPage(pages, 6), 11);
+    expect(pdfTextOffsetForVisualPage(pages, 7), 11);
+    expect(pdfTextOffsetForVisualPage(pages, 8), isNull);
+    expect(pdfTextOffsetForVisualPage(pages, 900), isNull);
   });
 
   test('spoken text offsets map back to real physical source pages', () {
