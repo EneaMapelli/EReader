@@ -668,7 +668,8 @@ EpubVisualLayout buildEpubVisualLayout(
   for (final table in document.epubTables) {
     if (table.start < 0 || table.end > source.length ||
         table.start >= table.end) continue;
-    final block = findBlock(table.start);
+    // Place preview only after its last real source character.
+    final block = findBlock(table.end - 1);
     if (block >= 0) {
       tablesByBlock.putIfAbsent(block, () => []).add(table);
     }
