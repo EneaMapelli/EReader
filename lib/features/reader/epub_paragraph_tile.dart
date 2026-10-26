@@ -271,7 +271,23 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Semantics(
+              if (widget.block.visualOnlySectionTitle != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      widget.block.visualOnlySectionTitle!,
+                      style: TextStyle(
+                        color: palette.foreground(context),
+                        fontSize: size + 4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              if (widget.block.runs.isNotEmpty)
+                Semantics(
                 header: heading,
                 child: Text.rich(
                   TextSpan(
@@ -285,6 +301,16 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                   softWrap: true,
                 ),
               ),
+              if (widget.block.visualOnlySectionTitle != null &&
+                  widget.block.images.isEmpty)
+                Text(
+                  'This EPUB section has no selectable text or supported '
+                  'embedded illustration. No audio is available here.',
+                  style: TextStyle(
+                    color: palette.foreground(context),
+                    fontSize: size,
+                  ),
+                ),
               for (final image in widget.block.images)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
