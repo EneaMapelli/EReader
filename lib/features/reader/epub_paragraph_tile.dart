@@ -288,19 +288,17 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                 ),
               if (widget.block.runs.isNotEmpty)
                 Semantics(
-                header: heading,
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                  for (final run in widget.block.runs)
-                    _renderRun(context, run),
-                  ],
+                  header: heading,
+                  child: Text.rich(
+                    TextSpan(children: [
+                      for (final run in widget.block.runs)
+                        _renderRun(context, run),
+                    ]),
+                    style: style,
+                    textAlign: heading ? TextAlign.start : TextAlign.justify,
+                    softWrap: true,
+                  ),
                 ),
-                  style: style,
-                  textAlign: heading ? TextAlign.start : TextAlign.justify,
-                  softWrap: true,
-                ),
-              ),
               if (widget.block.visualOnlySectionTitle != null &&
                   widget.block.images.isEmpty)
                 Text(
