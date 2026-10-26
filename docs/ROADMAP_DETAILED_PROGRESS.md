@@ -199,3 +199,17 @@ chiudere prima il ciclo sui dispositivi reali.
 - Test mock per cache, voci, note, quote cloud, Stop e consenso aggiunti
   ma **non eseguiti**. Percentuali invariate: M2 ~70%; totale ~55%.
   [Dettagli e prove manuali](CACHED_AUDIO_WARMUP.md).
+
+### Riduzione delle chiamate Stop native ridondanti (2026-10-26)
+
+- M2: ogni decoder MP3 evita uno Stop *superfluo* prima del caricamento
+  solo quando risulta appena creato o già arrestato con conferma.
+  La chiusura delle clip, i blocchi Stop/Seek e i passaggi narratore/voce
+  continuano a essere serializzati; nessuna sovrapposizione è introdotta.
+- In caso di caricamento parziale/fallito, prova uno Stop prima della
+  cancellazione del file. Se lo Stop fallisce, un nuovo caricamento deve
+  ripeterlo.
+- Aggiunti test fake per Stop lento e fallito, clip consecutive e decoder
+  preparato, senza esecuzione reale. Nessun guadagno di latenza misurato:
+  M2 ancora 70%, complessivo ~55%.
+  [Specifica](MP3_NATIVE_STOP_DEDUP.md).
