@@ -360,3 +360,24 @@ Actual ZIP fixture tests added/updated but not executed.
   EPUB rendering remain outside this increment.
   [EPUB_FIGURE_CAPTION_TABLE_FLOW.md](EPUB_FIGURE_CAPTION_TABLE_FLOW.md).
   M2 remains ~70%, roadmap total ~55%.
+
+### Windows x64 portable Release for first user testing (2026-10-26)
+
+- Added `tool/build-windows.ps1`, which generates the Flutter Windows
+  native runner when absent, resolves dependencies, builds
+  `flutter build windows --release`, checks `ereader.exe` plus
+  `data/flutter_assets`, and ZIPs the **entire Release folder**
+  with DLLs, launcher, test-readme and SHA provenance.
+- Added a separate Windows-only GitHub Actions workflow
+  `windows-user-build.yml` with an unsigned portable ZIP artifact,
+  14-day retention, and no analyzer/automated test gate. A push-trigger
+  is limited to packaging workflow/script changes; manual rebuilds
+  are available via workflow dispatch when GitHub exposes it.
+- Local build artifacts are ignored in `.local-windows-build/`.
+  Documentation and a manual smoke checklist support first Windows
+  end-user testing without uploading owned EPUB/PDF/keys.
+- The first runner attempt failed at PowerShell parsing before compiling;
+  script syntax was corrected and a second run was launched. A usable
+  executable must NOT be claimed until the Release job and uploaded
+  artifact are confirmed successful. See
+  [WINDOWS_USER_TEST_BUILD.md](WINDOWS_USER_TEST_BUILD.md).
