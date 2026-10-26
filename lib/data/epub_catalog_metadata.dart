@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
 import 'epub_text_decoder.dart';
+import 'epub_embedded_content.dart';
 
 /// OPF-only catalog metadata; no XHTML rendering, scripts, external
 /// resources, cloud services or chapter text is needed to import a book.
@@ -14,12 +15,17 @@ class EpubCatalogMetadata {
     this.author,
     this.series,
     this.language,
+    this.coverBytes,
+    this.coverExtension,
   });
 
   final String? title;
   final String? author;
   final String? series;
   final String? language;
+  /// Validated, bounded JPEG/PNG cover. Never a network URL.
+  final Uint8List? coverBytes;
+  final String? coverExtension;
 }
 
 /// Extracts bounded EPUB2/3 OPF catalog fields from an untrusted ZIP.
@@ -113,6 +119,61 @@ class EpubCatalogMetadataReader {
     final author = _clean(creators.join(', '));
     final language = _locale(firstValue('language'));
 
+    // EPUB3: manifest property cover-image; EPUB2: meta name=cover item ID.
+    // Images are never guessed from the first XHTML picture.
+    final manifestItems = package.descendants.whereType<XmlElement>()
+        .where((el) => el.name.local == 'item').toList();
+    String? coverId;
+    for (final el in manifestItems) {
+      final props = (el.getAttribute('properties') ?? '')
+          .split(RegExp(r'\\s+'));
+      if (props.contains('cover-image')) {
+        coverId = el.getAttribute('id');
+        break;
+      }
+    }
+    if (coverId == null) {
+      for (final el in elements) {
+        if (el.name.local == 'meta' &&
+            (el.getAttribute('name') ?? '').toLowerCase() == 'cover') {
+          coverId = el.getAttribute('content');
+          break;
+        }
+      }
+    }
+    Uint8List? coverBytes;
+    String? coverExtension;
+    if (coverId != null && coverId.isNotEmpty) {
+      for (final item in manifestItems) {
+        if (item.getAttribute('id') != coverId) continue;
+        final type = item.getAttribute('media-type') ?? '';
+        final extension = type == 'image/jpeg' ? 'jpg' :
+            type == 'image/png' ? 'png' : null;
+        final href = item.getAttribute('href');
+        if (extension == null || href == null) break;
+        try {
+          final uri = Uri.parse(href);
+          if (uri.hasScheme || uri.hasAuthority || uri.path.isEmpty ||
+              uri.path.startsWith('/') || uri.query.isNotEmpty ||
+              uri.fragment.isNotEmpty) break;
+          final unescaped = Uri.decodeComponent(uri.path);
+          final path = _safeZipPath(p.posix.join(
+            p.posix.dirname(opfPath), unescaped,
+          ));
+          final entry = files[path];
+          if (entry == null || entry.size < 24 ||
+              entry.size > 2 * 1024 * 1024) break;
+          final data = entry.readBytes();
+          if (data == null || !isSafeEpubRaster(data, type)) break;
+          coverBytes = Uint8List.fromList(data);
+          coverExtension = extension;
+        } on FormatException {
+          // Invalid cover metadata is optional: keep the book importable.
+        }
+        break;
+      }
+    }
+
     String? series;
     // EPUB2/Calibre convention, used widely by existing personal libraries.
     for (final el in elements) {
@@ -152,6 +213,8 @@ class EpubCatalogMetadataReader {
       author: author,
       series: series,
       language: language,
+      coverBytes: coverBytes,
+      coverExtension: coverExtension,
     );
   }
 
