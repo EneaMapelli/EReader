@@ -133,7 +133,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
     final foreground = widget.palette.foreground(context);
     return ExpansionTile(
       title: Text('Table preview (${table.rows.length} rows)'),
-      subtitle: const Text('Original spoken text remains above'),
+      subtitle: const Text('Optional layout preview — original text above remains selectable and spoken'),
       children: [
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -319,6 +319,8 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                       ),
                     ),
                   )
+                else if (part.table case final preview?)
+                  _tablePreview(context, preview)
                 else if (part.runs.isNotEmpty)
                   Semantics(
                     header: heading,
@@ -333,8 +335,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                       softWrap: true,
                     ),
                   ),
-              for (final table in widget.block.tables)
-                _tablePreview(context, table),
+
             ],
           ),
         ),
