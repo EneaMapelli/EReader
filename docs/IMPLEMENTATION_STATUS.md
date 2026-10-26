@@ -1513,3 +1513,16 @@ boundaries are respected; source content and reading anchors stay unchanged.
 Authored domain and fake-player regression tests, but native Flutter
 analyzer/tests and Windows/Android audio measurements were NOT EXECUTED.
 See [NARRATOR_PARAGRAPH_CONTINUITY.md](NARRATOR_PARAGRAPH_CONTINUITY.md).
+
+### 2026-10-26 — cached-only OpenAI MP3 warmup (native acceptance pending)
+
+The cloud engine implements a distinct local-only cached-audio preparation
+capability. It never sends text, reads credentials or reserves characters
+for a cache miss. ReaderPlayer enables this local decoder warmup by default,
+separately from the OFF-by-default speculative paid cloud prefetch, and
+bypasses recognized source-skipped EPUB footnote chunks when choosing the
+next audible segment. Revoked per-book consent, async Stop/Seek and native
+decoder slot generation constraints remain enforced. Added mocked
+HTTP/cache/output test cases, not executed. See
+[CACHED_AUDIO_WARMUP.md](CACHED_AUDIO_WARMUP.md). M2 progress and release
+readiness unchanged.
