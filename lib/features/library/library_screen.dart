@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -149,6 +151,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
             onPressed: () => Navigator.pop(dialog),
             child: const Text('Cancel'),
           ),
+          if (book.format == BookFormat.epub)
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, {
+                'action': 'fill-missing',
+              }),
+              child: const Text('Fill from EPUB'),
+            ),
           FilledButton(
             onPressed: () => Navigator.pop(dialog, {
               'title': title,
@@ -163,6 +172,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
     if (entered == null || !mounted) return;
     try {
+      if (entered['action'] == 'fill-missing') {
+        await widget.store.fillMissingEpubMetadata(book.id);
+        if (mounted) setState(() {});
+        return;
+      }
       widget.store.updateBookMetadata(
         book.id,
         title: entered['title'] ?? '',
@@ -175,6 +189,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error.message)),
+        );
+      }
+    } on FileSystemException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(
+              'EPUB file is missing or cannot be read.')),
         );
       }
     } on StateError {
