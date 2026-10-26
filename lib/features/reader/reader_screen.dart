@@ -3,6 +3,8 @@ import 'dart:io' show Platform;
 import 'dart:ui' show FrameTiming;
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
@@ -15,8 +17,10 @@ import '../../audio/speech_engine.dart';
 import '../../audio/speech_engine_factory.dart';
 import '../../audio/openai_speech_engine.dart';
 import '../../audio/secret_vault.dart';
+import '../../audio/sherpa_vits_engine.dart';
 import 'speech_provider_screen.dart';
 import '../../data/book_decoder.dart';
+import '../../data/offline_voice_pack.dart';
 import '../../data/pdf_text_navigation.dart';
 import 'pdf_page_navigation.dart';
 import 'pdf_speech_navigation.dart';
@@ -239,6 +243,22 @@ class _ReaderScreenState extends State<ReaderScreen>
           stopwatch.elapsedMicroseconds - uiPreparationStartUs;
       final voiceSetupStartUs = stopwatch.elapsedMicroseconds;
       final prefs = widget.store.getSpeechPreferences(bookId: widget.book.id);
+      InstalledOfflineVoicePack? selectedLocalVoice;
+      if (prefs.providerId == SherpaVitsSpeechEngine.providerId) {
+        // No automatic download, FFI probe or cloud fallback. Verify the
+        // exact selected on-disk pack before constructing a native engine.
+        // The model is an explicit alpha choice, never a default.
+        if (!Platform.isWindows) {
+          throw UnsupportedError(
+              'Offline neural voice trial currently requires Windows');
+        }
+        final support = await getApplicationSupportDirectory();
+        selectedLocalVoice = await loadInstalledOfflineVoicePack(
+          packId: prefs.modelId,
+          modelsDirectory: Directory(p.join(support.path, 'offline-voices')),
+        );
+        if (!mounted || epoch != _loadEpoch) return;
+      }
       final recoveryBinding = NarrationRecoveryBinding(
         store: widget.store,
         bookId: widget.book.id,
@@ -250,7 +270,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       provisionalBinding = recoveryBinding;
       final player = ReaderPlayer(
         engineProviderId: prefs.providerId,
-        engine: SpeechEngineFactory(vault: _vault).create(
+        engine: SpeechEngineFactory(
+            vault: _vault, offlineVoicePack: selectedLocalVoice).create(
           preferences: prefs,
           bookId: widget.book.id,
           store: widget.store,
@@ -1849,8 +1870,13 @@ class _ReaderScreenState extends State<ReaderScreen>
                   Expanded(
                     child: Text(
                       player.currentPreferences.providerId == 'system'
-                          ? 'Engine: system voice'
-                          : 'Engine: OpenAI Speech (cloud)',
+                          ? 'Engine: Windows/Android system voice (pauses)'
+                          : player.currentPreferences.providerId == 'system-native'
+                              ? 'Engine: system voice (native punctuation)'
+                              : player.currentPreferences.providerId ==
+                                      SherpaVitsSpeechEngine.providerId
+                                  ? 'Engine: local neural VITS (experimental)'
+                                  : 'Engine: OpenAI Speech (cloud)',
                     ),
                   ),
                   PopupMenuButton<String>(
@@ -1905,7 +1931,8 @@ class _ReaderScreenState extends State<ReaderScreen>
               ),
               Row(
                 children: [
-                  Text(player.currentPreferences.providerId == 'system'
+                  Text((player.currentPreferences.providerId == 'system' ||
+                      player.currentPreferences.providerId == 'system-native')
                       ? 'Pitch' : 'Pitch unavailable'),
                   Expanded(
                     child: Slider(
@@ -1913,12 +1940,14 @@ class _ReaderScreenState extends State<ReaderScreen>
                       max: 1.5,
                       divisions: 10,
                       value: player.pitch,
-                      onChanged: player.currentPreferences.providerId == 'system'
+                      onChanged: (player.currentPreferences.providerId == 'system' ||
+                          player.currentPreferences.providerId == 'system-native')
                           ? (value) {
                               player.setPitch(value);
                             }
                           : null,
-                      onChangeEnd: player.currentPreferences.providerId == 'system'
+                      onChangeEnd: (player.currentPreferences.providerId == 'system' ||
+                          player.currentPreferences.providerId == 'system-native')
                           ? (_) {
                               unawaited(player.restartAfterSettingsChange());
                               unawaited(_saveVoiceSettings());
