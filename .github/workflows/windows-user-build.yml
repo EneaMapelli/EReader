@@ -22,7 +22,11 @@ concurrency:
 jobs:
   portable-windows:
     name: Windows x64 Release ZIP (no automated tests)
-    runs-on: windows-latest
+    # Pin VS 2022. windows-latest currently ships VS 2026/MSVC 14.51,
+    # whose STL rejects <experimental/coroutine> in just_audio_windows.
+    # Keep the native audio plugin build compatible without patching
+    # code inside dependencies downloaded from Pub.
+    runs-on: windows-2022
     timeout-minutes: 65
     steps:
       - name: Checkout current development branch
