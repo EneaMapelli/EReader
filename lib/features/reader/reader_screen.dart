@@ -606,7 +606,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       // One TTS segment can span multiple presentation-only paragraphs.
       // Comparing just its speech index would miss real visual scrolling.
       if (firstItem == _lastVisibleEpubBlockIndex) return;
-      _selectedVisualSpineIdref = null;
+      _selectedVisualSpineIdref =
+          _epubLayout.silentSpineIdrefForBlock(firstItem);
       _lastVisibleEpubBlockIndex = firstItem;
       _currentEpubVisualSourceOffset = sourceOffset;
     } else {
@@ -628,9 +629,14 @@ class _ReaderScreenState extends State<ReaderScreen>
           (widget.book.format == BookFormat.epub &&
               _currentEpubVisualSourceOffset != sourceOffset) ||
           (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
+      final emptySpine = widget.book.format == BookFormat.epub
+          ? _epubLayout.silentSpineIdrefForBlock(firstItem) : null;
       widget.store.savePosition(
         widget.book.id, sourceOffset,
-        anchor: document?.anchorAt(widget.book.format, sourceOffset),
+        anchor: emptySpine == null
+            ? document?.anchorAt(widget.book.format, sourceOffset)
+            : ReadingAnchor(kind: AnchorKind.epubSpine,
+                sourceId: emptySpine, localOffset: 0),
       );
     });
   }
