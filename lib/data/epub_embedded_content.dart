@@ -7,6 +7,7 @@ class EpubEmbeddedImage {
     required this.bytes,
     required this.alt,
     required this.resourcePath,
+    this.spineIdref,
   });
   final int offset;
   final Uint8List bytes;
