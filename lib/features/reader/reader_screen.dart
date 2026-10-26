@@ -864,7 +864,9 @@ class _ReaderScreenState extends State<ReaderScreen>
       currentExcerpt: excerpt,
     );
     if (!mounted || offset == null || _player != player) return;
-    final destination = speechSegmentIndexForOffset(player.segments, offset);
+    final destination = widget.book.format == BookFormat.epub
+        ? speechSourceDestinationIndexForOffset(player.segments, offset)
+        : speechSegmentIndexForOffset(player.segments, offset);
     if (destination < 0) return;
     if (widget.book.format == BookFormat.epub) {
       if (offset < 0 || offset > document.text.length) return;
@@ -1020,7 +1022,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       final document = _document;
       if (widget.book.format != BookFormat.epub || player == null ||
           document == null || player.segments.isEmpty ||
-          sourceOffset < 0 || sourceOffset >= document.text.length) return;
+          sourceOffset < 0 || sourceOffset > document.text.length) return;
       final sourceIndex = (player.isPlaying ? player.currentIndex
               : (_visiblePositionIndex ?? player.currentIndex))
           .clamp(0, player.segments.length - 1).toInt();
@@ -1029,7 +1031,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         narrationActive: player.isPlaying,
         visualOffset: _currentEpubVisualSourceOffset,
       );
-      final index = speechSegmentIndexForOffset(
+      final index = speechSourceDestinationIndexForOffset(
           player.segments, sourceOffset);
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
@@ -1095,8 +1097,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       final document = _document;
       if (offset == null || player == null || player.segments.isEmpty ||
           document == null || offset < 0 ||
-          offset >= document.text.length) return;
-      final index = speechSegmentIndexForOffset(
+          offset > document.text.length) return;
+      final index = speechSourceDestinationIndexForOffset(
           player.segments, offset);
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
