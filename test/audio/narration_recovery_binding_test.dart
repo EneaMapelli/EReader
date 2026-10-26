@@ -82,6 +82,11 @@ void main() {
       sourceId: 'body',
       localOffset: segment.start,
     ),
+    anchorAtOffset: (offset) => ReadingAnchor(
+      kind: AnchorKind.text,
+      sourceId: 'body',
+      localOffset: offset,
+    ),
   );
 
   ReaderPlayer playerFor(_SpeechEngine engine,
@@ -302,6 +307,7 @@ void main() {
     engine.finish();
     await running;
     expect(store.getBook(bookId)!.progressOffset, 14);
+    expect(store.getBook(bookId)!.progressAnchor?.localOffset, 14);
     expect(player.isSettledIdle, isTrue);
     recovery.dispose();
     player.dispose();
