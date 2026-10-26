@@ -40,6 +40,7 @@ class EpubTextResult {
     this.images = const [],
     this.links = const [],
     this.tables = const [],
+    this.figureCaptions = const [],
     this.navigation = const [],
     this.footnotePreviews = const [],
     this.spokenNoteRanges = const [],
@@ -54,6 +55,7 @@ class EpubTextResult {
   final List<EpubEmbeddedImage> images;
   final List<EpubInternalLink> links;
   final List<EpubTablePreview> tables;
+  final List<EpubFigureCaption> figureCaptions;
   /// Authorial NAV/NCX entries, resolved only to readable spine offsets.
   final List<EpubNavigationEntry> navigation;
   /// Verified in-spine note text; merely an overlay, not another chapter.
@@ -208,6 +210,7 @@ class EpubTextExtractor {
     })>[];
     final fragmentRefs = <String, int>{};
     final tables = <EpubTablePreview>[];
+    final figureCaptions = <EpubFigureCaption>[];
     final footnoteRefs = <({
       String path, String id, int start, int end
     })>[];
@@ -301,6 +304,11 @@ class EpubTextExtractor {
           path: href, id: note.id,
           start: start + note.start, end: start + note.end,
         ));
+      }
+      for (final caption in structure.captions) {
+        if (figureCaptions.length >= 120) break;
+        figureCaptions.add(EpubFigureCaption(
+            start + caption.start, start + caption.end));
       }
       for (final table in structure.tables) {
         if (tables.length >= maxTables) break;
@@ -608,7 +616,8 @@ class EpubTextExtractor {
         styles: List.unmodifiable(styles),
         images: List.unmodifiable(images),
         links: List.unmodifiable(nonOverlappingLinks),
-        tables: List.unmodifiable(tables));
+        tables: List.unmodifiable(tables),
+        figureCaptions: List.unmodifiable(figureCaptions));
   }
 
   static XmlDocument _parseXml(String data) {
