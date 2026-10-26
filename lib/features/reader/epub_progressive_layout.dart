@@ -434,6 +434,10 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
     List<int>.unmodifiable(mapping),
     indexedBlockForSourceOffset: indexedBlockForSourceOffset,
     spineBlockIndices: Map<String, int>.unmodifiable(silentSpineBlocks),
+    silentSpineIdsByBlock: Map<int, String>.unmodifiable({
+      for (final entry in silentSpineBlocks.entries)
+        entry.value: entry.key,
+    }),
     indexedPositionForVisibleBlock: indexedPositionForVisibleBlock,
   );
 }
