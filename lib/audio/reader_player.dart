@@ -95,6 +95,11 @@ class ReaderPlayer extends ChangeNotifier {
   /// untouched even when pronunciation replacements change string length.
   String Function(String)? speechTextTransform;
 
+  /// Optional, local-only, per-session source skip. The predicate is checked
+  /// BEFORE the segment checkpoint, cloud prefetch and synthesis. It must
+  /// never rewrite positions, text or the speaker's attributed source.
+  bool Function(SpeechSegment)? shouldSkipSegment;
+
   /// The narrator voice remains selectedVoice. For a manually attributed
   /// segment, the resolver may choose a provider-specific installed voice.
   /// Missing/unknown voices always fall back to narrator.
@@ -313,6 +318,14 @@ class ReaderPlayer extends ChangeNotifier {
       }
       while (token == _session && currentIndex < _segments.length) {
         final segment = _segments[currentIndex];
+        if (shouldSkipSegment?.call(segment) ?? false) {
+          // No TTS request, voice switch, cloud reservation or checkpoint
+          // for a skipped body. Ordinary source positions remain intact.
+          activeSpeakerId = null;
+          currentIndex++;
+          _notify();
+          continue;
+        }
         await onSegmentStarted(segment);
         if (token != _session) return;
         // Cast affects only synthesis voice, never text, offsets or order.
