@@ -154,6 +154,46 @@ void main() {
       expect(duplicate.progressOffset, 15);
     });
 
+    test('explicit recovery fills blanks without overwriting manual edits',
+        () async {
+      final source = File(p.join(folder.path, 'existing.epub'));
+      await source.writeAsBytes(_epub('''
+        <dc:title>OPF original title</dc:title>
+        <dc:creator>OPF original author</dc:creator>
+        <dc:language>it-IT</dc:language>
+        <meta name="calibre:series" content="OPF series"/>
+      '''));
+      final first = await store.importFile(source.path);
+      await store.savePosition(first.id, 12);
+      store.updateBookMetadata(first.id,
+        title: 'Custom title',
+        author: 'My custom author',
+        series: '',
+        language: '',
+      );
+      final recovered = await store.fillMissingEpubMetadata(first.id);
+      expect(recovered.title, 'Custom title');
+      expect(recovered.author, 'My custom author');
+      expect(recovered.series, 'OPF series');
+      expect(recovered.language, 'it-IT');
+      expect(recovered.progressOffset, 12);
+      // Repeat is safe; already-filled custom fields survive subsequent calls.
+      final again = await store.fillMissingEpubMetadata(first.id);
+      expect(again.author, 'My custom author');
+      expect(again.id, first.id);
+    });
+
+    test('metadata recovery rejects non-EPUB and missing entries',
+        () async {
+      final txt = File(p.join(folder.path, 'plain.txt'));
+      await txt.writeAsString('Only local test content.');
+      final book = await store.importFile(txt.path);
+      await expectLater(store.fillMissingEpubMetadata(book.id),
+          throwsFormatException);
+      await expectLater(store.fillMissingEpubMetadata('no-such-book'),
+          throwsStateError);
+    });
+
     test('damaged EPUB metadata falls back to the filename on import',
         () async {
       final file = File(p.join(folder.path, 'Fallback Name.epub'));
