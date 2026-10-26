@@ -199,7 +199,9 @@ class EpubTextExtractor {
     final styles = <EpubInlineStyleSpan>[];
     var styleBudgetExceeded = false;
     const maxGlobalStyleRuns = 100000;
-    final imageRefs = <({int offset, String src, String alt, String href})>[];
+    final imageRefs = <({
+      int offset, String src, String alt, String href, String idref
+    })>[];
     final linkRefs = <({
       int start, int end, String href, String source, bool footnote,
       bool legacyCandidate
@@ -220,6 +222,17 @@ class EpubTextExtractor {
       final chapterTitle = _extractChapterTitle(html, ranges.length + 1);
       if (text.isEmpty) {
         diagnostics.record(EpubDiagnosticCode.emptySpineItem);
+        // A verified local raster still belongs to this visual-only
+        // XHTML resource. Preserve its OPF identity; multiple empty
+        // sections may share an identical source offset.
+        final visual = extractEpubStructure(html, '');
+        for (final img in visual.images) {
+          if (imageRefs.length >= 32) break;
+          imageRefs.add((
+            offset: buffer.length, src: img.src, alt: img.alt,
+            href: href, idref: idref,
+          ));
+        }
         // Preserve OPF ordering and a navigation-only source location.
         // Do NOT synthesize whitespace, placeholders or alt text. The
         // original source bytes and all spoken offsets stay unchanged.
@@ -261,7 +274,7 @@ class EpubTextExtractor {
         if (imageRefs.length >= 32) break;
         imageRefs.add((
           offset: start + img.offset, src: img.src,
-          alt: img.alt, href: href,
+          alt: img.alt, href: href, idref: idref,
         ));
       }
       for (final target in structure.targets) {
@@ -505,6 +518,7 @@ class EpubTextExtractor {
       images.add(EpubEmbeddedImage(
         offset: ref.offset, bytes: bytes,
         alt: ref.alt, resourcePath: resource,
+        spineIdref: ref.idref,
       ));
     }
     // Authorial navigation is a separate optional overlay; it MUST NOT
