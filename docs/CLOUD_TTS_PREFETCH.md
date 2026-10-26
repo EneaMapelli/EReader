@@ -43,3 +43,19 @@ The same explicitly authorized, one-ahead cloud clip can now also be loaded into
 ## Navigation and settings session guards
 
 Rapid overlapping source seeks and native voice selections now use session epochs and serialized Stop/voice operations. The last user navigation command wins; a paused reader cannot be resumed by an obsolete request. The current segment is restarted after speed/pitch/language edits are committed, invalidating old MP3 warm-up. Prebuffering remains explicitly session-optional and OFF by default. See [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md). No extra cloud calls were added by these safeguards; already transmitted requests may still incur charges.
+
+## 2026-10-26 — cached-only warmup, no paid prefetch required
+
+The new `CachedAheadSpeechEngine` independently prepares an already cached
+private MP3 on the second idle decoder. It is **ON by default** for OpenAI
+Speech and can be disabled separately in Reader controls. A cache miss never
+runs an API request, fetches credentials or reserves billable quota; only
+ordinary explicitly played speech may do so. A live current-audio-ready gate,
+generation invalidation and per-book consent still apply.
+
+Paid synthesis prefetch remains **OFF by default**, with its unchanged
+explicit opt-in and cost warning. Both paths now find the next **audible**
+chunk beyond source-verified, user-skipped EPUB footnotes; no skipped note is
+prefetched. The active decoder still emits clips serially. Neither mode
+guarantees gapless playback. [Implementation and manual QA](CACHED_AUDIO_WARMUP.md).
+Tests were authored but **not run**.
