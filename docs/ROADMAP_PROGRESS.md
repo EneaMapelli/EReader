@@ -327,3 +327,20 @@ Actual ZIP fixture tests added/updated but not executed.
 - ZIP-backed, structural and widget regressions authored, NOT RUN.
   See [EPUB_ILLUSTRATED_SPINE.md](EPUB_ILLUSTRATED_SPINE.md).
   Qualitative estimate M2 ~70%; total M0–M6 ~55%.
+
+### M2 — source-ordered inline EPUB figures (2026-10-26)
+
+- EPUB pictures in spoken XHTML paragraphs are now **interleaved at their
+  canonical source offset** instead of always being appended below the
+  paragraph. Only visual runs split: source string, TTS chunk, voices,
+  search/link/footnote offsets and SQLite bookmarks remain unchanged.
+- Both progressive (LRU/lazy) and eager/reference layouts attach pictures
+  within their originating OPF spine block range; eager layout also retains
+  independent image-only OPF visual blocks for parity.
+- Equal-offset pictures preserve original order. Defensive source splitting
+  never divides a UTF-16 surrogate pair. Flutter uses the same private,
+  bounded local image decoding, no added external fetch.
+- New pure unit and Flutter widget regression cases authored but NOT RUN;
+  full XHTML/CSS geometry, image-only books and table-cell images are
+  still separate work. See [EPUB_INLINE_IMAGE_FLOW.md](EPUB_INLINE_IMAGE_FLOW.md).
+  M2 qualitative estimate remains ~70%, overall ~55%.
