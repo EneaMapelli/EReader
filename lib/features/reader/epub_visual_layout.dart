@@ -108,8 +108,27 @@ List<EpubVisualFlowItem> epubVisualFlow(EpubVisualBlock block) {
   }
 
   for (final entry in ordered) {
-    final beforeImage =
+    var beforeImage =
         entry.value.offset.clamp(block.start, block.end).toInt();
+    // Extracted XHTML image offsets fall on Unicode character boundaries.
+    // Defensive handling for synthetic/stale metadata: never visually
+    // divide a high/low surrogate pair into two malformed TextSpans.
+    for (var i = cursor; i < runs.length; i++) {
+      final run = runs[i];
+      if (run.start >= beforeImage) break;
+      if (run.end <= beforeImage) continue;
+      final runText = run.text;
+      final relative = beforeImage - run.start;
+      if (relative > 0 && relative < runText.length) {
+        final before = runText.codeUnitAt(relative - 1);
+        final after = runText.codeUnitAt(relative);
+        if (before >= 0xd800 && before <= 0xdbff &&
+            after >= 0xdc00 && after <= 0xdfff) {
+          beforeImage++;
+        }
+      }
+      break;
+    }
     while (cursor < runs.length) {
       final run = runs[cursor];
       if (run.start >= beforeImage) break;
