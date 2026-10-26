@@ -291,3 +291,17 @@ aggiornati, non eseguiti; nessuna illustrazione inventata.
 - Test unitari e widget aggiunti, non eseguiti. Non è reflow CSS completo
   e non supporta ancora tutti i fumetti EPUB solo immagini. Stime M2 ~70%
   e complessivo ~55%. [Dettagli](EPUB_INLINE_IMAGE_FLOW.md).
+
+### Didascalie e anteprime tabelle EPUB nel flusso sorgente (2026-10-26)
+
+- M2: gli elementi `figcaption` vengono riconosciuti da XHTML,
+  propagati attraverso l'estrattore ZIP/worker e resi in corsivo con
+  dimensione leggermente ridotta. Il contenuto resta nel testo originale,
+  narrato una sola volta e con gli stessi offset/link/note/voci.
+- L'anteprima di `table` è ancora facoltativa ed espandibile ma compare
+  immediatamente **dopo** il testo tabellare originale, non più alla fine
+  del paragrafo. Supporto concorde nei renderer lazy ed eager.
+- Aggiunti test su estrazione, annotazioni, Unicode, tabelle e widget,
+  ancora **non eseguiti**. Griglie complesse HTML/CSS restano escluse.
+  Avanzamento M2 ~70%, totale ~55%.
+  [Specifica](EPUB_FIGURE_CAPTION_TABLE_FLOW.md).
