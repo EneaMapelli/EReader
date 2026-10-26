@@ -463,16 +463,16 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     String? series,
     String? language,
   }) {
-    String normalize(String value, String field, {bool required = false}) {
+    String normalize(String value, String field, {bool mustBeNonempty = false}) {
       final clean = value.trim();
-      if ((required && clean.isEmpty) ||
+      if ((mustBeNonempty && clean.isEmpty) ||
           clean.length > 160 ||
           clean.runes.any((unit) => unit < 32 || unit == 127)) {
         throw FormatException('Invalid $field metadata');
       }
       return clean;
     }
-    final cleanTitle = normalize(title, 'title', required: true);
+    final cleanTitle = normalize(title, 'title', mustBeNonempty: true);
     final cleanAuthor = normalize(author ?? '', 'author');
     final cleanSeries = normalize(series ?? '', 'series');
     final cleanLanguage = (language ?? '').trim();
