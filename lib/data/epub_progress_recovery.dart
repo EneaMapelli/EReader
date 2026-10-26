@@ -35,8 +35,10 @@ EpubProgressRecovery resolveEpubReadingProgress(
   if (anchor == null) {
     // A database created before source anchors has no context evidence.
     // Keep its original offset for compatibility, but label it unverified.
+    // In particular, length itself is a valid COMPLETED spoken position:
+    // clamping to length - 1 would replay the last character/utterance.
     return EpubProgressRecovery(
-      legacyOffset.clamp(0, source.length - 1).toInt(),
+      legacyOffset.clamp(0, source.length).toInt(),
       EpubProgressRecoveryStatus.legacyUnverified,
     );
   }
