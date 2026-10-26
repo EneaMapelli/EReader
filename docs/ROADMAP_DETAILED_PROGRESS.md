@@ -174,3 +174,14 @@ chiudere prima il ciclo sui dispositivi reali.
 - Test sintetici per parsing, UTF-16, continuità e cloud prefetch aggiunti
   ma **non eseguiti**. La percentuale M2 rimane 70% e quella aggregata ~55%.
   [Specifica e checklist](EPUB_SPOKEN_NOTE_CONTROL.md).
+
+### Continuità audio dei paragrafi narrati (2026-10-26)
+
+- M2: l'EPUB ora può unire frammenti consecutivi e non attribuiti dello
+  **stesso paragrafo**, massimo 400 unità UTF-16. Non attraversa capitoli,
+  citazioni, cast manuale, blocchi con narrator lock o note EPUB verificate.
+- Nessuna riscrittura del testo, migrazione o richiesta cloud supplementare;
+  meno transizioni di sintesi potenziali, ma senza dichiarare audio gapless.
+- Test per confini, voci multiple, UTF-16 e riproduzione fake aggiunti,
+  **non eseguiti**. M2 rimane **70%**; totale circa **55%**.
+  [Note tecniche](NARRATOR_PARAGRAPH_CONTINUITY.md).
