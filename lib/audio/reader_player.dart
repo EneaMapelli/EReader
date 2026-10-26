@@ -8,6 +8,11 @@ import 'speech_engine.dart';
 
 typedef SegmentStarted = Future<void> Function(SpeechSegment segment);
 
+/// Only called once the complete native utterance has finished normally.
+/// A cancelled or interrupted segment is never reported as finished.
+typedef SegmentCompleted = Future<void> Function(
+    SpeechSegment segment, SpeechSegment? nextAudible);
+
 /// Injectable so the wall-clock sleep deadline can be regression-tested
 /// without waiting for real minutes.
 typedef SleepTimerScheduler = Timer Function(
@@ -34,6 +39,7 @@ class ReaderPlayer extends ChangeNotifier {
     required SpeechEngine engine,
     required List<SpeechSegment> segments,
     required this.onSegmentStarted,
+    this.onSegmentCompleted,
     this.language = 'it-IT',
     this.engineProviderId = 'system',
     SleepTimerScheduler? timerScheduler,
@@ -46,6 +52,7 @@ class ReaderPlayer extends ChangeNotifier {
   final SpeechEngine _engine;
   final List<SpeechSegment> _segments;
   final SegmentStarted onSegmentStarted;
+  final SegmentCompleted? onSegmentCompleted;
   final String engineProviderId;
   final SleepTimerScheduler _timerScheduler;
   final Duration nativeStopTimeout;
@@ -399,6 +406,22 @@ class ReaderPlayer extends ChangeNotifier {
         }
         await playing;
         if (token != _session) return;
+        // Commit the next AUDIBLE source anchor only after native playback
+        // really finishes. On interruption/cancellation, retaining this
+        // segment's starting anchor is safer than skipping unheard audio.
+        // The skipped-note predicate is source-only and never reorders text.
+        if (onSegmentCompleted != null) {
+          var nextIndex = currentIndex + 1;
+          while (nextIndex < _segments.length &&
+              (shouldSkipSegment?.call(_segments[nextIndex]) ?? false)) {
+            nextIndex++;
+          }
+          await onSegmentCompleted!(
+            segment,
+            nextIndex < _segments.length ? _segments[nextIndex] : null,
+          );
+          if (token != _session) return;
+        }
         currentIndex++;
         _notify();
       }
