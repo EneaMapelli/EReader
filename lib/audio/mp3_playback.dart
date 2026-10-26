@@ -60,6 +60,10 @@ class _Mp3Slot {
   // Covers native load as well as the temporary-file write. Stop must
   // not race setFilePath and must not wait for a hung *idle* decoder.
   bool loadingInFlight = false;
+  // Only a confirmed native Stop releases this obligation. A completed
+  // decoder.play Future is NOT proof that its file handle is closed.
+  // New decoders are already stopped, so their first load skips Stop.
+  bool needsNativeStop = false;
 }
 
 /// Two reusable, strictly serial players: one playing and one loading.
@@ -152,7 +156,13 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
       }
       slot.loadingInFlight = true;
       try {
-        await slot.decoder.stop();
+        // This decoder's previous load/finalizer is serialized above.
+        // A redundant second native Stop increases cold-handoff latency.
+        // Never elide Stop after a failed/unfinished native load or play.
+        if (slot.needsNativeStop) {
+          await slot.decoder.stop();
+          slot.needsNativeStop = false;
+        }
         await _clearFile(slot);
         if (_disposed || generation != _generation) return;
         final dir = await _temporaryDirectory();
@@ -165,6 +175,9 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
         try {
           await file.writeAsBytes(bytes, flush: true);
           if (_disposed || generation != _generation) return;
+          // Set BEFORE awaiting the native call, so a failed or interrupted
+          // setFilePath still requires an explicit Stop before file reuse.
+          slot.needsNativeStop = true;
           await slot.decoder.load(file.path, speed: speed);
         } catch (_) {
           await _clearFile(slot, expected: file);
@@ -279,7 +292,10 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
           // Failed prior load does not prevent stop/cleanup.
         }
         if (_disposed || token != _generation) return;
+        // Do not release this slot until the same decoder has confirmed
+        // Stop; other slots may warm concurrently, never play concurrently.
         await slot.decoder.stop();
+        slot.needsNativeStop = false;
         if (_disposed || token != _generation) return;
         await _clearFile(slot, expected: playedFile);
       }();
@@ -299,7 +315,10 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
       } catch (_) {
         // A failed load must still be followed by native Stop and cleanup.
       }
-      await slot.decoder.stop();
+      if (slot.needsNativeStop) {
+        await slot.decoder.stop();
+        slot.needsNativeStop = false;
+      }
       await _clearFile(slot);
     }();
     slot.loading = stopping;
