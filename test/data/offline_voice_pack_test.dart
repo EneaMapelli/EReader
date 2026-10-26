@@ -398,6 +398,81 @@ void main() {
     expect(survivors.single.ready, isTrue);
   });
 
+
+  Future<void> writeSourceManifest(OfflineVoicePackManifest voice) async {
+    await File(p.join(input.path, 'voice-pack.json'))
+        .writeAsString(jsonEncode(voice.toJson()));
+  }
+
+  test('folder preview describes a source without installing it', () async {
+    await writeSourceManifest(manifest);
+    final preview = await inspectOfflineVoiceImportFolder(
+      sourceDirectory: input,
+    );
+    expect(preview.manifest.id, manifest.id);
+    expect(preview.manifest.licenseId, 'MIT');
+    expect(preview.totalBytes, 12);
+    expect(await installed.exists(), isFalse,
+        reason: 'Preview must not stage, install, or run inference');
+    final pack = await installPreviewedOfflineVoicePack(
+      preview: preview, modelsDirectory: installed,
+    );
+    expect(await File(pack.modelPath).readAsBytes(), [1, 2, 3, 4, 5, 6]);
+    expect(await folderContents(), [manifest.id]);
+  });
+
+  test('preview refuses unknown files and missing manifest', () async {
+    await expectLater(inspectOfflineVoiceImportFolder(
+      sourceDirectory: input,
+    ), throwsFormatException);
+    await writeSourceManifest(manifest);
+    await File(p.join(input.path, 'extra.dll')).writeAsBytes([0]);
+    await expectLater(inspectOfflineVoiceImportFolder(
+      sourceDirectory: input,
+    ), throwsFormatException);
+    expect(await installed.exists(), isFalse);
+  });
+
+  test('changed manifest after approval rejects install without staging',
+      () async {
+    await writeSourceManifest(manifest);
+    final preview = await inspectOfflineVoiceImportFolder(
+      sourceDirectory: input,
+    );
+    final changed = manifest.toJson()..['displayName'] = 'Changed name';
+    await File(p.join(input.path, 'voice-pack.json'))
+        .writeAsString(jsonEncode(changed));
+    await expectLater(installPreviewedOfflineVoicePack(
+      preview: preview, modelsDirectory: installed,
+    ), throwsFormatException);
+    expect(await installed.exists(), isFalse);
+  });
+
+  test('changed model bytes after preview never installs a corrupt voice',
+      () async {
+    await writeSourceManifest(manifest);
+    final preview = await inspectOfflineVoiceImportFolder(
+      sourceDirectory: input,
+    );
+    await File(p.join(input.path, 'model.onnx')).writeAsBytes([2, 2, 2]);
+    await expectLater(installPreviewedOfflineVoicePack(
+      preview: preview, modelsDirectory: installed,
+    ), throwsFormatException);
+    expect(await folderContents(), isEmpty);
+  });
+
+  test('source preview rejects an unsafe source without following links',
+      () async {
+    await expectLater(inspectOfflineVoiceImportFolder(
+      sourceDirectory: Directory(p.join(root.path, 'absent')),
+    ), throwsFormatException);
+    await writeSourceManifest(manifest);
+    await File(p.join(input.path, 'tokens.txt')).delete();
+    await expectLater(inspectOfflineVoiceImportFolder(
+      sourceDirectory: input,
+    ), throwsFormatException);
+  });
+
   test('invalid IDs and untrusted manifest data never create installation',
       () async {
     for (final id in ['../escape', 'UPPER', 'a/b', '.hidden']) {
