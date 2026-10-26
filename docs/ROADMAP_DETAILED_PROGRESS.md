@@ -1,0 +1,118 @@
+# EReader — audit punto per punto del piano approvato
+
+**Ultimo esame del codice:** 2026-10-26, branch
+`feature/m0-flutter-foundation`, PR #1 in bozza.
+**Fonte:** [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) (piano del 2026-10-22)
+e [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+
+Questo documento misura la **copertura implementativa del piano**, non
+pass/fail, maturità del prodotto, percentuali di codice o certezza di
+rilascio. Le percentuali sono stime qualitative motivate da evidenze
+nel repository. I test non eseguiti non aumentano la quota di conformità
+nativa. Anche una funzione che esiste nel codice ma non funziona sui
+dispositivi resta **parziale**.
+
+## A. Le sette milestone del piano iniziale
+
+| Milestone | Copertura stimata | Concretamente presente | Non completo / condizione di uscita mancante |
+|---|---:|---|---|
+| **M0 — Fondazione e POC** | **60%** | Flutter/Dart modulari, SQLite con migrazioni fino a v17, parser e adattatori, bootstrap Windows/Android, runner e CI manuale | Progetti nativi generati fuori da Git; POC realmente passati su Windows e Android, ABI/minSDK/licenze, corpus EPUB/PDF e voci sherpa-onnx native |
+| **M1 — Reader MVP** | **78%** | Import EPUB/PDF/TXT e dedup, lettura, TOC, source anchors, progressi, segnalibri e ricerca, anteprime note, temi/layout, biblioteca con ricerca/ordinamento e editor di titolo/autore/serie/lingua | Test su 20 libri reali e due piattaforme, copertine, estrazione metadati automatica, CSS/CFI complessi, PDF multicolonna, drag&drop Windows e condivisione Android da verificare |
+| **M2 — TTS gratuito e read-along** | **70%** | Sistema TTS, voci e rate/pitch per capacità, segmentazione, seek, posizione sorgente, sleep timer, media handler e policy Stop/recovery | Capitolo continuativo provato su dispositivi, audio focus/interruzioni/cuffie/lock screen e chiavi multimediali Windows reali; timing parola non promesso |
+| **M3 — Offline neurale + cloud** | **35%** | Cloud Speech transitorio con consenso/quote per libro, chiavi protette, cache/prefetch; prototipo sherpa VITS con job cancellabili, gestore modelli, import locale e benchmark opt-in | VITS non abilitato/qualificato con voce reale, catalogo firme/licenze, SAF cartella Android, OpenAI Realtime, secondo provider cloud, cost ceiling monetario per sessione/mese e fallback esplicito |
+| **M4 — Cast manuale** | **75%** | Identità/alias, segmentation dialoghi, editor, revisioni, speaker unknown, profili voce e mappatura persistente per fonte | Demo audio nativa con narratore + 3 personaggi, prosodia e misure su dialoghi reali |
+| **M5 — Screening LLM** | **55%** | Analisi OpenAI opt-in con quote, speaker proposals, indizi, alias, confidenza, revisioni, provenance e protezione delle modifiche manuali | Runtime locale, screening completo gerarchico, confidenza calibrata, corpus gold con precision/recall, verifica grandi libri e budget in valuta |
+| **M6 — Polish e release** | **10%** | Documentazione, strumenti di diagnosi, CI manuale e alcune prove prestazionali EPUB | Accessibilità/power/RAM audited, backup/export, MSI/MSIX e APK/AAB firmati, prova end-to-end native, release candidate, privacy e inventario licenze |
+
+**Media aritmetica a milestone di pari peso: circa 55%.** È
+un indicatore sintetico di avanzamento dello **sviluppo**, non significa
+che l'app sia pronta al 55% per un rilascio. La maturità di release è
+sensibilmente inferiore perché M0 e M6 non hanno superato i rispettivi
+gate su dispositivi reali.
+
+## B. I sedici deliverable prioritari ER-001–ER-016
+
+| ID | Stima | Stato effettivo e lavoro ancora aperto |
+|---|---:|---|
+| **ER-001** Scaffold/build Windows+Android | 65% | Flutter, bootstrap e CI presenti; generazione/build e test nativi su entrambi i target non chiusi |
+| **ER-002** Book/Chapter/Segment/Anchor + DB | 90% | Entità e repository SQLite con evoluzioni/migrazioni; consolidare schema e mapping EPUB/PDF su corpus reali |
+| **ER-003** Import EPUB/TXT, sicurezza, TOC | 85% | Decoder, import picker incluso stream Android, validazioni e navigazione; import da share sheet, EPUB complessi e ZIP stress |
+| **ER-004** PDF rendering/testo/ordine | 55% | Visualizzatore e text layer via pdfrx, progresso visuale; ordine colonne/note e PDF scannerizzati non risolti |
+| **ER-005** Reader UI/progressi | 78% | Layout EPUB/TXT/PDF, ricerca, bookmarks, note, source anchor; gate 20 libri e due piattaforme aperti |
+| **ER-006** Provider contracts/system TTS | 75% | Contratti motori, factory, configurazione e adapter OS; capacità native da certificare per Windows e Android |
+| **ER-007** Player e sincronizzazione | 70% | Player, segmenti, offset, Stop/seek/recovery; passaggi di timing e flusso continuo reali da validare |
+| **ER-008** Background Android/Windows hotkeys | 45% | Handler/media manifest/audio session e policy nel codice; prove lock-screen, cuffie, chiamate, tasti Windows mancanti |
+| **ER-009** sherpa-onnx e model manager | 48% | Import, integrità, modello locale, FFI isolate, gestione UI e benchmark opt-in; nessun test riuscito con ONNX reale, provider ancora nascosto |
+| **ER-010** BYOK/vault/consenso/budget | 58% | Chiavi protette, consenso e quote caratteri per libro, caching; manca budget reale in euro/dollari, sessione/mese e pricing dinamico |
+| **ER-011** Realtime + secondo cloud TTS | 10% | Contratti provider riutilizzabili, adapter Speech OpenAI **transitorio**; Realtime e Azure/ElevenLabs non implementati |
+| **ER-012** Editor cast/manuale/unknown | 80% | UI revisione, segmenti, attribuzione e voci persistenti; ascolto nativo scenari multi-attore non completato |
+| **ER-013** LLM JSON/schema/provenance | 60% | Adapter OpenAI, consenso, proposte e validazioni; manca adapter locale e schema provider-agnostico certificato |
+| **ER-014** Alias/speaker/review | 70% | Alias, identità, merge, evidence e review; corpus gold, costi e qualità d'attribuzione da misurare |
+| **ER-015** Audio cache per segmenti/profili | 65% | Cache e prefetch MP3 con chiavi e controlli, cleanup; composizione offline multi-provider e limiti estesi da qualificare |
+| **ER-016** QA/corpus/benchmark | 35% | Ampia suite Dart e strumenti di timing/benchmark EPUB/TTS; suite ancora rossa, gold corpus, dispositivo Android e ascolto reale assenti |
+
+Le stime ER non sono mediate nella percentuale generale per evitare doppio
+conteggio delle milestone che questi deliverable compongono.
+
+## C. Capacità del piano iniziale non comprese in un unico deliverable
+
+| Capacità | Stato | Precisazione |
+|---|---|---|
+| **EPUB/PDF/TXT** | Implementate in codice, qualificazione parziale | CSS/footnotes/reading order/PDF complessi da verificare |
+| **Autore, serie, lingua, titolo** | Modifica manuale M1 aggiunta | Migrazione SQLite v17, ricerca e sort; ancora manca auto-estrazione e cover art |
+| **HTML/Markdown, FB2/DOCX/MOBI/AZW3** | Non implementati | Sono post-MVP e V1/V2, non inclusi nel reader base |
+| **PDF OCR/scannerizzati** | Non implementato | Il text layer non equivale a OCR |
+| **Cloud privacy e costi** | Parziale | Opt-in esplicito e quota caratteri; budget in valuta e secondo provider mancanti |
+| **LLM locale** | Non implementato | OpenAI remoto attuale non equivale alla modalità completamente privata |
+| **Voce caratteri, attribuzione, QA UI** | Ampiamente in codice | Benchmark di pronuncia/3+ personaggi e misure gold non conclusi |
+| **Media session in background** | Implementata come source/manifest | Non qualificata su lock-screen/cuffie/chiamate reali |
+| **Accessibility e storage gestito** | Parziale | Alcuni controlli UI; audit screen reader/focus e packaging mancanti |
+| **Backup/export/sync e installatori** | Non completati | Gate reale M6, non sostituibile da script di test |
+
+## D. Ampliamenti ER-017–ER-034 accettati dopo il piano
+
+Questi punti **non** sono inclusi nel 55% come funzionalità
+automaticamente consegnate: sono ampliamenti dello scope.
+
+| Estensione | Stato |
+|---|---|
+| ER-017 Read-along avanzato | Parziale: source anchor/sync; non parola-per-parola universale |
+| ER-018 Dizionario pronunce | Parziale: regole e UI; fonemi/SSML per-provider da validare |
+| ER-019 Lingue miste | Non completo: lingua libro manuale; rilevamento per segmento mancante |
+| ER-020 Regia audio e prosodia | Parziale: segmenti e pause; normalizzazione/mixing/emozioni avanzate mancanti |
+| ER-021 Esportazione audiolibri M4B/MP3 | Non implementata |
+| ER-022 Import audiolibri/media overlays | Non implementato |
+| ER-023 Allineamento audio esterno al testo | Non implementato |
+| ER-024 Schede personaggio spoiler-safe | Fondamenta alias/evidence; knowledge graph spoiler-safe da completare |
+| ER-025 Assistente contestuale | Non implementato |
+| ER-026 Backup/sync cifrato | Non implementato |
+| ER-027 OPDS/Calibre | Non implementato |
+| ER-028 Accessibilità avanzata | Parziale: lettore personalizzabile; audit/maschere/focus high-contrast mancanti |
+| ER-029 PDF reading order/OCR | Non implementato; visualizzazione text layer non basta |
+| ER-030 Preparazione audio capitoli/libro | Parziale: prefetch/cache, non job queue full-book |
+| ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
+| ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
+| ER-033 Statistiche/obiettivi | Non implementato |
+| ER-034 Libreria massiva/collezioni/FTS | Parziale: filtri/ordinamento e ricerca metadati; niente raccolte smart/FTS dell'intera biblioteca |
+
+## E. Evidenza e priorità
+
+- Ultimo Windows report realmente eseguito: origine `7c89dfc8`
+  del 2026-10-25, **641 pass, 0 assertion fail, 7 error outcomes**
+  su 76 file; `dart format` aveva 147 file da formattare.
+- L'ultima serie di correzioni successive e la migrazione M1 v17 non hanno
+  ancora un run locale aggiornato; Flutter/Dart non sono installati in
+  questo ambiente di editing GitHub. Non presentare come passati test
+  non eseguiti.
+- Prima priorità di prodotto **M1/M2**: metadati EPUB automatici,
+  copertine, controllo PDF e lettura consecutiva su dispositivi.
+- Poi **M3**: voce neurale realmente provata, modello/licenze italiani
+  e inglesi; OpenAI Realtime e almeno un secondo cloud provider con
+  un cost ceiling monetario coerente.
+- Poi **M4/M5**: corpus dialoghi e gold QA; solo dopo M0/M2 stabili.
+- Infine **M6**: inclusione piattaforme native, firma/distribuzione,
+  accessibilità e privacy audit.
+
+**Interpretazione:** molto del codice applicativo esiste e continua a
+crescere, ma lo sviluppo resta lontano da una release affidabile senza
+chiudere prima il ciclo sui dispositivi reali.
