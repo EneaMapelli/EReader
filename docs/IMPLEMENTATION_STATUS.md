@@ -1526,3 +1526,14 @@ decoder slot generation constraints remain enforced. Added mocked
 HTTP/cache/output test cases, not executed. See
 [CACHED_AUDIO_WARMUP.md](CACHED_AUDIO_WARMUP.md). M2 progress and release
 readiness unchanged.
+
+### 2026-10-26 — native MP3 Stop de-duplication (not verified)
+
+`JustAudioMp3Output` now tracks an explicit native Stop obligation per
+decoder slot: only confirmed stopped/new decoders skip pre-load Stop.
+Actual clip endings still await native Stop; failed partial loads attempt
+Stop before temporary file deletion and a Stop failure stays mandatory for
+future reuse. Added unexecuted fake-decoder regressions for cold/warm
+handoffs, partial-load exceptions, failed and delayed Stop. No audio gap,
+latency metric or platform acceptance claim. See
+[MP3_NATIVE_STOP_DEDUP.md](MP3_NATIVE_STOP_DEDUP.md).
