@@ -46,7 +46,7 @@ void main() {
     expect(first, isNotNull);
     expect(await first!.readAsBytes(), orderedEquals(_png));
     expect(p.basename(first.path), '${book.id}.png');
-    expect(await store.ensurePdfCover(book.id), first);
+    expect((await store.ensurePdfCover(book.id))?.path, first.path);
     expect(renderCount, 1);
     store.dispose();
 
