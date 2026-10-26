@@ -85,10 +85,15 @@ void main() {
     expect(tester.widget<FilledButton>(install).onPressed, isNull);
     expect(await models.exists(), isFalse);
 
+    await tester.ensureVisible(find.byKey(
+        const ValueKey('offline-voice-license-approval')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(
         const ValueKey('offline-voice-license-approval')));
     await tester.pump();
     expect(tester.widget<FilledButton>(install).onPressed, isNotNull);
+    await tester.ensureVisible(install);
+    await tester.pumpAndSettle();
     await tester.tap(install);
     await letIoSettle(tester);
     expect(find.text('Local test voice'), findsOneWidget);
