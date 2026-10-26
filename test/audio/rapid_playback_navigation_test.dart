@@ -98,6 +98,50 @@ void main() {
     }
   });
 
+  test('visual-only EOF seek never replays the previous spoken clip',
+      () async {
+    final running = player.play();
+    await _until(() => engine.spoken.length == 1);
+    engine.stopGate = Completer<void>();
+    final visualEnd = player.seekToSourceEnd();
+    expect(player.isPlaying, isFalse);
+    expect(player.isSettledIdle, isFalse);
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['One']);
+    engine.stopGate!.complete();
+    await visualEnd;
+    await running;
+    expect(player.currentIndex, player.segments.length);
+    expect(player.isSettledIdle, isTrue);
+    expect(engine.spoken, ['One'],
+        reason: 'Silent trailing EPUB section has no TTS request');
+
+    // Explicit Play at completed speech EOF is a fresh user-initiated
+    // restart, not a delayed auto-resume from the chapter jump.
+    final restarted = player.play();
+    await _until(() => engine.spoken.length == 2);
+    expect(engine.spoken, ['One', 'One']);
+    await player.pause();
+    await restarted;
+  });
+
+  test('silent source navigation supersedes pending auto-resuming Seek',
+      () async {
+    final running = player.play();
+    await _until(() => engine.spoken.length == 1);
+    engine.stopGate = Completer<void>();
+    final stale = player.seekTo(2);
+    final finalVisualDestination = player.seekToSourceEnd();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['One']);
+    engine.stopGate!.complete();
+    await Future.wait([stale, finalVisualDestination, running]);
+    expect(player.currentIndex, player.segments.length);
+    expect(player.isPlaying, isFalse);
+    expect(engine.spoken, ['One'],
+        reason: 'Old Seek may not narrate Third after final visual jump');
+  });
+
   test('rapid seeks retain only the last target and still resume once',
       () async {
     final initial = player.play();
