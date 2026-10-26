@@ -128,3 +128,16 @@ included as completed features by merely having been designed in the roadmap.
 - No new Windows test result exists beyond `7c89dfc8`: 641 passes,
   0 assertion failures, 7 error outcomes. The new SQLite migration,
   metadata editor and search changes have not been locally compiled here.
+
+### Progress note — optional real-book corpus coverage (2026-10-26)
+
+- M0/M1 now have an opt-in real EPUB/PDF regression harness for the user's
+  local `example/` folder. It covers actual import, decode, reader source
+  positions, persisted SQLite progress and native PDF opening, with optional
+  EPUB background narration-source consistency checks.
+- The tests do not require remote books or auto-publish filenames/results;
+  all detailed reports and files stay outside Git. See
+  [EXAMPLE_CORPUS_TESTS.md](EXAMPLE_CORPUS_TESTS.md).
+- Existing M0/M1 feature percentages remain **60% / 78%**, and overall
+  milestone coverage remains **~55%** until real corpus and native client
+  results demonstrate what works and what needs repair.

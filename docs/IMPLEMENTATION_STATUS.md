@@ -1393,3 +1393,30 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   tests; adjusted version-upgrade expectation. Not run on Windows yet.
 - See [ROADMAP_DETAILED_PROGRESS.md](ROADMAP_DETAILED_PROGRESS.md) for
   all seven milestones, ER-001–016 and ER-017–034 status and gaps.
+
+## M0/M1 — local real-book EPUB/PDF corpus harness (2026-10-26)
+
+- Added `test/local_example_corpus_test.dart` to discover up to 100 local
+  EPUB/PDF books under a gitignored `example/` folder, including nested
+  folders, with the actual 100 MiB import limit. The suite is **opt-in only**:
+  the ordinary Flutter / Windows / CI runs skip it without ever enumerating
+  or publishing local filenames or excerpts.
+- Per book: isolated real SQLite import, signature and duplicate handling,
+  opening with `PrototypeDocumentDecoder`, source range/anchor roundtrips,
+  reading checkpoint preservation after database reopen. PDFs additionally
+  open using real `pdfrx` native pages, and scanned/image-only PDFs
+  without a text layer are classified as requiring future OCR while still
+  testing visual page persistence.
+- Optional `-Deep` performs the actual EPUB preflight worker pass and
+  checks the complete source text and narration segments for exact fidelity,
+  without printing book passage text in failed assertions.
+- New `tool/run-example-corpus.ps1` runs the per-file suite and summarizes
+  local pass/fail/duration/classification. Per-book filenames and raw Flutter
+  logs are **only** written to ignored
+  `.local-test-results/example-corpus/`. The script does not stage,
+  commit, push, download, or send book content over the network.
+- See [EXAMPLE_CORPUS_TESTS.md](EXAMPLE_CORPUS_TESTS.md) for invocation,
+  fixture layout, expected scanned-PDF handling, privacy and limitations.
+- Since `example/` intentionally lives only on the user's PC, no actual
+  private EPUB/PDF books were available in this GitHub editing session.
+  The suite is written and pushed but **has not yet been executed**.
