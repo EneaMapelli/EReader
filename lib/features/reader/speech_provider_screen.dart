@@ -1,10 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 
 import '../../audio/openai_speech_engine.dart';
 import '../../audio/speech_audio_cache.dart';
 import '../../audio/secret_vault.dart';
 import '../../audio/speech_engine_factory.dart';
+import '../../audio/sherpa_vits_engine.dart';
+import '../../data/offline_voice_pack.dart';
 import '../../data/library_store.dart';
 import '../../domain/cloud_speech_consent.dart';
 import '../../domain/speech_preferences.dart';
@@ -37,6 +43,9 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
   final _quota = TextEditingController(text: '20000');
   bool _hasKey = false;
   bool _busy = false;
+  bool _checkingLocal = false;
+  List<OfflineVoicePackInspection> _offlineChoices = const [];
+  String? _selectedOfflineVoiceId;
   String? _message;
 
   @override
@@ -44,6 +53,9 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
     super.initState();
     _current = widget.store.getSpeechPreferences(bookId: widget.bookId);
     _providerId = _current.providerId;
+    if (_current.providerId == SherpaVitsSpeechEngine.providerId) {
+      _selectedOfflineVoiceId = _current.modelId;
+    }
     _modelId = OpenAiSpeechEngine.supportedModels.contains(_current.modelId)
         ? _current.modelId
         : 'gpt-4o-mini-tts';
@@ -53,6 +65,31 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
       _quota.text = _consent.maxCharacters.toString();
     }
     _loadKeyStatus();
+    _inspectLocalVoices();
+  }
+
+  Future<void> _inspectLocalVoices() async {
+    if (!Platform.isWindows || _checkingLocal) return;
+    setState(() => _checkingLocal = true);
+    try {
+      final support = await getApplicationSupportDirectory();
+      final voices = await inspectOfflineVoicePacks(
+        modelsDirectory: Directory(p.join(support.path, 'offline-voices')),
+      );
+      if (!mounted) return;
+      setState(() {
+        _offlineChoices = voices;
+        final ready = voices.where((entry) => entry.ready &&
+            entry.installed?.phonemizerDataDir != null).toList();
+        if (!ready.any((entry) => entry.id == _selectedOfflineVoiceId)) {
+          _selectedOfflineVoiceId = ready.isEmpty ? null : ready.first.id;
+        }
+      });
+    } catch (_) {
+      if (mounted) _feedback('Unable to check offline voice packs.');
+    } finally {
+      if (mounted) setState(() => _checkingLocal = false);
+    }
   }
 
   Future<void> _loadKeyStatus() async {
@@ -114,10 +151,53 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
       if (!SpeechEngineFactory.availableProviders.contains(_providerId)) {
         throw const FormatException('Unknown provider');
       }
+      if (_providerId == 'system-native' && !Platform.isWindows) {
+        throw const FormatException('Native punctuation comparison is Windows-only');
+      }
+      if (_providerId == SherpaVitsSpeechEngine.providerId) {
+        if (!Platform.isWindows) {
+          throw const FormatException('Offline neural trial is Windows-only');
+        }
+        final id = _selectedOfflineVoiceId;
+        final matching = _offlineChoices.where((entry) => entry.id == id &&
+            entry.ready && entry.installed?.phonemizerDataDir != null);
+        if (id == null || matching.isEmpty) {
+          throw const FormatException('Choose a verified VITS voice with phonemizer files');
+        }
+        final approved = await showDialog<bool>(
+          context: context,
+          builder: (dialog) => AlertDialog(
+            title: const Text('Try experimental local neural TTS?'),
+            content: Text(
+              'This is a free, offline VITS model trial using '
+              '${matching.first.installed!.manifest.displayName}. '
+              'The runtime has not passed manual Windows audio and Stop '
+              'testing. Playback may fail, take time or use substantial '
+              'CPU/RAM. No book text is uploaded or charged. You must '
+              'review the model publisher and license yourself. '
+              'Switch back to System voices if playback fails.',
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialog, false),
+                  child: const Text('Keep system voice')),
+              FilledButton(onPressed: () => Navigator.pop(dialog, true),
+                  child: const Text('Try offline voice')),
+            ],
+          ),
+        );
+        if (approved != true || !mounted) return;
+      }
+      final modelForProvider =
+          _providerId == SherpaVitsSpeechEngine.providerId
+              ? _selectedOfflineVoiceId!
+              : _providerId == OpenAiSpeechEngine.providerId
+                  ? _modelId : 'gpt-4o-mini-tts';
       final selected = _current.copyWith(
         providerId: _providerId,
-        modelId: _modelId,
-        clearVoice: _providerId != _current.providerId,
+        modelId: modelForProvider,
+        clearVoice: _providerId != _current.providerId ||
+            (_providerId == SherpaVitsSpeechEngine.providerId &&
+                _current.modelId != modelForProvider),
       );
       selected.validate();
       await widget.store.saveSpeechPreferences(
@@ -253,10 +333,22 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
           DropdownButtonFormField<String>(
             value: _providerId,
             decoration: const InputDecoration(labelText: 'TTS protocol / engine'),
-            items: const [
-              DropdownMenuItem(
-                value: 'system', child: Text('Free system voices (offline)')),
-              DropdownMenuItem(
+            items: [
+              const DropdownMenuItem(
+                value: 'system',
+                child: Text('Free system voices — interpreted pauses')),
+              if (Platform.isWindows)
+                const DropdownMenuItem(
+                  value: 'system-native',
+                  child: Text('Free Windows voices — native punctuation')),
+              if (Platform.isWindows &&
+                  (_offlineChoices.any((item) =>
+                      item.ready && item.installed?.phonemizerDataDir != null) ||
+                   _providerId == SherpaVitsSpeechEngine.providerId))
+                const DropdownMenuItem(
+                  value: 'sherpa-vits',
+                  child: Text('Free local VITS / Piper — experimental')),
+              const DropdownMenuItem(
                 value: 'openai-speech',
                 child: Text('OpenAI Audio Speech API (paid)')),
             ],
@@ -264,6 +356,38 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
               if (id != null) setState(() => _providerId = id);
             },
           ),
+          if (_providerId == SherpaVitsSpeechEngine.providerId) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Neural synthesis runs offline. Only manually installed '
+              'and SHA-checked VITS packs with phonemizer data appear '
+              'below. Piper voices must first be converted to the '
+              'sherpa-onnx VITS package format (model.onnx, tokens.txt '
+              'and espeak-ng-data). Audio compatibility is experimental.',
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _offlineChoices.any((item) =>
+                  item.id == _selectedOfflineVoiceId && item.ready &&
+                  item.installed?.phonemizerDataDir != null)
+                  ? _selectedOfflineVoiceId : null,
+              decoration: const InputDecoration(
+                  labelText: 'Installed offline voice'),
+              items: [
+                for (final entry in _offlineChoices)
+                  if (entry.ready &&
+                      entry.installed?.phonemizerDataDir != null)
+                    DropdownMenuItem(
+                      value: entry.id,
+                      child: Text('${entry.installed!.manifest.displayName} '
+                          '(${entry.installed!.manifest.locale})'),
+                    ),
+              ],
+              onChanged: _busy ? null : (id) =>
+                  setState(() => _selectedOfflineVoiceId = id),
+            ),
+            const SizedBox(height: 8),
+          ],
           if (cloud) ...[
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
@@ -365,21 +489,52 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
             )),
           ],
           const Divider(height: 40),
-          Text('Neural voices on this device',
+          Text('Other free voices on this device',
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           const Text(
-            'Locally installed experimental models can be inspected or '
-            'removed. They remain unavailable as speech providers until '
-            'real Windows/Android native tests are completed.',
+            'Windows and Android provide different free system voice '
+            'catalogs. Select the exact installed voice in the reader. '
+            'You can also install verified local neural VITS packs for '
+            'an explicit Windows-only experimental trial. No automatic '
+            'downloads, cloud bills or third-party voice services.',
+          ),
+          if (_checkingLocal) const LinearProgressIndicator(),
+          if (Platform.isWindows)
+            Text('Verified local neural packs: '
+                '${_offlineChoices.where((item) => item.ready &&
+                    item.installed?.phonemizerDataDir != null).length}'),
+          const SizedBox(height: 12),
+          Text('Other offline neural engines to evaluate',
+              style: Theme.of(context).textTheme.titleMedium),
+          const ListTile(
+            dense: true,
+            title: Text('Piper / VITS — Italian Paola, Riccardo'),
+            subtitle: Text('Locally installed compatible sherpa-onnx '
+                'VITS packs: optional experimental Windows playback.'),
+          ),
+          const ListTile(
+            dense: true,
+            title: Text('Kokoro 82M — Italian Sara, Nicola'),
+            subtitle: Text('Free Apache-2.0 neural model. Not yet '
+                'integrated; model and phonemizer adapter still required.'),
+          ),
+          const ListTile(
+            dense: true,
+            title: Text('Chatterbox Multilingual'),
+            subtitle: Text('Free local neural model with Italian support. '
+                'Not yet integrated; heavier runtime and tests required.'),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).push<void>(
-              MaterialPageRoute(
-                builder: (_) => const OfflineVoiceManagerScreen(),
-              ),
-            ),
+            onPressed: () async {
+              await Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => const OfflineVoiceManagerScreen(),
+                ),
+              );
+              if (mounted) await _inspectLocalVoices();
+            },
             icon: const Icon(Icons.folder_outlined),
             label: const Text('Manage offline neural voices'),
           ),
@@ -400,8 +555,9 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
             label: const Text('Clear generated audio for this book'),
           ),
           const SizedBox(height: 24),
-          const Text('System voices remain usable without keys, cloud '
-              'consent, subscriptions or internet access.'),
+          const Text('System voices and installed local VITS models run '
+              'without API keys, cloud consent, subscriptions or internet. '
+              'Experimental offline model quality is not guaranteed.'),
         ],
       ),
     );
