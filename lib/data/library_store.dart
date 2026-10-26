@@ -465,8 +465,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   }) {
     String normalize(String value, String field, {bool required = false}) {
       final clean = value.trim();
-      if ((required && clean.isEmpty) || clean.length > 160 ||
-          RegExp(r'[\\x00-\\x1f\\x7f]').hasMatch(clean)) {
+      if ((required && clean.isEmpty) ||
+          clean.length > 160 ||
+          clean.runes.any((unit) => unit < 32 || unit == 127)) {
         throw FormatException('Invalid $field metadata');
       }
       return clean;
