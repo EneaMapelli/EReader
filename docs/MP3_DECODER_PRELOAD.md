@@ -54,3 +54,14 @@ per-generation cleanup contracts. A cache miss is never synthesized
 speculatively. Stop, seek, revoke and dispose continue to invalidate
 prepared slots. This is not a native gapless guarantee.
 See [CACHED_AUDIO_WARMUP.md](CACHED_AUDIO_WARMUP.md); tests not yet executed.
+
+## 2026-10-26 — eliminate redundant native decoder Stop
+
+Native per-slot Stop now has an explicit confirmed-state invariant.
+Newly created and previously stopped/cleaned decoders no longer receive
+another native Stop *before* each load; every actual clip still has a
+serial, awaited finalizer Stop. Failed/partial loads attempt native Stop
+before file deletion and retain the obligation when that Stop fails.
+This reduces only avoidable native round trips, not codec/driver padding,
+and does not permit two audible clips. Tests have been added but **not
+executed**. [Implementation and manual QA](MP3_NATIVE_STOP_DEDUP.md).
