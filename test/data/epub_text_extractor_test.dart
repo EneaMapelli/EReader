@@ -317,6 +317,42 @@ void main() {
     expect(result.images.single.resourcePath, 'OEBPS/Images/figure.png');
     expect(result.images.single.bytes, isNotEmpty);
     expect(result.images.single.alt, 'A small illustration');
+    expect(result.images.single.spineIdref, 'a');
+  });
+
+  test('local raster in textless XHTML keeps OPF identity and no TTS text',
+      () {
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
+      'AAAAC0lEQVR42mP8/x8AAwMCAO1WlU0AAAAASUVORK5CYII=');
+    const opf = '''
+      <package><metadata><title>Illustrated source</title></metadata>
+        <manifest>
+          <item id="a" href="Text/first.xhtml"
+            media-type="application/xhtml+xml"/>
+          <item id="z" href="Text/second%20chapter.xhtml"
+            media-type="application/xhtml+xml"/>
+          <item id="picture" href="Images/figure.png"
+            media-type="image/png"/>
+        </manifest>
+        <spine><itemref idref="a"/><itemref idref="z"/></spine>
+      </package>''';
+    final result = extractor.extract(makeEpub(
+      opf: opf, pngBytes: png,
+      first: '<html><body><img src="../Images/figure.png" '
+          'alt="An illustrated cover"/></body></html>',
+      second: '<html><body><p>The real spoken chapter.</p></body></html>',
+    ));
+    expect(result.text, 'The real spoken chapter.');
+    expect(result.ranges, hasLength(2));
+    expect(result.ranges.first.start, 0);
+    expect(result.ranges.first.end, 0);
+    expect(result.ranges.last.start, 0);
+    expect(result.images, hasLength(1));
+    expect(result.images.single.offset, 0);
+    expect(result.images.single.spineIdref, 'a');
+    expect(result.images.single.alt, 'An illustrated cover');
+    expect(result.images.single.bytes, orderedEquals(png));
   });
 
   test('in-book fragment links resolve across different spine documents', () {
