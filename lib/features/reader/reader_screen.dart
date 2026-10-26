@@ -284,12 +284,11 @@ class _ReaderScreenState extends State<ReaderScreen>
         );
         if (pageOffset != null) saved = pageOffset;
       }
-      // An EPUB recovery fallback must never auto-play or inject offsets
-      // into the TTS segments; the index is only a visual starting point.
-      // Source-aligned chunks are ordered: locate the containing/next
-      // segment in O(log N) rather than rescanning the whole book on open.
-      // This also preserves the final speech index for an EOF checkpoint.
-      final savedIndex = speechSegmentIndexForOffset(chunks, saved);
+      // A restored checkpoint may be *after* the final utterance.
+      // Preserve completed-book state on reopen rather than replaying the
+      // final clip, but keep TOC/search/bookmark jumps independently
+      // clamped to a real segment (speechSegmentIndexForOffset).
+      final savedIndex = speechResumeIndexForOffset(chunks, saved);
       if (savedIndex >= 0) player.currentIndex = savedIndex;
       final pronunciationRules =
           widget.store.listPronunciationRules(bookId: widget.book.id);
