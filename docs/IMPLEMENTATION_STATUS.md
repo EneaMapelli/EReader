@@ -1306,3 +1306,16 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - Last *executed* Windows report: source `7c89dfc8`, 641 successful,
   no assertion failures, 7 errors and 147 unformatted Dart files. Existing
   post-run fixes still await a fresh local source-HEAD rerun.
+
+## Windows formatting gate utility (2026-10-26)
+
+- Added `tool/format-dart.ps1`, an **explicitly invoked** tool that runs
+  `dart format lib test`, checks for a clean tracked Git worktree and the
+  expected EReader branch/origin, and stages only `lib/` and `test/` Dart
+  code. Default behavior commits and performs an ordinary, non-forced push
+  to the existing branch; `-NoCommit` and `-NoPush` allow local review.
+- This utility is distinct from `tool/run-all-tests.ps1`: test executions
+  continue to check formatting without silently rewriting source files.
+  The 147 unformatted files seen in the previous Windows report are **not
+  considered fixed** until this tool (or the equivalent Dart formatter)
+  is actually executed and the result is validated by a fresh run.
