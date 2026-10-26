@@ -128,3 +128,13 @@ Actions o allegati a issue. `example/` resta ignorata da Git.
 - Non sono stati eseguiti test automatici, avvio grafico su macchina
   utente, lettura TTS nativa o test di installazione. Il successo
   del compilatore non dimostra che tutte le funzionalità siano prive di bug.
+
+### Prerelease TTS Windows — esito confermato
+
+La compilazione del 26/10/2026 con la gestione della punteggiatura
+Windows ha pubblicato con successo la prerelease privata
+[windows-test-40aa3c6a](https://github.com/EneaMapelli/EReader/releases/tag/windows-test-40aa3c6a)
+e l'asset `EReader-Windows-x64-40aa3c6a.zip` (circa 26 MiB).
+Questa versione è scaricabile da **Releases → Assets** e non dipende
+dalla conservazione temporanea degli Artifacts. I test audio manuali
+e la firma del pacchetto non sono stati eseguiti.
