@@ -241,6 +241,8 @@ class _ReaderScreenState extends State<ReaderScreen>
         bookId: widget.book.id,
         anchorFor: (segment) =>
             document.anchorAt(widget.book.format, segment.start),
+        anchorAtOffset: (offset) =>
+            document.anchorAt(widget.book.format, offset),
       );
       provisionalBinding = recoveryBinding;
       final player = ReaderPlayer(
