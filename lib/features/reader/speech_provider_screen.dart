@@ -8,6 +8,7 @@ import '../../audio/speech_engine_factory.dart';
 import '../../data/library_store.dart';
 import '../../domain/cloud_speech_consent.dart';
 import '../../domain/speech_preferences.dart';
+import 'offline_voice_manager_screen.dart';
 
 /// Model/provider selection is NOT consent. User separately approves sending
 /// excerpts of this particular book to the selected external service.
@@ -363,6 +364,25 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
               color: Theme.of(context).colorScheme.primary,
             )),
           ],
+          const Divider(height: 40),
+          Text('Neural voices on this device',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          const Text(
+            'Locally installed experimental models can be inspected or '
+            'removed. They remain unavailable as speech providers until '
+            'real Windows/Android native tests are completed.',
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => const OfflineVoiceManagerScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.folder_outlined),
+            label: const Text('Manage offline neural voices'),
+          ),
           const Divider(height: 40),
           Text('Generated audio cache',
               style: Theme.of(context).textTheme.titleLarge),
