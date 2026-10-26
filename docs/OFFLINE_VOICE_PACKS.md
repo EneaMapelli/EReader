@@ -182,3 +182,75 @@ TTS or cloud settings are changed.
   authenticated publisher checksums, provenance and license approval,
   disk/memory estimates and actual VITS listening acceptance. There is
   still **no selectable offline neural TTS in EReader**.
+
+## M3 — Guided import of a **local** voice folder (2026-10-26)
+
+The manager now has an explicit **Import local voice folder** path on
+**Windows**. It uses `FilePicker.getDirectoryPath()` (file_picker 13.x),
+accepts a folder containing the complete files listed below, and previews
+the voice name, ID, language, declared license, size and phonemizer count
+before the user can approve installation. The initial approval checkbox is
+unchecked. Canceling the directory picker makes no changes.
+
+After approval, all assets are streamed into private temporary staging and
+verified against the SHA-256 hashes in the manifest. The installer also
+rechecks the manifest between preview and approval, rejects missing/extra
+files, symlinks, invalid names and over-budget assets, and never silently
+overwrites a different installed model. Successful imports appear as local
+stored assets but are **not** activated in the speech provider selector;
+no ONNX synthesis, cloud request or model download occurs.
+
+Folder layout:
+
+```text
+approved-voice-folder/
+  voice-pack.json
+  model.onnx
+  tokens.txt
+  espeak-ng-data/               # optional, only if model needs it
+    ...                         # exactly the files in the manifest
+```
+
+The local manifest schema is version 1. Example (illustrative **only**; the
+digests must be calculated from the actual local files):
+
+```json
+{
+  "version": 1,
+  "id": "it-voice",
+  "displayName": "Italian neural voice",
+  "locale": "it-IT",
+  "licenseId": "MIT",
+  "modelSha256": "64 lowercase hexadecimal characters",
+  "tokensSha256": "64 lowercase hexadecimal characters",
+  "phonemizerResources": []
+}
+```
+
+To prepare a manifest from an existing, locally obtained voice folder on
+Windows, after independently reviewing its model license and publisher:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tool\prepare-offline-voice-pack.ps1 -SourceDirectory "C:\voice-models\italian" -Id it-voice -DisplayName "Italian voice" -Locale it-IT -LicenseId MIT
+```
+
+The command does not fetch any model or assign a license: **the LicenseId
+must be the actual license the user has independently verified**, not the
+illustrative `MIT` value. It refuses to overwrite an existing manifest,
+limits files to the current 600 MiB model / 4 MiB tokens / 64 MiB aggregate
+eSpeak budgets, and hashes allowed files with SHA-256 before writing a
+versioned UTF-8 manifest.
+
+Android Storage Access Framework may provide directory URIs instead of a
+usable `dart:io` path. Therefore the folder-import action is not shown
+on Android yet. This is a deliberate limitation: enabling it requires a
+separate SAF streaming adapter that copies only explicitly approved bounded
+files. Android users can still inspect and remove previously installed
+models. Windows and Android native acceptance tests remain outstanding.
+
+**Security and trust:** locally computed or self-declared SHA-256 hashes
+detect accidental changes after preview but cannot authenticate a publisher
+or guarantee a model's training-data rights. The source, model license,
+packaged phonemizer assets and redistribution rights require independent
+review. There is no remote authenticated model catalog, model automatic
+activation, forced purchase, or fallback to paid narration.
