@@ -299,3 +299,9 @@ included as completed features by merely having been designed in the roadmap.
 - Added pure EPUB, PDF and mock native-player regression tests (not run).
   Source/doc status remains uncompiled. M2 ~70%, overall ~55%.
   [Design and manual QA](VISUAL_ONLY_SOURCE_NAVIGATION.md).
+
+**EPUB extractor integration:** empty/xhtml image-only OPF items are now
+recorded as zero-length source ranges instead of being discarded, so the
+visual directory can actually display their OPF ordering. All-textless
+books still reject; no fake TTS text or rendered illustrations are claimed.
+Actual ZIP fixture tests added/updated but not executed.
