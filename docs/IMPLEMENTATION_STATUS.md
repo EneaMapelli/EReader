@@ -1564,3 +1564,16 @@ state reset at each page, preserving global original UTF-16 offsets.
 New pure domain and anchored checkpoint tests authored, NOT executed;
 native Windows/Android tests and actual audio QA remain necessary.
 See [READER_SOURCE_SYNC.md](READER_SOURCE_SYNC.md).
+
+### 2026-10-26 — visual-only EPUB sections, scanned PDF tail guard
+
+The OPF spine directory retains unspoken source ranges with exact visual
+bookmarks and a separate next-audible TTS cursor. Following a silent
+trailing chapter/bookmark/link preserves the exact source location but
+moves the audio cursor to end without replaying the prior clip or
+automatically synthesizing. New `ReaderPlayer.seekToSourceEnd` honors
+native Stop ordering and supersedes stale seek resume. Text-less final
+PDF pages now fail the explicit Read Aloud request instead of rewinding
+to a prior page; image-only gaps ahead of readable pages still use the
+next actual physical text-layer page. Tests authored, NOT run; see
+[VISUAL_ONLY_SOURCE_NAVIGATION.md](VISUAL_ONLY_SOURCE_NAVIGATION.md).
