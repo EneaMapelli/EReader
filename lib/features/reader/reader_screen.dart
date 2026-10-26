@@ -1645,7 +1645,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                     'Optional, off by default. Skips only fully contained '
                     'verified note passages. Notes remain visible and '
                     'searchable; mixed passages are spoken to avoid '
-                    'losing main text. Does not send skipped text to TTS.',
+                    'losing main text. Already sent cloud prebuffers cannot '
+                    'be recalled.',
                   ),
                   value: _skipEpubNotes,
                   onChanged: (value) =>
