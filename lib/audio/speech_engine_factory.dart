@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../data/library_store.dart';
 import '../data/offline_voice_pack.dart';
 import '../domain/speech_preferences.dart';
@@ -30,11 +32,28 @@ class SpeechEngineFactory {
     switch (preferences.providerId) {
       case 'system':
         return SystemSpeechEngine();
+      case 'system-native':
+        // A/B mode on Windows: let the OS TTS parse punctuation itself.
+        // No network, installation or new voices, unlike neural engines.
+        return SystemSpeechEngine(interpretWindowsPunctuation: false);
       case SherpaVitsSpeechEngine.providerId:
+        // Explicit opt-in only: the Windows-native sherpa ONNX adapter
+        // is still experimental and must never run on untested Android.
+        if (!Platform.isWindows) {
+          throw UnsupportedError(
+              'Experimental offline neural speech is Windows-only');
+        }
         final pack = offlineVoicePack;
         if (pack == null) {
           throw UnsupportedError(
             'A verified local VITS pack is required before enabling this engine',
+          );
+        }
+        if (pack.manifest.id != preferences.modelId ||
+            pack.phonemizerDataDir == null) {
+          throw const FormatException(
+            'Selected offline voice does not match a verified VITS '
+            'pack with phonemizer data',
           );
         }
         if (preferences.language.toLowerCase().replaceAll('_', '-') !=
@@ -63,5 +82,10 @@ class SpeechEngineFactory {
     }
   }
 
-  static const availableProviders = ['system', OpenAiSpeechEngine.providerId];
+  static const availableProviders = [
+    'system',
+    'system-native',
+    SherpaVitsSpeechEngine.providerId,
+    OpenAiSpeechEngine.providerId,
+  ];
 }
