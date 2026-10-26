@@ -1551,3 +1551,16 @@ retain their starting position. New mock focus and SQLite recovery
 regression cases authored, NOT executed. No auto-resume. No device builds
 or measured native playback results. See
 [AUDIO_INTERRUPTION_CHECKPOINTS.md](AUDIO_INTERRUPTION_CHECKPOINTS.md).
+
+### 2026-10-26 — PDF page-bound TTS and source-accurate finished-book state
+
+Reading restoration now distinguishes complete spoken-book EOF from
+explicit navigational links, storing final EPUB spine/PDF page reading
+anchors rather than losing location details. Old offset-only EPUB
+checkpoints preserve exact `source.length` EOF; ReaderScreen displays
+completed state and avoids first-render visual bookmark regression.
+Text-layer PDF utterances are segmented by physical page with quote
+state reset at each page, preserving global original UTF-16 offsets.
+New pure domain and anchored checkpoint tests authored, NOT executed;
+native Windows/Android tests and actual audio QA remain necessary.
+See [READER_SOURCE_SYNC.md](READER_SOURCE_SYNC.md).
