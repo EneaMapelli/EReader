@@ -146,3 +146,18 @@ chiudere prima il ciclo sui dispositivi reali.
 - **Non** è ancora stato risolto l'ordine dei blocchi multicolonna,
   la segmentazione di note/tabelle o l'OCR dei PDF scannerizzati.
 - La verifica nativa resta aperta. M1 stimato **83%**.
+
+### Anteprime PDF in biblioteca (2026-10-26)
+
+- M1: aggiunto rendering **locale e lazy** della prima pagina PDF come
+  PNG limitato a 180 × 260 px, con cache privata nominata dall'hash del libro;
+  non richiede rete, cloud, nuova migrazione SQLite o chiavi API.
+- Una sola generazione contemporanea per libro, fallback sicuro all'icona
+  PDF per documenti corrotti/cifrati, cleanup su cancellazione, gestione
+  della rimozione durante il rendering. EPUB e TXT restano invariati.
+- Aggiunti test sintetici (senza PDFium nativo) per persistenza,
+  concorrenza, uscita su errore, cancellazione, e widget di biblioteca.
+- **Non ancora eseguiti** i nuovi test Dart/Flutter né un POC di rendering
+  PDFium su Windows/Android. M1 resta **83%**, media M0–M6 circa **55%**;
+  la verifica nativa e il corpus reale restano criteri d'uscita aperti.
+- [Nota implementativa e piano manuale](PDF_LIBRARY_THUMBNAILS.md).
