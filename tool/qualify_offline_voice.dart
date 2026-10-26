@@ -39,6 +39,7 @@ Future<void> main(List<String> args) async {
     'samples': <Object>[],
   };
   Directory? staging;
+  Directory? copiedModelRoot;
   var stage = 'arguments';
   try {
     final flags = <String, String>{};
@@ -50,7 +51,8 @@ Future<void> main(List<String> args) async {
           throw const FormatException('Duplicate CLI option');
         }
         flags[args[i]] = 'true';
-      } else if (args[i] == '--models-dir' || args[i] == '--pack-id') {
+      } else if (args[i] == '--models-dir' ||
+          args[i] == '--pack-id' || args[i] == '--source-folder') {
         if (i + 1 >= args.length || flags.containsKey(args[i])) {
           throw const FormatException('Missing/duplicate CLI option');
         }
@@ -61,18 +63,34 @@ Future<void> main(List<String> args) async {
     }
     final modelPath = flags['--models-dir'];
     final packId = flags['--pack-id'];
+    final sourcePath = flags['--source-folder'];
     if (flags['--accept-native-risk'] != 'true' ||
-        modelPath == null || packId == null ||
-        !p.isAbsolute(modelPath)) {
+        (sourcePath != null &&
+          (modelPath != null || packId != null || !p.isAbsolute(sourcePath))) ||
+        (sourcePath == null &&
+          (modelPath == null || packId == null || !p.isAbsolute(modelPath)))) {
       throw const FormatException(
-          'Explicit opt-in, an absolute models directory, and ID required');
+          'Explicit opt-in and exactly one absolute model source required');
     }
 
     stage = 'model-integrity';
-    final pack = await loadInstalledOfflineVoicePack(
-      packId: packId,
-      modelsDirectory: Directory(modelPath),
-    );
+    final InstalledOfflineVoicePack pack;
+    if (sourcePath != null) {
+      final preview = await inspectOfflineVoiceImportFolder(
+        sourceDirectory: Directory(sourcePath),
+      );
+      copiedModelRoot = await Directory.systemTemp.createTemp(
+        'ereader-benchmark-model-',
+      );
+      pack = await installPreviewedOfflineVoicePack(
+        preview: preview, modelsDirectory: copiedModelRoot,
+      );
+    } else {
+      pack = await loadInstalledOfflineVoicePack(
+        packId: packId!,
+        modelsDirectory: Directory(modelPath!),
+      );
+    }
     final language = pack.manifest.locale.split(RegExp('[-_]')).first
         .toLowerCase();
     final passages = _samples[language];
@@ -176,14 +194,15 @@ Future<void> main(List<String> args) async {
     result['failureClass'] = 'qualification-rejected-or-runtime-failed';
     exitCode = 1;
   } finally {
-    if (staging != null) {
+    for (final directory in [staging, copiedModelRoot]) {
+      if (directory == null) continue;
       try {
-        if (await staging.exists()) {
-          await staging.delete(recursive: true);
+        if (await directory.exists()) {
+          await directory.delete(recursive: true);
         }
       } on FileSystemException {
-        // The local status still fails; a Windows decoder may hold an output
-        // temporarily. No private filesystem path is written to the report.
+        // On Windows, an FFI process may briefly retain a local handle.
+        // Never reveal the private filesystem location in a report.
         result['temporaryCleanup'] = 'incomplete';
         result['status'] = 'FAIL';
         exitCode = 1;
