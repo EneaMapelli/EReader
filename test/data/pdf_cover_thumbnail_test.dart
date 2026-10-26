@@ -119,6 +119,24 @@ void main() {
     store.dispose();
   });
 
+  test('disposing the database during a render cannot leak an error',
+      () async {
+    final rendering = Completer<Uint8List?>();
+    final store = LibraryStore(
+      homeDirectory: home,
+      pdfCoverRenderer: (_) => rendering.future,
+    );
+    await store.initialize();
+    final book = await store.importFile(source.path);
+    final pending = store.ensurePdfCover(book.id);
+    await Future<void>.delayed(Duration.zero);
+    store.dispose();
+    rendering.complete(_png);
+    expect(await pending, isNull);
+    expect(await File(p.join(home.path, 'covers', '${book.id}.png'))
+        .exists(), isFalse);
+  });
+
   test('PDF rendering error is non-fatal and memoized for this session',
       () async {
     var attempts = 0;
