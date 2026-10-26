@@ -155,3 +155,30 @@ experimental `sherpa-vits` provider pending Windows/Android acceptance.
 a `voice-pack.json` are rejected rather than silently trusted. Reinstall
 them from user-approved sources with complete checksums. No existing OS
 TTS or cloud settings are changed.
+
+## M3 — local model management and controlled uninstall (2026-10-26)
+
+- The TTS settings page links to `OfflineVoiceManagerScreen`, which reads
+  the application's private `offline-voices/` directory and shows available
+  or damaged voice assets by ID. A verified entry displays the local
+  manifest's display name, language and license ID. "Verified" means
+  integrity-consistent with the local manifest, NOT manufacturer-authenticated.
+- The manager is read-only unless a user explicitly confirms removal.
+  `removeInstalledOfflineVoicePack` accepts **only** a validated pack ID,
+  verifies the target is a real directory, refuses symlink descendants,
+  renames it into a hidden private deletion directory on the same volume,
+  and deletes it recursively. Missing models are handled idempotently.
+- The interface can refresh on demand, including after removal. It never
+  runs inference, starts a download, selects the experimental provider,
+  reads books, sends cloud text, or accesses API keys. Error messages omit
+  OS paths and native stack traces. Disabled or incomplete model packs
+  cannot become available as voices merely by opening settings.
+- Added storage-layer tests for scoped deletion, traversal attempts,
+  idempotence and preservation of another installed voice. Added widget
+  tests for empty catalog, verified vs damaged entries, cancel/removal flow
+  and continued provider isolation. These tests have **not yet run** on
+  Windows or Android and may need platform-specific adjustments.
+- Future milestone: guided installation/download with independently
+  authenticated publisher checksums, provenance and license approval,
+  disk/memory estimates and actual VITS listening acceptance. There is
+  still **no selectable offline neural TTS in EReader**.

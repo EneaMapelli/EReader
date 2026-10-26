@@ -1290,3 +1290,19 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   unused-import cleanups; these source edits are not yet verified by Flutter.
 - Outstanding: a fresh local run on current HEAD; format all 147 Dart files
   and recheck analyzer warnings/info before marking M1/M3 acceptance green.
+
+## M3 — on-device offline voice manager UI (2026-10-26)
+
+- A new model-manager screen is reachable from existing TTS settings and
+  displays SHA-verified versus corrupt offline model installations. The
+  settings picker remains restricted to operational system/cloud providers;
+  no unqualified neural voices can be activated by this new interface.
+- Explicit, confirmed uninstall now removes exactly one validated private
+  pack ID via hidden staging, with path traversal and symlink defenses;
+  an unrelated model and the user's books/preferences are left unchanged.
+- New unit and widget tests cover deletion boundaries, empty and damaged
+  catalogs, cancellation of confirmation and post-removal refresh.
+  Filesystem-backed widget tests are new and remain unexecuted here.
+- Last *executed* Windows report: source `7c89dfc8`, 641 successful,
+  no assertion failures, 7 errors and 147 unformatted Dart files. Existing
+  post-run fixes still await a fresh local source-HEAD rerun.
