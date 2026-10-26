@@ -217,11 +217,19 @@ class EpubTextExtractor {
       }
       final html = _readRequired(files, href, maxLength: maxEntrySize);
       final text = _extractVisibleText(html);
+      final chapterTitle = _extractChapterTitle(html, ranges.length + 1);
       if (text.isEmpty) {
         diagnostics.record(EpubDiagnosticCode.emptySpineItem);
+        // Preserve OPF ordering and a navigation-only source location.
+        // Do NOT synthesize whitespace, placeholders or alt text. The
+        // original source bytes and all spoken offsets stay unchanged.
+        ranges.add(EpubSpineRange(
+          idref: idref, href: href,
+          start: buffer.length, end: buffer.length,
+          title: chapterTitle,
+        ));
         continue;
       }
-      final chapterTitle = _extractChapterTitle(html, ranges.length + 1);
       if (buffer.isNotEmpty) buffer.write('\n\n');
       final start = buffer.length;
       // Annotate the SAME normalized source text as the old extractor.
@@ -296,7 +304,10 @@ class EpubTextExtractor {
         title: chapterTitle,
       ));
     }
-    if (ranges.isEmpty) {
+    if (ranges.isEmpty ||
+        ranges.every((entry) => entry.end == entry.start)) {
+      // Retaining navigation-only OPF items must not make fully
+      // non-textual EPUBs appear narratable in this text-only reader.
       throw const FormatException('No readable text found in EPUB spine');
     }
     final fullSourceText = buffer.toString();
