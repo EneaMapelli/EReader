@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:ereader/data/book_decoder.dart';
 import 'package:ereader/data/epub_embedded_content.dart';
+import 'package:ereader/data/epub_structural_markup.dart';
 import 'package:ereader/data/epub_text_extractor.dart';
 import 'package:ereader/domain/speech_segment.dart';
 import 'package:ereader/features/reader/epub_chapter_navigation.dart';
@@ -189,6 +190,106 @@ void main() {
           'Before image. Later text.Second chapter.');
       expect(layout.segmentToBlock, [0, 1]);
     }
+  });
+
+  test('table preview appears immediately after table source, not at bottom',
+      () {
+    const source = 'Intro. Col1Col2 Final paragraph.';
+    final end = source.indexOf(' Final');
+    final block = EpubVisualBlock(
+      start: 0, end: source.length, heading: false, chapterStart: false,
+      firstSegmentIndex: 0,
+      runs: [EpubVisualRun.fromSource(0, source.length, source, 0)],
+      tables: [EpubTablePreview(7, end, const [
+        ['Col1', 'Col2'],
+      ])],
+    );
+    final flow = epubVisualFlow(block);
+    expect(flow, hasLength(3));
+    expect(flow.first.runs.map((run) => run.text).join(),
+        source.substring(0, end));
+    expect(flow[1].table, same(block.tables.single));
+    expect(flow.last.runs.map((run) => run.text).join(),
+        source.substring(end));
+    expect(flow.expand((part) => part.runs)
+        .map((run) => run.text).join(), source,
+        reason: 'Optional table preview must never delete spoken text');
+  });
+
+  test('semantic figure-caption range preserves existing TTS and link mask',
+      () {
+    const source = 'Prose.Fig 1: north.Prose again.';
+    final start = source.indexOf('Fig 1:');
+    final end = start + 'Fig 1: north.'.length;
+    final initial = [
+      EpubVisualRun.fromSource(0, source.length, source, 3,
+        bold: true, linkTargetOffset: 10, isFootnote: true),
+    ];
+    final runs = epubApplyFigureCaptions(
+        initial, [EpubFigureCaption(start, end)]);
+    expect(runs.map((run) => run.text).join(), source);
+    expect(runs.map((run) => run.figureCaption),
+        [false, true, false]);
+    expect(runs.every((run) => run.segmentIndex == 3), isTrue);
+    expect(runs.every((run) =>
+        run.bold && run.linkTargetOffset == 10 && run.isFootnote), isTrue);
+    expect(initial.single.text, source);
+  });
+
+  test('eager and progressive captions and table previews agree', () {
+    const source = 'Text.AB.Fig 2.Other.';
+    final figureStart = source.indexOf('Fig 2.');
+    final figureEnd = figureStart + 'Fig 2.'.length;
+    final tableStart = source.indexOf('AB');
+    final tableEnd = tableStart + 2;
+    const chunks = [SpeechSegment(0, source.length, source)];
+    final document = DocumentContent(
+      title: 'Figure and table',
+      text: source,
+      epubSpineRanges: [
+        EpubSpineRange(idref: 's', href: 's.xhtml',
+            start: 0, end: source.length),
+      ],
+      epubTables: [EpubTablePreview(tableStart, tableEnd,
+          const [['A', 'B']])],
+      epubFigureCaptions: [EpubFigureCaption(figureStart, figureEnd)],
+    );
+    final chapters = buildEpubChapters(document, chunks);
+    final layouts = [
+      buildProgressiveEpubVisualLayout(document, chunks, chapters),
+      buildEpubVisualLayout(document, chunks, chapters),
+    ];
+    for (final layout in layouts) {
+      final block = layout.blocks.single;
+      expect(block.runs.map((run) => run.text).join(), source);
+      final caption = block.runs.where((run) => run.figureCaption).toList();
+      expect(caption.map((run) => run.text).join(), 'Fig 2.');
+      final flow = epubVisualFlow(block);
+      expect(flow.map((part) => part.table).whereType<EpubTablePreview>(),
+          hasLength(1));
+      expect(flow.expand((part) => part.runs)
+          .map((run) => run.text).join(), source);
+    }
+  });
+
+  test('invalid overlapping figure captions fail closed in both layouts',
+      () {
+    const source = 'ABCDEF';
+    const speech = [SpeechSegment(0, 6, source)];
+    final bad = DocumentContent(
+      title: 'Bad ranges', text: source,
+      epubSpineRanges: const [
+        EpubSpineRange(idref: 'a', href: 'a.xhtml', start: 0, end: 6),
+      ],
+      epubFigureCaptions: const [
+        EpubFigureCaption(1, 4), EpubFigureCaption(3, 5),
+      ],
+    );
+    final chapters = buildEpubChapters(bad, speech);
+    expect(() => buildProgressiveEpubVisualLayout(
+        bad, speech, chapters), throwsFormatException);
+    expect(() => buildEpubVisualLayout(
+        bad, speech, chapters), throwsFormatException);
   });
 
   testWidgets('widget paints image between the preceding and following text',
