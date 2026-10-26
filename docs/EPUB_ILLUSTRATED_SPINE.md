@@ -38,6 +38,10 @@ navigation destination for those resources.
   manually scrolled images distinct. `EpubVisualSourceCheckpoint` can
   pin the exact virtualized block index while the list settles, even if
   nearby OPF resources share a single source offset.
+- Virtualized Flutter tiles now use a composite `(sourceOffset,
+  visualBlockIndex)` key, not the source offset alone. This prevents a
+  pair of illustrated sections at identical UTF-16 positions from sharing
+  a Flutter element's cached image/gesture/semantics state.
 - ReaderScreen saves visual-only progress as a genuine `ReadingAnchor`
   with `AnchorKind.epubSpine`, original OPF `sourceId`, and
   `localOffset=0`. A later open resolves that source ID to the correct
