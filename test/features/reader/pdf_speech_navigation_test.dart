@@ -123,4 +123,30 @@ void main() {
     expect(speechSegmentIndexForOffset(chunks, 22), 2);
     expect(speechResumeIndexForOffset(const [], 0), -1);
   });
+  test('PDF page end and final EOF round-trip through source anchors', () {
+    const first = 'One page.';
+    const second = 'Last page.';
+    const source = '$first\n\n$second';
+    const doc = DocumentContent(
+      text: source,
+      title: 'Page anchors',
+      pdfPageRanges: [
+        PdfPageRange(1, 0, first.length),
+        PdfPageRange(2, first.length + 2, source.length),
+      ],
+    );
+    final nextPageStart = first.length + 2;
+    final next = doc.anchorAt(BookFormat.pdf, nextPageStart);
+    expect(next.sourceId, '2');
+    expect(next.localOffset, 0);
+    expect(doc.offsetOf(next), nextPageStart);
+    final finished = doc.anchorAt(BookFormat.pdf, source.length);
+    expect(finished.sourceId, '2');
+    expect(finished.localOffset, second.length);
+    expect(doc.offsetOf(finished), source.length);
+    final segments = segmentPdfPages(doc);
+    expect(speechResumeIndexForOffset(segments, source.length),
+        segments.length);
+  });
+
 }
