@@ -13,6 +13,7 @@ import 'epub_text_decoder.dart';
 import 'epub_html_preprocess.dart';
 import 'epub_import_diagnostics.dart';
 import 'epub_anchor_integrity.dart';
+import 'epub_speech_note_filter.dart';
 
 /// Stable ordering information for each EPUB OPF spine item. Text offsets are
 /// Dart String (UTF-16 code unit) offsets in the extracted document.
@@ -41,6 +42,7 @@ class EpubTextResult {
     this.tables = const [],
     this.navigation = const [],
     this.footnotePreviews = const [],
+    this.spokenNoteRanges = const [],
     this.auxiliaryFootnotePreviews = const [],
     this.diagnostics = const [],
   });
@@ -56,6 +58,8 @@ class EpubTextResult {
   final List<EpubNavigationEntry> navigation;
   /// Verified in-spine note text; merely an overlay, not another chapter.
   final List<EpubFootnotePreview> footnotePreviews;
+  /// Conservative, verified note-body regions for opt-in spoken-note skips.
+  final List<EpubSpokenNoteRange> spokenNoteRanges;
   final List<EpubAuxiliaryFootnotePreview> auxiliaryFootnotePreviews;
   final List<EpubImportDiagnostic> diagnostics;
 }
@@ -300,6 +304,7 @@ class EpubTextExtractor {
     // canonical book text. Long/empty/malformed notes are not previewed:
     // their source-validated links still work as ordinary navigation.
     final previews = <EpubFootnotePreview>[];
+    final spokenNoteRanges = <EpubSpokenNoteRange>[];
     const maxPreviewChars = 1600;
     final seenNoteTargets = <int>{};
     for (final note in footnoteRefs) {
@@ -314,6 +319,7 @@ class EpubTextExtractor {
       final previewText = original.trim();
       if (previewText.isEmpty || !seenNoteTargets.add(target)) continue;
       previews.add(EpubFootnotePreview(target, previewText));
+      spokenNoteRanges.add(EpubSpokenNoteRange(note.start, note.end));
     }
     // Only explicitly referenced, manifest-declared auxiliary XHTML
     // is inspected. Never append its text to the spoken book/source.
@@ -572,6 +578,7 @@ class EpubTextExtractor {
         diagnostics: diagnostics.items,
         navigation: navigation,
         footnotePreviews: List.unmodifiable(previews),
+        spokenNoteRanges: List.unmodifiable(spokenNoteRanges),
         auxiliaryFootnotePreviews: List.unmodifiable(auxiliaryNotes),
         styles: List.unmodifiable(styles),
         images: List.unmodifiable(images),
