@@ -13,7 +13,10 @@ non un installer firmato, né una release pubblica collaudata.
    GitHub richiede accesso al repository privato. L'artefatto scade
    dopo 14 giorni; lo ZIP incluso ha nome
    `EReader-Windows-x64-<commit>.zip`.
-4. Estrai lo ZIP **completamente** in una cartella scrivibile, ad esempio
+4. Il download di GitHub Actions è uno ZIP contenitore: estrailo.
+   Al suo interno troverai `EReader-Windows-x64-<commit>.zip`.
+   Estrai **anche questo secondo ZIP** completamente in una cartella
+   scrivibile, ad esempio
    `C:\Users\<utente>\Downloads\EReader-Test\`.
 5. Avvia `ereader.exe` oppure `Start-EReader.cmd`. Non spostare
    soltanto l'EXE: `data/`, `flutter_windows.dll`, eventuali DLL
