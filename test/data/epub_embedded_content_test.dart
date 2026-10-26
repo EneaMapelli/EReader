@@ -146,6 +146,34 @@ void main() {
     expect(result.targets.length, 2);
   });
 
+  test('figcaption uses exact source interval, never copied alt text', () {
+    const source = 'Before.Figure 1: a map.After.';
+    final structure = extractEpubStructure(
+      '<html><body><p>Before.</p><figure>'
+      '<img src="map.png" alt="Image-only alt"/>'
+      '<figcaption>Figure 1: a map.</figcaption>'
+      '</figure><p>After.</p></body></html>',
+      source,
+    );
+    expect(structure.captions, hasLength(1));
+    final caption = structure.captions.single;
+    expect(source.substring(caption.start, caption.end),
+        'Figure 1: a map.');
+    expect(caption.start, source.indexOf('Figure 1:'));
+    expect(structure.images, hasLength(1));
+    expect(structure.images.single.alt, 'Image-only alt');
+    expect(source.contains('Image-only alt'), isFalse);
+  });
+
+  test('unverified text mapping cannot invent figcaption markup', () {
+    final malformed = extractEpubStructure(
+      '<html><body><figure><figcaption>Caption here'
+      '</figcaption></figure></body></html>',
+      'Another caption',
+    );
+    expect(malformed.captions, isEmpty);
+  });
+
   test('table rows are bounded and do not alter flattened TTS source', () {
     const text = 'Report\n\nNorth10South20';
     final info = extractEpubStructure(
