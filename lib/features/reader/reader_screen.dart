@@ -189,12 +189,24 @@ class _ReaderScreenState extends State<ReaderScreen>
         knownCharacterIds: {for (final person in people) person.id},
         offsetFromAnchor: document.offsetOf,
       );
+      // Narrator handoffs are reduced only within verified EPUB paragraphs.
+      // Note boundaries prevent a merged clip from swallowing an otherwise
+      // skippable in-spine footnote or its adjacent normal prose.
+      final speechBoundaries = widget.book.format == BookFormat.epub
+          ? <int>[
+              ...?preflight?.hardBoundaries,
+              if (preflight == null) ...epubParagraphHardBoundaries(document),
+              for (final note in document.epubSpokenNoteRanges)
+                ...[note.start, note.end],
+            ]
+          : const <int>[];
       final prepared = coalesceQuotedSpeech(
         source: document.text,
         chunks: assigned.segments,
         quotedChunks: quoted,
         speakerByStart: assigned.speakerByStart,
-        hardBoundaries: preflight?.hardBoundaries ?? const [],
+        hardBoundaries: speechBoundaries,
+        coalesceNarration: widget.book.format == BookFormat.epub,
       );
       final chunks = prepared.segments;
       final noteFilter = widget.book.format == BookFormat.epub
