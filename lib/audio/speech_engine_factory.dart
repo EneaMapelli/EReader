@@ -18,9 +18,9 @@ class SpeechEngineFactory {
   });
   final SpeechSecretVault vault;
 
-  /// Only a previously verified, explicitly supplied local voice can reach
-  /// the experimental native adapter. UI discovery remains disabled pending
-  /// Windows/Android voice, license, stop and background benchmarks.
+  /// Only a previously checked, explicitly supplied local voice can reach
+  /// the experimental native adapter. Windows UI enables this by opt-in;
+  /// native voice quality, license and Stop/audio testing remain open gates.
   final InstalledOfflineVoicePack? offlineVoicePack;
 
   SpeechEngine create({
