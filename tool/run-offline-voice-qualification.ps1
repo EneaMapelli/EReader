@@ -12,8 +12,9 @@ Add -PublishSummary to commit ONLY a sanitized JSON result on the same branch.
 #>
 [CmdletBinding()]
 param(
-  [Parameter(Mandatory=$true)][string]$ModelsDirectory,
-  [Parameter(Mandatory=$true)][ValidatePattern('^[a-z0-9][a-z0-9_-]{1,63}$')][string]$PackId,
+  [string]$ModelsDirectory,
+  [ValidatePattern('^[a-z0-9][a-z0-9_-]{1,63}$')][string]$PackId,
+  [string]$SourceFolder,
   [switch]$AcceptNativeRisk,
   [switch]$RetainWav,
   [switch]$ExerciseStop,
@@ -26,10 +27,23 @@ Set-Location -LiteralPath $root
 if (-not $AcceptNativeRisk) {
   throw 'Native ONNX qualification requires -AcceptNativeRisk.'
 }
-$dir = Get-Item -LiteralPath $ModelsDirectory -ErrorAction Stop
+if ([string]::IsNullOrWhiteSpace($SourceFolder)) {
+  if ([string]::IsNullOrWhiteSpace($ModelsDirectory) -or
+      [string]::IsNullOrWhiteSpace($PackId)) {
+    throw 'Specify -ModelsDirectory and -PackId, or use -SourceFolder alone.'
+  }
+  $targetPath = $ModelsDirectory
+} else {
+  if (-not [string]::IsNullOrWhiteSpace($ModelsDirectory) -or
+      -not [string]::IsNullOrWhiteSpace($PackId)) {
+    throw 'SourceFolder is exclusive with ModelsDirectory and PackId.'
+  }
+  $targetPath = $SourceFolder
+}
+$dir = Get-Item -LiteralPath $targetPath -ErrorAction Stop
 if (-not $dir.PSIsContainer -or
     ($dir.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-  throw 'ModelsDirectory must be an existing non-link local directory.'
+  throw 'Voice source must be an existing non-link local directory.'
 }
 $dartCommand = Get-Command dart -ErrorAction SilentlyContinue
 $dart = if ($dartCommand) { $dartCommand.Source } else { $null }
@@ -42,14 +56,18 @@ if (-not $dart -and $env:TEMP) {
   if (Test-Path -LiteralPath $candidate) { $dart = $candidate }
 }
 if (-not $dart) { throw 'Dart SDK not found; set FLUTTER_ROOT or PATH.' }
-$arguments = @('run','tool/qualify_offline_voice.dart',
-  '--models-dir',$dir.FullName,'--pack-id',$PackId,'--accept-native-risk')
+$arguments = @('run','tool/qualify_offline_voice.dart','--accept-native-risk')
+if ([string]::IsNullOrWhiteSpace($SourceFolder)) {
+  $arguments += @('--models-dir',$dir.FullName,'--pack-id',$PackId)
+} else {
+  $arguments += @('--source-folder',$dir.FullName)
+}
 if ($RetainWav) { $arguments += '--retain-wav' }
 if ($ExerciseStop) { $arguments += '--exercise-stop' }
 $resultsDir = Join-Path $root '.local-test-results\offline-voice-qualification'
 [void][IO.Directory]::CreateDirectory($resultsDir)
 $timestamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
-$output = Join-Path $resultsDir ($timestamp + '-' + $PackId + '.json')
+$output = Join-Path $resultsDir ($timestamp + '-native-qualification.json')
 # This command prints sanitized JSON to stdout. Native diagnostics sent to
 # stderr stay on the developer's local machine, never copied to GitHub.
 & $dart @arguments | Out-File -LiteralPath $output -Encoding utf8
