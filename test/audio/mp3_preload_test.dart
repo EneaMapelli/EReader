@@ -16,6 +16,7 @@ class MockMp3Decoder implements Mp3Decoder {
   bool failNextLoad = false;
   Completer<void>? delayedLoad;
   Completer<void>? playbackReturnGate;
+  Completer<void>? nativeStopGate;
 
   @override
   Future<void> load(String file, {required double speed}) async {
@@ -50,6 +51,7 @@ class MockMp3Decoder implements Mp3Decoder {
   Future<void> stop() async {
     stopCalls++;
     if (loadingNative) stopsDuringNativeLoad++;
+    if (nativeStopGate != null) await nativeStopGate!.future;
     finish();
   }
   @override
@@ -80,18 +82,23 @@ void main() {
   Completer<void>? firstLoadGate;
   int failFileDeletions = 0;
   bool failStandbyFirstLoad = false;
+  bool failActiveFirstLoad = false;
 
   setUp(() async {
     nextLoadGate = null;
     firstLoadGate = null;
     failFileDeletions = 0;
     failStandbyFirstLoad = false;
+    failActiveFirstLoad = false;
     temp = await Directory.systemTemp.createTemp('ereader-mp3-warm-');
     decoders = [];
     output = JustAudioMp3Output(
       decoderFactory: () {
         final decoder = MockMp3Decoder();
-        if (decoders.isEmpty) decoder.delayedLoad = firstLoadGate;
+        if (decoders.isEmpty) {
+          decoder.delayedLoad = firstLoadGate;
+          decoder.failNextLoad = failActiveFirstLoad;
+        }
         if (decoders.length == 1) {
           decoder.delayedLoad = nextLoadGate;
           decoder.failNextLoad = failStandbyFirstLoad;
@@ -137,6 +144,101 @@ void main() {
     decoders[1].finish();
     await later;
     expect(temp.listSync(), isEmpty);
+  });
+
+  test('cold native load avoids redundant Stop after confirmed release',
+      () async {
+    final first = output.play(Uint8List.fromList([1]), speed: 1);
+    await until(() => decoders.isNotEmpty &&
+        decoders[0].playing.isNotEmpty);
+    expect(decoders[0].stopCalls, 0,
+        reason: 'A brand-new idle decoder has nothing to Stop');
+    decoders[0].finish();
+    await first;
+    expect(decoders[0].stopCalls, 1,
+        reason: 'Natural completion still performs a confirmed Stop');
+
+    final second = output.play(Uint8List.fromList([2]), speed: 1);
+    await until(() => decoders[0].playing.length == 2);
+    expect(decoders[0].loadedPaths, hasLength(2));
+    expect(decoders[0].stopCalls, 1,
+        reason: 'Already stopped and cleaned: no duplicate Stop on load');
+    decoders[0].finish();
+    await second;
+    expect(decoders[0].stopCalls, 2);
+  });
+
+  test('newly created warm decoder loads without unnecessary native Stop',
+      () async {
+    final first = output.play(Uint8List.fromList([1]), speed: 1);
+    await until(() => decoders.isNotEmpty &&
+        decoders[0].playing.isNotEmpty);
+    final next = Uint8List.fromList([2, 3]);
+    await output.prepareNext(next, speed: 1);
+    expect(decoders, hasLength(2));
+    expect(decoders[1].stopCalls, 0);
+    decoders[0].finish();
+    await first;
+    final second = output.play(next, speed: 1);
+    await until(() => decoders[1].playing.isNotEmpty);
+    expect(decoders[1].stopCalls, 0,
+        reason: 'Warm decoder was loaded, not yet playing');
+    decoders[1].finish();
+    await second;
+    expect(decoders[1].stopCalls, 1);
+  });
+
+  test('failed native load must receive a real Stop before reuse',
+      () async {
+    // Install a failing first native decoder before its first file write.
+    // The decoder might retain an OS handle despite throwing on load.
+    failActiveFirstLoad = true;
+    // A new output receives the updated flag from the injected factory.
+    await output.dispose();
+    output = JustAudioMp3Output(
+      decoderFactory: () {
+        final decoder = MockMp3Decoder()..failNextLoad = true;
+        decoders.add(decoder);
+        return decoder;
+      },
+      temporaryDirectory: () async => temp,
+    );
+    await expectLater(
+      output.play(Uint8List.fromList([4]), speed: 1),
+      throwsStateError,
+    );
+    expect(decoders.single.stopCalls, 0);
+    final second = output.play(Uint8List.fromList([5]), speed: 1);
+    await until(() => decoders.single.playing.isNotEmpty);
+    expect(decoders.single.stopCalls, 1,
+        reason: 'Failed setFilePath remains dirty until Stop confirms');
+    decoders.single.finish();
+    await second;
+    expect(decoders.single.stopCalls, 2);
+  });
+
+  test('a slow native Stop blocks reuse of the same decoder',
+      () async {
+    final first = output.play(Uint8List.fromList([6]), speed: 1);
+    await until(() => decoders.isNotEmpty &&
+        decoders.single.playing.isNotEmpty);
+    decoders.single.nativeStopGate = Completer<void>();
+    decoders.single.finish();
+    await until(() => decoders.single.stopCalls == 1);
+    final second = output.play(Uint8List.fromList([7]), speed: 1);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(decoders.single.loadedPaths, hasLength(1),
+        reason: 'Never open the next file while previous Stop is pending');
+    expect(decoders.single.playing, hasLength(1));
+    decoders.single.nativeStopGate!.complete();
+    await first;
+    await until(() => decoders.single.playing.length == 2);
+    expect(decoders.single.stopCalls, 1,
+        reason: 'Confirmed finalizer Stop also covers the next cold load');
+    decoders.single.nativeStopGate = null;
+    decoders.single.finish();
+    await second;
+    expect(decoders.single.stopCalls, 2);
   });
 
   test('never opens native player for speculative audio before Play',
