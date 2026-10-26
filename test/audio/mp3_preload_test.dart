@@ -14,6 +14,7 @@ class MockMp3Decoder implements Mp3Decoder {
   bool loadingNative = false;
   int stopsDuringNativeLoad = 0;
   bool failNextLoad = false;
+  bool failNextStop = false;
   Completer<void>? delayedLoad;
   Completer<void>? playbackReturnGate;
   Completer<void>? nativeStopGate;
@@ -51,6 +52,10 @@ class MockMp3Decoder implements Mp3Decoder {
   Future<void> stop() async {
     stopCalls++;
     if (loadingNative) stopsDuringNativeLoad++;
+    if (failNextStop) {
+      failNextStop = false;
+      throw StateError('simulated native Stop failure');
+    }
     if (nativeStopGate != null) await nativeStopGate!.future;
     finish();
   }
@@ -213,6 +218,34 @@ void main() {
     decoders.single.finish();
     await second;
     expect(decoders.single.stopCalls, 2);
+  });
+
+  test('failed native Stop retains the cleanup obligation on retry',
+      () async {
+    await output.dispose();
+    output = JustAudioMp3Output(
+      decoderFactory: () {
+        final decoder = MockMp3Decoder()
+          ..failNextLoad = true
+          ..failNextStop = true;
+        decoders.add(decoder);
+        return decoder;
+      },
+      temporaryDirectory: () async => temp,
+    );
+    await expectLater(
+      output.play(Uint8List.fromList([11]), speed: 1),
+      throwsStateError,
+    );
+    expect(decoders.single.stopCalls, 1,
+        reason: 'The native cleanup attempt itself failed');
+    final second = output.play(Uint8List.fromList([12]), speed: 1);
+    await until(() => decoders.single.playing.isNotEmpty);
+    expect(decoders.single.stopCalls, 2,
+        reason: 'Never assume a failed native Stop closed its file handle');
+    decoders.single.finish();
+    await second;
+    expect(decoders.single.stopCalls, 3);
   });
 
   test('a slow native Stop blocks reuse of the same decoder',
