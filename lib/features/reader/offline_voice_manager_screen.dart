@@ -176,8 +176,9 @@ class _OfflineVoiceManagerScreenState
         setState(() {
           _importPreview = null;
           _licenseReviewed = false;
-          _message = 'Local voice installed. Native narration '
-              'remains disabled until device validation.';
+          _message = 'Local voice installed and SHA-checked. '
+              'On Windows it can be selected under Speech engines as '
+              'experimental offline VITS; real native audio is untested.';
         });
       }
     } catch (_) {
@@ -210,11 +211,14 @@ class _OfflineVoiceManagerScreenState
         Text('Experimental offline neural voices',
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 8),
-        const Text(
-          'This screen checks voice files stored on this device. '
-          'Neural synthesis is not yet enabled for reading: native '
-          'Windows/Android tests and a licensed model catalog are still '
-          'required. Free system voices remain available.',
+        Text(
+          Platform.isWindows
+              ? 'Local VITS models are an experimental, opt-in Windows '
+                  'speech option. You need sherpa-onnx-compatible assets '
+                  'with an eSpeak phonemizer. File hashes do not prove '
+                  'publisher identity or licensing. Stop/audio are untested.'
+              : 'Neural playback is not yet enabled on Android. '
+                  'Free system voices are available.',
         ),
         const SizedBox(height: 12),
         const SizedBox(height: 12),
@@ -314,7 +318,7 @@ class _OfflineVoiceManagerScreenState
           'Model checks use local SHA-256 hashes and may take time for '
           'large files. A checksum stored with a model is not proof of '
           'publisher identity or licensing. Downloads and playback '
-          'are intentionally disabled until validation is complete.',
+          'requires separate consent before experimental Windows playback.',
         ),
       ],
     ),
