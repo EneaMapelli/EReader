@@ -86,7 +86,9 @@ foreach ($item in $files) {
     sha256=(Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
   })
 }
-$orderedResources = @($resources | Sort-Object -Property relativePath)
+$orderedResources = @($resources | Sort-Object -Property {
+  $_['relativePath']
+})
 $manifest = [ordered]@{
   version=1
   id=$Id
@@ -100,7 +102,7 @@ $manifest = [ordered]@{
 $json = ConvertTo-Json -InputObject $manifest -Depth 6
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 # CreateNew prevents overwriting another process's manifest.
-$stream = New-Object System.IO.FileStream(
+$stream = [IO.File]::Open(
   $metadata, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write,
   [IO.FileShare]::None
 )
