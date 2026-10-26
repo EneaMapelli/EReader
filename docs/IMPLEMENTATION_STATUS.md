@@ -1583,3 +1583,17 @@ navigation-only empty OPF XHTML as zero-length source ranges, while
 rejecting fully non-textual books. The old empty-XHTML import regression
 was revised and new ZIP fixtures added. No source characters, cloud
 requests, or synthetic graphical content introduced.
+
+### 2026-10-26 — image-only XHTML blocks in progressive EPUB reader
+
+The EPUB extractor now carries safe manifest-local PNG/JPEG images from
+XHTML items with zero extracted text, preserving OPF image provenance.
+Structural integrity supports legitimate empty OPF spans without weakening
+text separator, Unicode or duplicate-ID protection; fully textless EPUB
+books remain unsupported. The virtualized reader displays a separate,
+non-spoken section for each empty OPF entry and resolves two same-offset
+covers by idref in image attachment, directory navigation, viewport
+checkpoints and persisted ReadingAnchor. Image-only trailing sections
+resolve to speech EOF, never the previous narration. New ZIP-backed and
+Flutter widget tests authored but not executed. See
+[EPUB_ILLUSTRATED_SPINE.md](EPUB_ILLUSTRATED_SPINE.md).
