@@ -241,7 +241,7 @@ void main() {
     final figureEnd = figureStart + 'Fig 2.'.length;
     final tableStart = source.indexOf('AB');
     final tableEnd = tableStart + 2;
-    const chunks = [SpeechSegment(0, source.length, source)];
+    final chunks = [SpeechSegment(0, source.length, source)];
     final document = DocumentContent(
       title: 'Figure and table',
       text: source,
