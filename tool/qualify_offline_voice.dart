@@ -10,7 +10,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:ereader/audio/offline_wave_metrics.dart';
 import 'package:ereader/audio/sherpa_vits_worker.dart';
@@ -138,14 +137,22 @@ Future<void> main(List<String> args) async {
         wavPath: p.join(staging.path, 'cancellation.wav'),
         speed: 1.0,
       ));
+      // Attach both success and failure handlers before cancellation: a
+      // synchronous completeError must not become an unhandled zone error.
+      final outcome = job.result.then(
+        (_) => 'completed-before-cancel',
+        onError: (Object error) {
+          if (error is VitsWaveCancelled) return 'cancelled';
+          throw StateError('Unexpected native stop failure');
+        },
+      );
       await Future<void>.delayed(const Duration(milliseconds: 20));
       final clock = Stopwatch()..start();
       job.cancel();
       try {
-        await job.result.timeout(const Duration(seconds: 10));
-        result['stopOutcome'] = 'completed-before-cancel';
-      } on VitsWaveCancelled {
-        result['stopOutcome'] = 'cancelled';
+        result['stopOutcome'] = await outcome.timeout(
+          const Duration(seconds: 10),
+        );
       } on TimeoutException {
         result['stopOutcome'] = 'timeout';
         throw const FormatException('Stop did not settle the job');
