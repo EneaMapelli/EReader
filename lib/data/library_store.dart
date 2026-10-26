@@ -104,6 +104,15 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   }
 
   Future<File?> _generatePdfCover(BookRecord book) async {
+    // Disposal during shutdown or a concurrent remove must not allow a
+    // thumbnail worker to resurrect a deleted book or leak async errors.
+    bool isCurrentBook() {
+      try {
+        return getBook(book.id)?.localPath == book.localPath;
+      } on StateError {
+        return false;
+      }
+    }
     final destination = File(p.join(_coversDir.path, '${book.id}.png'));
     final staging = File('${destination.path}.part');
     try {
@@ -117,9 +126,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       await _coversDir.create(recursive: true);
       await staging.writeAsBytes(png, flush: true);
       // A deleted book or an import repair must not resurrect orphan images.
-      if (getBook(book.id)?.localPath != book.localPath) return null;
+      if (!isCurrentBook()) return null;
       await staging.rename(destination.path);
-      if (getBook(book.id)?.localPath != book.localPath) {
+      if (!isCurrentBook()) {
         if (await destination.exists()) await destination.delete();
         return null;
       }
@@ -133,10 +142,16 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       } on FileSystemException {
         // Windows thumbnail decoders can briefly hold handles.
       }
-      if (getBook(book.id) != null &&
-          FileSystemEntity.typeSync(destination.path, followLinks: false) !=
+      if (isCurrentBook()) {
+        try {
+          if (FileSystemEntity.typeSync(
+                destination.path, followLinks: false) !=
               FileSystemEntityType.file) {
-        _failedPdfCovers.add(book.id);
+            _failedPdfCovers.add(book.id);
+          }
+        } on FileSystemException {
+          _failedPdfCovers.add(book.id);
+        }
       }
     }
   }
