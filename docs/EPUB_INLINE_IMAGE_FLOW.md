@@ -90,3 +90,14 @@ supported text-oriented EPUB reader.
 
 **Roadmap:** M2 qualitative estimate remains about 70%; M0–M6 overall
 approximately 55%, pending Flutter analyzer and on-device validation.
+
+## Follow-up: semantic figure captions and table positions (2026-10-26)
+
+The source-order display also handles bounded XHTML `<table>`
+previews as collapsed UI rows at the end of the original table text,
+and visually styles the ORIGINAL source-verified `<figcaption>`
+text in place. Both work in eager and progressive renderers without
+altering the TTS chunks, search offsets, cast or SQLite bookmarks.
+Complex CSS/table spans remain unsupported. Detailed design, tests
+and manual verification:
+[EPUB_FIGURE_CAPTION_TABLE_FLOW.md](EPUB_FIGURE_CAPTION_TABLE_FLOW.md).
