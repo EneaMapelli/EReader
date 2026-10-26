@@ -96,9 +96,12 @@ void main() {
         throwsFormatException);
   });
 
-  test('missing XML metadata fails safely', () {
-    expect(() => reader.read(_epub('<dc:title>Book</dc:title>',
-       opfPath: 'OPS/missing.opf')), returnsNormally);
+  test('empty OPF fields are optional but truncated ZIP is rejected', () {
+    final empty = reader.read(_epub(''));
+    expect(empty.title, isNull);
+    expect(empty.author, isNull);
+    expect(empty.series, isNull);
+    expect(empty.language, isNull);
     final malformed = Uint8List.fromList([0x50, 0x4b, 0x03, 0x04]);
     expect(() => reader.read(malformed), throwsA(isA<Exception>()));
   });
