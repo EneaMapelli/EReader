@@ -991,10 +991,16 @@ class _ReaderScreenState extends State<ReaderScreen>
         // If the user browsed the pages manually, start audio where the
         // reading viewport is, not at the last audio-only position.
         final visible = _visiblePositionIndex;
-        if (visible != null && visible != player.currentIndex &&
-            // After a *completed* book, Play means start again, not
-            // replay just its final segment. Explicit prior visual
-            // navigation to an earlier part still takes precedence.
+        if (widget.book.format == BookFormat.epub &&
+            visible == player.segments.length &&
+            player.currentIndex != player.segments.length) {
+          // The last visual section has no speech. Confirm native Stop,
+          // then the explicit Play below deliberately restarts the book.
+          // Never clamp a visual EOF to its preceding narrated sentence.
+          await player.seekToSourceEnd();
+        } else if (visible != null && visible != player.currentIndex &&
+            // A finished book restarts from the beginning, unless the user
+            // explicitly selected an earlier, actually audible passage.
             (player.currentIndex < player.segments.length ||
                 visible < player.segments.length - 1)) {
           await player.seekTo(visible);
