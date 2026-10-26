@@ -37,6 +37,20 @@ abstract interface class AheadOfTimeSpeechEngine {
   });
 }
 
+/// Optional local-only lookahead for ALREADY cached cloud audio.
+/// This method must never authenticate, transmit text, reserve quota or
+/// synthesize an uncached clip. It merely warms a private native decoder
+/// if the exact voice/model/text MP3 has previously been generated.
+abstract interface class CachedAheadSpeechEngine {
+  Future<void> prepareCachedSpeech(
+    String text, {
+    required SpeechVoice? voice,
+    required String language,
+    required double rate,
+    required double pitch,
+  });
+}
+
 class SystemSpeechEngine implements SpeechEngine {
   SystemSpeechEngine();
 
