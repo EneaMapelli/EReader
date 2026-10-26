@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart';
 
 import 'package:ereader/audio/mp3_playback.dart';
 import 'package:ereader/audio/openai_speech_engine.dart';
@@ -114,6 +117,11 @@ class _Cache implements SpeechAudioCache {
   Future<void> clearAll() async => items.clear();
 }
 
+String _keyFor(String text, {String voice = 'marin'}) =>
+    sha256.convert(
+      utf8.encode('gpt-4o-mini-tts\\u0000$voice\\u0000$text'),
+    ).toString();
+
 Future<void> _until(bool Function() predicate) async {
   for (var i = 0; i < 60; i++) {
     if (predicate()) return;
@@ -126,6 +134,7 @@ void main() {
   late _Meter meter;
   late _Http http;
   late _Output output;
+  late _Cache cache;
   late OpenAiSpeechEngine engine;
   late ReaderPlayer player;
 
@@ -133,10 +142,11 @@ void main() {
     meter = _Meter();
     http = _Http();
     output = _Output();
+    cache = _Cache();
     engine = OpenAiSpeechEngine(
       bookId: 'book', modelId: 'gpt-4o-mini-tts',
       access: meter, vault: _Vault(), transport: http,
-      output: output, cache: _Cache(),
+      output: output, cache: cache,
     );
     player = ReaderPlayer(
       engine: engine, engineProviderId: OpenAiSpeechEngine.providerId,
@@ -171,6 +181,148 @@ void main() {
     expect(meter.used, 5);
     await player.pause();
     await playback;
+  });
+
+  test('cache-only next MP3 warms without any extra HTTPS or quota',
+      () async {
+    cache.items['book:${_keyFor('Beta')}'] =
+        Uint8List.fromList([91, 92, 93]);
+    expect(player.prefetchNextCloudChunk, isFalse);
+    expect(player.warmCachedCloudChunk, isTrue);
+    final playback = player.play();
+    await _until(() => http.requests.length == 1);
+    http.complete(0);
+    await _until(() => output.clips.length == 1);
+    await _until(() => output.warmed.length == 1);
+    expect(output.warmed.single, [91, 92, 93]);
+    expect(http.requests.map((req) => req.text), ['Alpha']);
+    expect(meter.used, 5, reason: 'Cached lookahead is entirely local');
+    output.finish(0);
+    await _until(() => output.clips.length == 2);
+    expect(output.clips.last, [91, 92, 93]);
+    expect(http.requests, hasLength(1));
+    await _until(() => player.currentIndex == 1);
+    output.finish(1);
+    await _until(() => http.requests.length == 2);
+    expect(http.requests.last.text, 'Gamma',
+        reason: 'Cache miss is rendered ONLY when its turn arrives');
+    http.complete(1);
+    await _until(() => output.clips.length == 3);
+    output.finish(2);
+    await playback;
+    expect(http.requests.map((r) => r.text), ['Alpha', 'Gamma']);
+    expect(meter.used, 10);
+  });
+
+  test('disabled local warming never prepares cached future decoder',
+      () async {
+    cache.items['book:${_keyFor('Beta')}'] = Uint8List.fromList([61]);
+    player.setCachedCloudWarmup(false);
+    final playback = player.play();
+    await _until(() => http.requests.length == 1);
+    http.complete(0);
+    await _until(() => output.clips.length == 1);
+    await Future<void>.delayed(Duration.zero);
+    expect(output.warmed, isEmpty);
+    output.finish(0);
+    await _until(() => output.clips.length == 2);
+    expect(output.clips.last, [61],
+        reason: 'Normal speech still reuses the cached MP3');
+    expect(http.requests, hasLength(1));
+    await player.pause();
+    await playback;
+  });
+
+  test('cached warming chooses the next character voice without HTTP',
+      () async {
+    cache.items['book:${_keyFor('Beta', voice: 'cedar')}'] =
+        Uint8List.fromList([71, 72]);
+    player.castVoiceForSegment = (segment) => segment.start == 6
+        ? const SpeechVoice(name: 'cedar', locale: 'multi')
+        : const SpeechVoice(name: 'marin', locale: 'multi');
+    final playback = player.play();
+    await _until(() => http.requests.length == 1);
+    http.complete(0);
+    await _until(() => output.warmed.length == 1);
+    expect(output.warmed.single, [71, 72]);
+    expect(http.requests, hasLength(1));
+    expect(http.requests.single.voice, 'marin');
+    output.finish(0);
+    await _until(() => output.clips.length == 2);
+    expect(output.clips.last, [71, 72]);
+    await player.pause();
+    await playback;
+  });
+
+  test('cached warming searches past consecutive skipped note segments',
+      () async {
+    cache.items['book:${_keyFor('Gamma')}'] =
+        Uint8List.fromList([81, 82]);
+    player.shouldSkipSegment = (segment) => segment.start == 6;
+    final playback = player.play();
+    await _until(() => http.requests.length == 1);
+    http.complete(0);
+    await _until(() => output.warmed.length == 1);
+    expect(output.warmed.single, [81, 82]);
+    expect(http.requests.map((req) => req.text), ['Alpha']);
+    output.finish(0);
+    await _until(() => output.clips.length == 2);
+    expect(output.clips.last, [81, 82]);
+    output.finish(1);
+    await playback;
+    expect(player.currentIndex, 3);
+    expect(meter.used, 5, reason: 'No Beta synthesis or quota');
+    expect(http.requests.map((req) => req.text), ['Alpha']);
+  });
+
+  test('paid one-ahead also skips silent notes but charges next audible',
+      () async {
+    player.shouldSkipSegment = (segment) => segment.start == 6;
+    player.setCloudPrefetch(true);
+    final playback = player.play();
+    await _until(() => http.requests.length == 1);
+    http.complete(0);
+    await _until(() => http.requests.length == 2);
+    expect(http.requests.map((req) => req.text), ['Alpha', 'Gamma']);
+    expect(meter.used, 10);
+    http.complete(1);
+    await _until(() => output.warmed.length == 1);
+    output.finish(0);
+    await _until(() => output.clips.length == 2);
+    output.finish(1);
+    await playback;
+    expect(player.currentIndex, 3);
+  });
+
+  test('revoked consent blocks a locally warmed MP3 before playback',
+      () async {
+    cache.items['book:${_keyFor('Beta')}'] =
+        Uint8List.fromList([91, 92]);
+    final playback = player.play();
+    await _until(() => http.requests.length == 1);
+    http.complete(0);
+    await _until(() => output.warmed.length == 1);
+    meter.allowed = false;
+    output.finish(0);
+    await expectLater(playback, throwsA(isA<CloudSpeechBlocked>()));
+    expect(output.clips.length, 1);
+    expect(http.requests.map((req) => req.text), ['Alpha']);
+    expect(meter.used, 5);
+  });
+
+  test('stopped playback never auto-plays previously cached warmup',
+      () async {
+    cache.items['book:${_keyFor('Beta')}'] =
+        Uint8List.fromList([92]);
+    final playback = player.play();
+    await _until(() => http.requests.length == 1);
+    http.complete(0);
+    await _until(() => output.warmed.length == 1);
+    await player.pause();
+    await playback;
+    expect(output.clips.length, 1);
+    expect(player.currentIndex, 0);
+    expect(http.requests.map((req) => req.text), ['Alpha']);
   });
 
   test('opted-in prefetch waits until current audio is ready', () async {
