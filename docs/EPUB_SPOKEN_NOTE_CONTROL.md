@@ -63,3 +63,8 @@ recognized at least one eligible in-spine note body.
 analyzer/test or Windows/Android real audio runs were performed in this
 GitHub-only editing environment. This is an incremental M2 feature, not a
 closed cross-platform acceptance gate.
+
+**Cloud prebuffering caveat:** when the user enables note skipping while a
+prior speculative request is already in flight, that earlier provider request
+cannot be recalled and might still consume quota. The new filtering rule
+prevents future skipped segments from being *scheduled* for prefetch.
