@@ -45,10 +45,10 @@ if (Test-Path -LiteralPath $summaryPath) {
   Remove-Item -LiteralPath $summaryPath -Force
 }
 
-$args = @('test', '--reporter=json',
+$flutterArgs = @('test', '--reporter=json',
   '--dart-define=EREADER_EXAMPLE_CORPUS=true')
-if ($Deep) { $args += '--dart-define=EREADER_EXAMPLE_DEEP=true' }
-$args += 'test/local_example_corpus_test.dart'
+if ($Deep) { $flutterArgs += '--dart-define=EREADER_EXAMPLE_DEEP=true' }
+$flutterArgs += 'test/local_example_corpus_test.dart'
 
 Write-Host 'Running example corpus from local files (no Git upload).' -ForegroundColor Cyan
 Write-Host ('EPUB worker comparisons: ' + [bool]$Deep)
@@ -58,7 +58,7 @@ Write-Host ('EPUB worker comparisons: ' + [bool]$Deep)
 $oldPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
 try {
-  & $flutter @args 1> $stdoutPath 2> $stderrPath
+  & $flutter @flutterArgs 1> $stdoutPath 2> $stderrPath
   $code = $LASTEXITCODE
 } finally {
   $ErrorActionPreference = $oldPreference
