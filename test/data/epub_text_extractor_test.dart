@@ -81,6 +81,35 @@ void main() {
     expect(result.ranges.last.href, 'OEBPS/Text/second chapter.xhtml');
   });
 
+  test('empty OPF spine sections survive extraction without fake speech',
+      () {
+    final firstEmpty = extractor.extract(makeEpub(
+      first: '<html><body><img src="../Images/figure.png"/></body></html>',
+    ));
+    expect(firstEmpty.ranges.map((e) => e.idref), ['a', 'z']);
+    expect(firstEmpty.ranges[0].start, 0);
+    expect(firstEmpty.ranges[0].end, 0);
+    expect(firstEmpty.ranges[1].start, 0);
+    expect(firstEmpty.text.contains('Second page.'), isTrue);
+    expect(firstEmpty.text.contains('img'), isFalse);
+
+    final trailingEmpty = extractor.extract(makeEpub(
+      second: '<html><body><div class="art"></div></body></html>',
+    ));
+    expect(trailingEmpty.ranges.map((e) => e.idref), ['a', 'z']);
+    expect(trailingEmpty.ranges[1].start, trailingEmpty.text.length);
+    expect(trailingEmpty.ranges[1].end, trailingEmpty.text.length);
+    expect(trailingEmpty.text.contains('Hello reader.'), isTrue);
+  });
+
+  test('completely unspoken EPUB still fails without invented narration',
+      () {
+    expect(() => extractor.extract(makeEpub(
+      first: '<html><body></body></html>',
+      second: '<html><body><img src="../Images/art.png"/></body></html>',
+    )), throwsFormatException);
+  });
+
   test('spine labels use XHTML body headings, not navigation or head', () {
     final archive = makeEpub(
       first: '''
