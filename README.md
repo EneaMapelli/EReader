@@ -84,6 +84,23 @@ Un push rifiutato da Git lascia i risultati locali per una pubblicazione
 sicura successiva. Per istruzioni e opzioni: [Windows test runner e
 report automatici](test-results/README.md).
 
+## Scelta del TTS gratuito
+
+Dal lettore apri **Speech engines** per scegliere fra le voci gratuite
+di sistema (con pause interpretate oppure, su Windows, punteggiatura
+gestita direttamente dalla voce Windows). Nel menu **Voice** puoi
+selezionare le singole voci già presenti nel sistema operativo.
+
+Su Windows è disponibile anche il provider locale **VITS / Piper**
+in modalità **sperimentale e solo previa conferma**: appare dopo
+l'installazione di un pacchetto VITS compatibile, SHA-256 controllato,
+con `model.onnx`, `tokens.txt` ed `espeak-ng-data`. Non vengono
+scaricati modelli automaticamente e non c'è alcun fallback verso
+OpenAI o servizi a pagamento. Kokoro e Chatterbox sono candidati
+futuri, non ancora selezionabili.
+
+[Confronto fra motori gratuiti, licenze e guida](docs/FREE_TTS_ENGINES.md).
+
 ## Test utente Windows — versione EXE portatile
 
 Per provare l'app senza installare Flutter sul PC di test, usa
