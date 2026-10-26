@@ -73,7 +73,7 @@ void main() {
       () {
     final result = reader.read(_epub('''
       <dc:title>  </dc:title>
-      <dc:creator>NaN</dc:creator>
+      <dc:creator>${List.filled(180, 'A').join()}</dc:creator>
       <dc:language>../../private</dc:language>
       <meta name="calibre:series" content=""/>
     '''));
