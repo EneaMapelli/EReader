@@ -278,3 +278,16 @@ aggiornati, non eseguiti; nessuna illustrazione inventata.
   renderer XHTML/CSS completo né supporta libri composti solo da immagini.
   Stime invariate M2 ~70%, totale ~55%.
   [Specifiche](EPUB_ILLUSTRATED_SPINE.md).
+
+### Immagini EPUB intercalate al testo nella posizione originale (2026-10-26)
+
+- M2: immagini all'interno di paragrafi XHTML visualizzate nel punto
+  corrispondente all'offset sorgente, non più tutte dopo il paragrafo.
+  Spezzati soltanto i frammenti grafici: indici TTS, annotazioni di voce,
+  link, note, ricerche, testo e segnalibri restano originali.
+- Renderer progressivo e eager allineati sulla proprietà OPF e sui blocchi
+  XHTML privi di testo. Più immagini a uno stesso offset conservano l'ordine.
+  Guard per non spezzare i caratteri UTF-16 a coppia surrogata.
+- Test unitari e widget aggiunti, non eseguiti. Non è reflow CSS completo
+  e non supporta ancora tutti i fumetti EPUB solo immagini. Stime M2 ~70%
+  e complessivo ~55%. [Dettagli](EPUB_INLINE_IMAGE_FLOW.md).
