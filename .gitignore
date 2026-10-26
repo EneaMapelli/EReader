@@ -31,3 +31,6 @@ windows/flutter/ephemeral/
 example/
 # User-owned EPUB/PDF evaluation corpus: local only, never commit.
 /example/
+
+# Local unsigned Windows portable Release ZIPs and native staging
+.local-windows-build/
