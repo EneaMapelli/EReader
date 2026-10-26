@@ -19,6 +19,7 @@ import 'speech_provider_screen.dart';
 import '../../data/book_decoder.dart';
 import '../../data/pdf_text_navigation.dart';
 import 'pdf_page_navigation.dart';
+import 'pdf_speech_navigation.dart';
 import '../../data/epub_reader_preflight.dart';
 import '../../data/epub_speech_note_filter.dart';
 import '../../data/epub_progress_recovery.dart';
@@ -177,8 +178,18 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (!mounted || epoch != _loadEpoch) return;
       final uiPreparationStartUs = stopwatch.elapsedMicroseconds;
       // Resolve both legacy and precise manual speaker tags before coalescing.
+      // PDF voices and source-anchored progress may NEVER straddle a
+      // physical text-layer page boundary. The EPUB worker already
+      // segments per OPF spine; TXT keeps the plain source splitter.
       final quoted = preflight?.quoted ??
-          splitQuotedSegmentsWithRegions(segmentSpeech(document.text));
+          splitQuotedSegmentsWithRegions(
+            widget.book.format == BookFormat.pdf
+                ? segmentPdfPages(document)
+                : segmentSpeech(document.text),
+            resetAt: widget.book.format == BookFormat.pdf
+                ? pdfSpeechQuoteResetOffsets(document)
+                : const [],
+          );
       final people = widget.store.listCastCharacters(widget.book.id);
       final assigned = prepareCastSpeech(
         source: document.text,
@@ -199,7 +210,9 @@ class _ReaderScreenState extends State<ReaderScreen>
               for (final note in document.epubSpokenNoteRanges)
                 ...[note.start, note.end],
             ]
-          : const <int>[];
+          : widget.book.format == BookFormat.pdf
+              ? pdfSpeechQuoteResetOffsets(document)
+              : const <int>[];
       final prepared = coalesceQuotedSpeech(
         source: document.text,
         chunks: assigned.segments,
