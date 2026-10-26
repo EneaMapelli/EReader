@@ -141,7 +141,7 @@ class EpubVisualLayout {
     if (indexed != null) return indexed(blockIndex, segments);
     final block = blocks[blockIndex];
     final playable = block.firstSegmentIndex ??
-        speechSegmentIndexForOffset(segments, block.start);
+        speechSourceDestinationIndexForOffset(segments, block.start);
     return EpubVisibleReadingPosition(block.start, playable);
   }
 
