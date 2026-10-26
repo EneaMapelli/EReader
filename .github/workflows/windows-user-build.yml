@@ -14,8 +14,10 @@ on:
       - lib/audio/windows_speech_punctuation.dart
   workflow_dispatch:
 
+# A private GitHub prerelease is written only AFTER a verified Windows
+# build succeeds. No merge or source-code changes are made to main.
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ereader-windows-user-build
@@ -55,3 +57,35 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
+      - name: Publish downloadable private GitHub prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $sha = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $sha.Length -lt 8) {
+            throw 'Could not resolve exact built commit.'
+          }
+          $tag = 'windows-test-' + $sha.Substring(0, 8)
+          $zip = @(Get-ChildItem -LiteralPath '.local-windows-build/releases' -Filter 'EReader-Windows-x64-*.zip' -File)
+          if ($zip.Count -ne 1) {
+            throw 'Expected exactly one compiled Windows portable ZIP.'
+          }
+          $notes = @'
+          Unsigned EReader Windows x64 portable build for private user testing.
+
+          Unzip the whole archive and start ereader.exe; keep the DLLs and
+          data folder with it. No installer or code signing is provided.
+          No automated unit/GUI tests or on-device audio tests were run in
+          this workflow. Start with local/free voices; keep API keys private.
+          See docs/WINDOWS_USER_TEST_CHECKLIST.md for manual acceptance.
+          '@
+          gh release view $tag --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $zip[0].FullName --clobber --repo "${{ github.repository }}"
+          } else {
+            gh release create $tag $zip[0].FullName --repo "${{ github.repository }}" --target $sha --prerelease --title "EReader Windows beta $($sha.Substring(0, 8))" --notes $notes
+          }
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to publish GitHub prerelease ZIP.'
+          }
