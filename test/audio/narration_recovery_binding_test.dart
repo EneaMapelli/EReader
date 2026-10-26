@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:ereader/audio/narration_recovery_binding.dart';
+import 'package:ereader/audio/reader_media_handler.dart';
 import 'package:ereader/audio/reader_player.dart';
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/data/library_store.dart';
@@ -195,6 +196,44 @@ void main() {
     player.dispose();
     await restartStore();
     expect(store.getBook(bookId)!.progressOffset, 7);
+    expect(store.interruptedNarrationBook, isNull);
+  });
+
+  test('Android focus loss retains active checkpoint until native Stop',
+      () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final player = playerFor(engine, recovery);
+    var focusReleases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { focusReleases++; },
+    );
+    handler.attach(player, bookId: bookId, title: 'Book');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First.']);
+    expect(store.getBook(bookId)!.progressOffset, 0);
+    expect(activeCheckpoints(), 1);
+    engine.stopGate = Completer<void>();
+    final losingFocus = handler.pauseForSystemInterruption();
+    final duplicateEvent = handler.pauseForSystemInterruption();
+    expect(identical(losingFocus, duplicateEvent), isTrue);
+    await Future<void>.delayed(Duration.zero);
+    expect(activeCheckpoints(), 1,
+        reason: 'Native Stop has not confirmed silence');
+    expect(player.isSettledIdle, isFalse);
+    expect(focusReleases, 0);
+    engine.stopGate!.complete();
+    await losingFocus;
+    expect(activeCheckpoints(), 0);
+    expect(store.getBook(bookId)!.progressOffset, 0);
+    expect(focusReleases, 1);
+    expect(engine.spoken, ['First.']);
+    await handler.close();
+    recovery.dispose();
+    player.dispose();
+    await restartStore();
     expect(store.interruptedNarrationBook, isNull);
   });
 
