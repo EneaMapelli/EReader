@@ -256,3 +256,9 @@ chiudere prima il ciclo sui dispositivi reali.
   produce un messaggio e non avvia la sintesi.
 - Test simulati/dominio aggiunti, non eseguiti. Percentuali invariate:
   M2 ~70%, complessivo ~55%. [Dettagli](VISUAL_ONLY_SOURCE_NAVIGATION.md).
+
+**Integrazione dell'estrattore:** gli elementi XHTML dello spine che non
+producono testo restano come intervalli a lunghezza zero e nell'ordine
+OPF, invece di essere scartati prima di costruire l'indice. Un libro
+interamente privo di testo leggibile viene ancora rifiutato. Test ZIP
+aggiornati, non eseguiti; nessuna illustrazione inventata.
