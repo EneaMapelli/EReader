@@ -1667,6 +1667,23 @@ class _ReaderScreenState extends State<ReaderScreen>
               if (player.engineProviderId ==
                   OpenAiSpeechEngine.providerId)
                 CheckboxListTile(
+                  key: const ValueKey('cloud-cache-only-warmup'),
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  title: const Text('Warm already cached cloud audio'),
+                  subtitle: const Text(
+                    'On by default. Only reads a previously generated '
+                    'private MP3 and prepares the next decoder locally. '
+                    'Never makes an extra network request or reserves '
+                    'provider characters. Disable to compare playback.',
+                  ),
+                  value: player.warmCachedCloudChunk,
+                  onChanged: (enabled) =>
+                      player.setCachedCloudWarmup(enabled ?? false),
+                ),
+              if (player.engineProviderId ==
+                  OpenAiSpeechEngine.providerId)
+                CheckboxListTile(
                   dense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                   title: const Text('Prebuffer one cloud audio chunk'),
