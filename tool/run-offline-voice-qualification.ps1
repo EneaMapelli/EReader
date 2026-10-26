@@ -14,7 +14,7 @@ Add -PublishSummary to commit ONLY a sanitized JSON result on the same branch.
 param(
   [Parameter(Mandatory=$true)][string]$ModelsDirectory,
   [Parameter(Mandatory=$true)][ValidatePattern('^[a-z0-9][a-z0-9_-]{1,63}$')][string]$PackId,
-  [Parameter(Mandatory=$true)][switch]$AcceptNativeRisk,
+  [switch]$AcceptNativeRisk,
   [switch]$RetainWav,
   [switch]$ExerciseStop,
   [switch]$PublishSummary
@@ -75,13 +75,24 @@ if ($PublishSummary) {
   $published = Join-Path $root 'test-results\offline-voice-qualification-latest.json'
   # Whitelist the numeric and small status fields. Never publish paths,
   # voice audio, files, native error details or user-provided phrases.
+  $properties = $payload.PSObject.Properties
+  $locale = if ($properties['locale']) { [string]$payload.locale } else { '' }
+  $stopOutcome = if ($properties['stopOutcome']) {
+    [string]$payload.stopOutcome
+  } else { 'not-run' }
+  $stopSettleMs = if ($properties['stopSettleMs']) {
+    [int]$payload.stopSettleMs
+  } else { -1 }
+  $failureStage = if ($properties['failureStage']) {
+    [string]$payload.failureStage
+  } else { '' }
   $safe = [ordered]@{
     schemaVersion=1
     kind='offline-vits-local-qualification'
     sourceCommit=(& $git rev-parse HEAD).Trim()
     runAtUtc=$timestamp
     status=[string]$payload.status
-    locale=[string]$payload.locale
+    locale=$locale
     samples=@($payload.samples | ForEach-Object {
       [ordered]@{
         sample=[int]$_.sample
@@ -92,8 +103,9 @@ if ($PublishSummary) {
         realTimeFactor=[double]$_.realTimeFactor
       }
     })
-    stopOutcome=[string]$payload.stopOutcome
-    stopSettleMs=[int]$payload.stopSettleMs
+    stopOutcome=$stopOutcome
+    stopSettleMs=$stopSettleMs
+    failureStage=$failureStage
   }
   $json = ConvertTo-Json -InputObject $safe -Depth 5
   $encoding = New-Object System.Text.UTF8Encoding($false)
