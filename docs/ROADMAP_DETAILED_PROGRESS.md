@@ -242,3 +242,17 @@ chiudere prima il ciclo sui dispositivi reali.
 - Aggiunti test sintetici, non eseguiti. Stime invariate: M2 ~70% e
   complessivo ~55%; validazione nativa ancora aperta.
   [Specifica](READER_SOURCE_SYNC.md).
+
+### Sezioni EPUB mute e pagine PDF senza testo estratto (2026-10-26)
+
+- M2: l'indice OPF include anche capitoli senza segmenti TTS, conservando
+  l'offset visuale originale e distinguendolo da quello della prima clip
+  successiva. La navigazione non genera audio né invia API.
+- Le destinazioni EPUB silenziose in coda portano il cursore parlato a EOF
+  senza ripetere l'ultima frase. Uno Stop nativo in volo blocca la ripresa,
+  e un Seek precedente viene invalidato secondo l'ordine ultimo-vince.
+- PDF: le pagine finali scansionate senza testo successivo non tornano
+  alla pagina leggibile precedente; un tentativo di lettura esplicita
+  produce un messaggio e non avvia la sintesi.
+- Test simulati/dominio aggiunti, non eseguiti. Percentuali invariate:
+  M2 ~70%, complessivo ~55%. [Dettagli](VISUAL_ONLY_SOURCE_NAVIGATION.md).
