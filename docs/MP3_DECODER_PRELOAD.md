@@ -43,3 +43,14 @@ Run Dart formatter/analyzer and all Flutter tests, native Windows and Android bu
 ## Rapid navigation and late completion safety
 
 Decoder slot loads and end-of-clip native Stop operations are now serialized, with generation checks and expected-file checks preventing an older delayed operation from mutating the next live MP3 source. A fast Seek or Stop does not permit stale audio to play, and a changed speed/voice forces the appropriate reload and speaker selection. Extended the decoder mock regression suite to 10 **authored, unexecuted** tests. See [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
+
+## Cache-only warmup path — 2026-10-26
+
+The existing two native-decoder implementation can now receive
+`prepareNext` with exact previously cached MP3 bytes, independently from
+opt-in paid synthesis prefetch. The `Uint8List` passed to the warmed slot
+is the same object consumed by `play`, retaining the existing speed and
+per-generation cleanup contracts. A cache miss is never synthesized
+speculatively. Stop, seek, revoke and dispose continue to invalidate
+prepared slots. This is not a native gapless guarantee.
+See [CACHED_AUDIO_WARMUP.md](CACHED_AUDIO_WARMUP.md); tests not yet executed.
