@@ -65,6 +65,42 @@ void main() {
     expect(find.byType(Image), findsWidgets);
   });
 
+  testWidgets('PDFs display a cached first-page thumbnail after rendering',
+      (tester) async {
+    store.dispose();
+    store = LibraryStore(
+      homeDirectory: home,
+      pdfCoverRenderer: (_) async => _png,
+    );
+    await store.initialize();
+    final source = File(p.join(home.path, 'illustration.pdf'));
+    await source.writeAsString('%PDF-1.4\nPDF thumbnail fixture');
+    final book = await store.importFile(source.path);
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('library-cover-${book.id}')),
+        findsOneWidget);
+    expect(store.coverFile(book.id), isNotNull);
+  });
+
+  testWidgets('unrenderable PDFs retain the PDF format icon',
+      (tester) async {
+    store.dispose();
+    store = LibraryStore(
+      homeDirectory: home,
+      pdfCoverRenderer: (_) async => null,
+    );
+    await store.initialize();
+    final source = File(p.join(home.path, 'unrenderable.pdf'));
+    await source.writeAsString('%PDF-1.4\nunrenderable fixture');
+    final book = await store.importFile(source.path);
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('library-cover-${book.id}')),
+        findsNothing);
+    expect(find.byIcon(Icons.picture_as_pdf_outlined), findsWidgets);
+  });
+
   testWidgets('plain books keep their native format icon', (tester) async {
     final text = File(p.join(home.path, 'plain.txt'));
     await text.writeAsString('A readable plain text sample.');
