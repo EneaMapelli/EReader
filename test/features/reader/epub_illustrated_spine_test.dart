@@ -4,6 +4,7 @@ import 'package:ereader/data/book_decoder.dart';
 import 'package:ereader/data/epub_embedded_content.dart';
 import 'package:ereader/data/epub_text_extractor.dart';
 import 'package:ereader/domain/speech_segment.dart';
+import 'package:ereader/domain/reading_anchor.dart';
 import 'package:ereader/features/reader/epub_chapter_navigation.dart';
 import 'package:ereader/features/reader/epub_paragraph_tile.dart';
 import 'package:ereader/features/reader/epub_progressive_layout.dart';
@@ -71,6 +72,15 @@ void main() {
     expect(layout.positionForVisibleBlock(0, clips).sourceOffset, 0);
     expect(layout.positionForVisibleBlock(3, clips).sourceOffset,
         source.length);
+    expect(layout.positionForVisibleBlock(3, clips).segmentIndex,
+        clips.length,
+        reason: 'Scrolling to a trailing silent image must not replay TTS');
+    final coverBookmark = const ReadingAnchor(
+      kind: AnchorKind.epubSpine, sourceId: 'cover-b', localOffset: 0,
+    );
+    expect(document.offsetOf(coverBookmark), 0);
+    expect(layout.blockForSpine(coverBookmark.sourceId, 0), 1,
+        reason: 'The OPF ID, not its shared UTF-16 offset, selects cover B');
     expect(layout.blockForSegment(0), 2);
   });
 
