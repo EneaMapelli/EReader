@@ -79,6 +79,31 @@ void main() {
         .expand((part) => part.runs).map((run) => run.text).join(), source);
   });
 
+  test('UTF-16 picture positions never change an emoji or source anchor',
+      () {
+    const source = 'A 🐉 dragon and 📖 book.';
+    final boundary = source.indexOf(' and');
+    final original = EpubVisualRun.fromSource(0, source.length, source, 4,
+        bold: true, auxiliaryFootnoteKey: 'footnote-1');
+    final flow = epubVisualFlow(EpubVisualBlock(
+      start: 0, end: source.length, chapterStart: false, heading: false,
+      firstSegmentIndex: 4,
+      runs: [original],
+      images: [picture(boundary, 'emoji-place')],
+    ));
+    expect(flattened(flow), [
+      'TXT:${source.substring(0, boundary)}',
+      'IMG:emoji-place',
+      'TXT:${source.substring(boundary)}',
+    ]);
+    expect(flow.expand((part) => part.runs)
+        .map((run) => run.text).join(), source);
+    expect(flow.expand((part) => part.runs)
+        .every((run) => run.auxiliaryFootnoteKey == 'footnote-1'), isTrue);
+    expect(original.text, source,
+        reason: 'The untouched source-backed run still exists for TTS');
+  });
+
   test('no image retains original runs without speech change', () {
     const block = EpubVisualBlock(
       start: 0, end: 5, chapterStart: false, heading: false,
