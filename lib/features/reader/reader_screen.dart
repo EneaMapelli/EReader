@@ -20,6 +20,7 @@ import '../../data/book_decoder.dart';
 import '../../data/pdf_text_navigation.dart';
 import 'pdf_page_navigation.dart';
 import '../../data/epub_reader_preflight.dart';
+import '../../data/epub_speech_note_filter.dart';
 import '../../data/epub_progress_recovery.dart';
 import '../../data/library_store.dart';
 import '../../domain/book.dart';
@@ -83,6 +84,8 @@ class _ReaderScreenState extends State<ReaderScreen>
   EpubReadingPalette _epubPalette = EpubReadingPalette.system;
   bool _pdfTextMode = false;
   bool _autoFollow = true;
+  bool _skipEpubNotes = false;
+  EpubSpeechNoteFilter? _epubSpeechNoteFilter;
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
@@ -194,6 +197,10 @@ class _ReaderScreenState extends State<ReaderScreen>
         hardBoundaries: preflight?.hardBoundaries ?? const [],
       );
       final chunks = prepared.segments;
+      final noteFilter = widget.book.format == BookFormat.epub
+          ? EpubSpeechNoteFilter(
+              document.text, document.epubSpokenNoteRanges)
+          : null;
       final chapters = widget.book.format == BookFormat.epub
           ? buildEpubChapters(document, chunks)
           : const <EpubChapter>[];
@@ -222,6 +229,10 @@ class _ReaderScreenState extends State<ReaderScreen>
         onSegmentStarted: recoveryBinding.onSegmentStarted,
       );
       provisionalPlayer = player;
+      // Source-only, local policy. The default is always to narrate notes,
+      // and a toggle affects subsequent speech without rebuilding/casting.
+      player.shouldSkipSegment = (segment) =>
+          _skipEpubNotes && (noteFilter?.contains(segment) ?? false);
       final latestBook = widget.store.getBook(widget.book.id) ?? widget.book;
       final initialAnchor = checkpointAtStart.progressAnchor;
       final newestAnchor = latestBook.progressAnchor;
@@ -336,6 +347,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         _player = player;
         _recoveryBinding = recoveryBinding;
         _document = document;
+        _epubSpeechNoteFilter = noteFilter;
         _chapters = chapters;
         _authorToc = document.epubNavigation;
         _linkHistory.clear();
@@ -1622,6 +1634,22 @@ class _ReaderScreenState extends State<ReaderScreen>
                   'Sleep timer: stops at ${TimeOfDay.fromDateTime(player.sleepTimerEndsAt!).format(context)}'
                   ' (continues while paused)',
                   style: Theme.of(context).textTheme.labelSmall,
+                ),
+              if (_epubSpeechNoteFilter?.hasNotes ?? false)
+                CheckboxListTile(
+                  key: const ValueKey('epub-skip-spoken-notes'),
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  title: const Text('Skip EPUB footnotes in narration'),
+                  subtitle: const Text(
+                    'Optional, off by default. Skips only fully contained '
+                    'verified note passages. Notes remain visible and '
+                    'searchable; mixed passages are spoken to avoid '
+                    'losing main text. Does not send skipped text to TTS.',
+                  ),
+                  value: _skipEpubNotes,
+                  onChanged: (value) =>
+                      setState(() => _skipEpubNotes = value ?? false),
                 ),
               if (player.engineProviderId ==
                   OpenAiSpeechEngine.providerId)
