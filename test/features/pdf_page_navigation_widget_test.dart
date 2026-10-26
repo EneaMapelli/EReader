@@ -72,6 +72,26 @@ void main() {
     expect(find.text('Go to PDF page'), findsNothing);
   });
 
+  testWidgets('PDF zoom buttons remain independent of page jumps',
+      (tester) async {
+    var zoomIn = 0;
+    var zoomOut = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: PdfPageNavigation(
+        pageNumber: 3,
+        pageCount: 7,
+        onPageRequested: (_) => fail('Zoom must not change PDF page'),
+        onZoomIn: () => zoomIn++,
+        onZoomOut: () => zoomOut++,
+      )),
+    ));
+    await tester.tap(find.byTooltip('Zoom in PDF'));
+    await tester.tap(find.byTooltip('Zoom out PDF'));
+    expect(zoomIn, 1);
+    expect(zoomOut, 1);
+    expect(find.text('3 / 7'), findsOneWidget);
+  });
+
   testWidgets('uninitialized PDF viewer disables all page controls',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
