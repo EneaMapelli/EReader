@@ -284,3 +284,18 @@ included as completed features by merely having been designed in the roadmap.
 - Added targeted source, PDF pages/UTF-16/quote and EOF recovery tests,
   NOT RUN; native Windows/Android QA still pending. M2 remains 70%;
   total M0–M6 ~55%. [Design and manual QA](READER_SOURCE_SYNC.md).
+
+### M2 — silent EPUB spines and trailing scanned PDF navigation (2026-10-26)
+
+- OPF spine directory now includes visual-only/whitespace/empty sections
+  instead of discarding them. Exact visual source offsets are kept distinct
+  from a next-audible TTS index; silent entries are explicitly labeled.
+- A silent trailing section, link or source-exact bookmark sets the speech
+  cursor to EOF rather than replaying the previous sentence. New serialized
+  `seekToSourceEnd` cancels stale auto-resuming seeks without synthesis.
+- Selecting a PDF image-only page still moves forward to real text where
+  available; when all following pages are textless, Read Aloud now refuses
+  clearly rather than narrating a previous page or using stale progress.
+- Added pure EPUB, PDF and mock native-player regression tests (not run).
+  Source/doc status remains uncompiled. M2 ~70%, overall ~55%.
+  [Design and manual QA](VISUAL_ONLY_SOURCE_NAVIGATION.md).
