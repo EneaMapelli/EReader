@@ -272,7 +272,10 @@ EpubVisualLayout buildProgressiveEpubVisualLayout(
   for (final table in document.epubTables) {
     if (table.start < 0 || table.end > source.length ||
         table.start >= table.end) continue;
-    final idx = nearestBlock(table.start);
+    // Associate preview with the block containing the LAST table
+    // source character so it follows the original table rather than
+    // appearing before its text in the first paragraph.
+    final idx = nearestBlock(table.end - 1);
     if (idx >= 0) tables.putIfAbsent(idx, () => []).add(table);
   }
   // O(log paragraphs), with no rich-block materialization.
