@@ -90,6 +90,10 @@ $assetsDirectory = Join-Path $release 'data\flutter_assets'
 if (-not (Test-Path -LiteralPath $assetsDirectory -PathType Container)) {
     throw 'Windows Release is incomplete: data\flutter_assets is missing.'
 }
+$runtimeDll = Join-Path $release 'flutter_windows.dll'
+if (-not (Test-Path -LiteralPath $runtimeDll -PathType Leaf)) {
+    throw 'Windows Release is incomplete: flutter_windows.dll is missing.'
+}
 
 $work = Join-Path $root '.local-windows-build'
 $releases = Join-Path $work 'releases'
