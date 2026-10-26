@@ -75,3 +75,10 @@ Il report locale `latest.json` include ora i valori booleani
 manifest OPF. Non include i nomi degli autori, il titolo effettivo,
 la lingua o il nome della serie. Un campo assente può dipendere dal
 file d'origine e non deve necessariamente essere considerato un errore.
+
+## Riconoscimento della copertina EPUB
+
+La suite registra anche `opfCoverDetected` (`true` o `false`) per
+ciascun EPUB, senza copiare né pubblicare l'immagine di copertina.
+L'assenza di una copertina dichiarata nel manifest non rende il libro
+illeggibile e non costituisce da sola un errore del decoder.

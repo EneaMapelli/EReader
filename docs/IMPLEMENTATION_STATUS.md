@@ -1447,3 +1447,21 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
 - The local real-book corpus report now records **booleans only** for
   recognized author/series/language/OPF title, not the metadata values.
   This increment does not yet include cover extraction or PDF metadata.
+
+## M1 — local EPUB2/EPUB3 cover thumbnails (2026-10-26)
+
+- Extended bounded OPF catalog parsing to select explicit EPUB3
+  `cover-image` properties or EPUB2 `meta name=cover` item IDs.
+  Only actual declared local PNG/JPEG ZIP entries are admitted; the
+  existing `isSafeEpubRaster` checks file-size, signature and dimensions.
+  External image URLs, random chapter illustrations and invalid files do
+  not become a book cover.
+- `LibraryStore.coverFile` accesses SHA-256 book-ID–named files in an
+  app-private `covers/` directory. Import/recovery cache bounded cover
+  bytes and removal deletes only the corresponding derived asset. Image
+  IO errors cannot prevent opening/importing readable EPUB text.
+- The library now renders 40x56 local book thumbnails with an icon/error
+  fallback, bounded decode width and no third-party image requests.
+- Added parser/cache/persistence/removal and widget tests; the local
+  `example/` report records only `opfCoverDetected` as a boolean.
+  All changes are source-authored and unverified with Flutter SDK.

@@ -17,7 +17,7 @@ dispositivi resta **parziale**.
 | Milestone | Copertura stimata | Concretamente presente | Non completo / condizione di uscita mancante |
 |---|---:|---|---|
 | **M0 — Fondazione e POC** | **60%** | Flutter/Dart modulari, SQLite con migrazioni fino a v17, parser e adattatori, bootstrap Windows/Android, runner e CI manuale | Progetti nativi generati fuori da Git; POC realmente passati su Windows e Android, ABI/minSDK/licenze, corpus EPUB/PDF e voci sherpa-onnx native |
-| **M1 — Reader MVP** | **80%** | Import EPUB/PDF/TXT e dedup, lettura, TOC, source anchors, progressi, segnalibri e ricerca, anteprime note, temi/layout, biblioteca con ricerca/ordinamento e editor di titolo/autore/serie/lingua | Test su 20 libri reali e due piattaforme, copertine, estrazione metadati automatica, CSS/CFI complessi, PDF multicolonna, drag&drop Windows e condivisione Android da verificare |
+| **M1 — Reader MVP** | **82%** | Import EPUB/PDF/TXT e dedup, lettura, TOC, source anchors, progressi, segnalibri e ricerca, anteprime note, temi/layout, biblioteca con ricerca/ordinamento e editor di titolo/autore/serie/lingua | Test su 20 libri reali e due piattaforme, copertine, estrazione metadati automatica, CSS/CFI complessi, PDF multicolonna, drag&drop Windows e condivisione Android da verificare |
 | **M2 — TTS gratuito e read-along** | **70%** | Sistema TTS, voci e rate/pitch per capacità, segmentazione, seek, posizione sorgente, sleep timer, media handler e policy Stop/recovery | Capitolo continuativo provato su dispositivi, audio focus/interruzioni/cuffie/lock screen e chiavi multimediali Windows reali; timing parola non promesso |
 | **M3 — Offline neurale + cloud** | **35%** | Cloud Speech transitorio con consenso/quote per libro, chiavi protette, cache/prefetch; prototipo sherpa VITS con job cancellabili, gestore modelli, import locale e benchmark opt-in | VITS non abilitato/qualificato con voce reale, catalogo firme/licenze, SAF cartella Android, OpenAI Realtime, secondo provider cloud, cost ceiling monetario per sessione/mese e fallback esplicito |
 | **M4 — Cast manuale** | **75%** | Identità/alias, segmentation dialoghi, editor, revisioni, speaker unknown, profili voce e mappatura persistente per fonte | Demo audio nativa con narratore + 3 personaggi, prosodia e misure su dialoghi reali |
@@ -124,3 +124,14 @@ chiudere prima il ciclo sui dispositivi reali.
 - La UI permette il backfill esplicito dei campi mancanti.
 - La copertina non è ancora estratta né mostrata in biblioteca;
   le percentuali restano stime qualitative senza nuovi test nativi.
+
+### Copertine EPUB nella biblioteca (2026-10-26)
+
+- Estrazione locale da manifest EPUB2/EPUB3 di immagini di copertina
+  esplicitamente dichiarate, PNG/JPEG con limiti su byte e pixel.
+- Copie derivate sotto application support, denominate con digest SHA-256;
+  visualizzazione thumbnail nella lista dei libri e fallback alle icone.
+  Cancellazione con il libro e recupero manuale da OPF.
+- Rimangono da implementare le anteprime PDF, il rilevamento di copertine
+  non dichiarate, cataloghi remoti/OPDS e l'audit visuale sui dispositivi.
+  Percentuale M1 aggiornata a 82%; media complessiva stimata ~55%.
