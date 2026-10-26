@@ -10,6 +10,8 @@ on:
     paths:
       - .github/workflows/windows-user-build.yml
       - tool/build-windows.ps1
+      - lib/audio/speech_engine.dart
+      - lib/audio/windows_speech_punctuation.dart
   workflow_dispatch:
 
 permissions:
