@@ -25,6 +25,7 @@ class DocumentContent {
     this.epubImages = const [],
     this.epubLinks = const [],
     this.epubTables = const [],
+    this.epubFigureCaptions = const [],
     this.epubNavigation = const [],
     this.epubFootnotePreviews = const [],
     this.epubSpokenNoteRanges = const [],
@@ -42,6 +43,7 @@ class DocumentContent {
   final List<EpubEmbeddedImage> epubImages;
   final List<EpubInternalLink> epubLinks;
   final List<EpubTablePreview> epubTables;
+  final List<EpubFigureCaption> epubFigureCaptions;
   final List<EpubNavigationEntry> epubNavigation;
   final List<EpubFootnotePreview> epubFootnotePreviews;
   /// Source-verified, in-spine EPUB notes; not excluded from visual reading.
@@ -185,6 +187,7 @@ DocumentContent documentFromExtractedEpub(EpubTextResult content) =>
       epubImages: content.images,
       epubLinks: content.links,
       epubTables: content.tables,
+      epubFigureCaptions: content.figureCaptions,
       epubNavigation: content.navigation,
       epubFootnotePreviews: content.footnotePreviews,
       epubSpokenNoteRanges: content.spokenNoteRanges,
