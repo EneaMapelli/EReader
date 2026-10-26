@@ -192,9 +192,17 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
               ? _selectedOfflineVoiceId!
               : _providerId == OpenAiSpeechEngine.providerId
                   ? _modelId : 'gpt-4o-mini-tts';
+      final offlineSelected = _providerId == SherpaVitsSpeechEngine.providerId
+          ? _offlineChoices.firstWhere(
+              (entry) => entry.id == modelForProvider).installed
+          : null;
       final selected = _current.copyWith(
         providerId: _providerId,
         modelId: modelForProvider,
+        // Local VITS requires the exact model locale and has no
+        // post-synthesis pitch support. Enforce these BEFORE persisting.
+        language: offlineSelected?.manifest.locale ?? _current.language,
+        pitch: offlineSelected == null ? _current.pitch : 1.0,
         clearVoice: _providerId != _current.providerId ||
             (_providerId == SherpaVitsSpeechEngine.providerId &&
                 _current.modelId != modelForProvider),
