@@ -95,6 +95,7 @@ void main() {
         SpeechSegment(7, 14, 'Second.'),
       ],
       onSegmentStarted: recovery.onSegmentStarted,
+      onSegmentCompleted: recovery.onSegmentCompleted,
     );
     recovery.attach(player);
     return player;
@@ -168,6 +169,103 @@ void main() {
     expect(badPlayer.isPlaying, isFalse);
     retry.dispose();
     badPlayer.dispose();
+    await restartStore();
+    expect(store.interruptedNarrationBook, isNull);
+  });
+
+  test('naturally completed clip persists next source anchor', () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final player = playerFor(engine, recovery);
+    final running = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(store.getBook(bookId)!.progressOffset, 0);
+    engine.finish();
+    // The second utterance is in progress: the first finished successfully,
+    // so an abrupt process exit must restore to the next segment.
+    for (var i = 0; i < 100 && engine.spoken.length < 2; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(engine.spoken, ['First.', 'Second.']);
+    expect(store.getBook(bookId)!.progressOffset, 7);
+    expect(store.getBook(bookId)!.progressAnchor?.localOffset, 7);
+    await player.pause();
+    await running;
+    recovery.dispose();
+    player.dispose();
+    await restartStore();
+    expect(store.getBook(bookId)!.progressOffset, 7);
+    expect(store.interruptedNarrationBook, isNull);
+  });
+
+  test('interruption midway through first clip never advances progress',
+      () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final player = playerFor(engine, recovery);
+    final running = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First.']);
+    expect(store.getBook(bookId)!.progressOffset, 0);
+    await player.pause();
+    await running;
+    expect(store.getBook(bookId)!.progressOffset, 0,
+        reason: 'Never skip a partially heard utterance');
+    recovery.dispose();
+    player.dispose();
+    await restartStore();
+    expect(store.getBook(bookId)!.progressOffset, 0);
+  });
+
+  test('completed passage jumps ahead of silent EPUB-like note chunks',
+      () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 6, 'First.'),
+        SpeechSegment(7, 14, 'Second.'),
+        SpeechSegment(15, 21, 'Third.'),
+      ],
+      onSegmentStarted: recovery.onSegmentStarted,
+      onSegmentCompleted: recovery.onSegmentCompleted,
+    );
+    player.shouldSkipSegment = (chunk) => chunk.start == 7;
+    recovery.attach(player);
+    final running = player.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.finish();
+    for (var i = 0; i < 100 && engine.spoken.length < 2; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(engine.spoken, ['First.', 'Third.']);
+    expect(store.getBook(bookId)!.progressOffset, 15);
+    expect(store.getBook(bookId)!.progressAnchor?.localOffset, 15);
+    await player.pause();
+    await running;
+    recovery.dispose();
+    player.dispose();
+  });
+
+  test('full completion saves the end position and clears crash marker',
+      () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final player = playerFor(engine, recovery);
+    final running = player.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.finish();
+    for (var i = 0; i < 100 && engine.spoken.length < 2; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(engine.spoken, ['First.', 'Second.']);
+    engine.finish();
+    await running;
+    expect(store.getBook(bookId)!.progressOffset, 14);
+    expect(player.isSettledIdle, isTrue);
+    recovery.dispose();
+    player.dispose();
     await restartStore();
     expect(store.interruptedNarrationBook, isNull);
   });
