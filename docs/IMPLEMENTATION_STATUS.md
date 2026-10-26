@@ -1503,3 +1503,13 @@ Source anchors, search, note previews, manual casting and persisted reader
 state are not edited. New synthetic parser/player/cloud tests are committed,
 but Flutter tests/analyzer and native Windows/Android playback remain UNRUN.
 See [EPUB_SPOKEN_NOTE_CONTROL.md](EPUB_SPOKEN_NOTE_CONTROL.md).
+
+### 2026-10-26 — M2 paragraph-aware narrator coalescing
+
+Optional EPUB-only narrator chunk coalescing joins consecutive, unlabelled
+prose fragments within the same verified paragraph and existing 400 UTF-16
+unit provider ceiling. Quote groups, cast/masks, chapter and verified note
+boundaries are respected; source content and reading anchors stay unchanged.
+Authored domain and fake-player regression tests, but native Flutter
+analyzer/tests and Windows/Android audio measurements were NOT EXECUTED.
+See [NARRATOR_PARAGRAPH_CONTINUITY.md](NARRATOR_PARAGRAPH_CONTINUITY.md).
