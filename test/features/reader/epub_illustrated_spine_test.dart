@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   const source = 'A narrated passage.';
-  const clips = [SpeechSegment(0, source.length, source)];
+  final clips = [SpeechSegment(0, source.length, source)];
 
   final png = base64Decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
@@ -23,7 +23,7 @@ void main() {
   DocumentContent sample() => DocumentContent(
     title: 'Illustrated EPUB',
     text: source,
-    epubSpineRanges: const [
+    epubSpineRanges: [
       EpubSpineRange(idref: 'cover-a', href: 'a.xhtml',
           start: 0, end: 0, title: 'First cover'),
       EpubSpineRange(idref: 'cover-b', href: 'b.xhtml',
