@@ -1375,3 +1375,21 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   Source and tests are published but still await an up-to-date Windows SDK
   run, licensed Italian/English model candidates, real listening, platform
   performance and stop/background tests. The sherpa provider stays hidden.
+
+## M1 — editable catalog metadata and library discovery (2026-10-26)
+
+- `BookRecord` now carries optional author, series and locale, serialized
+  to/from legacy JSON and retained when creating new reading-offset
+  records. Existing copies/anchors remain stable.
+- Added transactional, idempotent SQLite schema migration to **v17**
+  with nullable metadata fields. Added an explicit
+  `updateBookMetadata` method: length/locale/control character checks,
+  normalized optional blanks, and strict unknown-book handling.
+- The library now offers an editor for title/author/series/language and
+  searching/sorting by author/series. No downloaded metadata, album-cover
+  extraction, API call or narration provider change occurs. Deduplicating
+  a matching imported file preserves user-entered metadata and progress.
+- Added targeted SQLite persistence/reimport/validation and catalog search
+  tests; adjusted version-upgrade expectation. Not run on Windows yet.
+- See [ROADMAP_DETAILED_PROGRESS.md](ROADMAP_DETAILED_PROGRESS.md) for
+  all seven milestones, ER-001–016 and ER-017–034 status and gaps.

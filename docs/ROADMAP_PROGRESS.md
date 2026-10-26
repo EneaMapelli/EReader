@@ -1,20 +1,18 @@
 # EReader — Progress against approved 2026-10-22 roadmap
 
-**Reviewed:** 2026-10-26. **Implementation baseline:** commit
-`5fce63b2513685cfd576804083d0cff6fef004ff` on
-`feature/m0-flutter-foundation`.
+**Reviewed:** 2026-10-26. **Current branch:** `feature/m0-flutter-foundation` (PR #1 draft).
 
 These percentages are *engineering judgments*, not measured test pass rates.
 They describe feature/code coverage against the original milestone exit
 criteria, taking unresolved integration into account. Equal-weight average
-for M0–M6 is approximately **54%**; estimated practical release readiness is
+for M0–M6 is approximately **55%**; estimated practical release readiness is
 much lower (**roughly 25–35%**) because native and acceptance gates are open.
 No release or completed milestone is claimed.
 
 | Original milestone | Estimated implementation | Evidence already in repository | Key unmet exit criteria |
 |---|---:|---|---|
 | M0 Foundation and POCs | 60% | Flutter modules, SQLite migrations, EPUB/PDF/system TTS source, bootstrap scripts and test runner | Native `android/` and `windows/` generated projects are not tracked; sherpa-onnx, native platform POCs, licensing/ABI results |
-| M1 Reader MVP | 75% | SQLite book library and dedup, EPUB2/3 extraction and reading, PDF page view, TXT, anchors, headings/TOC, bookmarks, search, new library title search/sort/format controls | 20-book real corpus, Windows and Android renderer smoke tests, fuller CSS and accurate PDF reading order, author/series/cover metadata |
+| M1 Reader MVP | 78% | SQLite book library and dedup, EPUB2/3/PDF/TXT, anchors/TOC/bookmarks/search, user-editable title/author/series/language via SQLite v17 and catalog sort/filter | 20-book real corpus, Windows and Android smoke tests, EPUB OPF auto metadata/cover extraction, fuller CSS and PDF reading order |
 | M2 Free TTS and read-along | 70% | OS speech adapter, voice controls, text/audio checkpoints, source highlight and scrolling, segment navigation, sleep timer, media session source, interruption guards | Real Android lock-screen, phone-call/audio-focus and Windows key tests; guaranteed chapter-long playback and accurate engine timing |
 | M3 Offline neural and cloud | 35% | Secure cloud keys/consent/cache; guarded sherpa VITS worker and manifest-verified assets; local voice status/removal screen | No native ONNX voice qualification, guided model installer or authenticated catalog, no Realtime/second provider, live-cloud validation or monetary ceiling |
 | M4 Manual multivoice cast | 75% | Character identities, manual and locked cast spans, voice profiles, quote segmentation, no-speaker fallback, review/editor UI | 3+ character/native audio listening gate, richer segmentation and prosody, speaker performance verification |
@@ -112,3 +110,21 @@ included as completed features by merely having been designed in the roadmap.
 - Most recent executed Windows suite is still `7c89dfc8`: 641 passed,
   no assertion failures, 7 errors, plus 147 unformatted source files.
   Do not count the post-run search/EPUB/M3 changes as validated.
+
+### Progress note — catalog metadata (2026-10-26)
+
+- Completed an additional **M1 product feature**: manually editing
+  title, author, series and language in the library; searching and ordering
+  by author/series; preserving book hash identity, progress, cast, consent
+  and bookmarks through transactional SQLite migration **v17**.
+  Optional metadata survives dedup/reimport and restart. Locale is
+  intentionally library metadata and does **not** silently change the
+  user's configured speech provider or voice.
+- Updated M1 estimated feature coverage from 75% to **78%** and the
+  equal-weight M0–M6 estimate from ~54% to **~55%**. These are qualitative
+  judgments, NOT executed-native acceptance percentages.
+- Full point-by-point original plan and approved extensions:
+  [ROADMAP_DETAILED_PROGRESS.md](ROADMAP_DETAILED_PROGRESS.md).
+- No new Windows test result exists beyond `7c89dfc8`: 641 passes,
+  0 assertion failures, 7 error outcomes. The new SQLite migration,
+  metadata editor and search changes have not been locally compiled here.
