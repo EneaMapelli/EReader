@@ -200,9 +200,11 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
     final style = TextStyle(
       fontWeight: run.bold || run.headingLevel > 0
           ? FontWeight.w700 : null,
-      fontStyle: run.italic ? FontStyle.italic : null,
+      fontStyle: run.italic || run.figureCaption
+          ? FontStyle.italic : null,
       fontSize: run.headingLevel > 0 && !widget.block.heading
-          ? widget.fontSize + (7 - run.headingLevel).clamp(1, 6) : null,
+          ? widget.fontSize + (7 - run.headingLevel).clamp(1, 6)
+          : run.figureCaption ? widget.fontSize * 0.92 : null,
       backgroundColor: active ? palette.highlight(context) : null,
       color: active ? palette.highlightForeground(context)
           : linked ? Theme.of(context).colorScheme.primary : null,
