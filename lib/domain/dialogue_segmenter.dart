@@ -96,11 +96,12 @@ List<SpeechSegment> splitQuotedSegments(List<SpeechSegment> original) =>
       for (final part in splitQuotedSegmentsWithRegions(original)) part.segment,
     ]);
 
-/// Coalesce tiny TTS fragments WITHIN THE SAME quoted turn and voice only.
-/// This reduces synthesis hand-offs caused by sentence and chunk boundaries.
-/// Never crosses a quote/narrator boundary, an explicit speaker/unknown mask,
-/// a non-whitespace source gap, or the provider input character cap.
-/// Does not eliminate provider-imposed pauses or promise seamless audio.
+/// Coalesce tiny TTS fragments within one quoted turn and voice. When
+/// [coalesceNarration] is enabled, consecutive *unlabelled*, non-quoted
+/// narrator chunks can also join inside the same bounded paragraph.
+/// No merger may cross a chapter/paragraph, note, quotation, explicit
+/// attribution/mask or the provider input cap. Does not guarantee gapless
+/// audio or word-level read-along timing.
 PreparedCastSpeech coalesceQuotedSpeech({
   required String source,
   required List<SpeechSegment> chunks,
@@ -108,6 +109,7 @@ PreparedCastSpeech coalesceQuotedSpeech({
   required Map<int, String?> speakerByStart,
   int maxChars = 400,
   List<int> hardBoundaries = const [],
+  bool coalesceNarration = false,
 }) {
   if (maxChars < 16) throw ArgumentError.value(maxChars, 'maxChars');
   final merged = <SpeechSegment>[];
@@ -145,8 +147,13 @@ PreparedCastSpeech coalesceQuotedSpeech({
         lastSpeaker == speaker;
     final crossesSourceBoundary = previous != null &&
         _hasHardBoundary(sortedBoundaries, previous.start, chunk.end);
-    if (group != null && group == lastGroup && sameVoice && continuous &&
-        !crossesSourceBoundary &&
+    final quotedContinuation = group != null && group == lastGroup;
+    // An explicit narrator/unknown mask is a human-confirmed boundary,
+    // distinct from an unlabelled narrator passage. Do not smooth it away.
+    final plainNarratorContinuation = coalesceNarration &&
+        group == null && lastGroup == null && !hasLabel && !lastHadLabel;
+    if ((quotedContinuation || plainNarratorContinuation) &&
+        sameVoice && continuous && !crossesSourceBoundary &&
         chunk.end - previous.start <= maxChars) {
       final combined = SpeechSegment(
         previous.start,
