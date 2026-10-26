@@ -305,3 +305,25 @@ recorded as zero-length source ranges instead of being discarded, so the
 visual directory can actually display their OPF ordering. All-textless
 books still reject; no fake TTS text or rendered illustrations are claimed.
 Actual ZIP fixture tests added/updated but not executed.
+
+### M2 — illustrated zero-text EPUB spine blocks (2026-10-26)
+
+- EPUB ZIP extraction now preserves safe local raster image references
+  even when their containing XHTML contributes **zero spoken text**.
+  `EpubEmbeddedImage.spineIdref` retains exact OPF origin; remote images,
+  unsupported formats, malformed raster/dimensions and existing byte budgets
+  remain fail-closed.
+- Source-integrity auditing now correctly accepts valid leading, middle
+  and trailing zero-length XHTML spine entries while still rejecting
+  duplicate IDs, invalid Unicode positions, incorrect separators/holes,
+  overlaps and fully non-textual books.
+- Progressive EPUB rendering creates individual, lazy visual-only blocks
+  with title + independently associated PNG/JPEG or an explicit no-text
+  placeholder. Two covers sharing one UTF-16 offset no longer misplace
+  each other's images.
+- Exact OPF-idref scroll/selection/save/restore disambiguate source-empty
+  sections; trailing illustrated content preserves speech EOF rather than
+  replaying the preceding utterance.
+- ZIP-backed, structural and widget regressions authored, NOT RUN.
+  See [EPUB_ILLUSTRATED_SPINE.md](EPUB_ILLUSTRATED_SPINE.md).
+  Qualitative estimate M2 ~70%; total M0–M6 ~55%.
