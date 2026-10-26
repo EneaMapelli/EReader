@@ -1,0 +1,55 @@
+name: EReader Windows portable user build
+
+# Building is independent from the manual Flutter analyzer/test suite.
+# The initial push adding this workflow requests one unsigned user build.
+# Subsequent source commits do NOT automatically consume Windows runner time.
+on:
+  push:
+    branches:
+      - feature/m0-flutter-foundation
+    paths:
+      - .github/workflows/windows-user-build.yml
+      - tool/build-windows.ps1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ereader-windows-user-build
+  cancel-in-progress: false
+
+jobs:
+  portable-windows:
+    name: Windows x64 Release ZIP (no automated tests)
+    # Pin VS 2022. windows-latest currently ships VS 2026/MSVC 14.51,
+    # whose STL rejects <experimental/coroutine> in just_audio_windows.
+    # Keep the native audio plugin build compatible without patching
+    # code inside dependencies downloaded from Pub.
+    runs-on: windows-2022
+    timeout-minutes: 65
+    steps:
+      - name: Checkout current development branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/m0-flutter-foundation
+          persist-credentials: false
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - name: Generate and compile portable Windows Release
+        shell: pwsh
+        run: |
+          & ./tool/build-windows.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload full portable Windows ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: EReader-Windows-x64-portable
+          path: .local-windows-build/releases/EReader-Windows-x64-*.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

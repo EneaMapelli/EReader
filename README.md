@@ -84,6 +84,32 @@ Un push rifiutato da Git lascia i risultati locali per una pubblicazione
 sicura successiva. Per istruzioni e opzioni: [Windows test runner e
 report automatici](test-results/README.md).
 
+## Test utente Windows — versione EXE portatile
+
+Per provare l'app senza installare Flutter sul PC di test:
+
+1. Apri [Windows portable build](https://github.com/EneaMapelli/EReader/actions/workflows/windows-user-build.yml) e scegli l'ultima esecuzione **riuscita** sul branch `feature/m0-flutter-foundation`.
+2. Scarica l'artefatto `EReader-Windows-x64-portable` (visibile nella sezione **Artifacts** della run con accesso al repo privato).
+3. Estrai lo ZIP scaricato da GitHub; al suo interno trovi un secondo ZIP `EReader-Windows-x64-<commit>.zip`. Estrai **anche quello**: contiene `ereader.exe`, le DLL e `data/`. Avvia `ereader.exe` mantenendo tutti i file nella stessa cartella.
+4. Verifica il commit compilato in `BUILD_INFO.txt` e segui la [checklist manuale Windows](docs/WINDOWS_USER_TEST_CHECKLIST.md).
+
+La build è **unsigned**, senza installer e non ancora validata in uso reale.
+Il job genera una Release Windows **senza eseguire i test automatici**,
+separatamente dal precedente workflow manuale di verifica. L'artefatto
+GitHub scade dopo 14 giorni.
+
+Per generare la stessa Release sul proprio PC Windows (Flutter + Visual
+Studio C++ richiesti):
+
+```powershell
+git switch feature/m0-flutter-foundation
+git pull --ff-only origin feature/m0-flutter-foundation
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tool\build-windows.ps1
+```
+
+Lo ZIP locale si trova in `.local-windows-build/releases/` (ignorata da Git).
+[Guida completa all'eseguibile Windows](docs/WINDOWS_USER_TEST_BUILD.md).
+
 ## Avvio su Windows
 
 Prerequisiti: Flutter **3.47.7** con Dart **3.13.5** (versione CI di riferimento), Android SDK per Android, Visual Studio con carico di lavoro **Desktop development with C++** per Windows, Developer Mode Windows per i plugin che creano symlink.

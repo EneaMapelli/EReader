@@ -1316,7 +1316,9 @@ class _ReaderScreenState extends State<ReaderScreen>
     WidgetsBinding.instance.removeObserver(this);
     _saveVisualPositionTimer?.cancel();
     _flushPdfPagePosition();
-    _pdfController.dispose();
+    // pdfrx 2.4.8 PdfViewerController has no dispose() API; the PdfViewer
+    // widget releases its native renderer when unmounted. Do not call an
+    // unavailable controller method during book/screen shutdown.
     _itemPositionsListener.itemPositions.removeListener(_onVisiblePositions);
     final player = _player;
     if (player != null) {

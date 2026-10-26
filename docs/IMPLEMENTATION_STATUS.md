@@ -1625,3 +1625,25 @@ than being appended after the paragraph. Original table text remains
 spoken once; complex HTML/CSS table reconstruction is unsupported.
 New ZIP/import, pure and widget regressions authored but NOT RUN.
 See [EPUB_FIGURE_CAPTION_TABLE_FLOW.md](EPUB_FIGURE_CAPTION_TABLE_FLOW.md).
+
+### 2026-10-26 — first Windows portable release packaging, not yet accepted
+
+A dedicated `flutter build windows --release` PowerShell pipeline now
+bundles the complete Windows x64 native runner into a local portable ZIP,
+with explicit executable/Flutter asset checks, unsigned-build warning,
+commit provenance and test instructions. A standalone Windows GitHub
+workflow creates a 14-day downloadable artifact independently from the
+manual verify/test workflow. The first run exposed and motivated a
+PowerShell syntax fix before native compilation; second run initiated.
+Do NOT infer compiled binary, launch success or release readiness until
+a successful job and manual Windows smoke tests. See
+[WINDOWS_USER_TEST_BUILD.md](WINDOWS_USER_TEST_BUILD.md) and
+[WINDOWS_USER_TEST_CHECKLIST.md](WINDOWS_USER_TEST_CHECKLIST.md).
+
+- **First successful native Windows x64 Release bundle:** GitHub Actions
+  run 40382035244, source `c1f783ca`, passed compilation and uploaded
+  `EReader-Windows-x64-portable`. The downloadable inner ZIP passed
+  integrity checks and contains the EXE, Flutter runtime/data and native
+  DLLs. Previous compile blockers addressed. No automated tests or
+  human/device launch testing were executed; release remains **unsigned
+  and user-test-only**, not a production installer.
