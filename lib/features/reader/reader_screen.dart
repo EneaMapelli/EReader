@@ -297,7 +297,15 @@ class _ReaderScreenState extends State<ReaderScreen>
         final pageOffset = pdfTextOffsetForVisualPage(
           document.pdfPageRanges, requestedPdfPage,
         );
-        if (pageOffset != null) saved = pageOffset;
+        if (pageOffset == null) {
+          // Do not fall back to an unrelated old book checkpoint, which
+          // would speak text from an earlier physical PDF page.
+          throw FormatException(
+            'No selectable PDF text on or after page $requestedPdfPage. '
+            'Return to PDF pages or select an earlier readable page.',
+          );
+        }
+        saved = pageOffset;
       }
       // A restored checkpoint may be *after* the final utterance.
       // Preserve completed-book state on reopen rather than replaying the
