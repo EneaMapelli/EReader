@@ -1639,3 +1639,11 @@ Do NOT infer compiled binary, launch success or release readiness until
 a successful job and manual Windows smoke tests. See
 [WINDOWS_USER_TEST_BUILD.md](WINDOWS_USER_TEST_BUILD.md) and
 [WINDOWS_USER_TEST_CHECKLIST.md](WINDOWS_USER_TEST_CHECKLIST.md).
+
+- **First successful native Windows x64 Release bundle:** GitHub Actions
+  run 40382035244, source `c1f783ca`, passed compilation and uploaded
+  `EReader-Windows-x64-portable`. The downloadable inner ZIP passed
+  integrity checks and contains the EXE, Flutter runtime/data and native
+  DLLs. Previous compile blockers addressed. No automated tests or
+  human/device launch testing were executed; release remains **unsigned
+  and user-test-only**, not a production installer.
