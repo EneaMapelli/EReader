@@ -28,6 +28,55 @@ void main() {
     expect(source.substring(2, 4), '📖');
   });
 
+  test('leading, middle and trailing empty OPF items are navigation-only',
+      () {
+    verify(
+      source: 'One\n\nTwo',
+      spine: const [
+        (id: 'cover', start: 0, end: 0),
+        (id: 'a', start: 0, end: 3),
+        (id: 'middle', start: 3, end: 3),
+        (id: 'another-image', start: 3, end: 3),
+        (id: 'b', start: 5, end: 8),
+        (id: 'appendix', start: 8, end: 8),
+      ],
+      links: const [(start: 1, end: 2, target: 5)],
+      nav: const [0, 5],
+    );
+  });
+
+  test('silent OPF positions cannot hide holes or corrupt separators', () {
+    const source = 'One\n\nTwo';
+    for (final invalid in [
+      const [
+        (id: 'a', start: 0, end: 3),
+        (id: 'silent', start: 4, end: 4),
+        (id: 'b', start: 5, end: 8),
+      ],
+      const [
+        (id: 'a', start: 0, end: 3),
+        (id: 'silent', start: 3, end: 3),
+        (id: 'b', start: 6, end: 8),
+      ],
+      const [
+        (id: 'a', start: 0, end: 3),
+        (id: 'b', start: 5, end: 8),
+        (id: 'silent', start: 7, end: 7),
+      ],
+      const [
+        (id: 'a', start: 0, end: 3),
+        (id: 'a', start: 3, end: 3),
+        (id: 'b', start: 5, end: 8),
+      ],
+    ]) {
+      expect(() => verify(source: source, spine: invalid),
+          throwsFormatException);
+    }
+    expect(() => verify(
+      source: 'One', spine: const [(id: 'only', start: 0, end: 0)]),
+      throwsFormatException);
+  });
+
   test('duplicate spine IDs cannot be used for stable saved anchors', () {
     expect(() => verify(
       source: 'One\n\nTwo',
