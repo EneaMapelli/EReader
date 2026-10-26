@@ -1347,3 +1347,31 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   **All are authored, not yet compiled or run in Windows/Android Flutter.**
   No actual model, voice license, ONNX inference, remote provider or
   playable neural voice is bundled or newly activated.
+
+## M3 — measurable local neural qualification harness (2026-10-26)
+
+- Added `lib/audio/offline_wave_metrics.dart`: a bounded, streaming WAV
+  RIFF/PCM inspector that returns numeric duration, frames, sample rate,
+  channels and file size. Six tests cover valid mono/stereo and optional
+  metadata, malformed headers, non-PCM, truncation and size/duration caps.
+- Added opt-in Dart CLI `tool/qualify_offline_voice.dart` and Windows
+  `tool/run-offline-voice-qualification.ps1`. It verifies a previously
+  installed VITS pack, or an approved source folder in a private temporary
+  model installation, then performs two actual short VITS inference jobs
+  against fixed Italian or English sample phrases. No model is bundled.
+- Captured numeric synthesis wall latency, synthesized audio duration,
+  real-time factor and whole-process RSS snapshot (not peak).
+  The optional `-ExerciseStop` checks stop settlement; `-RetainWav`
+  retains only fixed sample-phrase WAVs inside gitignored local storage.
+- Default output is local only; `-PublishSummary` explicitly stages and
+  pushes a tightly whitelisted numeric JSON report on the same branch.
+  Native error stacks, source/model paths, generated audio, book contents,
+  credentials and model binaries are not included.
+- Added source-level gating tests for explicit user opt-in, local model
+  validation and whitelisted publication, plus a dedicated usage and
+  acceptance-gate guide at
+  [OFFLINE_TTS_QUALIFICATION.md](OFFLINE_TTS_QUALIFICATION.md).
+- **No native CLI or model has actually run in this editing session.**
+  Source and tests are published but still await an up-to-date Windows SDK
+  run, licensed Italian/English model candidates, real listening, platform
+  performance and stop/background tests. The sherpa provider stays hidden.

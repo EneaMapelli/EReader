@@ -41,6 +41,27 @@ void main() {
     expect(filterAndSortLibraryBooks(books, query: '  ').length, 4);
   });
 
+  test('author and series are searchable and can be sorted', () {
+    final withDetails = <BookRecord>[
+      BookRecord(id: 'one', title: 'Hidden', localPath: '/one',
+        format: BookFormat.epub, importedAt: DateTime.utc(2026, 10, 1),
+        author: 'Zora Author', series: 'Amber Trilogy'),
+      BookRecord(id: 'two', title: 'Secret', localPath: '/two',
+        format: BookFormat.txt, importedAt: DateTime.utc(2026, 10, 2),
+        author: 'Ada Writer', series: 'Zephyr Series'),
+    ];
+    expect(filterAndSortLibraryBooks(withDetails, query: 'ZORA')
+        .map((book) => book.id), ['one']);
+    expect(filterAndSortLibraryBooks(withDetails, query: 'zephyr')
+        .map((book) => book.id), ['two']);
+    expect(filterAndSortLibraryBooks(withDetails,
+        sort: LibrarySortOrder.authorAscending).map((book) => book.id),
+        ['two', 'one']);
+    expect(filterAndSortLibraryBooks(withDetails,
+        sort: LibrarySortOrder.seriesAscending).map((book) => book.id),
+        ['one', 'two']);
+  });
+
   test('format ordering and saved progress remain stable', () {
     final result = filterAndSortLibraryBooks(books,
         sort: LibrarySortOrder.format);

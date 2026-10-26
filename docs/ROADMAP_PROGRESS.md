@@ -96,3 +96,19 @@ included as completed features by merely having been designed in the roadmap.
   and 7 errors at older source `7c89dfc8`; the new import UI and tests
   have not been run. The 147 previously unformatted files remain a
   separate unresolved check until the formatter utility is executed.
+
+### Progress note — model qualification instrumentation (2026-10-26)
+
+- A new opt-in local neural benchmark now measures actual VITS-produced
+  WAV properties, inference wall time, real-time factor and RSS snapshots,
+  with two preset phrases per locale and a separate optional Stop probe.
+  It accepts either installed verified packs or a source folder that is
+  hash-checked into private temporary storage. It can optionally upload a
+  whitelisted numeric result; no native result currently exists.
+- See [OFFLINE_TTS_QUALIFICATION.md](OFFLINE_TTS_QUALIFICATION.md)
+  for Windows commands, limitations and mandatory native acceptance gates.
+  **M3 remains 35% estimated** rather than increasing based only on a
+  benchmark that has not run; overall M0–M6 remains ~54% feature coverage.
+- Most recent executed Windows suite is still `7c89dfc8`: 641 passed,
+  no assertion failures, 7 errors, plus 147 unformatted source files.
+  Do not count the post-run search/EPUB/M3 changes as validated.

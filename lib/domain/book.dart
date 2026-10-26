@@ -21,6 +21,9 @@ class BookRecord {
     required this.localPath,
     required this.format,
     required this.importedAt,
+    this.author,
+    this.series,
+    this.language,
     this.progressOffset = 0,
     this.progressAnchor,
   });
@@ -30,6 +33,10 @@ class BookRecord {
   final String localPath;
   final BookFormat format;
   final DateTime importedAt;
+  /// User-editable catalog details, independent of immutable file identity.
+  final String? author;
+  final String? series;
+  final String? language;
   /// Fallback for older libraries; authoritative when no source anchor exists.
   final int progressOffset;
   final ReadingAnchor? progressAnchor;
@@ -40,6 +47,9 @@ class BookRecord {
         localPath: localPath,
         format: format,
         importedAt: importedAt,
+        author: author,
+        series: series,
+        language: language,
         progressOffset: offset,
         progressAnchor: anchor,
       );
@@ -50,6 +60,9 @@ class BookRecord {
         'localPath': localPath,
         'format': format.name,
         'importedAt': importedAt.toIso8601String(),
+        if (author != null) 'author': author!,
+        if (series != null) 'series': series!,
+        if (language != null) 'language': language!,
         'progressOffset': progressOffset,
         if (progressAnchor != null) 'progressAnchor': progressAnchor!.toJson(),
       };
@@ -61,6 +74,9 @@ class BookRecord {
       localPath: json['localPath'] as String,
       format: BookFormat.values.byName(json['format'] as String),
       importedAt: DateTime.parse(json['importedAt'] as String),
+      author: json['author'] as String?,
+      series: json['series'] as String?,
+      language: json['language'] as String?,
       progressOffset: json['progressOffset'] as int? ?? 0,
       progressAnchor: json['progressAnchor'] is Map
           ? ReadingAnchor.fromJson(

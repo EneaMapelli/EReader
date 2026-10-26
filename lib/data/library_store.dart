@@ -49,7 +49,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 16) {
+      if (version > 17) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -390,6 +390,17 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           db.execute('PRAGMA user_version = 16');
         });
       }
+      // Optional fields are independent of the immutable source hash.
+      if (version < 17) {
+        _transaction(db, () {
+          for (final column in ['author', 'series', 'language']) {
+            if (!_hasSqliteColumn(db, 'books', column)) {
+              db.execute('ALTER TABLE books ADD COLUMN $column TEXT');
+            }
+          }
+          db.execute('PRAGMA user_version = 17');
+        });
+      }
       await _migrateLegacyJson(db, support);
       // A marker is stale only on a new process startup. Consume exactly
       // once; reopening a book must NEVER cause the app to auto-synthesize.
@@ -442,6 +453,51 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       .select('SELECT * FROM books ORDER BY imported_at DESC, title COLLATE NOCASE')
       .map(_fromRow)
       .toList();
+
+  /// User catalog edits do not rewrite a book's identity, source, progress,
+  /// bookmarks, speaker cast or narration consent.
+  BookRecord updateBookMetadata(
+    String bookId, {
+    required String title,
+    String? author,
+    String? series,
+    String? language,
+  }) {
+    String normalize(String value, String field, {bool required = false}) {
+      final clean = value.trim();
+      if ((required && clean.isEmpty) ||
+          clean.length > 160 ||
+          clean.runes.any((unit) => unit < 32 || unit == 127)) {
+        throw FormatException('Invalid $field metadata');
+      }
+      return clean;
+    }
+    final cleanTitle = normalize(title, 'title', required: true);
+    final cleanAuthor = normalize(author ?? '', 'author');
+    final cleanSeries = normalize(series ?? '', 'series');
+    final cleanLanguage = (language ?? '').trim();
+    if (cleanLanguage.isNotEmpty &&
+        !RegExp(r'^[a-zA-Z]{2,8}([-_][a-zA-Z0-9]{2,8})?$')
+            .hasMatch(cleanLanguage)) {
+      throw const FormatException('Use a locale such as it-IT or en-US');
+    }
+    _transaction(_database, () {
+      _database.execute('''
+        UPDATE books SET title = ?, author = ?, series = ?, language = ?
+        WHERE id = ?
+      ''', [
+        cleanTitle,
+        cleanAuthor.isEmpty ? null : cleanAuthor,
+        cleanSeries.isEmpty ? null : cleanSeries,
+        cleanLanguage.isEmpty ? null : cleanLanguage.replaceAll('_', '-'),
+        bookId,
+      ]);
+      if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
+        throw StateError('Cannot edit an unknown book');
+      }
+    });
+    return getBook(bookId)!;
+  }
 
   BookRecord? getBook(String id) {
     final rows = _database.select('SELECT * FROM books WHERE id = ?', [id]);
@@ -1989,6 +2045,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         localPath: row['local_path'] as String,
         format: BookFormat.values.byName(row['format'] as String),
         importedAt: DateTime.parse(row['imported_at'] as String),
+        author: row['author'] as String?,
+        series: row['series'] as String?,
+        language: row['language'] as String?,
         progressOffset: row['progress_offset'] as int,
         progressAnchor: row['progress_anchor'] is String
             ? ReadingAnchor.fromJson(
@@ -2003,8 +2062,8 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     db.execute('''
       $verb INTO books (
         id, title, local_path, format, imported_at, progress_offset,
-        progress_anchor
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        progress_anchor, author, series, language
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       record.id,
       record.title,
@@ -2015,6 +2074,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       record.progressAnchor == null
           ? null
           : jsonEncode(record.progressAnchor!.toJson()),
+      record.author,
+      record.series,
+      record.language,
     ]);
   }
 

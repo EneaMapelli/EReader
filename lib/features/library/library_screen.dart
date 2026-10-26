@@ -93,6 +93,103 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
+  Future<void> _editMetadata(BookRecord book) async {
+    if (_busy) return;
+    final title = TextEditingController(text: book.title);
+    final author = TextEditingController(text: book.author ?? '');
+    final series = TextEditingController(text: book.series ?? '');
+    final language = TextEditingController(text: book.language ?? '');
+    Map<String, String>? entered;
+    try {
+      entered = await showDialog<Map<String, String>>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Edit book details'),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 440,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    key: const ValueKey('book-edit-title'),
+                    controller: title,
+                    maxLength: 160,
+                    decoration: const InputDecoration(labelText: 'Title'),
+                  ),
+                  TextField(
+                    key: const ValueKey('book-edit-author'),
+                    controller: author,
+                    maxLength: 160,
+                    decoration: const InputDecoration(labelText: 'Author'),
+                  ),
+                  TextField(
+                    key: const ValueKey('book-edit-series'),
+                    controller: series,
+                    maxLength: 160,
+                    decoration: const InputDecoration(labelText: 'Series'),
+                  ),
+                  TextField(
+                    key: const ValueKey('book-edit-language'),
+                    controller: language,
+                    maxLength: 24,
+                    decoration: const InputDecoration(
+                      labelText: 'Language (e.g. it-IT)',
+                      helperText: 'Library metadata; TTS voice is configured separately.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog, {
+                'title': title.text,
+                'author': author.text,
+                'series': series.text,
+                'language': language.text,
+              }),
+              child: const Text('Save details'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      title.dispose();
+      author.dispose();
+      series.dispose();
+      language.dispose();
+    }
+    if (entered == null || !mounted) return;
+    try {
+      widget.store.updateBookMetadata(
+        book.id,
+        title: entered['title'] ?? '',
+        author: entered['author'],
+        series: entered['series'],
+        language: entered['language'],
+      );
+      setState(() {});
+    } on FormatException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)),
+        );
+      }
+    } on StateError {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Book is no longer in the library.')),
+        );
+      }
+    }
+  }
+
   Future<void> _remove(BookRecord book) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -236,6 +333,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               value: LibrarySortOrder.titleDescending,
                               child: Text('Title Z–A')),
                             DropdownMenuItem(
+                              value: LibrarySortOrder.authorAscending,
+                              child: Text('Author A–Z')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.seriesAscending,
+                              child: Text('Series A–Z')),
+                            DropdownMenuItem(
                               value: LibrarySortOrder.format,
                               child: Text('File format')),
                           ],
@@ -294,14 +397,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         ),
                         title: Text(book.title),
                         subtitle: Text(
-                          '${book.format.name.toUpperCase()} · '
-                          'saved at character ${book.progressOffset}',
+                          [
+                            if (book.author != null) book.author!,
+                            if (book.series != null) book.series!,
+                            if (book.language != null) book.language!,
+                            book.format.name.toUpperCase(),
+                            'saved at character ${book.progressOffset}',
+                          ].join(' · '),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         onTap: () => _open(book),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          tooltip: 'Remove book',
-                          onPressed: () => _remove(book),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined),
+                              tooltip: 'Edit book details',
+                              onPressed: () => _editMetadata(book),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              tooltip: 'Remove book',
+                              onPressed: () => _remove(book),
+                            ),
+                          ],
                         ),
                       );
                     },
