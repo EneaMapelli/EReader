@@ -33,12 +33,26 @@ if ($LASTEXITCODE -ne 0 -or $changesAtStart.Count -gt 0) {
 }
 
 $dartCommand = Get-Command dart -ErrorAction SilentlyContinue
-$dart = if ($dartCommand) { $dartCommand.Source } else {
-  'C:\Users\eneam\AppData\Local\Temp\flutter\bin\dart.bat'
+$dart = if ($dartCommand) { $dartCommand.Source } else { $null }
+if (-not $dart) {
+  $candidates = @()
+  if ($env:FLUTTER_ROOT) {
+    $candidates += (Join-Path $env:FLUTTER_ROOT 'bin\dart.bat')
+  }
+  if ($env:TEMP) {
+    $candidates += (Join-Path $env:TEMP 'flutter\bin\dart.bat')
+  }
+  $flutterCommand = Get-Command flutter -ErrorAction SilentlyContinue
+  if ($flutterCommand) {
+    $candidates += (Join-Path
+        (Split-Path $flutterCommand.Source -Parent) 'dart.bat')
+  }
+  $dart = @($candidates | Where-Object {
+    Test-Path -LiteralPath $_ -PathType Leaf
+  } | Select-Object -First 1) | Select-Object -First 1
 }
-if (-not (Test-Path -LiteralPath $dart) -and
-    -not (Get-Command $dart -ErrorAction SilentlyContinue)) {
-  throw 'Dart executable not found. Run bootstrap before formatting.'
+if (-not $dart) {
+  throw 'Dart not found: add Flutter bin to PATH or set FLUTTER_ROOT.'
 }
 Write-Host 'Formatting tracked Dart code in lib/ and test/...' -ForegroundColor Cyan
 & $dart format lib test
