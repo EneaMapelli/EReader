@@ -94,6 +94,19 @@ int speechSegmentIndexForOffset(List<SpeechSegment> segments, int offset) {
   return low < segments.length ? low : segments.length - 1;
 }
 
+/// Restore a saved spoken cursor, keeping an already completed book
+/// completed. Unlike an explicit bookmark/TOC jump, a checkpoint at or
+/// beyond the last utterance must NOT replay the final clip on opening.
+///
+/// A paragraph gap between chunks resolves to the next audible chunk;
+/// a source offset inside an utterance restarts only that utterance.
+/// Empty or whitespace-only documents have no playable cursor.
+int speechResumeIndexForOffset(List<SpeechSegment> segments, int offset) {
+  if (segments.isEmpty) return -1;
+  if (offset >= segments.last.end) return segments.length;
+  return speechSegmentIndexForOffset(segments, offset);
+}
+
 /// Chapters are ordered by OPF spine source start. A binary lookup
 /// avoids rescanning thousands of navigation items during audio follow.
 int chapterIndexForOffset(List<EpubChapter> chapters, int offset) {
