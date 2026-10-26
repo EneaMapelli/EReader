@@ -252,3 +252,19 @@ included as completed features by merely having been designed in the roadmap.
 - No measured native playback-latency gain is claimed. M2 remains 70%;
   overall roadmap estimate remains ~55%. See
   [MP3_NATIVE_STOP_DEDUP.md](MP3_NATIVE_STOP_DEDUP.md).
+
+### M2 — Android focus interruption + completed-segment checkpoint (2026-10-26)
+
+- Android MediaSession now coalesces repeated audio interruption/noisy events:
+  one in-flight native Stop, never an automatic cloud/OS TTS restart. Even
+  duplicate interruptions cancel newly pending remote Play commands.
+- An already settled-idle player skips gratuitous native Stop on Pausa,
+  while still invalidating pending focus/Play and releasing Android focus.
+  Native Stop during seek, voice switch and active speech remains mandatory.
+- New optional ReaderPlayer completion callback advances the SQLite source
+  position to the **next audible segment** only after the current clip
+  finished. Interrupting a clip keeps its start offset; verified skipped
+  EPUB notes are passed over for the next saved position.
+- Mock focus/Stop race and real SQLite recovery integration tests authored,
+  NOT RUN. M2 estimate 70%, total ~55%; see
+  [AUDIO_INTERRUPTION_CHECKPOINTS.md](AUDIO_INTERRUPTION_CHECKPOINTS.md).
