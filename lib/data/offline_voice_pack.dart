@@ -470,3 +470,55 @@ Future<List<OfflineVoicePackInspection>> inspectOfflineVoicePacks({
   entries.sort((a, b) => a.id.compareTo(b.id));
   return List<OfflineVoicePackInspection>.unmodifiable(entries);
 }
+
+
+/// Remove exactly one private offline voice pack, never a caller-supplied
+/// arbitrary path. Does not contact cloud providers or modify book records.
+///
+/// Returns false for an already-absent pack. A non-directory pack or an
+/// unexpected symlink inside it is rejected rather than traversed. An
+/// application cannot safely remove an active native ONNX model on all
+/// platforms, so the model-manager UI keeps this experimental TTS provider
+/// disabled and requires explicit confirmation before calling this method.
+Future<bool> removeInstalledOfflineVoicePack({
+  required String packId,
+  required Directory modelsDirectory,
+}) async {
+  if (!RegExp(r'^[a-z0-9][a-z0-9_-]{1,63}$').hasMatch(packId)) {
+    throw const FormatException('Invalid offline voice ID');
+  }
+  final path = p.join(modelsDirectory.path, packId);
+  final type = await FileSystemEntity.type(path, followLinks: false);
+  if (type == FileSystemEntityType.notFound) return false;
+  if (type != FileSystemEntityType.directory) {
+    throw const FormatException('Offline voice is not a directory');
+  }
+  final folder = Directory(path);
+  // Never traverse unexpected links in an untrusted/corrupt model folder.
+  await for (final entry in folder.list(
+      recursive: true, followLinks: false)) {
+    if (await FileSystemEntity.type(entry.path, followLinks: false) ==
+        FileSystemEntityType.link) {
+      throw const FormatException('Offline voice contains an unsafe link');
+    }
+  }
+  // Moving inside the same app-private volume prevents a new inspection
+  // from selecting this pack while its files are being removed.
+  final holding = await modelsDirectory.createTemp('.removing-');
+  try {
+    await folder.rename(p.join(holding.path, packId));
+    await holding.delete(recursive: true);
+    return true;
+  } finally {
+    if (await holding.exists()) {
+      // A failed deletion still remains isolated under an ignored private
+      // staging name; do not expose it as an installed model on next scan.
+      try {
+        await holding.delete(recursive: true);
+      } on FileSystemException {
+        // A Windows decoder can hold model handles briefly; the operation
+        // fails instead of silently removing an unrelated directory.
+      }
+    }
+  }
+}
