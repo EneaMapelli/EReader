@@ -70,8 +70,8 @@ class PdfPageNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final count = pageCount;
-    final ready = count != null && count > 0;
+    final count = pageCount ?? 0;
+    final ready = count > 0;
     final current = ready ? pageNumber.clamp(1, count).toInt() : pageNumber;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
