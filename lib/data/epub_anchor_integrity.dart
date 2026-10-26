@@ -14,25 +14,38 @@ void verifyEpubSourceIntegrity({
     throw const FormatException('Empty EPUB source or spine');
   }
   final ids = <String>{};
-  var expectedStart = 0;
+  var lastSpokenEnd = 0;
+  var hasSpoken = false;
   for (final entry in spine) {
+    // A zero-length OPF XHTML resource is a valid navigation-only item.
+    // Its source coordinate is the end of the preceding spoken item (or
+    // zero before the first one). It may NOT steal bytes from a neighbor.
     if (entry.id.isEmpty || !ids.add(entry.id) ||
-        entry.start != expectedStart ||
-        entry.end <= entry.start || entry.end > text.length ||
+        entry.start < 0 || entry.end < entry.start ||
+        entry.end > text.length ||
         _splitsSurrogate(text, entry.start) ||
         _splitsSurrogate(text, entry.end)) {
       throw const FormatException('EPUB spine source anchor integrity failure');
     }
-    expectedStart = entry.end;
-    if (expectedStart < text.length) {
-      if (expectedStart + 2 > text.length ||
-          text.substring(expectedStart, expectedStart + 2) != '\n\n') {
-        throw const FormatException('Unexpected EPUB spine separator');
+    if (entry.start == entry.end) {
+      if (entry.start != lastSpokenEnd) {
+        throw const FormatException('Invalid silent EPUB spine position');
       }
-      expectedStart += 2;
+      continue;
     }
+    if (!hasSpoken) {
+      if (entry.start != 0) {
+        throw const FormatException('EPUB text starts outside first spine');
+      }
+    } else if (entry.start != lastSpokenEnd + 2 ||
+        entry.start > text.length ||
+        text.substring(lastSpokenEnd, entry.start) != '\n\n') {
+      throw const FormatException('Unexpected EPUB spine separator');
+    }
+    lastSpokenEnd = entry.end;
+    hasSpoken = true;
   }
-  if (expectedStart != text.length) {
+  if (!hasSpoken || lastSpokenEnd != text.length) {
     throw const FormatException('EPUB source not covered by spine');
   }
 
