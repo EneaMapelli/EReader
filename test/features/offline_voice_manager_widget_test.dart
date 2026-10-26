@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -50,6 +51,74 @@ void main() {
     });
     await tester.pumpAndSettle();
   }
+
+
+  Future<void> putVoiceManifest() async {
+    await File(p.join(source.path, 'voice-pack.json'))
+        .writeAsString(jsonEncode(manifest.toJson()));
+  }
+
+  Future<void> mountWithPicker(
+      WidgetTester tester, Future<String?> Function() picker) async {
+    await tester.pumpWidget(MaterialApp(
+      home: OfflineVoiceManagerScreen(
+        modelsDirectory: () async => models,
+        pickSourceDirectory: picker,
+      ),
+    ));
+    await letIoSettle(tester);
+  }
+
+  testWidgets('folder import needs explicit review before local copy',
+      (tester) async {
+    await putVoiceManifest();
+    await mountWithPicker(tester, () async => source.path);
+    await tester.tap(find.text('Import local voice folder'));
+    await letIoSettle(tester);
+    expect(find.text('Local test voice'), findsNothing);
+    expect(find.text('Declared license: MIT'), findsOneWidget);
+    expect(find.text('Language: en-US'), findsOneWidget);
+    expect(find.textContaining('Review offline voice before installation'),
+        findsOneWidget);
+    final install = find.widgetWithText(
+        FilledButton, 'Verify and install locally');
+    expect(tester.widget<FilledButton>(install).onPressed, isNull);
+    expect(await models.exists(), isFalse);
+
+    await tester.tap(find.byKey(
+        const ValueKey('offline-voice-license-approval')));
+    await tester.pump();
+    expect(tester.widget<FilledButton>(install).onPressed, isNotNull);
+    await tester.tap(install);
+    await letIoSettle(tester);
+    expect(find.text('Local test voice'), findsOneWidget);
+    expect(find.textContaining('Local voice installed.'), findsOneWidget);
+    expect((await inspectOfflineVoicePacks(modelsDirectory: models)).single.ready,
+        isTrue);
+  });
+
+  testWidgets('a folder picker cancel makes no changes',
+      (tester) async {
+    await mountWithPicker(tester, () async => null);
+    await tester.tap(find.text('Import local voice folder'));
+    await letIoSettle(tester);
+    expect(find.byKey(
+        const ValueKey('offline-voice-import-preview')), findsNothing);
+    expect(await models.exists(), isFalse);
+    expect(find.text('No local neural voices installed.'), findsOneWidget);
+  });
+
+  testWidgets('bad manifest produces safe error and installs nothing',
+      (tester) async {
+    await mountWithPicker(tester, () async => source.path);
+    await tester.tap(find.text('Import local voice folder'));
+    await letIoSettle(tester);
+    expect(find.textContaining('Cannot inspect this voice folder.'),
+        findsOneWidget);
+    expect(find.byKey(
+        const ValueKey('offline-voice-import-preview')), findsNothing);
+    expect(await models.exists(), isFalse);
+  });
 
   testWidgets('empty catalog explains why offline synthesis stays disabled',
       (tester) async {
