@@ -7,11 +7,15 @@ class PdfPageNavigation extends StatelessWidget {
     required this.pageNumber,
     required this.pageCount,
     required this.onPageRequested,
+    this.onZoomOut,
+    this.onZoomIn,
   });
 
   final int pageNumber;
   final int? pageCount;
   final ValueChanged<int> onPageRequested;
+  final VoidCallback? onZoomOut;
+  final VoidCallback? onZoomIn;
 
   Future<void> _showPageJump(BuildContext context) async {
     final count = pageCount;
@@ -95,6 +99,18 @@ class PdfPageNavigation extends StatelessWidget {
               : null,
           icon: const Icon(Icons.chevron_right),
         ),
+        if (onZoomOut != null)
+          IconButton(
+            tooltip: 'Zoom out PDF',
+            onPressed: ready ? onZoomOut : null,
+            icon: const Icon(Icons.zoom_out),
+          ),
+        if (onZoomIn != null)
+          IconButton(
+            tooltip: 'Zoom in PDF',
+            onPressed: ready ? onZoomIn : null,
+            icon: const Icon(Icons.zoom_in),
+          ),
       ],
     );
   }
