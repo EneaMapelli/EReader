@@ -403,8 +403,13 @@ void main() {
       second: '<html><body><p>Still readable.</p></body></html>',
     ));
     expect(result.text, 'Still readable.');
-    expect(result.ranges.length, 1);
-    expect(result.ranges.single.start, 0);
+    expect(result.ranges, hasLength(2));
+    expect(result.ranges.map((item) => item.idref), ['a', 'z']);
+    expect(result.ranges.first.start, 0);
+    expect(result.ranges.first.end, 0,
+        reason: 'Empty spine is navigation-only, not an invented utterance');
+    expect(result.ranges.last.start, 0);
+    expect(result.ranges.last.end, result.text.length);
     expect(result.diagnostics.any((item) =>
         item.code == EpubDiagnosticCode.emptySpineItem &&
         item.occurrences == 1), isTrue);
