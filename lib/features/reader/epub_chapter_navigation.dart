@@ -11,13 +11,18 @@ class EpubChapter {
     required this.start,
     required this.end,
     required this.segmentIndex,
+    this.hasSpeech = true,
   });
 
   final String idref;
   final String title;
   final int start;
   final int end;
+  /// Index of the first playable clip in or following the source range.
+  /// segments.length means no later narration exists (silent final spine).
   final int segmentIndex;
+  /// Whether this spine item itself contains a spoken TTS chunk.
+  final bool hasSpeech;
 }
 
 /// Split TTS input at EPUB spine boundaries. This is crucial: a single audio
@@ -45,24 +50,31 @@ List<SpeechSegment> segmentEpubSpine(DocumentContent document) {
   return result;
 }
 
-/// Create the UI chapter directory against *actual* playable chunks, after
-/// casting/quote processing. Empty headings and non-linear spine resources
-/// have no playable segments and are omitted.
+/// Preserve EVERY OPF spine section in visual navigation, including
+/// sections whose contents are illustrations, whitespace or unspoken text.
+/// The voice cursor is only a nearby NEXT playable segment; the exact
+/// visual/source destination is the chapter.start value, not segment.start.
+///
+/// If there is no next playable segment, the cursor uses segments.length
+/// (completed speech) rather than replaying text from the prior chapter.
 List<EpubChapter> buildEpubChapters(
     DocumentContent document, List<SpeechSegment> segments) {
   final chapters = <EpubChapter>[];
   var cursor = 0;
+  var lastEnd = 0;
   for (final range in document.epubSpineRanges) {
-    // Both lists are sorted by original text offsets. Walk each speech
-    // segment at most once even for large EPUBs with thousands of files.
+    if (range.start < lastEnd || range.end < range.start ||
+        range.end > document.text.length) {
+      throw const FormatException('Invalid EPUB chapter source ranges');
+    }
+    // Every TTS segment was already split at OPF spine boundaries;
+    // a section with no segment keeps its exact source offset.
     while (cursor < segments.length &&
         segments[cursor].start < range.start) {
       cursor++;
     }
-    if (cursor >= segments.length ||
-        segments[cursor].start >= range.end) {
-      continue;
-    }
+    final hasSpeech = cursor < segments.length &&
+        segments[cursor].start < range.end;
     chapters.add(EpubChapter(
       idref: range.idref,
       title: range.title.trim().isNotEmpty
@@ -71,7 +83,9 @@ List<EpubChapter> buildEpubChapters(
       start: range.start,
       end: range.end,
       segmentIndex: cursor,
+      hasSpeech: hasSpeech,
     ));
+    lastEnd = range.end;
   }
   return List<EpubChapter>.unmodifiable(chapters);
 }
@@ -128,7 +142,8 @@ int chapterIndexForOffset(List<EpubChapter> chapters, int offset) {
 /// Mark only a *source-exact, standalone* chapter heading as semantic
 /// heading text. Never insert an extra copy of the title into the book.
 bool isStandaloneChapterHeading(EpubChapter? chapter, SpeechSegment segment) {
-  if (chapter == null || segment.start != chapter.start) return false;
+  if (chapter == null || !chapter.hasSpeech ||
+      segment.start != chapter.start) return false;
   final normalized = segment.text.replaceAll(RegExp(r'\s+'), ' ').trim();
   return normalized == chapter.title;
 }
