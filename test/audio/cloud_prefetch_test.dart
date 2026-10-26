@@ -102,9 +102,15 @@ class _Output implements PreloadableSynthesizedAudioOutput {
 
 class _Cache implements SpeechAudioCache {
   final items = <String, Uint8List>{};
+  final reads = <String>[];
+  final readGates = <String, Completer<void>>{};
   @override
-  Future<Uint8List?> read(String book, String key) async =>
-      items[book + ':' + key];
+  Future<Uint8List?> read(String book, String key) async {
+    reads.add(key);
+    final gate = readGates[key];
+    if (gate != null) await gate.future;
+    return items[book + ':' + key];
+  }
   @override
   Future<void> write(String book, String key, Uint8List bytes) async {
     items[book + ':' + key] = bytes;
@@ -195,6 +201,7 @@ void main() {
     await _until(() => output.clips.length == 1);
     await _until(() => output.warmed.length == 1);
     expect(output.warmed.single, [91, 92, 93]);
+    expect(output.warmSpeeds, [1.0]);
     expect(http.requests.map((req) => req.text), ['Alpha']);
     expect(meter.used, 5, reason: 'Cached lookahead is entirely local');
     output.finish(0);
@@ -323,6 +330,26 @@ void main() {
     expect(output.clips.length, 1);
     expect(player.currentIndex, 0);
     expect(http.requests.map((req) => req.text), ['Alpha']);
+  });
+
+  test('Stop invalidates cache read before it may warm a decoder',
+      () async {
+    final key = _keyFor('Beta');
+    cache.items['book:$key'] = Uint8List.fromList([12, 34]);
+    cache.readGates[key] = Completer<void>();
+    final playback = player.play();
+    await _until(() => http.requests.length == 1);
+    http.complete(0);
+    await _until(() => output.clips.length == 1);
+    await _until(() => cache.reads.contains(key));
+    await player.pause();
+    await playback;
+    cache.readGates[key]!.complete();
+    await Future<void>.delayed(Duration.zero);
+    expect(output.warmed, isEmpty);
+    expect(output.clips.length, 1);
+    expect(http.requests.map((r) => r.text), ['Alpha']);
+    expect(meter.used, 5);
   });
 
   test('opted-in prefetch waits until current audio is ready', () async {
