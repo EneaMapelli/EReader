@@ -13,6 +13,7 @@ import 'epub_inline_style.dart';
 import 'epub_embedded_content.dart';
 import 'epub_navigation.dart';
 import 'epub_import_diagnostics.dart';
+import 'epub_speech_note_filter.dart';
 
 class DocumentContent {
   const DocumentContent({
@@ -26,6 +27,7 @@ class DocumentContent {
     this.epubTables = const [],
     this.epubNavigation = const [],
     this.epubFootnotePreviews = const [],
+    this.epubSpokenNoteRanges = const [],
     this.epubAuxiliaryFootnotePreviews = const [],
     this.epubDiagnostics = const [],
   });
@@ -42,6 +44,8 @@ class DocumentContent {
   final List<EpubTablePreview> epubTables;
   final List<EpubNavigationEntry> epubNavigation;
   final List<EpubFootnotePreview> epubFootnotePreviews;
+  /// Source-verified, in-spine EPUB notes; not excluded from visual reading.
+  final List<EpubSpokenNoteRange> epubSpokenNoteRanges;
   /// Local-only auxiliary note text, with *no* position in the TTS spine.
   final List<EpubAuxiliaryFootnotePreview> epubAuxiliaryFootnotePreviews;
   final List<EpubImportDiagnostic> epubDiagnostics;
@@ -183,6 +187,7 @@ DocumentContent documentFromExtractedEpub(EpubTextResult content) =>
       epubTables: content.tables,
       epubNavigation: content.navigation,
       epubFootnotePreviews: content.footnotePreviews,
+      epubSpokenNoteRanges: content.spokenNoteRanges,
       epubAuxiliaryFootnotePreviews: content.auxiliaryFootnotePreviews,
       epubDiagnostics: content.diagnostics,
     );
