@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:io' show Directory, Platform;
 import 'dart:ui' show FrameTiming;
 
 import 'package:flutter/material.dart';
