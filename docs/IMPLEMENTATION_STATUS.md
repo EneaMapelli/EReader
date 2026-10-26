@@ -1492,3 +1492,14 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   acceptance or guaranteed PDFium text-layer accessibility is claimed.
 - No Flutter/Windows/Android SDK is executable in this GitHub editing
   session. Changes are published but are **not yet compiled or run**.
+
+### 2026-10-26 — M2 EPUB spoken note suppression (not validated)
+
+Verified, bounded in-spine EPUB footnote body ranges can now be carried from
+the EPUB extractor to a session-only reader playback preference. The source
+filter conservatively skips fully contained spoken chunks before checkpointing,
+synthesis and paid cloud lookahead; prose and mixed chunks remain spoken.
+Source anchors, search, note previews, manual casting and persisted reader
+state are not edited. New synthetic parser/player/cloud tests are committed,
+but Flutter tests/analyzer and native Windows/Android playback remain UNRUN.
+See [EPUB_SPOKEN_NOTE_CONTROL.md](EPUB_SPOKEN_NOTE_CONTROL.md).
