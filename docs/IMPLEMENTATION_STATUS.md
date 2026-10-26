@@ -1319,3 +1319,31 @@ Protocol: [Playback Session Safety](PLAYBACK_SESSION_SAFETY.md).
   The 147 unformatted files seen in the previous Windows report are **not
   considered fixed** until this tool (or the equivalent Dart formatter)
   is actually executed and the result is validated by a fresh run.
+
+## M3 — explicitly approved offline VITS folder import (2026-10-26)
+
+- Added `inspectOfflineVoiceImportFolder` and
+  `installPreviewedOfflineVoicePack` to inspect a local
+  `voice-pack.json`, check complete file inventories, types, symlink and
+  path controls, and enforce size budgets before the install is approved.
+  The actual installer rechecks the manifest and hashes all bytes during
+  bounded staging. Changed files cannot bypass checksum verification.
+- The model manager now shows a **Windows-only local folder picker**,
+  model language/name, declared license and disk footprint, and an
+  unchecked approval control. The user must affirm their independent
+  review of license and provenance before installing. A safe, explicit
+  error is shown for a damaged or changed source folder.
+- Android SAF tree URIs cannot currently be used as `dart:io` paths;
+  folder import is deliberately disabled on Android until an appropriate
+  document-provider streaming adapter is implemented. Already-installed
+  models can still be inspected or removed.
+- Added `tool/prepare-offline-voice-pack.ps1`: an optional Windows
+  helper that hashes locally obtained ONNX/tokens/eSpeak files and writes
+  a versioned manifest without overwriting one or downloading anything.
+  Fixed `tool/format-dart.ps1` to locate Dart without a hard-coded user
+  profile path, and guarded async model-manager callbacks after navigation.
+- Added five storage import tests, three UI import/consent tests, a
+  config-level helper safety test, and a viewport-aware UI test adjustment.
+  **All are authored, not yet compiled or run in Windows/Android Flutter.**
+  No actual model, voice license, ONNX inference, remote provider or
+  playable neural voice is bundled or newly activated.

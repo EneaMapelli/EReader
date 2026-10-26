@@ -77,3 +77,22 @@ included as completed features by merely having been designed in the roadmap.
   commit `7c89dfc8`. The search dialog intrinsic-width fix, Windows
   temporary-handle cleanup, warning reductions and this new model manager
   are not yet validated by a new run.
+
+### Progress note — guided import (2026-10-26)
+
+- The new guarded M3 model manager now supports **local Windows VITS
+  folder import** after reviewing the manifest, size and declared license,
+  with explicit affirmative approval before SHA-256 checked installation.
+  A local PowerShell manifest-preparation helper computes checksums for
+  previously obtained ONNX/phonemizer resources. No model downloading or
+  automatic cloud requests were added.
+- This does not authenticate a publisher's checksums or grant usage
+  rights. The neural engine remains hidden from user-facing TTS selection
+  pending real-model audio tests, Android SAF handling, licensing review
+  and native device qualification.
+- The previous M3 feature-coverage estimate remains **35%** pending
+  passing integration evidence; overall M0–M6 estimate is unchanged.
+- The most recent executed Windows report still shows 641 successful tests
+  and 7 errors at older source `7c89dfc8`; the new import UI and tests
+  have not been run. The 147 previously unformatted files remain a
+  separate unresolved check until the formatter utility is executed.
