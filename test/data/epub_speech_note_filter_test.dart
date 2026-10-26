@@ -30,6 +30,21 @@ class _ImmediateEngine implements SpeechEngine {
   Future<void> dispose() async {}
 }
 
+class _ImmediateCloudEngine extends _ImmediateEngine
+    implements AheadOfTimeSpeechEngine {
+  final prepared = <String>[];
+
+  @override
+  Future<void> prepareSpeech(String text, {
+    required SpeechVoice? voice,
+    required String language,
+    required double rate,
+    required double pitch,
+  }) async {
+    prepared.add(text);
+  }
+}
+
 Uint8List _book(String chapter, {String? footnotes}) {
   final other = footnotes == null ? '' :
       '<item id="notes" href="notes.xhtml" '
@@ -158,6 +173,29 @@ void main() {
     expect(engine.spoken, [
       'Start.', 'End.', 'Start.', 'Note text.', 'End.',
     ]);
+    player.dispose();
+  });
+
+  test('paid cloud prefetch never prepares the next skipped note',
+      () async {
+    final engine = _ImmediateCloudEngine();
+    final player = ReaderPlayer(
+      engineProviderId: 'openai-speech',
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 6, 'Start.'),
+        SpeechSegment(7, 17, 'Note text.'),
+        SpeechSegment(18, 22, 'End.'),
+      ],
+      onSegmentStarted: (_) async {},
+    );
+    player.shouldSkipSegment =
+        (segment) => segment.text == 'Note text.';
+    player.setCloudPrefetch(true);
+    await player.play();
+    expect(engine.spoken, ['Start.', 'End.']);
+    expect(engine.prepared, isEmpty,
+        reason: 'A skipped note cannot be a speculative paid request');
     player.dispose();
   });
 
