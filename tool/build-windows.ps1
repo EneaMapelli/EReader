@@ -86,8 +86,8 @@ if (-not (Test-Path -LiteralPath $release -PathType Container)) {
 if (-not (Test-Path -LiteralPath (Join-Path $release 'ereader.exe') -PathType Leaf)) {
     throw 'Windows Release is incomplete: ereader.exe is missing.'
 }
-if (-not (Test-Path -LiteralPath
-    (Join-Path $release 'data\flutter_assets') -PathType Container)) {
+$assetsDirectory = Join-Path $release 'data\flutter_assets'
+if (-not (Test-Path -LiteralPath $assetsDirectory -PathType Container)) {
     throw 'Windows Release is incomplete: data\flutter_assets is missing.'
 }
 
