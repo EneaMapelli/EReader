@@ -31,10 +31,12 @@ class _OfflineVoiceManagerScreenState
   String? _busyId;
   String? _message;
 
-  Future<Directory> _directory() async =>
-      widget.modelsDirectory?.call() ??
-      Directory(p.join((await getApplicationSupportDirectory()).path,
-          'offline-voices'));
+  Future<Directory> _directory() async {
+    final resolver = widget.modelsDirectory;
+    if (resolver != null) return await resolver();
+    final support = await getApplicationSupportDirectory();
+    return Directory(p.join(support.path, 'offline-voices'));
+  }
 
   @override
   void initState() {
