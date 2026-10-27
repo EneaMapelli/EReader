@@ -569,3 +569,12 @@ Windows benchmarking without ever logging book text or file paths.
 The panel is available only for the manually qualified experimental
 VITS provider. P95 uses at most 64 latest synthesis samples. Tests
 authored but not executed; no Windows builds or Actions.
+
+### M2/M3 — offline WAV decoder race hardening (2026-10-27)
+
+The native WAV path now serializes load, Stop and Dispose, avoiding stale
+file handle and audio-start races on Windows. Natural clip completion
+also requires native decoder Stop before deleting the temporary file.
+Added an injectable decoder and regression tests for native delays,
+cancellation, rapid restart and load errors. Test execution/native
+acceptance pending; milestone percentage estimates unchanged.

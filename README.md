@@ -350,3 +350,12 @@ Queste metriche sono **solo locali e temporanee**; non vengono raccolti
 testi, percorsi dei libri o contenuti audio. Il tempo di passaggio al
 decoder non equivale al momento in cui il suono diventa udibile,
 e la RAM indicata è dell'intera applicazione.
+
+### Audio offline: Stop e cambio frase più robusti
+
+La riproduzione dei WAV delle voci neurali sincronizza le operazioni
+native di caricamento, Stop e chiusura del decoder. Un caricamento
+lento annullato non può iniziare a parlare in ritardo. Al termine
+normale di una frase viene fermato esplicitamente il decoder prima
+di eliminare il file WAV temporaneo, riducendo il rischio di file
+bloccati su Windows. Restano necessarie prove native.

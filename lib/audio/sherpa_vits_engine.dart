@@ -17,34 +17,125 @@ abstract interface class OfflineWaveOutput {
   Future<void> dispose();
 }
 
-class JustAudioWaveOutput implements OfflineWaveOutput {
-  JustAudioWaveOutput() : _player = AudioPlayer();
+/// Injectable native boundary: unit tests may hold a decoder load/stop
+/// without instantiating a Windows/Android platform audio plugin.
+abstract interface class WaveDecoder {
+  Future<void> load(String wavFile);
+  Future<void> play();
+  Future<void> stop();
+  Future<void> dispose();
+}
 
+class JustAudioWaveDecoder implements WaveDecoder {
+  JustAudioWaveDecoder() : _player = AudioPlayer();
   final AudioPlayer _player;
+
+  @override
+  Future<void> load(String wavFile) async {
+    await _player.setFilePath(wavFile);
+  }
+
+  @override
+  Future<void> play() => _player.play();
+
+  @override
+  Future<void> stop() => _player.stop();
+
+  @override
+  Future<void> dispose() => _player.dispose();
+}
+
+/// Native decoder operations are serialized without serializing the full
+/// playback duration. Stop can interrupt playback immediately when the
+/// decoder is ready, but must wait for an unfinished setFilePath operation
+/// before calling the SAME decoder's native Stop.
+///
+/// ReaderPlayer already bounds native Stop confirmation. If native load
+/// hangs, its timeout keeps narration locked rather than allowing two
+/// overlapping utterances with the same audio device.
+class JustAudioWaveOutput implements OfflineWaveOutput {
+  JustAudioWaveOutput({WaveDecoder? decoder})
+      : _decoder = decoder ?? JustAudioWaveDecoder();
+
+  final WaveDecoder _decoder;
+  Future<void> _nativeOperations = Future<void>.value();
+  Future<void>? _disposeFuture;
   int _revision = 0;
   bool _disposed = false;
+
+  /// Chain load/Stop/dispose on ONE decoder. A previous failed load
+  /// cannot poison the next native Stop or the user's later Play.
+  Future<void> _serialize(Future<void> Function() operation) {
+    final previous = _nativeOperations;
+    final running = () async {
+      try {
+        await previous;
+      } catch (_) {
+        // A previous unsuccessful load still needs native cleanup.
+      }
+      await operation();
+    }();
+    _nativeOperations = running;
+    return running;
+  }
 
   @override
   Future<void> play(String wavFile) async {
     if (_disposed) throw StateError('Offline audio output disposed');
     final version = _revision;
-    await _player.setFilePath(wavFile);
+    await _serialize(() async {
+      if (_disposed || version != _revision) return;
+      try {
+        await _decoder.load(wavFile);
+      } catch (_) {
+        // setFilePath may have partially opened a Windows handle. Release
+        // it BEFORE returning an error to the engine's file finalizer.
+        try {
+          await _decoder.stop();
+        } catch (_) {
+          // Preserve the original decoder-load failure.
+        }
+        rethrow;
+      }
+    });
     if (_disposed || version != _revision) return;
-    await _player.play();
+    try {
+      // Do NOT queue the entire playback duration: Stop must reach the
+      // native decoder while sound is playing.
+      await _decoder.play();
+    } finally {
+      if (!_disposed && version == _revision) {
+        // A natural end is not proof that Windows closed the WAV handle.
+        // The engine may delete this private WAV only AFTER confirmed Stop.
+        await _serialize(() async {
+          if (!_disposed && version == _revision) {
+            await _decoder.stop();
+          }
+        });
+      }
+      // A newer Stop/Dispose owns native cleanup after invalidation.
+      // This stale finalizer must NEVER stop a newer live utterance.
+    }
   }
 
   @override
-  Future<void> stop() async {
+  Future<void> stop() {
+    // Invalidate future playback synchronously, BEFORE waiting for load.
     _revision++;
-    if (!_disposed) await _player.stop();
+    if (_disposed) return _disposeFuture ?? Future<void>.value();
+    // Always execute a previously requested native Stop, even if Dispose
+    // is subsequently requested; both operations must be fully serialized.
+    return _serialize(() => _decoder.stop());
   }
 
   @override
-  Future<void> dispose() async {
-    if (_disposed) return;
+  Future<void> dispose() {
+    final existing = _disposeFuture;
+    if (existing != null) return existing;
+    _revision++;
     _disposed = true;
-    _revision++;
-    await _player.dispose();
+    // Any in-flight load and Stop must finish before decoder disposal.
+    return _disposeFuture = _serialize(() => _decoder.dispose());
   }
 }
 

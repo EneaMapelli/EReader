@@ -125,3 +125,26 @@ The ReaderPlayer imports the diagnostics value type explicitly rather
 than relying on Dart's non-transitive imports. An additional engine mock
 test checks the counter is exposed through the speech provider interface.
 The tests were authored but not executed in this editing environment.
+
+## WAV decoder native-operation serialization (2026-10-27)
+
+The previous WAV output adapter could call native Stop or Dispose while
+`AudioPlayer.setFilePath` was still pending on the **same decoder**.
+Windows can retain its temporary WAV handle in that situation. The
+refactored `JustAudioWaveOutput` serializes native load, Stop and
+Dispose against one physical decoder, but does NOT queue the duration of
+audible playback: Stop can still interrupt an already-playing WAV.
+
+Cancellation increments the output generation synchronously. Once a
+pending file load finishes, an obsolete request cannot start audio.
+After **normal** playback completion, explicit decoder Stop precedes
+the engine's private WAV deletion. Native load failure also attempts
+Stop before exposing the original failure. A stale playback finalizer
+never stops a newer generation.
+
+The injectable `WaveDecoder` contract allows independent tests for
+slow load + Stop, slow load + Dispose, ordinary completion, rapid
+Stop/replay and native load failure. All are authored, not executed.
+If a native load itself hangs, Stop waits on the load and
+ReaderPlayer's existing 8-second Stop guard deliberately blocks
+unsafe re-entry; native preemption remains a device-level gate.

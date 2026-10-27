@@ -1817,3 +1817,12 @@ contents, persistence or network reporting. Added pure-Dart unit tests.
 No actual Flutter/native tests, builds or GitHub Actions executed.
 These are diagnostic markers, not measured audio onset or native
 acceptance evidence; progress estimates unchanged.
+
+### 2026-10-27 — WAV native load/Stop ordering
+
+Serialized native setFilePath, Stop and Dispose on the offline neural WAV
+decoder. Explicit native Stop after ordinary clip completion precedes
+temporary WAV deletion. Cancelled delayed loads cannot start audio or
+dispose the native decoder prematurely. Added injectable WaveDecoder and
+five focused race regression tests. Flutter/native tests NOT executed;
+no Windows builds or GitHub Actions were triggered.
