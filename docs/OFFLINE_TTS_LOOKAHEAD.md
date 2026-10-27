@@ -286,3 +286,20 @@ same-process gap where the marker was visible but the POSIX
 process-scoped lock did not prevent another local recovery scan.
 Creation failure deregisters the uncommitted session. Added a
 parallel-create/recovery regression (not executed).
+
+## Dispose single-flight and failure-safe lease retirement (2026-10-27)
+
+The VITS engine now returns ONE shared Future from concurrent Dispose
+calls, rather than reporting success to the second caller while native
+output closure is still pending. The OS-lease closure runs in an
+independent `finally` even if cleanup of a prepared WAV fails.
+Another nested `finally` releases the session if a deferred-delete
+pass fails. This prevents abnormal cleanup from leaking the active
+in-process lease and blocking later crash recovery.
+
+If a native synthesis ignores cancellation indefinitely, Dispose still
+does not block the UI waiting for it; its private WAV lease remains held
+until that job eventually finalizes, or until the process exits.
+Added regression scenarios for concurrent calls and native Dispose
+failure. Tests authored, not executed; native Windows verification
+still required.

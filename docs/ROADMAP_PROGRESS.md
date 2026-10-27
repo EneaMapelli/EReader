@@ -618,3 +618,11 @@ inspected root entries. Sorting plus a cursor keeps invalid/active
 earlier sessions from starving later recoverable sessions. Extended
 unit regression covers recovery progress across two sweeps. No native
 tests, Windows compilation or GitHub Actions triggered.
+
+### M3 — awaitable idempotent neural-engine Dispose (2026-10-27)
+
+All callers now await one in-flight engine/native Dispose Future.
+Nested finalizers ensure WAV-session retirement is attempted even
+if deleting a speculative WAV or retrying orphan cleanup fails.
+Added regression tests for racing Dispose and native closure failure.
+NOT RUN (no Flutter SDK); no Windows build or GitHub Actions.

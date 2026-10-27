@@ -299,6 +299,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
 
   int _generation = 0;
   bool _disposed = false;
+  Future<void>? _disposeFuture;
   SpeechVoice? _voice;
 
   SpeechVoice get _packVoice => SpeechVoice(
@@ -593,8 +594,11 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
   }
 
   @override
-  Future<void> dispose() async {
-    if (_disposed) return;
+  Future<void> dispose() => _disposeFuture ??= _disposeOnce();
+
+  /// One in-flight disposal for every caller. A second Dispose must NOT
+  /// report success until the same native output/worker cleanup settles.
+  Future<void> _disposeOnce() async {
     _disposed = true;
     _generation++;
     _nativeSession?.cancel();
@@ -603,43 +607,50 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
     _nativeJob = null;
     final pending = _prepared;
     _prepared = null;
-    // Dispose the active decoder first so Windows can release WAV handles.
+    // Native output is disposed before private WAVs are reclaimed. All
+    // callers share this Future, including any native failure.
     try {
       await _output.dispose();
     } finally {
-      if (pending != null && pending.ready) {
-        await _deleteStaging(pending.staging);
-      }
-      // A pending speech or speculative native task can complete AFTER
-      // Dispose has returned. Retain the session's OS lock until every
-      // associated staging-directory owner has run its finalizer. This
-      // prevents another EReader process from recovering a live WAV.
-      Future<void> finishSession() async {
-        await _allWaveJobsEnded.future;
-        await _wavCleanup.retryPending(maxAttempts: _wavCleanup.maxPending);
-        final opening = _wavSessionOpening;
-        if (opening != null) {
+      try {
+        if (pending != null && pending.ready) {
+          await _deleteStaging(pending.staging);
+        }
+      } finally {
+        // A native call may outlive Dispose after cancellation. Keep the
+        // session OS lease until the LAST WAV owner finishes its finalizer.
+        Future<void> finishSession() async {
+          await _allWaveJobsEnded.future;
           try {
-            final session = await opening;
-            await session.close();
-          } on FileSystemException {
-            // Best effort after Windows file locks: keep the marker for
-            // a subsequent OS-lease-guarded recovery attempt.
-          } on StateError {
-            // Session creation may have been cancelled by this Dispose
-            // before opening an OS lease. No native audio was started.
+            await _wavCleanup.retryPending(
+                maxAttempts: _wavCleanup.maxPending);
+          } finally {
+            // Even when cleanup fails, the OS lease must ultimately be
+            // released so a later app launch can retry remaining WAVs.
+            final opening = _wavSessionOpening;
+            if (opening != null) {
+              try {
+                final session = await opening;
+                await session.close();
+              } on FileSystemException {
+                // Locked folders remain marked for a later guarded scan.
+              } on StateError {
+                // Dispose may have cancelled session initialization.
+              }
+            }
           }
         }
-      }
-      if (_activeWaveJobs == 0) {
-        await finishSession();
-      } else {
-        // Do not block the native Dispose UI on a cancelled model whose
-        // platform FFI call still has not returned. The OS lease remains
-        // held until its last Dart staging finalizer or process exit.
-        unawaited(finishSession().catchError((Object _) {
-          // File-system failures must never resurrect stale narration.
-        }));
+
+        if (_activeWaveJobs == 0) {
+          await finishSession();
+        } else {
+          // Do not hang the reader UI on native FFI which ignores cancel.
+          // A later explicit Dispose still shares this completed request;
+          // cleanup continues and holds the lease until all WAVs end.
+          unawaited(finishSession().catchError((Object _) {
+            // Never expose private paths or resurrect stale audio.
+          }));
+        }
       }
     }
   }

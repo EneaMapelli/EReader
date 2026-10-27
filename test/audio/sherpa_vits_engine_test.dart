@@ -35,6 +35,23 @@ class _FakeWaveOutput implements OfflineWaveOutput {
   Future<void> dispose() async { disposals++; }
 }
 
+class _DeferredDisposeOutput extends _FakeWaveOutput {
+  final completion = Completer<void>();
+  @override
+  Future<void> dispose() async {
+    disposals++;
+    await completion.future;
+  }
+}
+
+class _FailedDisposeOutput extends _FakeWaveOutput {
+  @override
+  Future<void> dispose() async {
+    disposals++;
+    throw StateError('Native audio disposal failed');
+  }
+}
+
 void main() {
   late Directory root;
   late InstalledOfflineVoicePack pack;
@@ -102,6 +119,44 @@ void main() {
     await synth.dispose();
     expect(await root.list().toList(), isEmpty,
         reason: 'No stale marker/lock when every WAV was cleaned');
+  });
+
+  test('parallel Dispose callers await one native shutdown', () async {
+    final blocked = _DeferredDisposeOutput();
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack, synthesizer: fakeSynthesize,
+      output: blocked, temporaryDirectory: () async => root,
+    );
+    await synth.speak('Once', language: 'en-US', rate: 0.5, pitch: 1);
+    final first = synth.dispose();
+    final second = synth.dispose();
+    expect(identical(first, second), isTrue,
+        reason: 'Both callers must observe the same incomplete shutdown');
+    expect(blocked.disposals, 1);
+    var finished = false;
+    first.then((_) => finished = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(finished, isFalse);
+    blocked.completion.complete();
+    await Future.wait([first, second]);
+    expect(blocked.disposals, 1);
+    expect(await root.list().toList(), isEmpty);
+  });
+
+  test('Dispose failure still releases WAV session metadata', () async {
+    final broken = _FailedDisposeOutput();
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack, synthesizer: fakeSynthesize,
+      output: broken, temporaryDirectory: () async => root,
+    );
+    await synth.speak('One', language: 'en-US', rate: 0.5, pitch: 1);
+    final disposing = synth.dispose();
+    await expectLater(disposing, throwsStateError);
+    expect(broken.disposals, 1);
+    expect(await root.list().toList(), isEmpty,
+        reason: 'OS session lease cannot leak after output failure');
+    await expectLater(synth.dispose(), throwsStateError,
+        reason: 'Repeated Dispose shares the original native failure');
   });
 
   test('offline speech exposes only installed local voice and WAV playback',
