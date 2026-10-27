@@ -541,3 +541,12 @@ invalidate all stale future playback; verified skipped notes are excluded.
 No HTTP or paid quota. Source/tests/doc committed but not executed.
 No Windows/Android build and no Actions. Estimates unchanged pending
 native listening/latency/Stop qualification.
+
+### M3 — reusing one ONNX model during reading (2026-10-27)
+
+Persistent local isolate and model reuse introduced for successive
+Windows VITS chunks; native Stop/Seek/Dispose retire it and require
+a fresh initialization on resumed playback. The existing one-ahead
+WAV lookahead uses the same serialized worker. New unit tests authored,
+NOT executed. Native timing/RAM and cancellation remain to be measured.
+No Windows build and no GitHub Actions; estimates unchanged.

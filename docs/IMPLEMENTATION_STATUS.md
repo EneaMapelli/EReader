@@ -1785,3 +1785,13 @@ private temporary directories. Reader exposes a session-only toggle.
 Cloud and system-TTS paths are not modified. Added fake-output and
 player integration regressions. Tests NOT run in this environment;
 qualitative audio latency and native cancellation are unverified.
+
+### 2026-10-27 — persistent local VITS isolate
+
+Production Sherpa VITS uses a native worker with one ONNX model initialized
+once for sequential narration. The prior one-utterance job remains in
+the standalone qualification path. Stop/Seek/Pause/Dispose cancel and
+release the worker, and failure invalidates it. Pure-Dart synthetic
+isolate and engine tests were authored but NOT RUN. Native Win/Android
+validation, memory measurement and latency benchmarks remain open gates.
+No build or GitHub Actions triggered. Overall estimates unchanged.

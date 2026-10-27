@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import '../data/offline_voice_pack.dart';
 import 'speech_engine.dart';
 import 'sherpa_vits_worker.dart';
+import 'sherpa_vits_session.dart';
 
 /// A separate audio boundary makes model synthesis testable with no native
 /// ONNX library, sound output, model download or network permissions.
@@ -108,10 +109,13 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
     this.dataDir = '',
     OfflineWaveSynthesizer? synthesizer,
     VitsWaveJob Function(VitsWaveRequest)? jobFactory,
+    VitsPersistentSession Function(VitsSessionModel)? sessionFactory,
     OfflineWaveOutput? output,
     Future<Directory> Function()? temporaryDirectory,
   })  : _synthesizer = synthesizer,
         _jobFactory = jobFactory ?? VitsWaveJob.new,
+        _useLegacyJobs = jobFactory != null,
+        _sessionFactory = sessionFactory ?? VitsPersistentSession.new,
         _output = output ?? JustAudioWaveOutput(),
         _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory {
     pack.manifest.validate();
@@ -122,6 +126,9 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
   /// Optional mock synthesizer; production uses a cancellable isolate job.
   final OfflineWaveSynthesizer? _synthesizer;
   final VitsWaveJob Function(VitsWaveRequest) _jobFactory;
+  final bool _useLegacyJobs;
+  final VitsPersistentSession Function(VitsSessionModel) _sessionFactory;
+  VitsPersistentSession? _nativeSession;
   VitsWaveJob? _nativeJob;
   _PreparedWave? _prepared;
   Future<void>? _currentSynthesisReady;
@@ -179,6 +186,23 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
         dataDir: dataDir, wavPath: wavPath, speed: speed,
       );
       return true;
+    }
+    if (!_useLegacyJobs) {
+      final session = _nativeSession ??= _sessionFactory(VitsSessionModel(
+        modelPath: pack.modelPath,
+        tokensPath: pack.tokensPath,
+        dataDir: dataDir,
+      ));
+      try {
+        await session.synthesize(text: text, wavPath: wavPath, speed: speed);
+        return true;
+      } on VitsWaveCancelled {
+        return false;
+      } catch (_) {
+        session.cancel();
+        if (identical(_nativeSession, session)) _nativeSession = null;
+        rethrow;
+      }
     }
     if (_nativeJob != null) {
       throw StateError('Offline synthesis is already running');
@@ -326,6 +350,8 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
   @override
   Future<void> stop() async {
     _generation++;
+    _nativeSession?.cancel();
+    _nativeSession = null;
     _nativeJob?.cancel();
     _nativeJob = null;
     final pending = _prepared;
@@ -346,6 +372,8 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
     if (_disposed) return;
     _disposed = true;
     _generation++;
+    _nativeSession?.cancel();
+    _nativeSession = null;
     _nativeJob?.cancel();
     _nativeJob = null;
     final pending = _prepared;

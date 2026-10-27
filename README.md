@@ -320,3 +320,12 @@ disattivabile nel lettore; usa CPU e spazio temporaneo ma non Internet
 o servizi a pagamento. Stop/Pausa/salto capitolo invalidano la
 preparazione. Non sono ancora state misurate le latenze effettive
 o la qualità audio su un PC Windows.
+
+### Motore ONNX riutilizzato durante la lettura
+
+Il motore neurale VITS offline ora mantiene in memoria il modello
+ONNX per tutte le frasi di una sessione di lettura continua.
+Pausa/Stop/cambio posizione/chiusura eliminano il worker: Play successivo
+ricarica il modello, privilegiando sicurezza e rilascio delle risorse.
+Può ridurre i tempi morti, ma prestazioni native e RAM richiedono
+ancora test reali su Windows. Nessuna API o richiesta di rete.

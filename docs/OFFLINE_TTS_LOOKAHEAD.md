@@ -47,3 +47,21 @@ already prepared future WAV. Private-file cleanup must not hold up audible
 Stop. If native worker cancellation is delayed, stale synthesis is still
 generation-blocked from playing; device-level cancellation timing is an
 outstanding acceptance gate.
+
+## 2026-10-27 — resident ONNX isolate
+
+The production VITS adapter now creates one `VitsPersistentSession` per
+uninterrupted reading session: the worker initializes sherpa/ONNX once and
+processes sequential speech/WAV requests through one native model.
+This is complementary to the existing one-ahead local WAV warmup.
+
+Stop, Seek, Pause and Dispose terminate that worker instead of retaining
+native memory after the user stops listening. The next explicit Play
+initializes a new model. A native worker error also invalidates the
+session and surfaces a sanitized error; no book text or local paths are
+included. Existing one-utterance jobs remain available for the isolated
+qualification CLI and test-injected native workers.
+
+New pure-Dart isolate tests exercise reuse, ordering, cancellation,
+backpressure and engine wiring, but have NOT been executed. This is not
+proof of Windows native ONNX correctness or a measured latency gain.

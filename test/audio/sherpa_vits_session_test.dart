@@ -1,0 +1,140 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:isolate';
+
+import 'package:ereader/audio/sherpa_vits_session.dart';
+import 'package:ereader/audio/sherpa_vits_engine.dart';
+import 'package:ereader/audio/sherpa_vits_worker.dart';
+import 'package:ereader/data/offline_voice_pack.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+
+void _fakeReusableWorker((SendPort, VitsSessionModel) init) async {
+  final incoming = ReceivePort();
+  init.$1.send(incoming.sendPort);
+  var count = 0;
+  await for (final message in incoming) {
+    final request = message as List;
+    count++;
+    await File(request[2] as String)
+        .writeAsString('instance=1;request=$count');
+    init.$1.send([0, request[0]]);
+  }
+}
+
+void _blockedReusableWorker((SendPort, VitsSessionModel) init) async {
+  final incoming = ReceivePort();
+  init.$1.send(incoming.sendPort);
+  await for (final message in incoming) {
+    while (true) {
+      sleep(const Duration(milliseconds: 250));
+    }
+  }
+}
+
+class _StringWaveOutput implements OfflineWaveOutput {
+  final played = <String>[];
+  @override
+  Future<void> play(String path) async {
+    played.add(await File(path).readAsString());
+  }
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> dispose() async {}
+}
+
+void main() {
+  const model = VitsSessionModel(
+    modelPath: 'mock.onnx', tokensPath: 'tokens.txt', dataDir: '',
+  );
+  late Directory root;
+  setUp(() async {
+    root = await Directory.systemTemp.createTemp('ereader-vits-session-');
+  });
+  tearDown(() async {
+    if (await root.exists()) await root.delete(recursive: true);
+  });
+
+  test('two sequential WAVs use same model worker and numbered requests',
+      () async {
+    final session = VitsPersistentSession.withEntrypoint(
+        model, _fakeReusableWorker);
+    final one = p.join(root.path, 'one.wav');
+    final two = p.join(root.path, 'two.wav');
+    await session.synthesize(text: 'one', wavPath: one, speed: 1.0);
+    await session.synthesize(text: 'two', wavPath: two, speed: 1.0);
+    expect(await File(one).readAsString(), 'instance=1;request=1');
+    expect(await File(two).readAsString(), 'instance=1;request=2');
+    session.cancel();
+    await expectLater(
+      session.synthesize(text: 'again', wavPath: one, speed: 1),
+      throwsA(isA<VitsWaveCancelled>()),
+    );
+  });
+
+  test('busy persistent worker rejects second request and cancels first',
+      () async {
+    final session = VitsPersistentSession.withEntrypoint(
+        model, _blockedReusableWorker);
+    final started = session.synthesize(
+        text: 'first', wavPath: p.join(root.path, 'one.wav'), speed: 1);
+    final canceled = expectLater(
+        started, throwsA(isA<VitsWaveCancelled>()));
+    await expectLater(
+      session.synthesize(
+          text: 'second', wavPath: p.join(root.path, 'two.wav'), speed: 1),
+      throwsStateError,
+    );
+    session.cancel();
+    await canceled;
+  });
+
+  test('Stop before isolate is ready invalidates queued synthesis',
+      () async {
+    final session = VitsPersistentSession.withEntrypoint(
+        model, _fakeReusableWorker);
+    final started = session.synthesize(
+        text: 'early', wavPath: p.join(root.path, 'early.wav'), speed: 1);
+    final canceled = expectLater(
+        started, throwsA(isA<VitsWaveCancelled>()));
+    session.cancel();
+    await canceled;
+  });
+
+  test('engine reuses one model across speech, then recreates after Stop',
+      () async {
+    final pack = InstalledOfflineVoicePack(
+      manifest: OfflineVoicePackManifest(
+        id: 'mock-pack', displayName: 'Mock', locale: 'en-US',
+        licenseId: 'MIT', modelSha256: 'a' * 64,
+        tokensSha256: 'b' * 64,
+      ),
+      modelPath: p.join(root.path, 'voice.onnx'),
+      tokensPath: p.join(root.path, 'tokens.txt'),
+    );
+    var created = 0;
+    final output = _StringWaveOutput();
+    final engine = SherpaVitsSpeechEngine(
+      pack: pack,
+      output: output,
+      temporaryDirectory: () async => root,
+      sessionFactory: (config) {
+        created++;
+        return VitsPersistentSession.withEntrypoint(
+            config, _fakeReusableWorker);
+      },
+    );
+    await engine.speak('one', language: 'en-US', rate: 0.5, pitch: 1);
+    await engine.speak('two', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(created, 1);
+    expect(output.played,
+        ['instance=1;request=1', 'instance=1;request=2']);
+    await engine.stop();
+    await engine.speak('three', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(created, 2);
+    expect(output.played.last, 'instance=1;request=1');
+    await engine.dispose();
+    expect(await root.list().toList(), isEmpty);
+  });
+}
