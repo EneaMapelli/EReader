@@ -116,7 +116,8 @@ class OfflineVoicePackManifest {
           parts.first != 'espeak-ng-data' ||
           parts.any((part) => part.isEmpty || part == '.' ||
               part == '..' || part.endsWith('.') ||
-              reserved.hasMatch(part) || !RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(part)) ||
+              reserved.hasMatch(part) || !RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(part) &&
+              part != '!v') ||
           !names.add(name.toLowerCase()) || !digest.hasMatch(asset.sha256)) {
         throw const FormatException('Unsafe offline phonemizer manifest entry');
       }
