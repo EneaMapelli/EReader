@@ -223,6 +223,25 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
       if ((await sha256.bind(file.openRead()).first).toString() != id) {
         throw const FormatException('Backup file checksum mismatch');
       }
+      // The manifest and the snapshot are independently serialized.
+      // A modified SQLite metadata/progress row cannot silently override
+      // the backup catalog presented to the user during preview.
+      for (final field in const ['author', 'series', 'language']) {
+        if (raw[field] != row[field]) {
+          throw const FormatException('Backup metadata mismatch');
+        }
+      }
+      if (raw['progressOffset'] != row['progress_offset']) {
+        throw const FormatException('Backup source progress mismatch');
+      }
+      final savedAnchor = _decodeAnchor(row['progress_anchor']);
+      final declaredAnchor = raw['progressAnchor'];
+      if ((savedAnchor == null) != (declaredAnchor == null) ||
+          (savedAnchor != null &&
+              jsonEncode(savedAnchor.toJson()) !=
+                  jsonEncode(declaredAnchor))) {
+        throw const FormatException('Backup reading anchor mismatch');
+      }
       final title = _safeMetadata(row['title'], 160);
       if (title == null || title.trim().isEmpty) {
         throw const FormatException('Invalid book title');
@@ -240,7 +259,7 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
         series: _safeMetadata(row['series'], 160),
         language: _safeMetadata(row['language'], 24),
         progressOffset: progress,
-        anchor: _decodeAnchor(row['progress_anchor']),
+        anchor: savedAnchor,
         pdfVisualPage: page is int ? page : null,
         bookmarks: List<BookBookmark>.unmodifiable(
             savedBookmarks[id] ?? const []),
