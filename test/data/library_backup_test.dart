@@ -77,7 +77,7 @@ void main() {
     final snapshot = sqlite3.open(
         p.join(result.directory.path, 'library.sqlite'));
     try {
-      expect(snapshot.select('PRAGMA integrity_check').first.values.first,
+      expect(snapshot.select('PRAGMA integrity_check').first['integrity_check'],
           'ok');
       final row = snapshot.select('SELECT title, author, series, language, '
           'progress_offset FROM books WHERE id = ?', [a.id]).first;
