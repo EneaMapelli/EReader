@@ -394,7 +394,7 @@ sessione. La verifica effettiva dei lock su Windows resta necessaria.
 Senza compilare un eseguibile Windows, puoi usare il test sintetico:
 
 ```powershell
-dart run tool/offline_vits_soak.dart --iterations 200
+flutter test tool/offline_vits_soak_test.dart --dart-define=EREADER_SOAK_ITERATIONS=200
 ```
 
 Usa frasi inventate e WAV fittizi: verifica il ciclo di vita dei

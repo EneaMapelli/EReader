@@ -310,7 +310,7 @@ For manual verification without a Windows build, ONNX voice model,
 native decoder, real book data, cloud provider, network or paid API:
 
 ```powershell
-dart run tool/offline_vits_soak.dart --iterations 200
+flutter test tool/offline_vits_soak_test.dart --dart-define=EREADER_SOAK_ITERATIONS=200
 ```
 
 The script exercises repeated WAV staging, native-session lease files,
@@ -324,3 +324,9 @@ This is a *synthetic* lifecycle test only: its fake WAV is not valid
 PCM audio, it does not test actual ONNX, native decoder handles,
 memory consumption, latency or first audible sample. Real Windows
 qualification remains necessary. NOT EXECUTED here; no Actions.
+
+The soak's Flutter-test entrypoint lives in `tool/`, deliberately outside
+the standard `test/` folder. Run `flutter test tool/offline_vits_soak_test.dart`
+explicitly to provide Flutter's `dart:ui` runtime. A plain Dart VM
+may not load the Flutter plugin dependencies; the runner does not
+require or trigger a Windows application build.

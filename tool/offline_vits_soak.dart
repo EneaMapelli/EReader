@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 
 /// Opt-in, simulated long-session WAV test. NEVER loads native ONNX,
 /// books, platform sound output, API secrets, or internet resources.
-/// Run: dart run tool/offline_vits_soak.dart --iterations 200
+/// Run: flutter test tool/offline_vits_soak_test.dart --dart-define=EREADER_SOAK_ITERATIONS=200
 class _FakeOutput implements OfflineWaveOutput {
   int plays = 0;
   int stops = 0;
@@ -48,7 +48,7 @@ class _FakeOutput implements OfflineWaveOutput {
   }
 
   @override
-  Future<void> dispose() async => release();
+  Future<void> dispose() async { release(); }
 }
 
 Future<int> _wavFiles(Directory root) async {
@@ -62,7 +62,7 @@ Future<int> _wavFiles(Directory root) async {
 
 Future<void> main(List<String> args) async {
   if (args.contains('--help')) {
-    stdout.writeln('dart run tool/offline_vits_soak.dart --iterations 200');
+    stdout.writeln('flutter test tool/offline_vits_soak_test.dart --dart-define=EREADER_SOAK_ITERATIONS=200');
     return;
   }
   var iterations = 200;

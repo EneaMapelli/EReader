@@ -635,3 +635,6 @@ Stop and delayed cancellation, with strict final temp-session cleanup.
 No live audiobook, ONNX, audio hardware, external requests or cloud
 API charges. Results are numeric and local only. Not run here.
 No Windows build/GitHub Actions or native acceptance change.
+
+Manual soak invocation uses explicit Flutter-test wrapper in `tool/`,
+not a bare Dart VM; the ordinary test suite remains unaffected.
