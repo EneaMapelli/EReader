@@ -25,10 +25,10 @@ void _fakeReusableWorker((SendPort, VitsSessionModel) init) async {
 void _blockedReusableWorker((SendPort, VitsSessionModel) init) async {
   final incoming = ReceivePort();
   init.$1.send(incoming.sendPort);
-  await for (final message in incoming) {
-    while (true) {
-      sleep(const Duration(milliseconds: 250));
-    }
+  await for (final _ in incoming) {
+    // Simulates a native call that never answers, but unlike sleep loops
+    // leaves the isolate's event loop responsive to immediate kill.
+    await Completer<void>().future;
   }
 }
 

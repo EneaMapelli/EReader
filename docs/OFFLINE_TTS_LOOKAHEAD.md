@@ -366,3 +366,13 @@ cannot kill the NEW model instance created by a later Play. Only the
 current epoch can mark a WAV valid or retire ONNX for corruption.
 Added a test where Stop, a new audible Play and the old native result
 arrive in that order. No physical device tests or builds executed.
+
+## Synthetic worker cancellation without CPU-spinning (2026-10-27)
+
+The worker regression fixtures previously used infinite blocking
+`sleep` loops to simulate a stuck native call. A test process itself
+could then remain blocked on some isolate runtimes even after the
+parent called `Isolate.kill`. The fixtures now keep child isolates
+alive with open receive ports / pending asynchronous Futures instead.
+This verifies cancellation and timeout plumbing without burning CPU or
+claiming native FFI preemption. Tests authored, not executed.

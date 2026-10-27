@@ -16,9 +16,12 @@ void _failed((SendPort, VitsWaveRequest) message) {
   Isolate.exit(message.$1, [1]);
 }
 
-void _neverFinishes((SendPort, VitsWaveRequest) message) {
-  while (true) {
-    sleep(const Duration(milliseconds: 250));
+void _neverFinishes((SendPort, VitsWaveRequest) message) async {
+  // An open receive port keeps the synthetic isolate alive without
+  // blocking its event loop. Isolate.kill can then interrupt promptly.
+  final keepAlive = ReceivePort();
+  await for (final _ in keepAlive) {
+    // Intentionally never reports completion.
   }
 }
 
