@@ -750,6 +750,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   const Text('Your library is empty'),
                   const SizedBox(height: 8),
                   const Text('Import a TXT, EPUB, or PDF to begin'),
+                  if (Platform.isWindows) ...[
+                    const SizedBox(height: 8),
+                    const Text('Or drag ebook files here from Windows Explorer'),
+                  ],
                   if (_importTotal > 0) _batchImportProgress(),
                   if (_exportingBackup)
                     Text('Backing up books: $_backupCompleted / $_backupTotal'),
@@ -768,6 +772,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
             )
           : Column(
               children: [
+                if (Platform.isWindows && !_busy)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.file_upload_outlined, size: 16),
+                        SizedBox(width: 6),
+                        Flexible(child: Text(
+                          'Drop EPUB, PDF or TXT here to import',
+                          textAlign: TextAlign.center,
+                        )),
+                      ],
+                    ),
+                  ),
                 if (_importTotal > 0) _batchImportProgress(),
                 if (_restoringBackup && _restoreTotal == 0)
                   const Padding(
