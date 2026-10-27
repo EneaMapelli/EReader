@@ -15,6 +15,12 @@ class OfflineWavSession {
   static const maxClipsPerSession = 64;
   static const maxRootEntries = 512;
 
+  // POSIX native locking semantics can permit two handles owned by the
+  // SAME process to acquire a record lock. This local registry prevents
+  // in-process engine instances from reclaiming each other's live WAVs.
+  // The OS lease separately guards against other processes.
+  static final Set<String> _liveSessionPaths = <String>{};
+
   final Directory directory;
   final RandomAccessFile _lease;
   bool _closed = false;
@@ -33,6 +39,7 @@ class OfflineWavSession {
       handle = await _leaseFile(directory).open(mode: FileMode.append);
       await handle.lock(FileLock.exclusive);
       await _marker(directory).writeAsString(markerContent, flush: true);
+      _liveSessionPaths.add(p.normalize(directory.absolute.path));
       return OfflineWavSession._(directory, handle);
     } catch (_) {
       if (handle != null) {
@@ -66,6 +73,7 @@ class OfflineWavSession {
     } finally {
       try { await _lease.unlock(); } on FileSystemException {}
       await _lease.close();
+      _liveSessionPaths.remove(p.normalize(directory.absolute.path));
     }
     try {
       if (await FileSystemEntity.type(_marker(directory).path,
@@ -154,6 +162,8 @@ class OfflineWavSession {
           entry is! Directory) continue;
       candidates++;
       final candidate = Directory(entry.path);
+      if (_liveSessionPaths.contains(
+          p.normalize(candidate.absolute.path))) continue;
       try {
         if (!await _isValidSession(candidate)) continue;
         // Validate BEFORE trying to lock; a malformed tree is untouched.

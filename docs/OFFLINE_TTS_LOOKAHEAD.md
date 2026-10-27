@@ -236,3 +236,12 @@ ownership/lease evidence, so they are NOT automatically deleted. A
 file system cannot reliably prove the ownership of arbitrary unmarked
 temp files. Windows native tests must still validate platform lock
 semantics and process-crash recovery before treating this as qualified.
+
+### Same-process lease safeguard
+
+An additional in-memory registry protects live WAV session directories
+inside the same Dart isolate/process, since some POSIX advisory record
+lock implementations are process-scoped. OS-exclusive file locking still
+protects separate processes; both checks must pass before recovery.
+The registry contains only private staging directory paths and is never
+exported, persisted, printed or uploaded.

@@ -32,7 +32,7 @@ void main() {
     expect(await root.list().toList(), isEmpty);
   });
 
-  test('running reader OS lease prevents another engine reclaiming WAV',
+  test('running reader registry and OS lease prevent reclaiming live WAV',
       () async {
     final live = await OfflineWavSession.create(root);
     final clip = await addWav(live);
