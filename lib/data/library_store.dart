@@ -640,6 +640,14 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     // Re-check the complete archive, even after a successful preview;
     // never trust a manifest cached before confirmation.
     final inspected = await inspectLibraryBackup(backup);
+    // Do not copy sensitive books through a symlinked managed directory.
+    // Directory.create(recursive:true) at startup would otherwise accept
+    // a pre-existing symlink/junction as a valid folder.
+    if (await FileSystemEntity.type(
+            _booksDir.path, followLinks: false) !=
+        FileSystemEntityType.directory) {
+      throw const FormatException('Managed books folder is not a directory');
+    }
     var added = 0;
     var skipped = 0;
     var bookmarks = 0;
@@ -661,6 +669,17 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         final type = await FileSystemEntity.type(
             target.path, followLinks: false);
         if (type == FileSystemEntityType.notFound) {
+          // A stale temporary symlink must not redirect the next copy
+          // outside managed storage, even if it has a plausible name.
+          final stagedType = await FileSystemEntity.type(
+              temp.path, followLinks: false);
+          if (stagedType == FileSystemEntityType.link) {
+            throw const FormatException('Unsafe temporary book file');
+          }
+          if (stagedType != FileSystemEntityType.file &&
+              stagedType != FileSystemEntityType.notFound) {
+            throw const FormatException('Invalid temporary book path');
+          }
           // Stream/copy the exact verified book; check again in case the
           // external backup was changed during restore.
           if (await temp.exists()) await temp.delete();
