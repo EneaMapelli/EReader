@@ -17,6 +17,7 @@ class VerifiedBackupBook {
     required this.format,
     required this.file,
     required this.title,
+    required this.importedAt,
     required this.progressOffset,
     required this.bookmarks,
     this.anchor,
@@ -29,6 +30,7 @@ class VerifiedBackupBook {
   final BookFormat format;
   final File file;
   final String title;
+  final DateTime importedAt;
   final int progressOffset;
   final ReadingAnchor? anchor;
   final String? author;
@@ -118,7 +120,7 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
       throw const FormatException('Unsupported or damaged backup database');
     }
     final source = database.select(
-      'SELECT id, title, format, progress_offset, progress_anchor, '
+      'SELECT id, title, format, imported_at, progress_offset, progress_anchor, '
       'author, series, language, pdf_visual_page FROM books',
     );
     if (source.length != count) {
@@ -205,6 +207,7 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
       }
       result.add(VerifiedBackupBook(
         id: id, format: format, file: file, title: title,
+        importedAt: DateTime.parse(row['imported_at'] as String),
         author: _safeMetadata(row['author'], 160),
         series: _safeMetadata(row['series'], 160),
         language: _safeMetadata(row['language'], 24),
