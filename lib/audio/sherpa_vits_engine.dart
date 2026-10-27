@@ -8,6 +8,7 @@ import 'speech_engine.dart';
 import 'sherpa_vits_worker.dart';
 import 'sherpa_vits_session.dart';
 import 'offline_voice_diagnostics.dart';
+import 'offline_wav_cleanup.dart';
 
 /// A separate audio boundary makes model synthesis testable with no native
 /// ONNX library, sound output, model download or network permissions.
@@ -232,7 +233,9 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
     VitsPersistentSession Function(VitsSessionModel)? sessionFactory,
     OfflineWaveOutput? output,
     Future<Directory> Function()? temporaryDirectory,
-  })  : _synthesizer = synthesizer,
+    OfflineWavCleanup? wavCleanup,
+  })  : _wavCleanup = wavCleanup ?? OfflineWavCleanup(),
+        _synthesizer = synthesizer,
         _jobFactory = jobFactory ?? VitsWaveJob.new,
         _useLegacyJobs = jobFactory != null,
         _sessionFactory = sessionFactory ?? VitsPersistentSession.new,
@@ -254,11 +257,15 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
   Future<void>? _currentSynthesisReady;
   final OfflineWaveOutput _output;
   final Future<Directory> Function() _temporaryDirectory;
+  final OfflineWavCleanup _wavCleanup;
 
   final OfflineVoiceDiagnostics _diagnostics = OfflineVoiceDiagnostics();
 
   @override
-  OfflineVoiceStatistics get offlineVoiceStatistics => _diagnostics.snapshot;
+  OfflineVoiceStatistics get offlineVoiceStatistics {
+    _diagnostics.recordPendingWaveFolders(_wavCleanup.pendingCount);
+    return _diagnostics.snapshot;
+  }
 
   int _generation = 0;
   bool _disposed = false;
@@ -382,15 +389,8 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
     }
   }
 
-  Future<void> _deleteStaging(Directory? staging) async {
-    if (staging == null) return;
-    try {
-      if (await staging.exists()) await staging.delete(recursive: true);
-    } on FileSystemException {
-      // Native Windows WAV handles may linger after Stop.
-      // Never play stale speech as a side effect of cleanup.
-    }
-  }
+  Future<void> _deleteStaging(Directory? staging) =>
+      _wavCleanup.release(staging);
 
   /// Prepare one LOCAL future segment after the current synthesis finishes.
   /// While the current WAV plays, native synthesis may warm the next one.
@@ -427,6 +427,11 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       _PreparedWave next, int token, Future<void> priorSynthesis) async {
     try {
       await priorSynthesis;
+      if (_disposed || token != _generation ||
+          !identical(_prepared, next)) return;
+      // Only directories from finished WAV owners may be retried.
+      // No warmup if locked files have saturated the bounded queue.
+      await _wavCleanup.ensureCapacity();
       if (_disposed || token != _generation ||
           !identical(_prepared, next)) return;
       final root = await _temporaryDirectory();
@@ -499,6 +504,10 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
         }
       }
       if (staging == null) {
+        // Retry only previous released WAVs; fail closed if Windows still
+        // holds too many rather than creating unlimited temp files.
+        await _wavCleanup.ensureCapacity();
+        if (_disposed || token != _generation) return;
         final root = await _temporaryDirectory();
         if (_disposed || token != _generation) return;
         staging = await root.createTemp('ereader-local-tts-');
@@ -541,6 +550,8 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       if (pending != null && pending.ready) {
         await _deleteStaging(pending.staging);
       }
+      // Only after native output Stop; never delay issuing audible Stop.
+      await _wavCleanup.retryPending(maxAttempts: 2);
     }
   }
 
@@ -562,6 +573,9 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       if (pending != null && pending.ready) {
         await _deleteStaging(pending.staging);
       }
+      // Last bounded pass after the decoder has been disposed; lingering
+      // locked folders are reported, never silently dropped in-session.
+      await _wavCleanup.retryPending(maxAttempts: _wavCleanup.maxPending);
     }
   }
 }

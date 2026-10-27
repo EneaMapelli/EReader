@@ -16,6 +16,7 @@ class OfflineVoiceStatistics {
     required this.p95SynthesisMs,
     required this.lastDecoderHandoffMs,
     required this.lastWholeProcessRssMiB,
+    required this.pendingWaveFolders,
   });
 
   final int modelLoads;
@@ -32,6 +33,8 @@ class OfflineVoiceStatistics {
   /// This is NOT the measured first audible sample.
   final int lastDecoderHandoffMs;
   final int lastWholeProcessRssMiB;
+  /// WAV staging folders whose removal is deferred after native file locks.
+  final int pendingWaveFolders;
 }
 
 /// Bounded, in-memory counters only. Exposing a snapshot does not write
@@ -50,6 +53,11 @@ class OfflineVoiceDiagnostics {
   int _lastHandoffMs = 0;
   int _rssMiB = 0;
   int _sumMs = 0;
+  int _pendingWaveFolders = 0;
+
+  void recordPendingWaveFolders(int count) {
+    if (count >= 0) _pendingWaveFolders = count;
+  }
 
   void recordModelLoad() => _modelLoads++;
 
@@ -95,6 +103,7 @@ class OfflineVoiceDiagnostics {
       p95SynthesisMs: sorted.isEmpty ? 0 : sorted[p95Index],
       lastDecoderHandoffMs: _lastHandoffMs,
       lastWholeProcessRssMiB: _rssMiB,
+      pendingWaveFolders: _pendingWaveFolders,
     );
   }
 }

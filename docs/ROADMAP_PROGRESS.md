@@ -578,3 +578,14 @@ also requires native decoder Stop before deleting the temporary file.
 Added an injectable decoder and regression tests for native delays,
 cancellation, rapid restart and load errors. Test execution/native
 acceptance pending; milestone percentage estimates unchanged.
+
+### M3 — bounded deferred cleanup for Windows WAV locks (2026-10-27)
+
+Local neural audio now retains failed per-utterance directory deletions
+in a private, fair, max-32 queue. It retries before future synthesis,
+after native Stop and after Dispose without touching active decoder WAVs.
+If all pending directories remain locked, new generation fails closed
+instead of producing unbounded orphan audio. Offline diagnostics show
+only the integer pending count; no file paths or book content.
+Added targeted fake-lock and engine integration regressions (not run).
+No Windows build/GitHub Actions; device acceptance gates remain open.

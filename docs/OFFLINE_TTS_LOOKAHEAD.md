@@ -171,3 +171,36 @@ release. Delayed native Stop is still subject to ReaderPlayer's existing
 Stop-confirmation timeout, which fails closed rather than overlapping
 audio. Added synthetic tests where decoder Stop intentionally remains
 pending after native load or playback reports completion.
+
+## Bounded WAV cleanup after Windows file locks (2026-10-27)
+
+The prior best-effort staging deletion silently forgot a private WAV
+folder on `FileSystemException`. The VITS engine now uses
+`OfflineWavCleanup`, a per-engine, in-memory queue of ONLY the exact
+temporary directories created for completed local speech jobs.
+
+- Deletion on normal completion is still immediate.
+- Locked staging folders are retained for later deletion; a small
+  bounded retry batch (4) runs before creating subsequent WAVs.
+  Failed entries rotate so permanently locked files do not starve
+  recoverable entries.
+- After confirmed native Stop, at most 2 pending directories are retried;
+  after decoder Dispose, up to 32 are retried. No cleanup ever occurs on
+  an active WAV solely because its path happens to match a temp prefix.
+- When 32 directories remain blocked, a new audible synthesis fails closed
+  rather than creating unlimited private files. Speculative lookahead
+  silently skips when capacity is exhausted.
+- The numeric pending-folder count is visible in offline diagnostics.
+  Source text, private paths, audio bytes and cleanup failures are not
+  logged, persisted, sent externally or displayed.
+
+Temporary paths are never scanned by name: only directories explicitly
+handed to this helper after ownership has ended can be deleted.
+Unexpected symlink/regular-file replacements are not traversed.
+The queue lasts only for the current engine process; if Windows retains
+files until AFTER app exit, on-next-launch stale cleanup remains a
+separate, guarded feature (not claimed here). Native Windows host
+tests must confirm file-lock behavior and actual cleanup success.
+
+Added fake-lock, rotation, backpressure, concurrent-retry, isolation
+and engine integration tests; authored, NOT EXECUTED.

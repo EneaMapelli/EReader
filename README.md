@@ -359,3 +359,13 @@ lento annullato non può iniziare a parlare in ritardo. Al termine
 normale di una frase viene fermato esplicitamente il decoder prima
 di eliminare il file WAV temporaneo, riducendo il rischio di file
 bloccati su Windows. Restano necessarie prove native.
+
+### Pulizia controllata dei WAV temporanei offline
+
+Se Windows mantiene bloccato un file WAV dopo lo Stop, EReader ora ne
+ritenta la rimozione durante la lettura e alla chiusura. Il sistema
+conserva soltanto i percorsi temporanei creati dal motore (mai cartelle
+arbitrarie), usa una coda limitata di 32 elementi e interrompe nuove
+sintesi se lo spazio in coda è esaurito. Il pannello prestazioni mostra
+il numero di cartelle in attesa, non i percorsi o i contenuti.
+Il recupero dopo un riavvio dell'app resta da implementare.

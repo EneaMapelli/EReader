@@ -1852,7 +1852,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                         ),
                         subtitle: Text(
                           'Failed: ${d.failures} · '
-                          'Cancelled: ${d.cancelledSyntheses}. '
+                          'Cancelled: ${d.cancelledSyntheses} · '
+                          'Pending WAV cleanup: ${d.pendingWaveFolders}. '
                           'Handoff is not audible onset; '
                           'RSS is not model-only memory.',
                         ),

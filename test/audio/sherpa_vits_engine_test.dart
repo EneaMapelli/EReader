@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:ereader/audio/sherpa_vits_engine.dart';
 import 'package:ereader/audio/speech_engine.dart';
+import 'package:ereader/audio/offline_wav_cleanup.dart';
 import 'package:ereader/data/offline_voice_pack.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -211,6 +212,65 @@ void main() {
     expect(await root.list().toList(), isEmpty);
     await expectLater(synth.speak('again', language: 'en-US',
         rate: 0.5, pitch: 1), throwsStateError);
+  });
+
+  test('locked WAV is retained and retried before the next utterance',
+      () async {
+    var locked = true;
+    final cleaner = OfflineWavCleanup(
+      maxPending: 2,
+      deleteDirectory: (folder) async {
+        if (locked) throw const FileSystemException('locked WAV');
+        if (await folder.exists()) await folder.delete(recursive: true);
+      },
+    );
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack,
+      synthesizer: fakeSynthesize,
+      output: output,
+      wavCleanup: cleaner,
+      temporaryDirectory: () async => root,
+    );
+    await synth.speak('First', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(cleaner.pendingCount, 1);
+    expect(synth.offlineVoiceStatistics.pendingWaveFolders, 1);
+    locked = false;
+    await synth.speak('Next', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(cleaner.pendingCount, 0);
+    expect(synth.offlineVoiceStatistics.pendingWaveFolders, 0);
+    expect(texts, ['First', 'Next']);
+    expect(await root.list().toList(), isEmpty);
+    await synth.dispose();
+  });
+
+  test('locked WAVs cause a bounded fail-closed refusal to synthesize',
+      () async {
+    var locked = true;
+    final cleaner = OfflineWavCleanup(
+      maxPending: 1,
+      deleteDirectory: (folder) async {
+        if (locked) throw const FileSystemException('locked WAV');
+        if (await folder.exists()) await folder.delete(recursive: true);
+      },
+    );
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack,
+      synthesizer: fakeSynthesize,
+      output: output,
+      wavCleanup: cleaner,
+      temporaryDirectory: () async => root,
+    );
+    await synth.speak('One', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(cleaner.pendingCount, 1);
+    await expectLater(synth.speak('Blocked', language: 'en-US',
+        rate: 0.5, pitch: 1), throwsStateError);
+    expect(texts, ['One'],
+        reason: 'Do not generate another WAV when orphan cap is reached');
+    locked = false;
+    await synth.speak('Allowed', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(texts, ['One', 'Allowed']);
+    expect(cleaner.pendingCount, 0);
+    await synth.dispose();
   });
 
   test('native synthesis failure does not leak temporary voice audio',
