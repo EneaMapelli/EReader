@@ -248,6 +248,82 @@ void main() {
     await synth.dispose();
   });
 
+  test('wrong speculative next text is discarded before real synthesis',
+      () async {
+    final synth = engine();
+    final gate = Completer<void>();
+    output.playGate = gate;
+    final first = synth.speak(
+        'First', language: 'en-US', rate: 0.5, pitch: 1);
+    for (var n = 0; n < 50 && output.filePaths.isEmpty; n++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(output.filePaths, hasLength(1));
+    await synth.prepareOfflineSpeech(
+      'Predicted', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
+    expect(texts, ['First', 'Predicted']);
+    expect(await root.list().toList(), isNotEmpty);
+    output.playGate = null;
+    gate.complete();
+    await first;
+    await synth.speak('Actual', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(texts, ['First', 'Predicted', 'Actual']);
+    expect(output.filePaths, hasLength(2));
+    expect(await root.list().toList(), isEmpty);
+    await synth.dispose();
+  });
+
+  test('changed speed waits for unfinished speculative synthesis', () async {
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    Future<void> slowNext({
+      required String text,
+      required String modelPath,
+      required String tokensPath,
+      required String dataDir,
+      required String wavPath,
+      required double speed,
+    }) async {
+      texts.add(text);
+      speeds.add(speed);
+      if (text == 'Next') {
+        entered.complete();
+        await release.future;
+      }
+      await File(wavPath).writeAsBytes([82, 73, 70, 70]);
+    }
+
+    final synth = engine(synthesizer: slowNext);
+    final gate = Completer<void>();
+    output.playGate = gate;
+    final first = synth.speak(
+        'First', language: 'en-US', rate: 0.5, pitch: 1);
+    for (var n = 0; n < 50 && output.filePaths.isEmpty; n++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(output.filePaths, hasLength(1));
+    final preparing = synth.prepareOfflineSpeech(
+      'Next', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
+    await entered.future;
+    output.playGate = null;
+    gate.complete();
+    await first;
+
+    final real = synth.speak(
+        'Next', language: 'en-US', rate: 0.8, pitch: 1);
+    // A second synthesis must not start while the prior WAV is pending.
+    await Future<void>.delayed(Duration.zero);
+    expect(texts, ['First', 'Next']);
+    release.complete();
+    await preparing;
+    await real;
+    expect(texts, ['First', 'Next', 'Next']);
+    expect(speeds, [1, 1, 1.6]);
+    expect(output.filePaths, hasLength(2));
+    expect(await root.list().toList(), isEmpty);
+    await synth.dispose();
+  });
+
   test('stop discards a completed lookahead WAV without playing it',
       () async {
     final synth = engine();

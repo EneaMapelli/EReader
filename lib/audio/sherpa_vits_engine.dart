@@ -320,14 +320,26 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
     String? wavPath;
     try {
       final pending = _prepared;
-      if (pending != null &&
-          pending.matches(text, language, rate, pitch, _packVoice.key)) {
+      if (pending != null) {
+        // An earlier speculative synthesis might have been prepared for
+        // a different rate, text or voice. Wait for that ONE existing
+        // native job to settle before starting the actual utterance.
+        // Otherwise the persistent worker reports "busy", retires its
+        // model, and the requested audible phrase fails to play.
         await pending.task;
         if (_disposed || token != _generation) return;
-        if (pending.ready) {
+        if (identical(_prepared, pending) &&
+            pending.ready &&
+            pending.matches(text, language, rate, pitch, _packVoice.key)) {
           staging = pending.staging;
           wavPath = pending.wavPath;
-          _prepared = null; // This audible clip owns file cleanup now.
+          _prepared = null; // Audible clip now owns this private WAV.
+        } else if (identical(_prepared, pending)) {
+          // A mismatched, completed WAV must never be played and must not
+          // occupy a future lookahead slot or leak private source audio.
+          _prepared = null;
+          await _deleteStaging(pending.staging);
+          if (_disposed || token != _generation) return;
         }
       }
       if (staging == null) {

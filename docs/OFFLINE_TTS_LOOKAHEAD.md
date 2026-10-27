@@ -85,3 +85,15 @@ Stop/Seek/Dispose remain immediate generation invalidations.
 Synthetic timers/isolate regressions were written but not run. These
 are *logical* timeouts; exact native FFI preemption, actual working-set
 memory reclamation and perceived audio latency require Windows tests.
+
+## Mismatch-safe lookahead handoff (2026-10-27)
+
+A changed speed or different next audible segment must never race a
+still-running speculative synthesis on the same persistent native worker.
+The audible `speak` method now waits for any prior lookahead (even if
+its text or settings do not match) before invoking native inference.
+Only an exact-match WAV is claimed; mismatched private WAVs are deleted
+and the correct passage is then synthesized. Stop/Dispose generation
+checks continue to suppress delayed playback. New tests cover a
+completed wrong prediction and an in-flight wrong-rate prediction.
+No Dart/Flutter tests or native builds were executed here.
