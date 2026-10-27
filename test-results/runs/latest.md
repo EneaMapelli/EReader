@@ -1,8 +1,8 @@
 # EReader — Local Test Report
 
 * Result: **FAIL** (partial run — timeout on one widget test, pre-existing audio race)
-* Source: 9392c6a (feature/m0-flutter-foundation)
-* Run: 20261027T170000Z-ereader-local-run
+* Source: 8272800 (feature/m0-flutter-foundation)
+* Run: 20261027T173000Z-ereader-local-run
 
 ## Summary
 - flutter pub get: PASS
@@ -25,6 +25,12 @@
 | lib/features/reader/offline_voice_manager_screen.dart | `FilePicker.platform.getDirectoryPath()` (removed `dialogTitle` no longer supported in file_picker 3.x) |
 | lib/features/library/library_screen.dart | `FilePicker.platform.pickFiles()`, `selected.files` access, `File(item.path!).openRead()` instead of removed `readAsByteStream`, `FilePicker.platform.getDirectoryPath()` |
 
-## Notes
+## Detailed Logs
 
-The timeout on `offline_voice_manager_widget_test.dart` is a known Windows temp file lock issue (`PathAccessException` errno 32), not a logic failure in EReader. The single audio test failure is the same pre-existing race condition observed in previous runs.
+Raw stdout/stderr logs for each test run are saved under `test-results/runs/<timestamp>/`:
+- `audio_tests.stdout.log` / `audio_tests.stderr.log` → `test-results/runs/20261027T172028Z/`
+- `soak_tests.stdout.log` / `soak_tests.stderr.log` → `test-results/runs/20261027T172029Z-soak/`
+
+## Why logs were missing before
+
+Running `flutter test` directly prints to terminal but does **not** save detailed logs to file. Logs are generated automatically only when using `--reporter json` with output redirect, or when running via `tool/run-all-tests.ps1` (which saves raw logs per test file).

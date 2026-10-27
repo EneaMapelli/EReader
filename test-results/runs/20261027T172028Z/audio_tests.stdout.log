@@ -1,0 +1,107 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":1116,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":1}
+{"suite":{"id":2,"platform":"vm","path":"E:/GitHub/EReader/test/audio/sherpa_vits_session_test.dart"},"type":"suite","time":8}
+{"test":{"id":3,"name":"loading E:/GitHub/EReader/test/audio/sherpa_vits_session_test.dart","suiteID":2,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":8}
+{"suite":{"id":4,"platform":"vm","path":"E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"suite","time":10}
+{"test":{"id":5,"name":"loading E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart","suiteID":4,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":10}
+{"count":3,"time":11,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":7562}
+{"group":{"id":6,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":24,"line":null,"column":null,"url":null},"type":"group","time":7565}
+{"test":{"id":7,"name":"owned WAV session metadata is removed on settled Dispose","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":175,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":7566}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7720}
+{"test":{"id":8,"name":"parallel Dispose callers await one native shutdown","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":188,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":7721}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7780}
+{"test":{"id":9,"name":"Dispose failure still releases WAV session metadata","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":210,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":7780}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7881}
+{"test":{"id":10,"name":"offline speech exposes only installed local voice and WAV playback","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":226,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":7882}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7932}
+{"test":{"id":11,"name":"offline engine records local numeric performance without book text","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":244,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":7933}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7968}
+{"test":{"id":12,"name":"speech rate maps to engine speed and never calls a cloud service","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":261,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":7969}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8008}
+{"test":{"id":13,"name":"unsupported voice/language/pitch and overlong text fail closed","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":271,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8009}
+{"testID":13,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8019}
+{"test":{"id":14,"name":"stop while native synthesis is pending never plays delayed WAV","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":290,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8024}
+{"testID":14,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8069}
+{"test":{"id":15,"name":"dispose during synthesis suppresses late playback and closes audio","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":321,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8069}
+{"testID":15,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8125}
+{"test":{"id":16,"name":"locked WAV is retained and retried before the next utterance","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":352,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8126}
+{"testID":16,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8173}
+{"test":{"id":17,"name":"locked WAVs cause a bounded fail-closed refusal to synthesize","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":382,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8179}
+{"testID":17,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8232}
+{"test":{"id":18,"name":"production PCM validator accepts correct WAV before audio output","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":412,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8235}
+{"testID":18,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8326}
+{"test":{"id":19,"name":"malformed native WAV fails before decoder and removes staging","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":439,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8332}
+{"testID":19,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8361}
+{"test":{"id":20,"name":"invalid prepared WAV is discarded and audible speech regenerates","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":467,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8361}
+{"testID":20,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8422}
+{"test":{"id":21,"name":"late successful generation after Stop is not counted or played","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":513,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8425}
+{"testID":21,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8460}
+{"test":{"id":22,"name":"native synthesis failure does not leak temporary voice audio","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":554,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8461}
+{"testID":3,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":8483}
+{"group":{"id":23,"suiteID":2,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":8,"line":null,"column":null,"url":null},"type":"group","time":8484}
+{"test":{"id":24,"name":"two sequential WAVs use same model worker and numbered requests","suiteID":2,"groupIDs":[23],"metadata":{"skip":false,"skipReason":null},"line":97,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_session_test.dart"},"type":"testStart","time":8484}
+{"testID":22,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8493}
+{"test":{"id":25,"name":"engine preloads next VITS WAV onto an idle physical decoder","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":574,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8493}
+{"testID":25,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8545}
+{"test":{"id":26,"name":"engine stops standby before removing a mismatched warmed WAV","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":617,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8545}
+{"testID":26,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8613}
+{"test":{"id":27,"name":"one-ahead local synthesis runs while the first WAV plays and is reused","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":654,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8614}
+{"testID":27,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8657}
+{"test":{"id":28,"name":"wrong speculative next text is discarded before real synthesis","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":686,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8658}
+{"testID":28,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8716}
+{"test":{"id":29,"name":"changed speed waits for unfinished speculative synthesis","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":711,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":8717}
+{"testID":29,"error":"Bad state: Future already completed","stackTrace":"dart:async                                            _AsyncCompleter.complete\ntest\\audio\\sherpa_vits_engine_test.dart 725:17        main.<fn>.slowNext\npackage:ereader/audio/sherpa_vits_engine.dart 582:17  SherpaVitsSpeechEngine._synthesizeWaveNative\npackage:ereader/audio/sherpa_vits_engine.dart 534:32  SherpaVitsSpeechEngine._synthesizeWave\npackage:ereader/audio/sherpa_vits_engine.dart 770:33  SherpaVitsSpeechEngine.speak\n","isFailure":false,"type":"error","time":8989}
+{"testID":24,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9026}
+{"test":{"id":30,"name":"busy persistent worker rejects second request and cancels first","suiteID":2,"groupIDs":[23],"metadata":{"skip":false,"skipReason":null},"line":114,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_session_test.dart"},"type":"testStart","time":9027}
+{"testID":30,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9063}
+{"testID":5,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":9071}
+{"group":{"id":31,"suiteID":4,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":13,"line":null,"column":null,"url":null},"type":"group","time":9072}
+{"test":{"id":32,"name":"discardNext stops only the idle decoder before WAV cleanup","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":74,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9072}
+{"test":{"id":33,"name":"Stop before isolate is ready invalidates queued synthesis","suiteID":2,"groupIDs":[23],"metadata":{"skip":false,"skipReason":null},"line":131,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_session_test.dart"},"type":"testStart","time":9073}
+{"testID":33,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9084}
+{"test":{"id":34,"name":"startup timeout rejects queued text and closes worker","suiteID":2,"groupIDs":[23],"metadata":{"skip":false,"skipReason":null},"line":143,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_session_test.dart"},"type":"testStart","time":9085}
+{"testID":34,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9135}
+{"testID":32,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9136}
+{"test":{"id":35,"name":"synthesis watchdog retires unresponsive worker with a safe error","suiteID":2,"groupIDs":[23],"metadata":{"skip":false,"skipReason":null},"line":168,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_session_test.dart"},"type":"testStart","time":9158}
+{"test":{"id":36,"name":"second decoder preloads during playback and reuses setFilePath","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":103,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9159}
+{"testID":35,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9194}
+{"test":{"id":37,"name":"idle worker is released without an active request","suiteID":2,"groupIDs":[23],"metadata":{"skip":false,"skipReason":null},"line":192,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_session_test.dart"},"type":"testStart","time":9195}
+{"testID":36,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9210}
+{"test":{"id":38,"name":"obsolete speculative load never blocks correct audible clip","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":132,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9210}
+{"testID":37,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9223}
+{"test":{"id":39,"name":"engine recovers from idle worker retirement on next phrase","suiteID":2,"groupIDs":[23],"metadata":{"skip":false,"skipReason":null},"line":217,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_session_test.dart"},"type":"testStart","time":9237}
+{"testID":38,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9267}
+{"test":{"id":40,"name":"Stop waits for both decoder loads before WAV may be deleted","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":160,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9268}
+{"testID":40,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9281}
+{"test":{"id":41,"name":"Stop during pending warm load prevents stale decoder playback","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":187,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9284}
+{"testID":41,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9294}
+{"test":{"id":42,"name":"Stop during slow setFilePath waits for it, then blocks stale Play","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":207,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9294}
+{"testID":42,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9300}
+{"test":{"id":43,"name":"Dispose during pending load waits and cannot start late audio","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":230,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9302}
+{"testID":43,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9320}
+{"test":{"id":44,"name":"cancelled native load cannot finish before its Stop settles","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":250,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9321}
+{"testID":39,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9327}
+{"testID":44,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9328}
+{"test":{"id":45,"name":"engine reuses one model across speech, then recreates after Stop","suiteID":2,"groupIDs":[23],"metadata":{"skip":false,"skipReason":null},"line":258,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_session_test.dart"},"type":"testStart","time":9328}
+{"test":{"id":46,"name":"cancelled ongoing playback waits for native Stop confirmation","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":272,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9335}
+{"testID":46,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9357}
+{"test":{"id":47,"name":"natural completion performs native Stop before WAV cleanup","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":293,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9369}
+{"testID":45,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9413}
+{"testID":47,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9432}
+{"test":{"id":48,"name":"Stop during playback interrupts once; stale finalizer cannot stop the next utterance","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":305,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9433}
+{"testID":48,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9446}
+{"test":{"id":49,"name":"failed native Stop remains required before decoder reuse","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":324,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9447}
+{"testID":49,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9492}
+{"test":{"id":50,"name":"failed decoder load always performs native Stop before surfacing","suiteID":4,"groupIDs":[31],"metadata":{"skip":false,"skipReason":null},"line":346,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/wav_decoder_race_test.dart"},"type":"testStart","time":9493}
+{"testID":50,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9500}
+{"testID":29,"error":"PathAccessException: Deletion failed, path = 'C:\\Users\\eneam\\AppData\\Local\\Temp\\ereader-sherpa-test-3ae2738b' (OS Error: The process cannot access the file because it is being used by another process, errno = 32)","stackTrace":"dart:io                                         FileSystemEntity.delete\ntest\\support\\windows_temp_cleanup.dart 13:25    deleteOwnedTestTemp\n===== asynchronous gap ===========================\ndart:async                                      _CustomZone.registerUnaryCallback\ntest\\support\\windows_temp_cleanup.dart 12:11    deleteOwnedTestTemp\ntest\\audio\\sherpa_vits_engine_test.dart 147:11  main.<fn>\n","isFailure":false,"type":"error","time":13848}
+{"testID":29,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":13854}
+{"test":{"id":51,"name":"stop discards a completed lookahead WAV without playing it","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":761,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":13871}
+{"testID":51,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":13926}
+{"test":{"id":52,"name":"stop during speculative synthesis invalidates late WAV and cleans it","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":779,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":13927}
+{"testID":52,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":13965}
+{"test":{"id":53,"name":"missing WAV fails safely without attempting output playback","suiteID":0,"groupIDs":[6],"metadata":{"skip":false,"skipReason":null},"line":816,"column":3,"url":"file:///E:/GitHub/EReader/test/audio/sherpa_vits_engine_test.dart"},"type":"testStart","time":13966}
+{"testID":53,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":14002}
+{"success":false,"type":"done","time":14060}

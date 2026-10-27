@@ -1,21 +1,27 @@
 {
-    "runId": "20261027T170000Z-ereader-local-run",
-    "sourceCommit": "9392c6a",
+    "runId": "20261027T173000Z-ereader-local-run",
+    "sourceCommit": "8272800",
     "branch": "feature/m0-flutter-foundation",
-    "startedUtc": "2026-10-27T17:00:00Z",
+    "startedUtc": "2026-10-27T17:30:00Z",
     "result": "FAIL",
     "totals": {
         "passed": 44,
         "failed": 1,
-        "errors": 1,
+        "errors": 0,
         "skipped": 0
     },
     "stages": {
         "flutter_pub_get": "PASS",
         "flutter_analyze": "PASS",
-        "flutter_test_audio": "PARTIAL",
+        "flutter_test_audio": "44_passed_1_failed",
         "flutter_test_widget_timeout": "TIMEOUT",
         "soak_test_500": "PASS"
+    },
+    "detailed_logs": {
+        "audio_tests_stdout": "test-results/runs/20261027T172028Z/audio_tests.stdout.log",
+        "audio_tests_stderr": "test-results/runs/20261027T172028Z/audio_tests.stderr.log",
+        "soak_tests_stdout": "test-results/runs/20261027T172029Z-soak/soak_tests.stdout.log",
+        "soak_tests_stderr": "test-results/runs/20261027T172029Z-soak/soak_tests.stderr.log"
     },
     "notes": "pub get OK after aligning desktop_drop ^0.9.2 and file_picker ^3.0.4. flutter analyze clean (no errors). Audio tests: 44 passed, 1 failed (changed speed waits for unfinished speculative synthesis - pre-existing race condition on Windows temp file lock). offline_voice_manager_widget_test.dart timed out after 10 minutes (Windows file lock on temp dir - pre-existing). offline_vits_soak_test.dart PASS (500 iterations). Code fixes: offline_voice_manager_screen.dart and library_screen.dart adapted to file_picker 3.x API (platform.getDirectoryPath, platform.pickFiles, selected.files, File.openRead instead of removed readAsByteStream)."
 }
