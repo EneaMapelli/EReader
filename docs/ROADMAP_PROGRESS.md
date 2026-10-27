@@ -414,3 +414,18 @@ System speech offers two Windows punctuation profiles. The existing VITS/Piper a
 ### Windows curated Paola model installation (2026-10-27)
 
 Added explicit one-click Piper Paola installation in the Windows offline voice manager. Only after opt-in, the client streams the pre-converted official sherpa-onnx archive, checks its pinned GitHub release SHA-256 before Windows tar extraction, verifies expected model/tokens/eSpeak files and atomically installs locally; no cloud/model redistribution or automatic voice activation. Installer/path corruption test fixtures authored, not run. Windows native voice playback remains unverified. See [PIPER_PAOLA_ONE_CLICK.md](PIPER_PAOLA_ONE_CLICK.md).
+
+### M1 — importazione multipla e gestione errori biblioteca (2026-10-27)
+
+- Il picker supporta ora selezione multipla EPUB/PDF/TXT (massimo 50),
+  usando l'API `file_picker.pickFiles()` già presente. Il percorso
+  `importPickedBooks` importa in sequenza senza caricare l'intero batch
+  in RAM, isola gli errori, segnala duplicati SHA-256 e preserva i
+  segnalibri dei libri esistenti; Android SAF senza filesystem continua
+  a usare staging bounded e pulizia garantita.
+- UI con contatore, barra di avanzamento, **Cancel remaining** (solo fra
+  file), riepilogo di successi/duplicati/errori con nomi sanitizzati.
+  Un solo libro continua ad aprirsi automaticamente; più libri non
+  avviano il TTS. Test Dart scritti ma NON eseguiti.
+- Non implementa ancora drag&drop Windows, importazione ricorsiva di
+  cartelle né OPDS. [Specifiche e test utente](LIBRARY_BATCH_IMPORT.md).
