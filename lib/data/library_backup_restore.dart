@@ -46,6 +46,34 @@ class VerifiedLibraryBackup {
   final int totalBookBytes;
 }
 
+class LibraryRestorePreview {
+  const LibraryRestorePreview({
+    required this.total,
+    required this.availableToImport,
+    required this.alreadyPresent,
+    required this.bookmarksToImport,
+    required this.verifiedBytes,
+  });
+
+  final int total;
+  final int availableToImport;
+  final int alreadyPresent;
+  final int bookmarksToImport;
+  final int verifiedBytes;
+}
+
+class LibraryRestoreResult {
+  const LibraryRestoreResult({
+    required this.added,
+    required this.skipped,
+    required this.bookmarksImported,
+  });
+
+  final int added;
+  final int skipped;
+  final int bookmarksImported;
+}
+
 String? _safeMetadata(Object? value, int maxLength) {
   if (value == null) return null;
   if (value is! String || value.length > maxLength ||
