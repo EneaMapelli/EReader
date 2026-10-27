@@ -13,6 +13,7 @@ import '../../audio/sherpa_vits_engine.dart';
 import '../../data/offline_voice_pack.dart';
 import '../../data/library_store.dart';
 import '../../domain/cloud_speech_consent.dart';
+import '../../domain/cloud_cost_estimate.dart';
 import '../../domain/speech_preferences.dart';
 import 'offline_voice_manager_screen.dart';
 
@@ -41,6 +42,10 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
   late CloudSpeechConsent _consent;
   final _key = TextEditingController();
   final _quota = TextEditingController(text: '20000');
+  // These prices are user-provided calculation inputs, never persisted as
+  // a provider tariff, and are not treated as verified billing data.
+  final _usdPerMillion = TextEditingController();
+  final _usdBudget = TextEditingController();
   bool _hasKey = false;
   bool _busy = false;
   bool _checkingLocal = false;
@@ -218,6 +223,36 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
     }
   }
 
+  void _applyEstimatedCloudBudget() {
+    try {
+      final quote = CloudCostEstimate.fromUsdText(
+        pricePerMillion: _usdPerMillion.text,
+        totalBudget: _usdBudget.text,
+      );
+      final suggested = quote.characterLimit;
+      if (suggested < 1) {
+        throw const FormatException(
+          'This USD budget cannot authorize even one character.',
+        );
+      }
+      if (suggested < _consent.usedCharacters) {
+        throw const FormatException(
+          'Estimated limit is below already reserved characters. '
+          'Previous cloud usage cannot be undone.',
+        );
+      }
+      // Only update the *draft*. Consent and its database quota are
+      // unchanged until the user reviews and confirms them below.
+      setState(() => _quota.text = suggested.toString());
+      _feedback('Draft set to $suggested characters '
+          '(estimated USD ${quote.estimatedUsdForCharacters(suggested)} '
+          'at the entered unit price). Review and save the character '
+          'limit below to enforce it. Provider charges are not guaranteed.');
+    } on FormatException catch (error) {
+      _feedback('Invalid USD estimate: ${error.message}');
+    }
+  }
+
   Future<void> _enableCloud() async {
     if (_busy) return;
     final max = int.tryParse(_quota.text.trim());
@@ -324,6 +359,8 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
   void dispose() {
     _key.dispose();
     _quota.dispose();
+    _usdPerMillion.dispose();
+    _usdBudget.dispose();
     super.dispose();
   }
 
@@ -471,8 +508,58 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
               maxLength: 8,
               decoration: const InputDecoration(
                 labelText: 'Hard character limit per book',
-                helperText: 'This is NOT a spending limit in euros.',
+                helperText: 'Locally enforced before uncached API requests.',
               ),
+            ),
+            const SizedBox(height: 12),
+            ExpansionTile(
+              title: const Text('Estimate a USD budget as characters'),
+              subtitle: const Text('Optional calculator — no provider '
+                  'price is fetched or stored'),
+              childrenPadding: const EdgeInsets.only(bottom: 16),
+              children: [
+                const Text(
+                  'Enter the current price for your exact speech model '
+                  'in USD per 1,000,000 input characters, then a total '
+                  'USD budget for this book. Verify the price with the '
+                  'provider: model rates can change. This is only an '
+                  'estimate, not a billing guarantee or a currency cap.',
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _usdPerMillion,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'USD per 1 million characters',
+                    hintText: 'e.g. 15.00 (check your current price)',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _usdBudget,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'USD budget for this book',
+                    hintText: 'e.g. 1.50',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: _busy ? null : _applyEstimatedCloudBudget,
+                  child: const Text('Calculate draft character limit'),
+                ),
+                const Text(
+                  'This fills the character-limit field only. It does '
+                  'not grant consent or save changes. Use the separate '
+                  'Review button below. Previous usage counts toward '
+                  'the total; failed API requests may still be charged. '
+                  'Actual billing can include other fees or rate changes.',
+                ),
+              ],
             ),
             Wrap(spacing: 8, children: [
               FilledButton.icon(

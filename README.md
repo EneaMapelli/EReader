@@ -276,3 +276,14 @@ ricorsive o link web. [Guida e checklist](docs/LIBRARY_DESKTOP_DRAG_DROP.md).
 
 **La funzione è nel codice ma non nella precedente Release:** le nuove
 build Windows sono esclusivamente manuali, su tua richiesta.
+
+### Preventivo indicativo USD per il TTS cloud
+
+Da **Speech engines → Permission and usage limit → Estimate a USD budget as
+characters** è possibile digitare una tariffa in USD per milione di caratteri
+(verificata manualmente dal provider) e un budget per libro. L'app calcola
+per difetto un limite di caratteri, da confermare separatamente per attivarlo.
+Non memorizza né aggiorna prezzi e non offre una garanzia di spesa massima:
+il tetto tecnicamente applicato prima delle richieste cloud rimane quello
+sui caratteri, con lo storico già consumato incluso. Questa funzionalità
+non avvia alcuna build Windows né invoca API.

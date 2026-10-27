@@ -1726,3 +1726,17 @@ and Cancel remaining apply. Android SAF picker unchanged. New pure
 filter/stream tests authored but NOT RUN. No Windows build or GitHub
 Actions job triggered; user approval is required for a build.
 [Details](LIBRARY_DESKTOP_DRAG_DROP.md).
+
+### 2026-10-27 — M3 book-local USD estimate converted into safe character cap
+
+Added an optional USD price-per-million and total-book-budget calculator to
+the existing OpenAI Speech settings. Positive decimal inputs are parsed into
+integer cents; the local estimate floors the available characters, clamps to
+the existing 10-million limit, and rejects budgets smaller than previously
+reserved usage. No provider prices are bundled, queried or persisted.
+Calculating fills an editable draft only: the existing book-specific consent
+dialog must separately authorize the character limit before the atomic
+database quota is modified. No new API calls or account billing claims.
+This is **not** a monetary hard stop; variable tariffs, failed calls and
+provider-side accounting remain outside local guarantees. Pure Dart tests
+authored but NOT RUN. No Windows build or GitHub Actions workflow started.

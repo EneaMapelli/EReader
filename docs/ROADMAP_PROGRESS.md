@@ -490,3 +490,22 @@ Added explicit one-click Piper Paola installation in the Windows offline voice m
   Aggiunti test unitari di filtro e handoff, **non eseguiti**.
 - **Nessuna build Windows e nessuna Action avviata**. I workflow rimangono
   manuali secondo la richiesta. [Guida](LIBRARY_DESKTOP_DRAG_DROP.md).
+
+### M3 — calcolatore opzionale budget USD/limite caratteri (2026-10-27)
+
+- L'impostazione cloud del singolo libro include ora un calcolatore senza
+  tariffario preinstallato: l'utente inserisce prezzo **USD per milione di
+  caratteri** e budget totale USD. Il calcolo in centesimi interi effettua
+  divisione con arrotondamento **per difetto**, fino al limite esistente di
+  dieci milioni di caratteri; input anomali, zero e prezzo mancante sono
+  respinti. L'eventuale storico già riservato non può essere azzerato.
+- **Non** si salva il prezzo o il budget in dollari e non si autorizza alcuna
+  chiamata premendo “Calculate”: il risultato compila soltanto il limite
+  caratteri, poi richiede la conferma standard per aggiornare la quota
+  locale SQLite atomica. Il backend Speech non cambia e il prefetch
+  continua a riservare la quota prima di inviare testo remoto.
+- Questo è un **preventivo user-supplied**, non un vero tetto di spesa
+  monetario: tariffe, arrotondamenti, fallimenti e costi aggiuntivi sono
+  determinati dal provider. Mancano ancora prezzi ufficiali verificati,
+  ceiling monetario multi-sessione, reporting da API e secondo provider.
+  Test puri aggiunti ma NON eseguiti; nessuna nuova Action o build.
