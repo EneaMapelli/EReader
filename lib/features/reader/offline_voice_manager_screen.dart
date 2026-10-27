@@ -240,7 +240,11 @@ class _OfflineVoiceManagerScreenState
           p.join(root.parent.path, 'voice-downloads'),
         ),
         onProgress: (received, total) {
-          if (mounted) {
+          // Incoming HTTPS chunks can be just a few KiB. Do not rebuild the
+          // entire voice-manager page thousands of times during a download.
+          if (mounted &&
+              (received - _paolaDownloadBytes >= 512 * 1024 ||
+                  (total != null && received >= total))) {
             setState(() {
               _paolaDownloadBytes = received;
               _paolaTotalBytes = total;
