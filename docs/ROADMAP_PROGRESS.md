@@ -626,3 +626,12 @@ Nested finalizers ensure WAV-session retirement is attempted even
 if deleting a speculative WAV or retrying orphan cleanup fails.
 Added regression tests for racing Dispose and native closure failure.
 NOT RUN (no Flutter SDK); no Windows build or GitHub Actions.
+
+### M3 — optional long-reader synthetic soak (2026-10-27)
+
+Added `tool/offline_vits_soak.dart`, a manual local test of 2–2000
+synthetic consecutive passages including one-ahead caching, rates,
+Stop and delayed cancellation, with strict final temp-session cleanup.
+No live audiobook, ONNX, audio hardware, external requests or cloud
+API charges. Results are numeric and local only. Not run here.
+No Windows build/GitHub Actions or native acceptance change.

@@ -303,3 +303,24 @@ until that job eventually finalizes, or until the process exits.
 Added regression scenarios for concurrent calls and native Dispose
 failure. Tests authored, not executed; native Windows verification
 still required.
+
+## Opt-in long-session synthetic soak (2026-10-27)
+
+For manual verification without a Windows build, ONNX voice model,
+native decoder, real book data, cloud provider, network or paid API:
+
+```powershell
+dart run tool/offline_vits_soak.dart --iterations 200
+```
+
+The script exercises repeated WAV staging, native-session lease files,
+one-ahead WAV preparation/reuse, changing voice speed, periodic Stop
+and a deliberately late native-response simulation. It checks at most
+one unconsumed WAV and zero leftover session files after Dispose,
+with only numeric/synthetic counters emitted as JSON. It uses and
+removes a dedicated newly created temporary directory.
+
+This is a *synthetic* lifecycle test only: its fake WAV is not valid
+PCM audio, it does not test actual ONNX, native decoder handles,
+memory consumption, latency or first audible sample. Real Windows
+qualification remains necessary. NOT EXECUTED here; no Actions.

@@ -388,3 +388,15 @@ EReader può recuperare anche una cartella di sessione contenente
 una cartella senza marcatore ma con file WAV non viene mai eliminata
 automaticamente. Le scansioni concorrenti sono serializzate per
 sessione. La verifica effettiva dei lock su Windows resta necessaria.
+
+### Prova manuale per letture offline prolungate
+
+Senza compilare un eseguibile Windows, puoi usare il test sintetico:
+
+```powershell
+dart run tool/offline_vits_soak.dart --iterations 200
+```
+
+Usa frasi inventate e WAV fittizi: verifica il ciclo di vita dei
+file e i comandi Stop ma NON misura la qualità o latenza ONNX reale.
+Nessuna azione GitHub, download o servizio cloud.
