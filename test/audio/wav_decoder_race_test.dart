@@ -71,6 +71,35 @@ Future<void> _waitFor(bool Function() reached) async {
 }
 
 void main() {
+  test('discardNext stops only the idle decoder before WAV cleanup',
+      () async {
+    final first = _ControlledDecoder()..playbackGate = Completer<void>();
+    final second = _ControlledDecoder()..stopGate = Completer<void>();
+    var count = 0;
+    final output = DualJustAudioWaveOutput(
+        decoderFactory: () => count++ == 0 ? first : second);
+    final ongoing = output.play('current.wav');
+    await _waitFor(() => first.playCalls == 1);
+    await output.prepareNext('obsolete.wav');
+    expect(second.stopCalls, 0);
+    var discarded = false;
+    final discard = output.discardNext().then((_) => discarded = true);
+    await _waitFor(() => second.stopCalls == 1);
+    await Future<void>.delayed(Duration.zero);
+    expect(discarded, isFalse,
+        reason: 'Private WAV deletion must wait for native standby Stop');
+    expect(first.stopCalls, 0,
+        reason: 'Discarding lookahead must not interrupt audible playback');
+    second.stopGate!.complete();
+    await discard;
+    expect(discarded, isTrue);
+    first.playbackGate!.complete();
+    await ongoing;
+    await output.play('actual.wav');
+    expect(second.playCalls, 0);
+    await output.dispose();
+  });
+
   test('second decoder preloads during playback and reuses setFilePath',
       () async {
     final first = _ControlledDecoder()..playbackGate = Completer<void>();

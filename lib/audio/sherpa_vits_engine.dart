@@ -25,6 +25,9 @@ abstract interface class OfflineWaveOutput {
 abstract interface class PreloadableOfflineWaveOutput
     implements OfflineWaveOutput {
   Future<void> prepareNext(String wavFile);
+  /// Waits for the idle decoder to release a mismatched prepared WAV
+  /// before the file's owner is permitted to remove that private file.
+  Future<void> discardNext();
 }
 
 /// Injectable native boundary: unit tests may hold a decoder load/stop
@@ -257,6 +260,18 @@ class DualJustAudioWaveOutput implements PreloadableOfflineWaveOutput {
       }
       rethrow;
     }
+  }
+
+  @override
+  Future<void> discardNext() {
+    final target = _preparedSlot;
+    _preparedFile = null;
+    _preparedSlot = null;
+    _preparing = null;
+    if (target == null) return Future<void>.value();
+    // Its own native Stop is serialized behind a pending setFilePath.
+    // The active audio decoder is never interrupted here.
+    return target.stop();
   }
 
   @override
@@ -734,9 +749,12 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
           _prepared = null; // Audible clip now owns this private WAV.
           _diagnostics.recordReuse();
         } else if (identical(_prepared, pending)) {
-          // A mismatched, completed WAV must never be played and must not
-          // occupy a future lookahead slot or leak private source audio.
+          // Discard the idle decoder's native file handle BEFORE trying
+          // to delete an obsolete private WAV (Windows file locking).
           _prepared = null;
+          if (_output is PreloadableOfflineWaveOutput) {
+            await (_output as PreloadableOfflineWaveOutput).discardNext();
+          }
           await _deleteStaging(pending.staging);
           if (_disposed || token != _generation) return;
         }

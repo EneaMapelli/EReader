@@ -410,3 +410,13 @@ hangs, (3) Stop awaiting both native decoder loads before WAV release,
 and (4) preventing replay of a late prepared WAV after Stop. No real
 sound card is required and no cloud/provider requests are made.
 Tests are written but were not run in this GitHub editing session.
+
+### Mismatched preloaded WAV lifetime (2026-10-27)
+
+The playback adapter also exposes `discardNext()`. When the reader
+changes speed or actual segment after the next WAV was predecoded, the
+engine awaits the **idle** decoder's native Stop before attempting
+private WAV deletion. The currently audible decoder is unaffected.
+This closes a Windows handle-lifetime race in the initial dual-decoder
+implementation. A separate test holds the idle decoder's Stop pending
+and verifies that deletion cannot proceed early.
