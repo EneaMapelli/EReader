@@ -410,3 +410,7 @@ Actual ZIP fixture tests added/updated but not executed.
 ### Free offline TTS choices (2026-10-26)
 
 System speech offers two Windows punctuation profiles. The existing VITS/Piper adapter is now opt-in for locally installed, checked voice packs on Windows. No automatic model download, cloud call, or default activation. Kokoro and Chatterbox remain future research candidates. See docs/FREE_TTS_ENGINES.md. Unit tests authored but not executed; device audio quality and stability need manual validation.
+
+### Windows curated Paola model installation (2026-10-27)
+
+Added explicit one-click Piper Paola installation in the Windows offline voice manager. Only after opt-in, the client streams the pre-converted official sherpa-onnx archive, checks its pinned GitHub release SHA-256 before Windows tar extraction, verifies expected model/tokens/eSpeak files and atomically installs locally; no cloud/model redistribution or automatic voice activation. Installer/path corruption test fixtures authored, not run. Windows native voice playback remains unverified. See [PIPER_PAOLA_ONE_CLICK.md](PIPER_PAOLA_ONE_CLICK.md).
