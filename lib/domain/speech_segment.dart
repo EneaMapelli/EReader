@@ -1,3 +1,5 @@
+import 'speech_abbreviation.dart';
+
 /// Spoken chunks retain offsets into the original source text.
 /// Offsets are UTF-16 code-unit indices (as used by Dart String).
 class SpeechSegment {
@@ -71,7 +73,14 @@ List<SpeechSegment> segmentSpeechRange(
             i + 1 < end &&
             _isDigit(source.codeUnitAt(i - 1)) &&
             _isDigit(source.codeUnitAt(i + 1));
-        if (decimalDot) continue;
+        if (decimalDot ||
+            (ch == 46 && isProtectedSpeechPeriod(
+              source, i, start: start, end: end,
+            ))) {
+          // Keep book titles and author initials inside a single utterance.
+          // Source offsets remain untouched; hard maxChars still applies.
+          continue;
+        }
         // A sentence-final mark is often enclosed by closing quotes
         // or brackets in novels: «Hello!» Next speaker. Consume those
         // closers as part of the SAME spoken sentence, but never step

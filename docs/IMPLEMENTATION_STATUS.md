@@ -1752,3 +1752,24 @@ rules and cloud/offline TTS providers are untouched. The allow-list
 deliberately avoids generic sentence punctuation and decimal separators.
 Added targeted pure-Dart tests but DID NOT RUN them or native Windows
 audio verification. Manual-only Actions policy unchanged.
+
+### 2026-10-27 — unified source segmentation and Windows abbreviation rules
+
+The source-aligned `segmentSpeechRange` previously treated the period in
+"Dott. Rossi" or "J. R. R. Tolkien" as a sentence boundary even after
+Windows punctuation playback had been taught not to pause inside names.
+This could cause two separate native utterances, defeating the latter fix.
+
+Introduced a bounded pure-Dart `isProtectedSpeechPeriod` helper shared by
+source chunking and Windows phrase planning. Recognized titles before proper
+names, capitalized initials and internal dotted acronyms do not terminate
+sentence chunks. Real sentence ends, OPF source range boundaries and the
+per-provider hard input cap remain enforced. Existing source-aligned UTF-16
+positions, cast identities and user pronunciation rules are unchanged.
+Cloud providers also inherit the updated *chunk boundaries*, potentially
+including an additional intervening space in a single billed text input;
+no new request, consent or pricing mechanism was introduced.
+
+Authored focused unit regressions for Italian/English names, Unicode,
+initials, normal stops, source ranges and hard caps. NOT EXECUTED; no
+native audio/build nor GitHub Actions workflow was started.

@@ -96,6 +96,60 @@ void main() {
     }
   });
 
+  test('keeps title abbreviations inside one complete spoken sentence', () {
+    const source =
+        'Il Dott. Rossi parlò. Poi arrivò Mr. Darcy. Fine.';
+    final pieces = segmentSpeech(source, maxChars: 100);
+    expect(pieces.map((s) => s.text).toList(), [
+      'Il Dott. Rossi parlò.',
+      'Poi arrivò Mr. Darcy.',
+      'Fine.',
+    ]);
+    for (final part in pieces) {
+      expect(source.substring(part.start, part.end), part.text);
+    }
+  });
+
+  test('does not split author initials or accented capitalized names', () {
+    const source =
+        'J. R. R. Tolkien incontrò la Dott. Émile. Poi uscirono.';
+    final pieces = segmentSpeech(source, maxChars: 100);
+    expect(pieces.map((s) => s.text).toList(), [
+      'J. R. R. Tolkien incontrò la Dott. Émile.',
+      'Poi uscirono.',
+    ]);
+  });
+
+  test('ordinary periods and chapter-limited abbreviations stay distinct',
+      () {
+    expect(segmentSpeech('Prima frase. Poi un’altra.').map((s) => s.text),
+        ['Prima frase.', 'Poi un’altra.']);
+    expect(segmentSpeech('È arrivato il dott.').map((s) => s.text),
+        ['È arrivato il dott.']);
+    const source = 'Il Dott.\nRossi arrivò. Poi uscì.';
+    expect(segmentSpeech(source).map((s) => s.text), [
+      'Il Dott.', 'Rossi arrivò.', 'Poi uscì.',
+    ]);
+
+    // A range ending at an abbreviation's dot cannot peek into a
+    // different OPF spine/chapter and merge a visual-only section.
+    const separate = 'Il Dott. Rossi arrivò.';
+    final beforeName = separate.indexOf(' Rossi');
+    final bounded = segmentSpeechRange(
+      separate, start: 0, end: beforeName, maxChars: 100);
+    expect(bounded.map((s) => s.text), ['Il Dott.']);
+  });
+
+  test('hard input limit and source offsets still constrain abbreviations',
+      () {
+    const text = 'Il Dott. Rossi camminò a lungo senza alcuna pausa.';
+    final pieces = segmentSpeech(text, maxChars: 16);
+    expect(pieces.every((s) => s.text.length <= 16), isTrue);
+    for (final piece in pieces) {
+      expect(text.substring(piece.start, piece.end), piece.text);
+    }
+  });
+
   test('keeps decimal numbers in one utterance', () {
     const text = 'La cifra è 3.14 e non 3.15. Seconda frase.';
     final chunks = segmentSpeech(text, maxChars: 100);

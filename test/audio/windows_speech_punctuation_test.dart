@@ -84,6 +84,12 @@ void main() {
         ['Si vede la Stella', 'Marco guarda']);
   });
 
+  test('punctuation planner agrees with segmenter on Unicode names', () {
+    expect(words('La Dott. Émile parlò. Poi uscì.'),
+        ['La Dott Émile parlò', 'Poi uscì']);
+    expect(words('Mr. Darcy. Ancora.'), ['Mr Darcy', 'Ancora']);
+  });
+
   test('empty or punctuation-only input produces no native utterance',
       () {
     expect(interpreter.plan(''), isEmpty);

@@ -1,3 +1,5 @@
+import '../domain/speech_abbreviation.dart';
+
 /// Windows system TTS input is not the displayed/source text.
 ///
 /// Some Windows voices pronounce punctuation *names* literally. Instead of
@@ -25,52 +27,6 @@ class WindowsSpeechPunctuation {
 
   static final RegExp _spaces = RegExp(r'\s+');
   static final RegExp _word = RegExp(r'[\p{L}\p{N}]', unicode: true);
-  static final RegExp _letter = RegExp(r'[\p{L}]', unicode: true);
-  static final RegExp _upper = RegExp(r'[\p{Lu}]', unicode: true);
-  static final RegExp _followingName =
-      RegExp(r'^\s+([\p{L}]+)', unicode: true);
-
-  /// A deliberately short allow-list: periods after these titles are not
-  /// sentence boundaries when followed by a capitalized name. We never
-  /// infer this for arbitrary words, decimal numbers or end-of-sentence
-  /// abbreviations without a name.
-  static const Set<String> _nameTitles = {
-    'sig', 'sigg', 'dott', 'dottssa', 'dr', 'mr', 'mrs', 'ms',
-    'prof', 'ing', 'avv', 'arch', 'geom',
-  };
-
-  bool _isNameAbbreviation(String source, int dotIndex) {
-    // The next token must look like a proper name. "Dr. who" and "fine.
-    // Then" must not automatically lose their sentence boundaries.
-    final following = _followingName.firstMatch(source.substring(dotIndex + 1));
-    if (following == null) return false;
-    final name = following.group(1)!;
-    if (name.isEmpty || !_upper.hasMatch(name.substring(0, 1))) return false;
-
-    var beginning = dotIndex;
-    while (beginning > 0 &&
-        _letter.hasMatch(source.substring(beginning - 1, beginning))) {
-      beginning--;
-    }
-    final prefix = source.substring(beginning, dotIndex);
-    if (prefix.isEmpty) return false;
-    if (_nameTitles.contains(prefix.toLowerCase())) return true;
-
-    // Initials in author names: "J. R. R. Tolkien", "A. Manzoni".
-    // A single *upper-case* letter is required; lowercase abbreviations
-    // and trailing sentence-final dots are not affected.
-    return prefix.length == 1 && _upper.hasMatch(prefix);
-  }
-
-  /// A dotted capital acronym can form one phrase: "U.S.A." or "J.R.R.".
-  /// Its final full stop is still handled normally when it has no
-  /// immediately following capital letter.
-  bool _insideDottedAcronym(String source, int dotIndex) {
-    if (dotIndex <= 0 || dotIndex + 1 >= source.length) return false;
-    return _upper.hasMatch(source.substring(dotIndex - 1, dotIndex)) &&
-        _upper.hasMatch(source.substring(dotIndex + 1, dotIndex + 2));
-  }
-
   bool _withinWord(String source, int index) {
     if (index <= 0 || index + 1 >= source.length) return false;
     return _word.hasMatch(source.substring(index - 1, index)) &&
@@ -112,8 +68,7 @@ class WindowsSpeechPunctuation {
           if (_betweenDigits(source, i)) {
             current.writeCharCode(code);
           } else if (code == 0x2e &&
-              (_insideDottedAcronym(source, i) ||
-                  _isNameAbbreviation(source, i))) {
+              isProtectedSpeechPeriod(source, i)) {
             // Do NOT send a literal period to Windows voices that may
             // speak "punto" aloud. Preserve lexical separation instead
             // of inserting a full-stop pause inside names/acronyms.

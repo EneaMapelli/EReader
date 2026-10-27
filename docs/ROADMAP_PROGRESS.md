@@ -519,3 +519,14 @@ Source offsets, LLM/cast and cloud character usage are unchanged.
 Test cases authored but NOT executed. M2 remains ~70% and overall
 ~55% estimated until native Windows listening and green regression gates.
 No Windows build or Actions workflow was started.
+
+### M2 — common abbreviation-aware TTS segmenter (2026-10-27)
+
+Improved native voice continuity at its real source: the shared,
+source-exact sentence segmenter no longer forces a new audio clip after
+recognized personal titles and author initials. Windows punctuation planning
+uses the identical bounded recognition rule, eliminating divergent behavior.
+True sentence boundaries and source/chapter limits still win; cloud input
+chunk boundaries may change, but no unauthorized HTTP prefetch is enabled.
+Regressions authored but not run. M2/overall estimates remain unchanged
+pending local and Windows/Android acoustic acceptance. No builds or Actions.

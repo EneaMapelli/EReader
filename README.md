@@ -297,3 +297,16 @@ La modifica riguarda soltanto il testo temporaneamente consegnato al
 TTS; il libro originale e i segnalibri restano invariati. Per confrontare
 il comportamento della voce Windows è ancora disponibile la modalità
 **native punctuation**. Test automatici nuovi non ancora eseguiti.
+
+### Frasi TTS con abbreviazioni e nomi più continui
+
+Il segmentatore condiviso (Windows/Android/cloud/offline) ora mantiene
+titoli e iniziali all'interno della stessa frase, per esempio
+«Dott. Rossi» e «J. R. R. Tolkien», invece di forzare sempre una nuova
+clip audio sul punto abbreviativo. Il pianificatore delle pause Windows
+riutilizza la stessa regola. Il limite massimo del provider e le
+separazioni effettive tra frasi/capitoli restano attivi, così come
+posizioni di lettura, dialoghi e segnalibri. Per il cloud, cambiare la
+segmentazione può cambiare il numero di caratteri contabilizzati in
+ciascuna richiesta senza bypassare la quota autorizzata. La qualità
+acustica attende una prova su dispositivo.
