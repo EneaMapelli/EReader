@@ -107,6 +107,23 @@ void main() {
     expect(output.disposals, 1);
   });
 
+  test('offline engine records local numeric performance without book text',
+      () async {
+    final synth = engine();
+    expect(synth.offlineVoiceStatistics.syntheses, 0);
+    await synth.speak('Private book words', language: 'en-US',
+        rate: 0.5, pitch: 1);
+    final stats = synth.offlineVoiceStatistics;
+    expect(stats.syntheses, 1);
+    expect(stats.aheadSyntheses, 0);
+    expect(stats.modelLoads, 0,
+        reason: 'This test uses a mock, not a native ONNX model');
+    expect(stats.lastSynthesisMs, greaterThanOrEqualTo(0));
+    expect(stats.lastDecoderHandoffMs, greaterThanOrEqualTo(0));
+    expect(stats.lastWholeProcessRssMiB, greaterThanOrEqualTo(0));
+    await synth.dispose();
+  });
+
   test('speech rate maps to engine speed and never calls a cloud service',
       () async {
     final synth = engine();

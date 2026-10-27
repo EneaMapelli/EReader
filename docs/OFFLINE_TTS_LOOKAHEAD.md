@@ -118,3 +118,10 @@ real stopwatch/audio recording on Windows before claiming performance gains.
 
 Tests verify counters, P95 bounds and copy-on-read snapshots, but have
 not been executed in this GitHub-only editing environment.
+
+### Interface linkage regression
+
+The ReaderPlayer imports the diagnostics value type explicitly rather
+than relying on Dart's non-transitive imports. An additional engine mock
+test checks the counter is exposed through the speech provider interface.
+The tests were authored but not executed in this editing environment.

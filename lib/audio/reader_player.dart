@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../domain/speech_segment.dart';
 import '../domain/speech_preferences.dart';
 import 'speech_engine.dart';
+import 'offline_voice_diagnostics.dart';
 
 typedef SegmentStarted = Future<void> Function(SpeechSegment segment);
 
