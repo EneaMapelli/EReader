@@ -16,7 +16,7 @@ void main() {
       expect(PiperPaolaCatalog.sha256Digest, hasLength(64));
       expect(PiperPaolaCatalog.verifyArchiveDigest(
           PiperPaolaCatalog.sha256Digest), isTrue);
-      expect(PiperPaolaCatalog.verifyArchiveDigest('0' * 64), isFalse);
+      expect(PiperPaolaCatalog.verifyArchiveDigest(List<String>.filled(64, '0').join()), isFalse);
       expect(PiperPaolaCatalog.locale, 'it-IT');
     });
 
