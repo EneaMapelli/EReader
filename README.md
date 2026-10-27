@@ -253,8 +253,13 @@ viene reso visibile solo dopo il completamento. Nessuna chiave API
 dello storage sicuro viene esportata e non c'è alcun upload.
 
 **Attenzione:** il backup non è cifrato; contiene dati di lettura privati.
-Il ripristino su un altro dispositivo è **ancora da sviluppare** e
-non bisogna sovrascrivere manualmente il database attivo.
+Ora esiste anche **Restore books from library backup**, che verifica
+integrità e presenta un'anteprima prima di importare soltanto i libri
+assenti, con progresso e segnalibri. Non trasferisce consensi cloud o
+impostazioni vocali e non modifica mai i libri già presenti.
+**Non** sostituisce l'intero database o tutte le preferenze.
+Non bisogna sovrascrivere manualmente il database attivo.
+[Guida al ripristino conservativo](docs/LIBRARY_BACKUP_RESTORE.md).
 [Limiti, integrità e test](docs/LIBRARY_BACKUP_EXPORT.md).
 
 Le build Windows rimangono **solo manuali** dopo richiesta esplicita:
