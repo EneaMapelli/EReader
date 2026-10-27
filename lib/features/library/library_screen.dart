@@ -615,7 +615,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           IconButton(
             tooltip: 'Restore books from library backup',
             onPressed: _busy ? null : _restoreBackup,
-            icon: const Icon(Icons.settings_backup_restore_outlined),
+            icon: const Icon(Icons.restore),
           ),
           IconButton(
             tooltip: 'Export private library backup',
