@@ -53,6 +53,40 @@ class _FailedDisposeOutput extends _FakeWaveOutput {
   }
 }
 
+class _CountingDecoder implements WaveDecoder {
+  final loaded = <String>[];
+  int plays = 0;
+  int stops = 0;
+  int disposals = 0;
+  Completer<void>? playGate;
+  Completer<void>? stopGate;
+
+  @override
+  Future<void> load(String file) async {
+    expect(await File(file).exists(), isTrue);
+    loaded.add(file);
+  }
+
+  @override
+  Future<void> play() async {
+    plays++;
+    final gate = playGate;
+    if (gate != null) await gate.future;
+  }
+
+  @override
+  Future<void> stop() async {
+    stops++;
+    final gate = playGate;
+    if (gate != null && !gate.isCompleted) gate.complete();
+    final pending = stopGate;
+    if (pending != null) await pending.future;
+  }
+
+  @override
+  Future<void> dispose() async { disposals++; }
+}
+
 /// 0.25-second PCM16 mono WAV for integrity tests. No native or paid TTS.
 List<int> _validPcmWav() {
   const frames = 4000;
@@ -536,6 +570,92 @@ void main() {
         .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     expect(output.filePaths, isEmpty);
     await synth.dispose();
+  });
+
+  test('engine preloads next VITS WAV onto an idle physical decoder',
+      () async {
+    final primary = _CountingDecoder()..playGate = Completer<void>();
+    final standby = _CountingDecoder();
+    var creates = 0;
+    final native = DualJustAudioWaveOutput(
+      decoderFactory: () => creates++ == 0 ? primary : standby,
+    );
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack,
+      synthesizer: fakeSynthesize,
+      output: native,
+      temporaryDirectory: () async => root,
+    );
+    final first = synth.speak('First',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    for (var i = 0; i < 100 && primary.plays == 0; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(primary.plays, 1);
+    expect(standby.plays, 0);
+
+    await synth.prepareOfflineSpeech('Second',
+        voice: null, language: 'en-US', rate: 0.5, pitch: 1);
+    expect(standby.loaded, hasLength(1),
+        reason: 'Next WAV is opened before current playback completes');
+    expect(primary.plays, 1);
+    expect(standby.plays, 0);
+
+    primary.playGate!.complete();
+    await first;
+    await synth.speak('Second',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    expect(standby.loaded, hasLength(1),
+        reason: 'Already prepared WAV does not need a second file load');
+    expect(standby.plays, 1);
+    expect(texts, ['First', 'Second'],
+        reason: 'Decoder warming does not synthesize duplicate book text');
+    expect(synth.offlineVoiceStatistics.warmedWaveReuses, 1);
+    await synth.dispose();
+    expect(primary.disposals, 1);
+    expect(standby.disposals, 1);
+    expect(await root.list().toList(), isEmpty);
+  });
+
+  test('engine stops standby before removing a mismatched warmed WAV',
+      () async {
+    final primary = _CountingDecoder()..playGate = Completer<void>();
+    final standby = _CountingDecoder()..stopGate = Completer<void>();
+    var creates = 0;
+    final native = DualJustAudioWaveOutput(
+      decoderFactory: () => creates++ == 0 ? primary : standby,
+    );
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack,
+      synthesizer: fakeSynthesize,
+      output: native,
+      temporaryDirectory: () async => root,
+    );
+    final first = synth.speak('First',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    for (var i = 0; i < 100 && primary.plays == 0; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    await synth.prepareOfflineSpeech('Predicted',
+        voice: null, language: 'en-US', rate: 0.5, pitch: 1);
+    final wav = standby.loaded.single;
+    primary.playGate!.complete();
+    await first;
+    final actual = synth.speak('Actual',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    for (var i = 0; i < 100 && standby.stops == 0; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(standby.stops, 1);
+    expect(await File(wav).exists(), isTrue,
+        reason: 'File remains owned while standby native Stop is pending');
+    standby.stopGate!.complete();
+    await actual;
+    expect(await File(wav).exists(), isFalse);
+    expect(primary.plays, 2);
+    expect(standby.plays, 0);
+    await synth.dispose();
+    expect(await root.list().toList(), isEmpty);
   });
 
   test('one-ahead local synthesis runs while the first WAV plays and is reused',

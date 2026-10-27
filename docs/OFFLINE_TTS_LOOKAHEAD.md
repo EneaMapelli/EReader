@@ -420,3 +420,13 @@ private WAV deletion. The currently audible decoder is unaffected.
 This closes a Windows handle-lifetime race in the initial dual-decoder
 implementation. A separate test holds the idle decoder's Stop pending
 and verifies that deletion cannot proceed early.
+
+### End-to-end VITS engine handoff checks
+
+Two extra engine integration tests connect real per-clip temporary
+staging, mocked native VITS output, and the injectable dual decoder.
+One verifies that current audio plays while the next WAV opens, then
+uses it without another setFilePath/synthesis; the other holds the
+idle decoder's Stop and checks the mismatched private WAV survives
+until Stop confirmation. Both verify final session directory cleanup
+after engine Dispose. Tests authored but not executed.
