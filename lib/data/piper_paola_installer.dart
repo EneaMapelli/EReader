@@ -43,7 +43,8 @@ class PiperPaolaCatalog {
         elements.every((part) =>
             part.isNotEmpty && part != '.' && part != '..' &&
             !part.endsWith('.') &&
-            RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(part) &&
+            (RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(part) ||
+                part == '!v') &&
             !RegExp(r'^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$',
                 caseSensitive: false).hasMatch(part));
   }
