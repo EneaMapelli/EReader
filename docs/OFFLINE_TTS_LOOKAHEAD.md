@@ -204,3 +204,35 @@ tests must confirm file-lock behavior and actual cleanup success.
 
 Added fake-lock, rotation, backpressure, concurrent-retry, isolation
 and engine integration tests; authored, NOT EXECUTED.
+
+## Crash-safe, lease-guarded private WAV recovery (2026-10-27)
+
+Only new VITS synthesis directories use a versioned, **per-reader** temp
+session under the system temp root. The session has an exact EReader
+marker and a dedicated native **exclusive file lock** held for its
+lifetime, including active/suspended syntheses. On initial VITS
+activation, EReader runs a bounded scan of direct temp-root entries
+(max 512 scanned, max 16 candidate sessions, max 64 WAV clips in each).
+It must obtain the session's **non-blocking exclusive lease** before
+considering any file for recovery: an active Windows process owns that
+lock, so its WAVs are never removed by a second reader process.
+
+Recovery is deliberately restricted to folders matching this version's
+session prefix, its exact marker contents, regular lease file and only
+regular `speech.wav` files inside known per-clip directory prefixes.
+Unknown files, child directories and symlink replacements fail closed,
+without recursive deletion. Deletions are only of exact allowlisted
+files and their now-empty immediate parent directories. Native file
+locks that still prevent deletion leave the marked directory for a
+subsequent attempt. No private paths, content or metrics are uploaded.
+
+Normal Dispose keeps the session's lease until its last native WAV
+staging-owner finalizer has finished. After a confirmed cleanup it drops
+the marker, closes the file lock and removes empty session metadata.
+If Windows still holds a WAV, the marked directory remains recoverable.
+
+**Compatibility:** legacy pre-v1 temporary WAV directories lack this
+ownership/lease evidence, so they are NOT automatically deleted. A
+file system cannot reliably prove the ownership of arbitrary unmarked
+temp files. Windows native tests must still validate platform lock
+semantics and process-crash recovery before treating this as qualified.

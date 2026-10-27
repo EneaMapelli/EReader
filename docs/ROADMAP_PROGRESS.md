@@ -589,3 +589,14 @@ instead of producing unbounded orphan audio. Offline diagnostics show
 only the integer pending count; no file paths or book content.
 Added targeted fake-lock and engine integration regressions (not run).
 No Windows build/GitHub Actions; device acceptance gates remain open.
+
+### M3 — recover only proven-abandoned WAV sessions (2026-10-27)
+
+New VITS voices stage WAVs under per-reader, versioned directories with
+OS-exclusive lease and exact owner marker. On next local VITS activation
+a bounded, nonrecursive allowlist sweep can reclaim only validated
+unlocked sessions. Running readers stay protected via lease, symlinks
+and unknown layouts are skipped, and old unmarked temp directories are
+intentionally untouched. On Dispose the lease survives until all staging
+work finalizers have finished. Device-level verification remains open.
+No Windows build or GitHub Actions was triggered.

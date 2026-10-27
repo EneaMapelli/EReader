@@ -9,6 +9,7 @@ import 'sherpa_vits_worker.dart';
 import 'sherpa_vits_session.dart';
 import 'offline_voice_diagnostics.dart';
 import 'offline_wav_cleanup.dart';
+import 'offline_wav_session.dart';
 
 /// A separate audio boundary makes model synthesis testable with no native
 /// ONNX library, sound output, model download or network permissions.
@@ -258,6 +259,35 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
   final OfflineWaveOutput _output;
   final Future<Directory> Function() _temporaryDirectory;
   final OfflineWavCleanup _wavCleanup;
+  Future<OfflineWavSession>? _wavSessionOpening;
+  int _activeWaveJobs = 0;
+  Completer<void> _allWaveJobsEnded = Completer<void>()..complete();
+
+  void _beginWaveJob() {
+    if (_activeWaveJobs++ == 0) _allWaveJobsEnded = Completer<void>();
+  }
+
+  void _endWaveJob() {
+    if (--_activeWaveJobs == 0 && !_allWaveJobsEnded.isCompleted) {
+      _allWaveJobsEnded.complete();
+    }
+  }
+
+  Future<OfflineWavSession> _session() =>
+      _wavSessionOpening ??= () async {
+        final temporaryRoot = await _temporaryDirectory();
+        // Only app-owned, marked, OS-unlocked prior WAV sessions are
+        // considered. Never scan file names from other application roots.
+        await OfflineWavSession.recoverAbandoned(temporaryRoot);
+        if (_disposed) throw StateError('Offline voice already disposed');
+        return OfflineWavSession.create(temporaryRoot);
+      }();
+
+  Future<Directory> _newStaging(String prefix) async {
+    final session = await _session();
+    if (_disposed) throw StateError('Offline voice already disposed');
+    return session.directory.createTemp(prefix);
+  }
 
   final OfflineVoiceDiagnostics _diagnostics = OfflineVoiceDiagnostics();
 
@@ -416,6 +446,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       return; // Never enqueue another native model instance.
     }
     final token = _generation;
+    _beginWaveJob();
     final next = _PreparedWave(text, language, rate, pitch, _packVoice.key);
     _prepared = next;
     final task = _prepareWave(next, token, priorSynthesis);
@@ -434,10 +465,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       await _wavCleanup.ensureCapacity();
       if (_disposed || token != _generation ||
           !identical(_prepared, next)) return;
-      final root = await _temporaryDirectory();
-      if (_disposed || token != _generation ||
-          !identical(_prepared, next)) return;
-      next.staging = await root.createTemp('ereader-local-lookahead-');
+      next.staging = await _newStaging('ereader-local-lookahead-');
       next.wavPath =
           next.staging!.path + Platform.pathSeparator + 'speech.wav';
       if (_disposed || token != _generation ||
@@ -459,6 +487,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
         if (identical(_prepared, next)) _prepared = null;
         await _deleteStaging(next.staging);
       }
+      _endWaveJob();
     }
   }
 
@@ -471,6 +500,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
   }) async {
     _validateSpeech(text, language, rate, pitch);
     if (text.isEmpty) return;
+    _beginWaveJob();
     final token = _generation;
     final decoderHandoff = Stopwatch()..start();
     final ready = Completer<void>();
@@ -508,9 +538,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
         // holds too many rather than creating unlimited temp files.
         await _wavCleanup.ensureCapacity();
         if (_disposed || token != _generation) return;
-        final root = await _temporaryDirectory();
-        if (_disposed || token != _generation) return;
-        staging = await root.createTemp('ereader-local-tts-');
+        staging = await _newStaging('ereader-local-tts-');
         wavPath = staging.path + Platform.pathSeparator + 'speech.wav';
         if (_disposed || token != _generation) return;
         final completed = await _synthesizeWave(text, wavPath, rate);
@@ -529,7 +557,11 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       if (identical(_currentSynthesisReady, ready.future)) {
         _currentSynthesisReady = null;
       }
-      await _deleteStaging(staging);
+      try {
+        await _deleteStaging(staging);
+      } finally {
+        _endWaveJob();
+      }
     }
   }
 
@@ -573,9 +605,29 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       if (pending != null && pending.ready) {
         await _deleteStaging(pending.staging);
       }
-      // Last bounded pass after the decoder has been disposed; lingering
-      // locked folders are reported, never silently dropped in-session.
-      await _wavCleanup.retryPending(maxAttempts: _wavCleanup.maxPending);
+      // A pending speech or speculative native task can complete AFTER
+      // Dispose has returned. Retain the session's OS lock until every
+      // associated staging-directory owner has run its finalizer. This
+      // prevents another EReader process from recovering a live WAV.
+      Future<void> finishSession() async {
+        await _allWaveJobsEnded.future;
+        await _wavCleanup.retryPending(maxAttempts: _wavCleanup.maxPending);
+        final opening = _wavSessionOpening;
+        if (opening != null) {
+          final session = await opening;
+          await session.close();
+        }
+      }
+      if (_activeWaveJobs == 0) {
+        await finishSession();
+      } else {
+        // Do not block the native Dispose UI on a cancelled model whose
+        // platform FFI call still has not returned. The OS lease remains
+        // held until its last Dart staging finalizer or process exit.
+        unawaited(finishSession().catchError((Object _) {
+          // File-system failures must never resurrect stale narration.
+        }));
+      }
     }
   }
 }

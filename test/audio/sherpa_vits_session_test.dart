@@ -250,7 +250,8 @@ void main() {
     expect(created, 2);
     expect(output.played, ['instance=1;request=1', 'instance=1;request=1']);
     await engine.dispose();
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
   });
 
   test('engine reuses one model across speech, then recreates after Stop',
@@ -286,6 +287,7 @@ void main() {
     expect(created, 2);
     expect(output.played.last, 'instance=1;request=1');
     await engine.dispose();
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
   });
 }

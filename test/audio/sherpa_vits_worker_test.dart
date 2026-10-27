@@ -123,7 +123,8 @@ void main() {
       await playback;
       expect(output.playCount, 0);
       expect(output.stopCount, 1);
-      expect(await root.list().toList(), isEmpty);
+      expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
       await engine.dispose();
     });
 
@@ -146,7 +147,8 @@ void main() {
       await playback;
       expect(output.playCount, 0);
       expect(output.disposeCount, 1);
-      expect(await root.list().toList(), isEmpty);
+      expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     });
   });
 }

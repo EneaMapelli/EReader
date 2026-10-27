@@ -369,3 +369,13 @@ arbitrarie), usa una coda limitata di 32 elementi e interrompe nuove
 sintesi se lo spazio in coda è esaurito. Il pannello prestazioni mostra
 il numero di cartelle in attesa, non i percorsi o i contenuti.
 Il recupero dopo un riavvio dell'app resta da implementare.
+
+### Recupero WAV dopo chiusure anomale
+
+Le nuove sessioni del motore neurale offline usano una cartella
+temporanea identificata e protetta da lock esclusivo. Quando avvii
+nuovamente il motore VITS, EReader prova a eliminare solo i WAV
+appartenenti a sessioni concluse o terminate anormalmente, senza
+toccare quelli di istanze ancora attive. Cartelle senza identificatore
+e contenuti non riconosciuti vengono sempre lasciati intatti.
+Le verifiche native su Windows sono ancora necessarie.

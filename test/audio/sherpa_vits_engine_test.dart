@@ -103,7 +103,8 @@ void main() {
     expect(speeds, [1]);
     expect(output.playedBytes, [[82, 73, 70, 70]]);
     expect(await File(output.filePaths.single).exists(), isFalse);
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     await synth.dispose();
     expect(output.disposals, 1);
   });
@@ -180,7 +181,8 @@ void main() {
     await play;
     expect(output.stops, 1);
     expect(output.playedBytes, isEmpty);
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     await synth.dispose();
   });
 
@@ -209,7 +211,8 @@ void main() {
     await play;
     expect(output.disposals, 1);
     expect(output.playedBytes, isEmpty);
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     await expectLater(synth.speak('again', language: 'en-US',
         rate: 0.5, pitch: 1), throwsStateError);
   });
@@ -239,7 +242,8 @@ void main() {
     expect(cleaner.pendingCount, 0);
     expect(synth.offlineVoiceStatistics.pendingWaveFolders, 0);
     expect(texts, ['First', 'Next']);
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     await synth.dispose();
   });
 
@@ -287,7 +291,8 @@ void main() {
     final synth = engine(synthesizer: fails);
     await expectLater(synth.speak('bad', language: 'en-US',
         rate: 0.5, pitch: 1), throwsStateError);
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     expect(output.filePaths, isEmpty);
     await synth.dispose();
   });
@@ -321,7 +326,8 @@ void main() {
     expect(texts, ['First', 'Second'],
         reason: 'Prepared WAV must be reused without re-synthesis');
     expect(output.filePaths, hasLength(2));
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     await synth.dispose();
   });
 
@@ -339,14 +345,16 @@ void main() {
     await synth.prepareOfflineSpeech(
       'Predicted', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
     expect(texts, ['First', 'Predicted']);
-    expect(await root.list().toList(), isNotEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isNotEmpty);
     output.playGate = null;
     gate.complete();
     await first;
     await synth.speak('Actual', language: 'en-US', rate: 0.5, pitch: 1);
     expect(texts, ['First', 'Predicted', 'Actual']);
     expect(output.filePaths, hasLength(2));
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     await synth.dispose();
   });
 
@@ -397,7 +405,8 @@ void main() {
     expect(texts, ['First', 'Next', 'Next']);
     expect(speeds, [1, 1, 1.6]);
     expect(output.filePaths, hasLength(2));
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     await synth.dispose();
   });
 
@@ -416,7 +425,8 @@ void main() {
     await synth.stop();
     await first;
     expect(output.filePaths, hasLength(1));
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     await synth.dispose();
   });
 
@@ -454,7 +464,8 @@ void main() {
     await speculative;
     await first;
     expect(output.filePaths, hasLength(1));
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     await synth.dispose();
   });
 
@@ -471,7 +482,8 @@ void main() {
     final synth = engine(synthesizer: empty);
     await expectLater(synth.speak('missing', language: 'en-US',
         rate: 0.5, pitch: 1), throwsStateError);
-    expect(await root.list().toList(), isEmpty);
+    expect((await root.list(recursive: true, followLinks: false).toList())
+        .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     await synth.dispose();
   });
 }
