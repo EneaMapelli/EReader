@@ -264,3 +264,15 @@ Non bisogna sovrascrivere manualmente il database attivo.
 
 Le build Windows rimangono **solo manuali** dopo richiesta esplicita:
 il workflow non si avvia più automaticamente a ogni commit.
+
+### Trascina libri da Esplora file (Windows)
+
+Nella biblioteca Windows puoi trascinare fino a 50 file EPUB, PDF e TXT
+direttamente nella finestra. EReader mostra un'area di rilascio,
+importa in sequenza e presenta il riepilogo di nuovi libri,
+duplicati e formati ignorati. Il trascinamento non modifica gli
+originali e non usa servizi cloud. Non supporta ancora cartelle
+ricorsive o link web. [Guida e checklist](docs/LIBRARY_DESKTOP_DRAG_DROP.md).
+
+**La funzione è nel codice ma non nella precedente Release:** le nuove
+build Windows sono esclusivamente manuali, su tua richiesta.
