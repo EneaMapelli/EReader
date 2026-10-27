@@ -92,3 +92,12 @@ cartella, OPDS/Calibre, collezioni e ricerca full-text della biblioteca
 restano sviluppi successivi. Il test della build e lo smoke test Windows
 sono distinti: una compilazione riuscita non garantisce che tutti i
 file reali siano importabili.
+
+## Primo pacchetto Windows compilato
+
+- [Build Windows Release riuscita — GitHub Actions #40465285992](https://github.com/EneaMapelli/EReader/actions/runs/40465285992)
+- [Prerilascio scaricabile windows-test-45a013cf](https://github.com/EneaMapelli/EReader/releases/tag/windows-test-45a013cf):
+  asset `EReader-Windows-x64-45a013cf.zip`.
+- La compilazione e pubblicazione del pacchetto sono riuscite.
+  **Non** sono stati eseguiti i test Dart automatici né le prove
+  manuali su libri reali e Android. Nessuna stabilità runtime è promessa.
