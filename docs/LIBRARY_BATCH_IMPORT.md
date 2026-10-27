@@ -101,3 +101,18 @@ file reali siano importabili.
 - La compilazione e pubblicazione del pacchetto sono riuscite.
   **Non** sono stati eseguiti i test Dart automatici né le prove
   manuali su libri reali e Android. Nessuna stabilità runtime è promessa.
+
+## Estensione: trascinamento da Esplora file Windows (2026-10-27)
+
+L'importazione multipla è ora accessibile anche tramite **drag & drop**
+nella biblioteca Windows. Un nuovo `DropTarget` riceve file EPUB,
+PDF o TXT da Esplora file e li passa alla pipeline `importPickedBooks`
+già presente, preservando duplicati, progressi, protezioni 100 MB
+e cancellazione dei file in coda. Anche file virtuali vengono letti
+con lo stream valido solo durante la callback del plugin. Una
+schermata mostra il riepilogo dei file non supportati; nessuna
+cartella o URL viene importato. Android resta sul picker originale.
+
+L'aggiornamento non è stato compilato né testato su Windows in questa
+sessione. La Release precedente non lo include. Test solo scritti.
+[Dettagli, sicurezza e test manuali](LIBRARY_DESKTOP_DRAG_DROP.md).
