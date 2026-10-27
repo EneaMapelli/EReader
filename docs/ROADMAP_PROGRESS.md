@@ -453,3 +453,25 @@ Added explicit one-click Piper Paola installation in the Windows offline voice m
   another installation. No cloud upload.
 - UI warning, destination picker, progress and end-of-export summary.
   Unit tests authored but NOT RUN. [Details](LIBRARY_BACKUP_EXPORT.md).
+
+### M6 — guarded library backup restore, no Actions build (2026-10-27)
+
+- New read-only preview checks **the entire** private backup v1:
+  manifest, SQLite v17/integrity, catalog/counts, bookmarks/source anchors,
+  metadata and reading positions, exactly named managed EPUB/PDF/TXT files,
+  SHA-256 per book, bounded sizes and no symlink traversal.
+- Add-only restore requires explicit confirmation, copies missing book hashes
+  into this installation's managed directory and verifies the copied digest
+  before atomically committing each new book's catalog, position, bookmarks
+  and visual PDF page. Existing books and all their local state are unchanged.
+- This is a conservative cross-device **book/metadata/bookmark restore**,
+  not a wholesale database replacement. It does not transfer any native
+  credential, cloud/LLM authorization, global/per-book TTS preference,
+  voice/cast records or speech/recovery sessions. Book-by-book imports may
+  leave earlier successful books if a later one fails; retry skips hashes
+  already present. Backups remain unencrypted.
+- Library UI: select backup directory, integrity state, preview with
+  new/duplicate counts, explicit confirmation, progress and final results.
+  New regression fixtures authored but **NOT RUN**; no Windows build
+  and no GitHub Actions job started, as requested.
+  [Restore specification](LIBRARY_BACKUP_RESTORE.md).
