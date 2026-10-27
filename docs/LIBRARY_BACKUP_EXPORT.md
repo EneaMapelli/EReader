@@ -90,7 +90,7 @@ compilazione Windows e **non esiste una nuova Release** per questa modifica.
 
 ## Prossimi sviluppi suggeriti
 
-Ripristino verificato in modalità preview/merge, ricollegamento di
-percorsi database su altri dispositivi, risoluzione di conflitti
-dei segnalibri, protezione delle impostazioni cloud e opzione di
-archivio cifrato. Sono attività da sviluppare, non funzioni già disponibili.
+Il primo restore con anteprima e ricollegamento percorsi dei libri
+assenti è implementato. Rimangono: import selettivo del cast,
+gestione esplicita dei conflitti per i libri già presenti,
+maggiori schemi legacy e opzione di archivio cifrato. Sono attività da sviluppare, non funzioni già disponibili.
