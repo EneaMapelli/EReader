@@ -141,9 +141,7 @@ class _OfflineVoiceManagerScreenState
       final selected = picker != null
           ? await picker()
           : Platform.isWindows
-              ? await FilePicker.getDirectoryPath(
-                  dialogTitle: 'Choose a local VITS voice pack folder',
-                )
+              ? await FilePicker.platform.getDirectoryPath()
               : null;
       if (selected == null) return;
       final preview = await inspectOfflineVoiceImportFolder(

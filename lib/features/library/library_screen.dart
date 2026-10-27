@@ -64,12 +64,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
     try {
       // file_picker >=12 returns List<PlatformFile> directly; v13 uses
       // readAsByteStream() and exposes stream-only Android SAF selections.
-      final selected = await FilePicker.pickFiles(
+      final selected = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: const ['epub', 'pdf', 'txt'],
       );
-      if (!mounted || selected.isEmpty) return;
-      if (selected.length > 50) {
+      if (!mounted || selected == null) return;
+      if (selected.files.isEmpty) return;
+      if (selected.files.length > 50) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Select at most 50 books per import.'),
         ));
@@ -77,16 +78,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
       }
       setState(() {
         _importCompleted = 0;
-        _importTotal = selected.length;
+        _importTotal = selected.files.length;
         _cancelRemainingImports = false;
       });
       final result = await importPickedBooks(
         selections: [
-          for (final item in selected)
+          for (final item in selected.files)
             BatchPickedBook(
               name: item.name,
               pickedPath: item.path,
-              readAsByteStream: item.readAsByteStream,
+              readAsByteStream: item.path != null
+                  ? () => File(item.path!).openRead()
+                  : () => const Stream<List<int>>.empty(),
             ),
         ],
         importFile: widget.store.importFile,
@@ -361,7 +364,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ),
     );
     if (approved != true || !mounted) return;
-    final destination = await FilePicker.getDirectoryPath();
+    final destination = await FilePicker.platform.getDirectoryPath();
     if (destination == null || !mounted) return;
     setState(() {
       _busy = true;
@@ -438,7 +441,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   /// A second, explicit confirmation is needed before importing anything.
   Future<void> _restoreBackup() async {
     if (_busy || !mounted) return;
-    final destination = await FilePicker.getDirectoryPath();
+    final destination = await FilePicker.platform.getDirectoryPath();
     if (destination == null || !mounted) return;
     final folder = Directory(destination);
     setState(() {

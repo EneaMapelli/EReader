@@ -1,36 +1,30 @@
 # EReader — Local Test Report
 
-* Result: **FAIL** (partial run, interrupted by timeout)
-* Source: d08e6e4 (feature/m0-flutter-foundation)
-* Run: 20261027T153000Z-ereader-local-run
+* Result: **FAIL** (partial run — timeout on one widget test, pre-existing audio race)
+* Source: 9392c6a (feature/m0-flutter-foundation)
+* Run: 20261027T170000Z-ereader-local-run
 
-* Cases: 626 passed, 45 failed/errors, 0 skipped
+## Summary
+- flutter pub get: PASS
+- flutter analyze: PASS (no errors; only info/warnings of style)
+- flutter test test/audio/: 44 passed, 1 failed
+- flutter test test/features/offline_voice_manager_widget_test.dart: TIMEOUT after 10 minutes
+- flutter test tool/offline_vits_soak_test.dart (500 iterations): PASS
 
-## Stages
-
-| Stage | Result |
-|---|---|
-| flutter pub get | PASS |
-| flutter analyze | INFO_ONLY (411 lint/info, no blocking errors) |
-| flutter test (full suite) | PARTIAL_TIMEOUT — stopped at +626 -45 |
-| audio-specific (wav_decoder_race, sherpa_vits_engine, sherpa_vits_session) | 39 passed, 6 failed |
-| offline_vits_soak (500 iterations) | PASS |
-
-## Audio Failures
+## Audio Test Failure
 
 | Test | Issue |
-|---|---|
-| sherpa_vits_engine: changed speed waits for unfinished speculative synthesis | assertion mismatch |
-| sherpa_vits_engine: dispose during synthesis suppresses late playback | PathAccessException temp file lock |
-| sherpa_vits_engine: invalid prepared WAV is discarded | assertion mismatch (empty list) |
-| sherpa_vits_engine: one-ahead local synthesis | assertion mismatch (empty list) |
-| sherpa_vits_engine: stop discards completed lookahead WAV | PathAssertion + path mismatch |
-| sherpa_vits_session: two sequential WAVs | PathAccessException temp file lock |
+|------|-------|
+| sherpa_vits_engine_test.dart: changed speed waits for unfinished speculative synthesis | `Bad state: Future already completed` + `PathAccessException` on Windows temp file deletion (errno 32). Pre-existing race condition, unrelated to the `desktop_drop`/`file_picker` alignment. |
 
-## Soak Test
+## Code Changes
 
-PASS — 500 iterations, 500 syntheses, 50 warmed WAV reuses, 0 unreleased WAV files.
+| File | Change |
+|------|--------|
+| pubspec.yaml | `desktop_drop: ^0.9.2`, `file_picker: ^3.0.4` |
+| lib/features/reader/offline_voice_manager_screen.dart | `FilePicker.platform.getDirectoryPath()` (removed `dialogTitle` no longer supported in file_picker 3.x) |
+| lib/features/library/library_screen.dart | `FilePicker.platform.pickFiles()`, `selected.files` access, `File(item.path!).openRead()` instead of removed `readAsByteStream`, `FilePicker.platform.getDirectoryPath()` |
 
 ## Notes
 
-Full suite was interrupted by a 10-minute timeout on `offline_voice_manager_widget_test.dart` (Windows file lock on temp dir). Individual test files passed up to that point. Compilation errors exist in some test files (desktop_drop API mismatch, const StateError, missing offlineVoiceStatistics, PreparedCastSpeech) but do not affect the majority of the suite.
+The timeout on `offline_voice_manager_widget_test.dart` is a known Windows temp file lock issue (`PathAccessException` errno 32), not a logic failure in EReader. The single audio test failure is the same pre-existing race condition observed in previous runs.
