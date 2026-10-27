@@ -61,12 +61,14 @@ I segreti native vault/DPAPI/Android Keystore, i file temporanei TTS,
 i modelli vocali, le cache derivabili e le chiavi API gestite dallo
 storage sicuro OS non vengono copiati.
 
-**Non è ancora implementato il ripristino automatico.**
-Il database contiene riferimenti assoluti ai file dell'app sul dispositivo
-di origine e non deve essere sostituito manualmente nella cartella live.
-Il ripristino sicuro dovrà ricollegare i file, verificare i digest, migrare
-schema e selezionare esplicitamente quali dati ripristinare, senza
-riabilitare consensi o servizi cloud automaticamente.
+**Ora è disponibile un primo ripristino manuale e conservativo**:
+dopo la verifica completa e l'anteprima, importa soltanto i libri assenti,
+con i relativi metadati, posizioni e segnalibri. Ricostruisce i nuovi
+percorsi locali senza usare quelli del database di origine. Non importa
+cloud/LLM consent, voce, cast o chiavi API; i libri già presenti non
+vengono modificati. Non è un restore integrale del database e non va
+mai copiato manualmente sopra quello live.
+[Guida al restore](LIBRARY_BACKUP_RESTORE.md).
 
 ## Test scritti (NON eseguiti)
 
