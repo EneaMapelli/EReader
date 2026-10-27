@@ -277,3 +277,12 @@ requires the exact versioned marker + exclusive OS lease (or the strict
 empty lease-only metadata special case); no recursive user-folder sweep.
 The scan-limit regression now verifies a *second* pass recovers the
 remaining marked sessions. The tests have not been run on Windows.
+
+### Creation-time race closure
+
+The owner registry is now updated immediately AFTER acquiring the OS
+lease and BEFORE writing the public marker. This closes the tiny
+same-process gap where the marker was visible but the POSIX
+process-scoped lock did not prevent another local recovery scan.
+Creation failure deregisters the uncommitted session. Added a
+parallel-create/recovery regression (not executed).

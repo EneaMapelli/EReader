@@ -44,10 +44,15 @@ class OfflineWavSession {
     try {
       handle = await _leaseFile(directory).open(mode: FileMode.append);
       await handle.lock(FileLock.exclusive);
-      await _marker(directory).writeAsString(markerContent, flush: true);
+      // Register ownership BEFORE making the marker visible. On POSIX,
+      // advisory locks are process-scoped: a second reader in the same
+      // process could otherwise acquire this lock between the marker
+      // write and registry registration.
       _liveSessionPaths.add(p.normalize(directory.absolute.path));
+      await _marker(directory).writeAsString(markerContent, flush: true);
       return OfflineWavSession._(directory, handle);
     } catch (_) {
+      _liveSessionPaths.remove(p.normalize(directory.absolute.path));
       if (handle != null) {
         try { await handle.unlock(); } on FileSystemException {}
         await handle.close();

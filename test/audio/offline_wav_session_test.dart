@@ -22,6 +22,24 @@ void main() {
     return folder;
   }
 
+  test('parallel create and recovery cannot reclaim the new live session',
+      () async {
+    final creating = OfflineWavSession.create(root);
+    final sweeping = OfflineWavSession.recoverAbandoned(root);
+    final session = await creating;
+    await sweeping;
+    final marker = File(p.join(
+        session.directory.path, OfflineWavSession.markerName));
+    expect(await marker.exists(), isTrue);
+    final wav = await addWav(session);
+    expect(await OfflineWavSession.recoverAbandoned(root), 0);
+    expect(await File(p.join(wav.path, 'speech.wav')).exists(), isTrue);
+    await File(p.join(wav.path, 'speech.wav')).delete();
+    await wav.delete();
+    await session.close();
+    expect(await root.list().toList(), isEmpty);
+  });
+
   test('normal session exit with no WAV removes marker and lease', () async {
     final session = await OfflineWavSession.create(root);
     expect(await File(p.join(session.directory.path,
