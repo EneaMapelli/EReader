@@ -112,7 +112,13 @@ class JustAudioWaveOutput implements OfflineWaveOutput {
         rethrow;
       }
     });
-    if (_disposed || version != _revision) return;
+    if (_disposed || version != _revision) {
+      // A cancelled load may settle BEFORE the queued native Stop does.
+      // Keep the WAV alive until that Stop/Dispose has settled; otherwise
+      // the engine's finalizer could delete a Windows file still in use.
+      await _nativeOperations;
+      return;
+    }
     try {
       // Do NOT queue the entire playback duration: Stop must reach the
       // native decoder while sound is playing.
@@ -126,6 +132,12 @@ class JustAudioWaveOutput implements OfflineWaveOutput {
             await _confirmNativeStop();
           }
         });
+      }
+      if (_disposed || version != _revision) {
+        // A platform play() Future can resolve before native stop() does.
+        // Do not let the engine delete the private WAV until that stop
+        // (or decoder disposal) has actually completed.
+        await _nativeOperations;
       }
       // A newer Stop/Dispose owns native cleanup after invalidation.
       // This stale finalizer must NEVER stop a newer live utterance.

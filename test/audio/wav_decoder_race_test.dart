@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 class _ControlledDecoder implements WaveDecoder {
   Completer<void>? loadGate;
   Completer<void>? playbackGate;
+  Completer<void>? stopGate;
   final events = <String>[];
   bool loading = false;
   bool disposed = false;
@@ -47,6 +48,8 @@ class _ControlledDecoder implements WaveDecoder {
     if (failStop) throw StateError('Native Stop did not confirm');
     final gate = playbackGate;
     if (gate != null && !gate.isCompleted) gate.complete();
+    final pendingStop = stopGate;
+    if (pendingStop != null) await pendingStop.future;
   }
 
   @override
@@ -109,6 +112,49 @@ void main() {
       'load:start:private.wav', 'load:done:private.wav', 'dispose',
     ]);
     await expectLater(output.play('never.wav'), throwsStateError);
+  });
+
+  test('cancelled native load cannot finish before its Stop settles',
+      () async {
+    final decoder = _ControlledDecoder()
+      ..loadGate = Completer<void>()
+      ..stopGate = Completer<void>();
+    final output = JustAudioWaveOutput(decoder: decoder);
+    final play = output.play('sensitive.wav');
+    await _waitFor(() => decoder.loading);
+    var playSettled = false;
+    final observedPlay = play.then((_) { playSettled = true; });
+    final stopping = output.stop();
+    decoder.loadGate!.complete();
+    await _waitFor(() => decoder.stopCalls == 1);
+    await Future<void>.delayed(Duration.zero);
+    expect(playSettled, isFalse,
+        reason: 'Engine must not delete WAV before physical Stop settles');
+    decoder.stopGate!.complete();
+    await Future.wait([observedPlay, stopping]);
+    expect(playSettled, isTrue);
+    await output.dispose();
+  });
+
+  test('cancelled ongoing playback waits for native Stop confirmation',
+      () async {
+    final decoder = _ControlledDecoder()
+      ..playbackGate = Completer<void>()
+      ..stopGate = Completer<void>();
+    final output = JustAudioWaveOutput(decoder: decoder);
+    final playing = output.play('audible.wav');
+    await _waitFor(() => decoder.playCalls == 1);
+    var playSettled = false;
+    final observed = playing.then((_) { playSettled = true; });
+    final stopping = output.stop();
+    await _waitFor(() => decoder.stopCalls == 1);
+    await Future<void>.delayed(Duration.zero);
+    expect(playSettled, isFalse,
+        reason: 'Native playback future might resolve before Stop returns');
+    decoder.stopGate!.complete();
+    await Future.wait([observed, stopping]);
+    expect(playSettled, isTrue);
+    await output.dispose();
   });
 
   test('natural completion performs native Stop before WAV cleanup', () async {

@@ -159,3 +159,15 @@ must retry Stop **before** loading a different WAV, and fails closed if
 Stop is still unconfirmed. Disposal remains serialized behind outstanding
 native operations. An extra synthetic regression exercises two failed
 Stops followed by recovery, without using device audio.
+
+## WAV lifetime while native Stop is pending (2026-10-27)
+
+Even when the output generation is cancelled, the obsolete
+`JustAudioWaveOutput.play` Future must not resolve merely because the
+interrupted `setFilePath` or `AudioPlayer.play` returned. It now awaits
+the queued native Stop/Dispose operation so that the owner engine's
+finally block cannot try deleting its WAV ahead of the file handle
+release. Delayed native Stop is still subject to ReaderPlayer's existing
+Stop-confirmation timeout, which fails closed rather than overlapping
+audio. Added synthetic tests where decoder Stop intentionally remains
+pending after native load or playback reports completion.
