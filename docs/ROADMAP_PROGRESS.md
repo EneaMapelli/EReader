@@ -658,3 +658,12 @@ loaded decoder without a second file-open. Supports one-ahead only,
 generation invalidation and both-decoder Stop/Dispose. No network,
 new cloud charges or additional synthesis. Native gapless and resource
 gates remain unverified. No Windows builds/Actions triggered.
+
+### M3 — consolidated offline/local verification (2026-10-27)
+
+Added tool/verify-local.ps1 and docs/LOCAL_VERIFICATION_GUIDE.md:
+Windows one-command local full suite, long-session synthetic WAV soak,
+optional example/ EPUB/PDF corpus, and explicitly approved real ONNX
+qualification. Nonpublishing by design; per-stage exit codes and raw
+logs remain in gitignored local-test-results. Tests not executed;
+no Windows build or GitHub Actions.

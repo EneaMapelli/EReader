@@ -410,3 +410,15 @@ senza ripetere il caricamento, se corrisponde esattamente alla richiesta.
 Stop e Dispose rilasciano entrambi i decoder. Non vengono effettuate
 ulteriori richieste cloud o sintesi speculative oltre quella già prevista.
 La riduzione delle pause deve ancora essere misurata su Windows.
+
+### Test locali completi senza build o Actions
+
+Dalla radice del progetto Windows:
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File .\tool\verify-local.ps1 -SoakIterations 500 -IncludeCorpus -DeepCorpus
+
+Senza example/ usare solo verify-local.ps1. Lo script esegue la suite
+Flutter con -NoPublish, analisi, la simulazione audio e opzionalmente i
+tuoi EPUB/PDF locali. Salva i log in .local-test-results/, senza
+upload, push, build o Actions. Consulta docs/LOCAL_VERIFICATION_GUIDE.md
+per comandi separati, qualifica native e test di ascolto.

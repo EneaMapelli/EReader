@@ -430,3 +430,13 @@ uses it without another setFilePath/synthesis; the other holds the
 idle decoder's Stop and checks the mismatched private WAV survives
 until Stop confirmation. Both verify final session directory cleanup
 after engine Dispose. Tests authored but not executed.
+
+## Full Windows local regression orchestrator — 2026-10-27
+
+tool/verify-local.ps1 calls the existing complete test runner with
+-NoPublish, the opt-in synthetic WAV soak and optionally a private
+EPUB/PDF corpus and explicitly consented real ONNX qualification.
+Produces a local-only JSON stage summary and logs under
+.local-test-results/local-verification/. No Actions or Windows build.
+The commands have NOT been executed in this GitHub editing session.
+See docs/LOCAL_VERIFICATION_GUIDE.md for exact local commands.
