@@ -73,6 +73,25 @@ Future<void> synthesizeVitsWave({
   speed: speed,
 )).result;
 
+/// One unconsumed, optional future WAV, never multiple queued jobs.
+class _PreparedWave {
+  _PreparedWave(this.text, this.language, this.rate, this.pitch, this.voiceKey);
+  final String text;
+  final String language;
+  final double rate;
+  final double pitch;
+  final String voiceKey;
+  Future<void>? task;
+  Directory? staging;
+  String? wavPath;
+  bool ready = false;
+
+  bool matches(String value, String locale, double speed, double tone,
+      String selected) =>
+      text == value && language == locale && rate == speed &&
+      pitch == tone && voiceKey == selected;
+}
+
 /// Prototype local VITS engine using the same SpeechEngine contract as
 /// OS TTS/cloud. Not registered in the user-selectable provider registry
 /// until the device and model-asset gates have been passed.
@@ -81,7 +100,7 @@ Future<void> synthesizeVitsWave({
 /// Stop requests immediate worker-isolate termination and suppresses delayed
 /// WAV playback. Dart cannot guarantee instantaneous preemption of a native
 /// blocking FFI call; physical device testing remains mandatory.
-class SherpaVitsSpeechEngine implements SpeechEngine {
+class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
   static const providerId = 'sherpa-vits';
 
   SherpaVitsSpeechEngine({
@@ -104,6 +123,8 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
   final OfflineWaveSynthesizer? _synthesizer;
   final VitsWaveJob Function(VitsWaveRequest) _jobFactory;
   VitsWaveJob? _nativeJob;
+  _PreparedWave? _prepared;
+  Future<void>? _currentSynthesisReady;
   final OfflineWaveOutput _output;
   final Future<Directory> Function() _temporaryDirectory;
 
@@ -128,15 +149,9 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
     _voice = voice;
   }
 
-  @override
-  Future<void> speak(
-    String text, {
-    required String language,
-    required double rate,
-    required double pitch,
-  }) async {
+  void _validateSpeech(String text, String language, double rate,
+      double pitch) {
     if (_disposed) throw StateError('Offline TTS disposed');
-    if (text.isEmpty) return;
     if (text.length > 2048) {
       throw const FormatException('Offline VITS chunk is too long');
     }
@@ -153,63 +168,158 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
     if (_voice != null && _voice!.key != _packVoice.key) {
       throw const FormatException('Selected offline voice changed');
     }
+  }
 
-    final token = _generation;
-    final root = await _temporaryDirectory();
-    if (_disposed || token != _generation) return;
-    final staging = await root.createTemp('ereader-local-tts-');
-    final wavPath = '${staging.path}${Platform.pathSeparator}speech.wav';
+  Future<bool> _synthesizeWave(String text, String wavPath, double rate) async {
+    final speed = (rate / 0.5).clamp(0.4, 2.0).toDouble();
+    final mock = _synthesizer;
+    if (mock != null) {
+      await mock(
+        text: text, modelPath: pack.modelPath, tokensPath: pack.tokensPath,
+        dataDir: dataDir, wavPath: wavPath, speed: speed,
+      );
+      return true;
+    }
+    if (_nativeJob != null) {
+      throw StateError('Offline synthesis is already running');
+    }
+    final job = _jobFactory(VitsWaveRequest(
+      text: text, modelPath: pack.modelPath, tokensPath: pack.tokensPath,
+      dataDir: dataDir, wavPath: wavPath, speed: speed,
+    ));
+    _nativeJob = job;
     try {
-      if (_disposed || token != _generation) return;
-      final speed = (rate / 0.5).clamp(0.4, 2.0).toDouble();
-      final mock = _synthesizer;
-      if (mock != null) {
-        // Keep unit tests entirely independent of native ONNX binaries.
-        await mock(
-          text: text,
-          modelPath: pack.modelPath,
-          tokensPath: pack.tokensPath,
-          dataDir: dataDir,
-          wavPath: wavPath,
-          speed: speed,
-        );
-      } else {
-        // A previous utterance must be finished or explicitly stopped.
-        if (_nativeJob != null) {
-          throw StateError('Offline synthesis is already running');
-        }
-        final job = _jobFactory(VitsWaveRequest(
-          text: text,
-          modelPath: pack.modelPath,
-          tokensPath: pack.tokensPath,
-          dataDir: dataDir,
-          wavPath: wavPath,
-          speed: speed,
-        ));
-        _nativeJob = job;
-        try {
-          await job.result;
-        } on VitsWaveCancelled {
-          return; // Stop/Dispose cancelled this job; never play its WAV.
-        } finally {
-          if (identical(_nativeJob, job)) _nativeJob = null;
+      await job.result;
+      return true;
+    } on VitsWaveCancelled {
+      return false;
+    } finally {
+      if (identical(_nativeJob, job)) _nativeJob = null;
+    }
+  }
+
+  Future<void> _deleteStaging(Directory? staging) async {
+    if (staging == null) return;
+    try {
+      if (await staging.exists()) await staging.delete(recursive: true);
+    } on FileSystemException {
+      // Native Windows WAV handles may linger after Stop.
+      // Never play stale speech as a side effect of cleanup.
+    }
+  }
+
+  /// Prepare one LOCAL future segment after the current synthesis finishes.
+  /// While the current WAV plays, native synthesis may warm the next one.
+  /// This never obtains keys, networks, quotas or model downloads.
+  @override
+  Future<void> prepareOfflineSpeech(
+    String text, {
+    required SpeechVoice? voice,
+    required String language,
+    required double rate,
+    required double pitch,
+  }) async {
+    _validateSpeech(text, language, rate, pitch);
+    if (text.isEmpty) return;
+    if (voice != null && voice.key != _packVoice.key) return;
+    final priorSynthesis = _currentSynthesisReady;
+    if (priorSynthesis == null) return;
+    final previous = _prepared;
+    if (previous != null) {
+      if (previous.matches(text, language, rate, pitch, _packVoice.key)) {
+        await previous.task;
+      }
+      return; // Never enqueue another native model instance.
+    }
+    final token = _generation;
+    final next = _PreparedWave(text, language, rate, pitch, _packVoice.key);
+    _prepared = next;
+    final task = _prepareWave(next, token, priorSynthesis);
+    next.task = task;
+    await task;
+  }
+
+  Future<void> _prepareWave(
+      _PreparedWave next, int token, Future<void> priorSynthesis) async {
+    try {
+      await priorSynthesis;
+      if (_disposed || token != _generation ||
+          !identical(_prepared, next)) return;
+      final root = await _temporaryDirectory();
+      if (_disposed || token != _generation ||
+          !identical(_prepared, next)) return;
+      next.staging = await root.createTemp('ereader-local-lookahead-');
+      next.wavPath =
+          next.staging!.path + Platform.pathSeparator + 'speech.wav';
+      if (_disposed || token != _generation ||
+          !identical(_prepared, next)) return;
+      final completed =
+          await _synthesizeWave(next.text, next.wavPath!, next.rate);
+      if (!completed || _disposed || token != _generation ||
+          !identical(_prepared, next)) return;
+      if (!await File(next.wavPath!).exists()) return;
+      if (_disposed || token != _generation ||
+          !identical(_prepared, next)) return;
+      next.ready = true;
+    } catch (_) {
+      // Optional warming is best effort; audible speak reports real errors.
+    } finally {
+      if (!next.ready || _disposed || token != _generation ||
+          !identical(_prepared, next)) {
+        if (identical(_prepared, next)) _prepared = null;
+        await _deleteStaging(next.staging);
+      }
+    }
+  }
+
+  @override
+  Future<void> speak(
+    String text, {
+    required String language,
+    required double rate,
+    required double pitch,
+  }) async {
+    _validateSpeech(text, language, rate, pitch);
+    if (text.isEmpty) return;
+    final token = _generation;
+    final ready = Completer<void>();
+    // Synchronously publish the synthesis barrier before our first await.
+    _currentSynthesisReady = ready.future;
+    Directory? staging;
+    String? wavPath;
+    try {
+      final pending = _prepared;
+      if (pending != null &&
+          pending.matches(text, language, rate, pitch, _packVoice.key)) {
+        await pending.task;
+        if (_disposed || token != _generation) return;
+        if (pending.ready) {
+          staging = pending.staging;
+          wavPath = pending.wavPath;
+          _prepared = null; // This audible clip owns file cleanup now.
         }
       }
-      if (_disposed || token != _generation) return;
-      if (!await File(wavPath).exists()) {
+      if (staging == null) {
+        final root = await _temporaryDirectory();
+        if (_disposed || token != _generation) return;
+        staging = await root.createTemp('ereader-local-tts-');
+        wavPath = staging.path + Platform.pathSeparator + 'speech.wav';
+        if (_disposed || token != _generation) return;
+        final completed = await _synthesizeWave(text, wavPath, rate);
+        if (!completed || _disposed || token != _generation) return;
+      }
+      if (!await File(wavPath!).exists()) {
         throw StateError('Offline TTS generated no WAV file');
       }
       if (_disposed || token != _generation) return;
+      if (!ready.isCompleted) ready.complete();
       await _output.play(wavPath);
     } finally {
-      if (await staging.exists()) {
-        try {
-          await staging.delete(recursive: true);
-        } on FileSystemException {
-          // Some Windows decoders retain temporary handles briefly after
-          // Stop. This local cleanup failure must never restart narration.
-        }
+      if (!ready.isCompleted) ready.complete();
+      if (identical(_currentSynthesisReady, ready.future)) {
+        _currentSynthesisReady = null;
       }
+      await _deleteStaging(staging);
     }
   }
 
@@ -218,6 +328,11 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
     _generation++;
     _nativeJob?.cancel();
     _nativeJob = null;
+    final pending = _prepared;
+    _prepared = null;
+    if (pending != null && pending.ready) {
+      await _deleteStaging(pending.staging);
+    }
     await _output.stop();
   }
 
@@ -228,6 +343,11 @@ class SherpaVitsSpeechEngine implements SpeechEngine {
     _generation++;
     _nativeJob?.cancel();
     _nativeJob = null;
+    final pending = _prepared;
+    _prepared = null;
+    if (pending != null && pending.ready) {
+      await _deleteStaging(pending.staging);
+    }
     await _output.dispose();
   }
 }

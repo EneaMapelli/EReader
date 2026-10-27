@@ -56,6 +56,18 @@ abstract interface class CachedAheadSpeechEngine {
   });
 }
 
+/// Optional one-chunk, local neural lookahead: no text leaves the device.
+/// All work and any private WAV must be invalidated by Stop/Seek/Dispose.
+abstract interface class OfflineAheadSpeechEngine {
+  Future<void> prepareOfflineSpeech(
+    String text, {
+    required SpeechVoice? voice,
+    required String language,
+    required double rate,
+    required double pitch,
+  });
+}
+
 class SystemSpeechEngine implements SpeechEngine {
   SystemSpeechEngine({bool? interpretWindowsPunctuation})
       : _interpretWindowsPunctuation =

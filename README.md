@@ -310,3 +310,13 @@ posizioni di lettura, dialoghi e segnalibri. Per il cloud, cambiare la
 segmentazione può cambiare il numero di caratteri contabilizzati in
 ciascuna richiesta senza bypassare la quota autorizzata. La qualità
 acustica attende una prova su dispositivo.
+
+### Anticipo locale della prossima frase per il motore VITS
+
+Sui dispositivi Windows con una voce VITS offline già installata e
+verificata, EReader può preparare localmente **una sola frase in
+anticipo** mentre la precedente viene riprodotta. L'opzione è
+disattivabile nel lettore; usa CPU e spazio temporaneo ma non Internet
+o servizi a pagamento. Stop/Pausa/salto capitolo invalidano la
+preparazione. Non sono ancora state misurate le latenze effettive
+o la qualità audio su un PC Windows.

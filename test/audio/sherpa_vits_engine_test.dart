@@ -12,16 +12,23 @@ class _FakeWaveOutput implements OfflineWaveOutput {
   final filePaths = <String>[];
   int stops = 0;
   int disposals = 0;
+  Completer<void>? playGate;
 
   @override
   Future<void> play(String filePath) async {
     expect(await File(filePath).exists(), isTrue);
     filePaths.add(filePath);
     playedBytes.add(await File(filePath).readAsBytes());
+    final gate = playGate;
+    if (gate != null) await gate.future;
   }
 
   @override
-  Future<void> stop() async { stops++; }
+  Future<void> stop() async {
+    stops++;
+    final gate = playGate;
+    if (gate != null && !gate.isCompleted) gate.complete();
+  }
 
   @override
   Future<void> dispose() async { disposals++; }
@@ -205,6 +212,96 @@ void main() {
         rate: 0.5, pitch: 1), throwsStateError);
     expect(await root.list().toList(), isEmpty);
     expect(output.filePaths, isEmpty);
+    await synth.dispose();
+  });
+
+  test('one-ahead local synthesis runs while the first WAV plays and is reused',
+      () async {
+    final synth = engine();
+    final gate = Completer<void>();
+    output.playGate = gate;
+    final first = synth.speak(
+        'First', language: 'en-US', rate: 0.5, pitch: 1);
+    for (var n = 0; n < 50 && output.filePaths.isEmpty; n++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(output.filePaths, hasLength(1));
+    await synth.prepareOfflineSpeech(
+      'Second', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
+    expect(texts, ['First', 'Second']);
+    expect(output.filePaths, hasLength(1),
+        reason: 'Warming must never start audible output');
+    await synth.prepareOfflineSpeech(
+      'Second', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
+    expect(texts, hasLength(2),
+        reason: 'At most one speculative synthesis for a repeated request');
+
+    output.playGate = null;
+    gate.complete();
+    await first;
+    await synth.speak(
+        'Second', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(texts, ['First', 'Second'],
+        reason: 'Prepared WAV must be reused without re-synthesis');
+    expect(output.filePaths, hasLength(2));
+    expect(await root.list().toList(), isEmpty);
+    await synth.dispose();
+  });
+
+  test('stop discards a completed lookahead WAV without playing it',
+      () async {
+    final synth = engine();
+    output.playGate = Completer<void>();
+    final first = synth.speak(
+        'First', language: 'en-US', rate: 0.5, pitch: 1);
+    for (var n = 0; n < 50 && output.filePaths.isEmpty; n++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(output.filePaths, hasLength(1));
+    await synth.prepareOfflineSpeech(
+      'Second', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
+    await synth.stop();
+    await first;
+    expect(output.filePaths, hasLength(1));
+    expect(await root.list().toList(), isEmpty);
+    await synth.dispose();
+  });
+
+  test('stop during speculative synthesis invalidates late WAV and cleans it',
+      () async {
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    Future<void> slowNext({
+      required String text,
+      required String modelPath,
+      required String tokensPath,
+      required String dataDir,
+      required String wavPath,
+      required double speed,
+    }) async {
+      texts.add(text);
+      if (text == 'Second') {
+        entered.complete();
+        await release.future;
+      }
+      await File(wavPath).writeAsBytes([82, 73, 70, 70]);
+    }
+    final synth = engine(synthesizer: slowNext);
+    output.playGate = Completer<void>();
+    final first = synth.speak(
+        'First', language: 'en-US', rate: 0.5, pitch: 1);
+    for (var n = 0; n < 50 && output.filePaths.isEmpty; n++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    final speculative = synth.prepareOfflineSpeech(
+      'Second', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
+    await entered.future;
+    await synth.stop();
+    release.complete();
+    await speculative;
+    await first;
+    expect(output.filePaths, hasLength(1));
+    expect(await root.list().toList(), isEmpty);
     await synth.dispose();
   });
 

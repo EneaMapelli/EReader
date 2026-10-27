@@ -1794,6 +1794,22 @@ class _ReaderScreenState extends State<ReaderScreen>
                   onChanged: (value) =>
                       setState(() => _skipEpubNotes = value ?? false),
                 ),
+              if (player.engineProviderId == 'sherpa-vits')
+                CheckboxListTile(
+                  key: const ValueKey('offline-next-wav-warmup'),
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  title: const Text('Prepare next offline voice clip'),
+                  subtitle: const Text(
+                    'On by default for the selected local VITS voice. '
+                    'Prepares only one future WAV, using local CPU and '
+                    'temporary disk but no network or provider fees. '
+                    'Stop, pause and seek cancel pending synthesis.',
+                  ),
+                  value: player.warmNextOfflineChunk,
+                  onChanged: (enabled) =>
+                      player.setOfflineWarmup(enabled ?? false),
+                ),
               if (player.engineProviderId ==
                   OpenAiSpeechEngine.providerId)
                 CheckboxListTile(

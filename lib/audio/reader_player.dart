@@ -123,6 +123,15 @@ class ReaderPlayer extends ChangeNotifier {
   /// The separate speculative HTTP toggle remains OFF by default.
   bool warmCachedCloudChunk = true;
 
+  /// Opted-in VITS only; locally prepares one future WAV.
+  bool warmNextOfflineChunk = true;
+
+  void setOfflineWarmup(bool enabled) {
+    if (engineProviderId != 'sherpa-vits') return;
+    warmNextOfflineChunk = enabled;
+    _notify();
+  }
+
   void setCachedCloudWarmup(bool enabled) {
     if (engineProviderId != 'openai-speech') return;
     warmCachedCloudChunk = enabled;
@@ -367,8 +376,14 @@ class ReaderPlayer extends ChangeNotifier {
         // EPUB footnotes may contain several silent segments in a row;
         // neither private cache warming nor paid prefetch should preload
         // those silent chunks or interrupt the eventual narrator/actor.
-        if (engineProviderId == 'openai-speech' &&
-            (prefetchNextCloudChunk || warmCachedCloudChunk)) {
+        final canCloudWarm =
+            engineProviderId == 'openai-speech' &&
+            (prefetchNextCloudChunk || warmCachedCloudChunk);
+        final canOfflineWarm =
+            engineProviderId == 'sherpa-vits' && warmNextOfflineChunk &&
+            _engine is OfflineAheadSpeechEngine;
+        if (canCloudWarm || canOfflineWarm) {
+          // Only the next actually audible passage may be prepared.
           var nextIndex = currentIndex + 1;
           while (nextIndex < _segments.length &&
               (shouldSkipSegment?.call(_segments[nextIndex]) ?? false)) {
@@ -379,27 +394,31 @@ class ReaderPlayer extends ChangeNotifier {
             final nextText =
                 speechTextTransform?.call(next.text) ?? next.text;
             final nextVoice = _voiceFor(next);
-            if (prefetchNextCloudChunk &&
-                _engine is AheadOfTimeSpeechEngine) {
-              final cap = _engine as AheadOfTimeSpeechEngine;
-              unawaited(cap.prepareSpeech(
-                nextText,
-                voice: nextVoice,
+            if (canOfflineWarm) {
+              final offline = _engine as OfflineAheadSpeechEngine;
+              unawaited(offline.prepareOfflineSpeech(
+                nextText, voice: nextVoice,
                 language: language, rate: rate, pitch: pitch,
               ).catchError((Object _) {
-                // Prepared errors remain attached to the paid clip and
-                // are surfaced once when its source segment is played.
+                // Local warming is optional, and cannot mask playback errors.
+              }));
+            } else if (prefetchNextCloudChunk &&
+                _engine is AheadOfTimeSpeechEngine) {
+              final cloud = _engine as AheadOfTimeSpeechEngine;
+              unawaited(cloud.prepareSpeech(
+                nextText, voice: nextVoice,
+                language: language, rate: rate, pitch: pitch,
+              ).catchError((Object _) {
+                // Paid prefetch errors surface when that clip is played.
               }));
             } else if (warmCachedCloudChunk &&
                 _engine is CachedAheadSpeechEngine) {
-              final cap = _engine as CachedAheadSpeechEngine;
-              unawaited(cap.prepareCachedSpeech(
-                nextText,
-                voice: nextVoice,
+              final cloud = _engine as CachedAheadSpeechEngine;
+              unawaited(cloud.prepareCachedSpeech(
+                nextText, voice: nextVoice,
                 language: language, rate: rate, pitch: pitch,
               ).catchError((Object _) {
-                // Cache-only warming is best effort; the normal speech
-                // path handles a cache miss without speculative billing.
+                // Cache warming never synthesizes on a miss.
               }));
             }
           }

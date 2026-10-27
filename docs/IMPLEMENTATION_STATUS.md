@@ -1773,3 +1773,15 @@ no new request, consent or pricing mechanism was introduced.
 Authored focused unit regressions for Italian/English names, Unicode,
 initials, normal stops, source ranges and hard caps. NOT EXECUTED; no
 native audio/build nor GitHub Actions workflow was started.
+
+### 2026-10-27 — offline, one-ahead VITS WAV lookahead
+
+Added a distinct local-only OfflineAheadSpeechEngine implementation for
+sherpa VITS and ReaderPlayer support. At most one native next job starts
+after the active ONNX job completes, while the current WAV is still
+audible. Exact-match result reuse avoids a redundant next synthesis.
+Stop/seek/dispose invalidate stale WAVs, cancel worker jobs and clean
+private temporary directories. Reader exposes a session-only toggle.
+Cloud and system-TTS paths are not modified. Added fake-output and
+player integration regressions. Tests NOT run in this environment;
+qualitative audio latency and native cancellation are unverified.

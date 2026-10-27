@@ -530,3 +530,14 @@ True sentence boundaries and source/chapter limits still win; cloud input
 chunk boundaries may change, but no unauthorized HTTP prefetch is enabled.
 Regressions authored but not run. M2/overall estimates remain unchanged
 pending local and Windows/Android acoustic acceptance. No builds or Actions.
+
+### M3 — bounded offline VITS lookahead (2026-10-27)
+
+Opt-in Windows experimental sherpa/VITS provider now prepares exactly
+one future local WAV while the current WAV plays, gated on completion
+of current native synthesis; audio output remains serial. A session
+checkbox disables CPU/memory/disk speculation. Stop/Seek/Dispose
+invalidate all stale future playback; verified skipped notes are excluded.
+No HTTP or paid quota. Source/tests/doc committed but not executed.
+No Windows/Android build and no Actions. Estimates unchanged pending
+native listening/latency/Stop qualification.
