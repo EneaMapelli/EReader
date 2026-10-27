@@ -12,6 +12,7 @@ class _ControlledDecoder implements WaveDecoder {
   int playCalls = 0;
   int stopCalls = 0;
   bool failLoad = false;
+  bool failStop = false;
 
   @override
   Future<void> load(String file) async {
@@ -43,6 +44,7 @@ class _ControlledDecoder implements WaveDecoder {
     if (loading || disposed) throw StateError('Stop raced native load');
     stopCalls++;
     events.add('stop');
+    if (failStop) throw StateError('Native Stop did not confirm');
     final gate = playbackGate;
     if (gate != null && !gate.isCompleted) gate.complete();
   }
@@ -137,6 +139,28 @@ void main() {
     expect(decoder.playCalls, 2);
     expect(decoder.stopCalls, 2,
         reason: 'Natural completion of the new clip owns exactly one Stop');
+    await output.dispose();
+  });
+
+  test('failed native Stop remains required before decoder reuse', () async {
+    final decoder = _ControlledDecoder()
+      ..failLoad = true
+      ..failStop = true;
+    final output = JustAudioWaveOutput(decoder: decoder);
+    await expectLater(output.play('partial.wav'), throwsStateError);
+    expect(decoder.stopCalls, 1);
+    decoder.failLoad = false;
+    // The old native file might still be open. Another Play must try
+    // physical Stop FIRST, and fail closed if that Stop still fails.
+    await expectLater(output.play('next.wav'), throwsStateError);
+    expect(decoder.stopCalls, 2);
+    expect(decoder.events.contains('load:start:next.wav'), isFalse);
+    decoder.failStop = false;
+    await output.stop();
+    expect(decoder.stopCalls, 3);
+    await output.play('safe.wav');
+    expect(decoder.playCalls, 1);
+    expect(decoder.stopCalls, 4);
     await output.dispose();
   });
 

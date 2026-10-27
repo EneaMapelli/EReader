@@ -62,6 +62,15 @@ class JustAudioWaveOutput implements OfflineWaveOutput {
   Future<void>? _disposeFuture;
   int _revision = 0;
   bool _disposed = false;
+  // Native file handles can remain open after a partial/failed load.
+  // Only a SUCCESSFUL physical Stop clears this obligation.
+  bool _needsNativeStop = false;
+
+  Future<void> _confirmNativeStop() async {
+    if (!_needsNativeStop) return;
+    await _decoder.stop();
+    _needsNativeStop = false;
+  }
 
   /// Chain load/Stop/dispose on ONE decoder. A previous failed load
   /// cannot poison the next native Stop or the user's later Play.
@@ -85,15 +94,20 @@ class JustAudioWaveOutput implements OfflineWaveOutput {
     final version = _revision;
     await _serialize(() async {
       if (_disposed || version != _revision) return;
+      // A previous decoder error may have failed to release the native
+      // WAV handle. Do not reuse this decoder until Stop succeeds.
+      await _confirmNativeStop();
+      if (_disposed || version != _revision) return;
+      _needsNativeStop = true; // BEFORE native setFilePath.
       try {
         await _decoder.load(wavFile);
       } catch (_) {
-        // setFilePath may have partially opened a Windows handle. Release
-        // it BEFORE returning an error to the engine's file finalizer.
+        // A partially opened file still requires physical Stop.
         try {
-          await _decoder.stop();
+          await _confirmNativeStop();
         } catch (_) {
-          // Preserve the original decoder-load failure.
+          // Retain _needsNativeStop=true so future loads first retry Stop.
+          // The original load error is still reported to the reader.
         }
         rethrow;
       }
@@ -109,7 +123,7 @@ class JustAudioWaveOutput implements OfflineWaveOutput {
         // The engine may delete this private WAV only AFTER confirmed Stop.
         await _serialize(() async {
           if (!_disposed && version == _revision) {
-            await _decoder.stop();
+            await _confirmNativeStop();
           }
         });
       }
@@ -125,7 +139,7 @@ class JustAudioWaveOutput implements OfflineWaveOutput {
     if (_disposed) return _disposeFuture ?? Future<void>.value();
     // Always execute a previously requested native Stop, even if Dispose
     // is subsequently requested; both operations must be fully serialized.
-    return _serialize(() => _decoder.stop());
+    return _serialize(_confirmNativeStop);
   }
 
   @override
@@ -135,6 +149,8 @@ class JustAudioWaveOutput implements OfflineWaveOutput {
     _revision++;
     _disposed = true;
     // Any in-flight load and Stop must finish before decoder disposal.
+    // Physical disposal is the final native cleanup when Stop itself
+    // failed. Never mark a failed Stop as confirmed.
     return _disposeFuture = _serialize(() => _decoder.dispose());
   }
 }

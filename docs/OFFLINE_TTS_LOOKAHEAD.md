@@ -148,3 +148,14 @@ Stop/replay and native load failure. All are authored, not executed.
 If a native load itself hangs, Stop waits on the load and
 ReaderPlayer's existing 8-second Stop guard deliberately blocks
 unsafe re-entry; native preemption remains a device-level gate.
+
+## Failed-Stop obligation (2026-10-27)
+
+A partially failed `setFilePath` can leave a Windows decoder holding the
+prior file. The WAV adapter now tracks a conservative native Stop
+obligation from BEFORE each load until physical Stop succeeds. If a
+native Stop fails, the obligation survives the error. A later Play
+must retry Stop **before** loading a different WAV, and fails closed if
+Stop is still unconfirmed. Disposal remains serialized behind outstanding
+native operations. An extra synthetic regression exercises two failed
+Stops followed by recovery, without using device audio.
