@@ -1696,3 +1696,19 @@ I backup non sono cifrati, non includono segreti OS ed il
 ripristino multipiattaforma è tuttora da sviluppare.
 Test `test/data/library_backup_test.dart` scritti ma non eseguiti.
 [Specifiche e checklist](LIBRARY_BACKUP_EXPORT.md).
+
+### 2026-10-27 — read-only private backup inspection + add-only restore
+
+New `library_backup_restore.dart` validates all files in an EReader
+backup v1: SQLite user_version 17, integrity, manifest/database identity,
+per-book SHA-256, metadata/anchors and bookmarks; untrusted absolute
+snapshot paths are never followed. `LibraryStore` offers preview and
+an explicitly confirmed add-only restore into current private books
+storage. New-book positions/bookmarks/visual PDF page and metadata
+commit together, while existing book progress/title/bookmarks are not
+touched. No prior cloud/LLM consent, native API secrets, TTS choices,
+voice/cast tables or audio cache are re-enabled/imported. The library
+screen now exposes a restore preview, consent and progress.
+`test/data/library_backup_restore_test.dart` is authored, NOT RUN;
+no Windows Release or Actions workflow was triggered.
+[Documentation](LIBRARY_BACKUP_RESTORE.md).
