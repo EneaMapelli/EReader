@@ -429,3 +429,7 @@ Added explicit one-click Piper Paola installation in the Windows offline voice m
   avviano il TTS. Test Dart scritti ma NON eseguiti.
 - Non implementa ancora drag&drop Windows, importazione ricorsiva di
   cartelle né OPDS. [Specifiche e test utente](LIBRARY_BATCH_IMPORT.md).
+
+- Build Windows Release con import multiplo effettivamente
+  **compilata e pubblicata**: [windows-test-45a013cf](https://github.com/EneaMapelli/EReader/releases/tag/windows-test-45a013cf),
+  run 40465285992. Test d'interazione e corpus non eseguiti.
