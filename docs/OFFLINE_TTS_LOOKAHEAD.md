@@ -376,3 +376,27 @@ parent called `Isolate.kill`. The fixtures now keep child isolates
 alive with open receive ports / pending asynchronous Futures instead.
 This verifies cancellation and timeout plumbing without burning CPU or
 claiming native FFI preemption. Tests authored, not executed.
+
+## Two-decoder local WAV handoff (2026-10-27)
+
+The experimental sherpa/VITS provider now defaults to
+`DualJustAudioWaveOutput`: two independent just_audio WAV decoders.
+When the current WAV is playing and the next WAV has completed
+on-device synthesis and PCM validation, an idle decoder may perform
+`setFilePath` in advance. A matching next `play()` starts its
+already-loaded decoder without reopening the WAV. One clip is audible
+at a time; at most ONE future WAV decoder load is speculative.
+
+The existing single-decoder `JustAudioWaveOutput` remains injectable
+for native cancellation testing. Each physical decoder still
+serializes load/Stop/Dispose and tracks failed native Stop obligations.
+Stop/Dispose now await cleanup for BOTH decoders before the engine can
+delete their temporary WAVs. No cloud requests or additional
+ONNX synthesis jobs are introduced. Slow or hung native standby
+setFilePath can therefore delay Stop confirmation: ReaderPlayer's
+existing native Stop timeout fails closed rather than risking
+deleting a WAV held by Windows.
+
+This is a decoder-handoff optimization, NOT a claim of zero audio gaps.
+Audible output timing, device contention and native Stop performance
+must be tested on Windows. Tests are authored but not run here.

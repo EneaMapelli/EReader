@@ -648,3 +648,13 @@ are removed; speculative corrupt WAVs trigger fresh audible synthesis.
 The parser is bounded and needs no waveform load. Added injected WAV
 tests for valid, corrupt and lookahead scenarios; not executed here.
 No builds or GitHub Actions.
+
+### M3 — local WAV decoder preload (2026-10-27)
+
+Production VITS now uses two independent WAV decoders. The next
+fully synthesized and PCM-validated WAV is opened on the idle
+decoder during current playback; the next audible phrase reuses that
+loaded decoder without a second file-open. Supports one-ahead only,
+generation invalidation and both-decoder Stop/Dispose. No network,
+new cloud charges or additional synthesis. Native gapless and resource
+gates remain unverified. No Windows builds/Actions triggered.

@@ -400,3 +400,13 @@ flutter test tool/offline_vits_soak_test.dart --dart-define=EREADER_SOAK_ITERATI
 Usa frasi inventate e WAV fittizi: verifica il ciclo di vita dei
 file e i comandi Stop ma NON misura la qualità o latenza ONNX reale.
 Nessuna azione GitHub, download o servizio cloud.
+
+### Apertura anticipata del prossimo WAV offline
+
+Il motore sperimentale VITS ora mantiene due decoder WAV indipendenti:
+mentre uno riproduce una frase, l'altro può aprire in anticipo il
+WAV già sintetizzato della frase successiva. Il file viene riutilizzato
+senza ripetere il caricamento, se corrisponde esattamente alla richiesta.
+Stop e Dispose rilasciano entrambi i decoder. Non vengono effettuate
+ulteriori richieste cloud o sintesi speculative oltre quella già prevista.
+La riduzione delle pause deve ancora essere misurata su Windows.

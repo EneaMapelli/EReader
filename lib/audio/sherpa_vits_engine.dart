@@ -20,6 +20,13 @@ abstract interface class OfflineWaveOutput {
   Future<void> dispose();
 }
 
+/// Optional decoder-only preload of an ALREADY synthesized private WAV.
+/// Never invokes text synthesis, the network or a cloud provider.
+abstract interface class PreloadableOfflineWaveOutput
+    implements OfflineWaveOutput {
+  Future<void> prepareNext(String wavFile);
+}
+
 /// Injectable native boundary: unit tests may hold a decoder load/stop
 /// without instantiating a Windows/Android platform audio plugin.
 abstract interface class WaveDecoder {
@@ -68,11 +75,13 @@ class JustAudioWaveOutput implements OfflineWaveOutput {
   // Native file handles can remain open after a partial/failed load.
   // Only a SUCCESSFUL physical Stop clears this obligation.
   bool _needsNativeStop = false;
+  String? _loadedFile;
 
   Future<void> _confirmNativeStop() async {
     if (!_needsNativeStop) return;
     await _decoder.stop();
     _needsNativeStop = false;
+    _loadedFile = null;
   }
 
   /// Chain load/Stop/dispose on ONE decoder. A previous failed load
@@ -91,19 +100,48 @@ class JustAudioWaveOutput implements OfflineWaveOutput {
     return running;
   }
 
+  /// Preload on an idle slot only. While loading, Stop and Dispose append
+  /// their native operations behind this load, never racing the decoder.
+  Future<void> prepare(String wavFile) async {
+    if (_disposed) throw StateError('Offline audio output disposed');
+    final version = _revision;
+    await _serialize(() async {
+      if (_disposed || version != _revision) return;
+      if (_loadedFile == wavFile && _needsNativeStop) return;
+      await _confirmNativeStop();
+      if (_disposed || version != _revision) return;
+      _needsNativeStop = true;
+      _loadedFile = null;
+      try {
+        await _decoder.load(wavFile);
+        _loadedFile = wavFile;
+      } catch (_) {
+        try {
+          await _confirmNativeStop();
+        } catch (_) {
+          // Retain the native-stop obligation for the next invocation.
+        }
+        rethrow;
+      }
+    });
+  }
+
   @override
   Future<void> play(String wavFile) async {
     if (_disposed) throw StateError('Offline audio output disposed');
     final version = _revision;
     await _serialize(() async {
       if (_disposed || version != _revision) return;
-      // A previous decoder error may have failed to release the native
-      // WAV handle. Do not reuse this decoder until Stop succeeds.
+      // A WAV prepared on this exact decoder can start without another
+      // setFilePath. All other files require confirmed native Stop first.
+      if (_loadedFile == wavFile && _needsNativeStop) return;
       await _confirmNativeStop();
       if (_disposed || version != _revision) return;
       _needsNativeStop = true; // BEFORE native setFilePath.
+      _loadedFile = null;
       try {
         await _decoder.load(wavFile);
+        _loadedFile = wavFile;
       } catch (_) {
         // A partially opened file still requires physical Stop.
         try {
@@ -151,6 +189,7 @@ class JustAudioWaveOutput implements OfflineWaveOutput {
   Future<void> stop() {
     // Invalidate future playback synchronously, BEFORE waiting for load.
     _revision++;
+    _loadedFile = null;
     if (_disposed) return _disposeFuture ?? Future<void>.value();
     // Always execute a previously requested native Stop, even if Dispose
     // is subsequently requested; both operations must be fully serialized.
@@ -162,11 +201,127 @@ class JustAudioWaveOutput implements OfflineWaveOutput {
     final existing = _disposeFuture;
     if (existing != null) return existing;
     _revision++;
+    _loadedFile = null;
     _disposed = true;
     // Any in-flight load and Stop must finish before decoder disposal.
     // Physical disposal is the final native cleanup when Stop itself
     // failed. Never mark a failed Stop as confirmed.
     return _disposeFuture = _serialize(() => _decoder.dispose());
+  }
+}
+
+/// Two physical WAV decoders. At most one is audible while the other
+/// may load exactly ONE already synthesized future WAV in advance.
+/// This is the same general approach as cached-MP3 decoder warming,
+/// but avoids adding any model generation or network request.
+class DualJustAudioWaveOutput implements PreloadableOfflineWaveOutput {
+  DualJustAudioWaveOutput({WaveDecoder Function()? decoderFactory})
+      : _primary = JustAudioWaveOutput(
+            decoder: (decoderFactory ?? JustAudioWaveDecoder.new)()),
+        _secondary = JustAudioWaveOutput(
+            decoder: (decoderFactory ?? JustAudioWaveDecoder.new)());
+
+  final JustAudioWaveOutput _primary;
+  final JustAudioWaveOutput _secondary;
+  JustAudioWaveOutput? _active;
+  JustAudioWaveOutput? _preparedSlot;
+  String? _preparedFile;
+  Future<void>? _preparing;
+  Future<void>? _disposeFuture;
+  int _revision = 0;
+  bool _disposed = false;
+
+  @override
+  Future<void> prepareNext(String wavFile) async {
+    if (_disposed || _active == null) return;
+    final previous = _preparedFile;
+    if (previous != null) {
+      if (previous == wavFile) await _preparing;
+      return; // One ahead, never unbounded decoder preloading.
+    }
+    final target = identical(_active, _primary) ? _secondary : _primary;
+    final version = _revision;
+    _preparedFile = wavFile;
+    _preparedSlot = target;
+    final task = target.prepare(wavFile);
+    _preparing = task;
+    try {
+      await task;
+    } catch (_) {
+      if (version == _revision &&
+          identical(_preparedSlot, target) &&
+          _preparedFile == wavFile) {
+        _preparedFile = null;
+        _preparedSlot = null;
+        _preparing = null;
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> play(String wavFile) async {
+    if (_disposed) throw StateError('Offline audio output disposed');
+    final version = _revision;
+    var target = _active ?? _primary;
+    final warmed = _preparedSlot;
+    if (warmed != null && _preparedFile == wavFile) {
+      final preparing = _preparing;
+      try {
+        if (preparing != null) await preparing;
+      } catch (_) {
+        // A failed optional preload is not a fatal audible playback.
+        // The requested clip can load on the current primary decoder.
+      }
+      if (_disposed || version != _revision) return;
+      if (_preparedFile == wavFile && identical(_preparedSlot, warmed)) {
+        target = warmed;
+        _preparedFile = null;
+        _preparedSlot = null;
+        _preparing = null;
+      }
+    } else if (warmed != null) {
+      // Incorrect speculation: invalidate it. Its decoder's Stop will be
+      // chained AFTER its own load; do not wait on idle native work just
+      // to start an audible clip on the other decoder.
+      _preparedFile = null;
+      _preparedSlot = null;
+      _preparing = null;
+      unawaited(warmed.stop().catchError((Object _) {
+        // Dispose/Stop also wait for the physical decoder's operations.
+      }));
+    }
+    if (_disposed || version != _revision) return;
+    _active = target;
+    await target.play(wavFile);
+  }
+
+  @override
+  Future<void> stop() {
+    _revision++;
+    _preparedFile = null;
+    _preparedSlot = null;
+    _preparing = null;
+    _active = null;
+    if (_disposed) return _disposeFuture ?? Future<void>.value();
+    // Stop both physical decoders before the engine may delete their
+    // private WAVs; a slow second load cannot be allowed to outlive Stop.
+    return Future.wait<void>([_primary.stop(), _secondary.stop()]).then((_) {});
+  }
+
+  @override
+  Future<void> dispose() {
+    final previous = _disposeFuture;
+    if (previous != null) return previous;
+    _disposed = true;
+    _revision++;
+    _preparedFile = null;
+    _preparedSlot = null;
+    _preparing = null;
+    _active = null;
+    // Decoder disposal is serialized behind any unfinished file loads.
+    return _disposeFuture = Future.wait<void>(
+        [_primary.dispose(), _secondary.dispose()]).then((_) {});
   }
 }
 
@@ -246,7 +401,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
         _jobFactory = jobFactory ?? VitsWaveJob.new,
         _useLegacyJobs = jobFactory != null,
         _sessionFactory = sessionFactory ?? VitsPersistentSession.new,
-        _output = output ?? JustAudioWaveOutput(),
+        _output = output ?? DualJustAudioWaveOutput(),
         _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory {
     pack.manifest.validate();
   }
@@ -516,6 +671,14 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       if (!completed || _disposed || token != _generation ||
           !identical(_prepared, next)) return;
       if (!await File(next.wavPath!).exists()) return;
+      if (_disposed || token != _generation ||
+          !identical(_prepared, next)) return;
+      // The WAV has already passed PCM validation. Preload its decoder
+      // independently while the current WAV is still playing.
+      if (_output is PreloadableOfflineWaveOutput) {
+        await (_output as PreloadableOfflineWaveOutput)
+            .prepareNext(next.wavPath!);
+      }
       if (_disposed || token != _generation ||
           !identical(_prepared, next)) return;
       next.ready = true;
