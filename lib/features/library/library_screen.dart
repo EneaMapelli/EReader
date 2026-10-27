@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/library_store.dart';
 import '../../data/batch_book_import.dart';
+import '../../data/desktop_book_drop.dart';
 import '../../data/picked_book_import.dart';
 import '../../audio/reader_media_handler.dart';
 import '../../domain/book.dart';
@@ -22,6 +25,7 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   bool _busy = false;
+  bool _dragHover = false;
   int _importCompleted = 0;
   int _importTotal = 0;
   int _backupTotal = 0;
@@ -134,7 +138,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
-  Future<void> _showBatchImportReport(BatchBookImportResult report) async {
+  Future<void> _showBatchImportReport(
+    BatchBookImportResult report, {
+    List<String> unsupportedNames = const [],
+  }) async {
     if (!mounted) return;
     // Only show sanitized display basenames from the native picker, never
     // private absolute paths or exception strings from failed decoders.
@@ -160,9 +167,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 Text('Added: ${report.addedCount}'),
                 Text('Already in library: ${report.existingCount}'),
                 Text('Could not import: ${report.failedCount}'),
+                if (unsupportedNames.isNotEmpty)
+                  Text('Unsupported dropped files: ${unsupportedNames.length}'),
                 if (report.notProcessedCount > 0)
                   Text('Cancelled / not processed: '
                       '${report.notProcessedCount}'),
+                if (unsupportedNames.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('Skipped (not EPUB, PDF or TXT):'),
+                  for (final name in unsupportedNames.take(5))
+                    Text('• ${displayName(name)}'),
+                  if (unsupportedNames.length > 5)
+                    Text('...and ${unsupportedNames.length - 5} more.'),
+                ],
                 if (failures.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   const Text('Files to review:'),
@@ -188,6 +205,100 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ],
       ),
     );
+  }
+
+  /// Explorer may provide real or virtual/cloud-backed files. Consume
+  /// every file stream inside onDrop before native provider access expires.
+  /// No arbitrary URL/text/directory is downloaded or recursively traversed.
+  Future<void> _receiveDroppedBooks(DropDetails details) async {
+    if (_busy || !mounted) return;
+    setState(() => _dragHover = false);
+    final files = details.items.whereType<DropFileItem>().toList();
+    if (files.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Drop EPUB, PDF or TXT files (not folders or URLs).'),
+      ));
+      return;
+    }
+
+    late DesktopBookDropSelection dropped;
+    try {
+      dropped = classifyDesktopBookDrop([
+        for (final item in files)
+          BatchPickedBook(
+            name: item.name,
+            pickedPath: null,
+            readAsByteStream: item.file.openRead,
+          ),
+      ]);
+    } on FormatException {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Drag at most 50 files at a time.'),
+      ));
+      return;
+    }
+    if (dropped.accepted.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No supported books found. '
+            'Drop EPUB, PDF or TXT files, not folders.'),
+      ));
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _importCompleted = 0;
+      _importTotal = dropped.accepted.length;
+      _cancelRemainingImports = false;
+    });
+    BatchBookImportResult? result;
+    try {
+      // Await all provider reads *before* returning from onDrop.
+      result = await importPickedBooks(
+        selections: dropped.accepted,
+        importFile: widget.store.importFile,
+        knownBookIds: widget.store.books.map((book) => book.id),
+        cancelRemaining: () => _cancelRemainingImports || !mounted,
+        onProgress: (completed, total) {
+          if (mounted) {
+            setState(() {
+              _importCompleted = completed;
+              _importTotal = total;
+            });
+          }
+        },
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Cannot import dropped books. Check file '
+              'permissions and available storage.'),
+        ));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _importCompleted = 0;
+          _importTotal = 0;
+          _cancelRemainingImports = false;
+        });
+      }
+    }
+
+    if (result != null && mounted) {
+      final completed = result;
+      final unsupported = dropped.unsupportedNames;
+      // The plugin releases provider resources only when this async
+      // onDrop completes. The report dialog must not keep them alive.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          unawaited(_showBatchImportReport(
+            completed, unsupportedNames: unsupported,
+          ));
+        }
+      });
+    }
   }
 
   Widget _batchImportProgress() => Padding(
@@ -608,7 +719,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
     final lastOpened = widget.store.lastOpenedBook;
     final interrupted = widget.store.interruptedNarrationBook;
-    return Scaffold(
+    final scaffold = Scaffold(
       appBar: AppBar(
         title: const Text('EReader'),
         actions: [
@@ -881,6 +992,65 @@ class _LibraryScreenState extends State<LibraryScreen> {
               label: const Text('Import'),
             )
           : null,
+    );
+    // Keep Android entirely on the existing SAF picker path. The native
+    // Windows receiver is active only while the library is idle.
+    if (!Platform.isWindows) return scaffold;
+    return DropTarget(
+      key: const ValueKey('library-desktop-drop-target'),
+      acceptedKinds: const {DropItemKind.file},
+      enabled: !_busy,
+      onEnter: (_) {
+        if (!_dragHover && mounted) setState(() => _dragHover = true);
+      },
+      onLeave: () {
+        if (_dragHover && mounted) setState(() => _dragHover = false);
+      },
+      onDrop: _receiveDroppedBooks,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          scaffold,
+          if (_dragHover)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  key: const ValueKey('library-drag-overlay'),
+                  alignment: Alignment.center,
+                  color: Theme.of(context).colorScheme.primary
+                      .withValues(alpha: 0.14),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 3,
+                      ),
+                    ),
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.file_upload_outlined, size: 52),
+                        SizedBox(height: 10),
+                        Text(
+                          'Drop EPUB, PDF or TXT books here',
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Text('Up to 50 files · Folders and URLs are ignored'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
