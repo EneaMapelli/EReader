@@ -10,6 +10,7 @@ import 'package:sqlite3/sqlite3.dart';
 import '../domain/book.dart';
 import 'epub_catalog_metadata.dart';
 import 'library_backup.dart';
+import 'library_backup_restore.dart';
 import 'pdf_cover_thumbnail.dart';
 import '../domain/reading_anchor.dart';
 import '../domain/pronunciation_rule.dart';
@@ -592,6 +593,162 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         _database.execute('VACUUM INTO ?', [output]);
       },
       onProgress: onProgress,
+    );
+  }
+
+  /// Full read-only inspection before touching any library file/row.
+  /// Existing hashes are never overwritten, including their positions,
+  /// bookmarks, metadata, voice settings and cloud permissions.
+  Future<LibraryRestorePreview> previewLibraryRestore(
+    Directory backup, {
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final validated = await inspectLibraryBackup(
+      backup, onProgress: onProgress);
+    final existingIds = books.map((book) => book.id).toSet();
+    final newBooks = validated.books.where(
+        (book) => !existingIds.contains(book.id)).toList();
+    return LibraryRestorePreview(
+      total: validated.books.length,
+      availableToImport: newBooks.length,
+      alreadyPresent: validated.books.length - newBooks.length,
+      bookmarksToImport: newBooks.fold<int>(
+          0, (count, book) => count + book.bookmarks.length),
+      verifiedBytes: validated.totalBookBytes,
+    );
+  }
+
+  /// Opt-in, add-only v1 restore. The backup is re-verified before writing,
+  /// and each new book is copied with a digest check before one SQLite
+  /// transaction inserts its metadata + bookmarks. A failed later book
+  /// leaves earlier successful books but never changes an existing book.
+  ///
+  /// No global preferences, per-book TTS preferences, cloud/LLM consents,
+  /// credentials, voice/cast tables, or crash/autoplay recovery are restored.
+  Future<LibraryRestoreResult> restoreLibraryBackup(
+    Directory backup, {
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final home = _home;
+    if (home == null) throw StateError('LibraryStore not initialized');
+    final homePath = p.normalize(p.absolute(home.path));
+    final backupPath = p.normalize(p.absolute(backup.path));
+    if (p.isWithin(homePath, backupPath) ||
+        p.isWithin(backupPath, homePath) || backupPath == homePath) {
+      throw const FormatException('Backup must be outside app storage');
+    }
+    // Re-check the complete archive, even after a successful preview;
+    // never trust a manifest cached before confirmation.
+    final inspected = await inspectLibraryBackup(backup);
+    var added = 0;
+    var skipped = 0;
+    var bookmarks = 0;
+    for (final entry in inspected.books) {
+      if (getBook(entry.id) != null) {
+        skipped++;
+        onProgress?.call(added + skipped, inspected.books.length);
+        continue;
+      }
+
+      final target = File(p.join(
+          _booksDir.path, '${entry.id}.${entry.format.extension}'));
+      if (!_isManagedPath(target.path)) {
+        throw const FormatException('Invalid private book destination');
+      }
+      final temp = File('${target.path}.restore.part');
+      var createdTarget = false;
+      try {
+        final type = await FileSystemEntity.type(
+            target.path, followLinks: false);
+        if (type == FileSystemEntityType.notFound) {
+          // Stream/copy the exact verified book; check again in case the
+          // external backup was changed during restore.
+          if (await temp.exists()) await temp.delete();
+          await entry.file.copy(temp.path);
+          final digest =
+              (await sha256.bind(temp.openRead()).first).toString();
+          if (digest != entry.id) {
+            throw const FormatException('Backup changed during restore');
+          }
+          await temp.rename(target.path);
+          createdTarget = true;
+        } else if (type != FileSystemEntityType.file ||
+            (await sha256.bind(target.openRead()).first).toString() !=
+                entry.id) {
+          throw const FormatException('Conflicting private book file');
+        }
+
+        // New-book progress and bookmarks are restored atomically, with
+        // unique remapped bookmark IDs. No existing catalog row is touched.
+        _transaction(_database, () {
+          if (getBook(entry.id) != null) {
+            throw const StateError('Book appeared during restore');
+          }
+          _insert(_database, BookRecord(
+            id: entry.id,
+            title: entry.title,
+            author: entry.author,
+            series: entry.series,
+            language: entry.language,
+            localPath: target.path,
+            format: entry.format,
+            importedAt: entry.importedAt,
+            progressOffset: entry.progressOffset,
+            progressAnchor: entry.anchor,
+          ));
+          if (entry.format == BookFormat.pdf &&
+              entry.pdfVisualPage != null) {
+            _database.execute(
+              'UPDATE books SET pdf_visual_page = ? WHERE id = ?',
+              [entry.pdfVisualPage, entry.id],
+            );
+          }
+          for (final mark in entry.bookmarks) {
+            // The backup bookmark ID is not trusted as a global key.
+            // Remapping by immutable book ID prevents collision with
+            // bookmarks already present from unrelated local books.
+            final suffix =
+                sha256.convert(utf8.encode(mark.id)).toString()
+                    .substring(0, 56);
+            final bookmarkId = '${entry.id}:$suffix';
+            _database.execute('''
+              INSERT INTO bookmarks (id, book_id, title, global_offset,
+                  anchor_json, created_at)
+              VALUES (?, ?, ?, ?, ?, ?)
+            ''', [
+              bookmarkId, entry.id, mark.title, mark.globalOffset,
+              mark.anchor == null
+                  ? null : jsonEncode(mark.anchor!.toJson()),
+              mark.createdAt.toIso8601String(),
+            ]);
+          }
+        });
+        added++;
+        bookmarks += entry.bookmarks.length;
+      } catch (_) {
+        // File staging never becomes a valid book. A target created by
+        // this restore may be removed ONLY when no committed DB row
+        // references it. Existing files are never removed.
+        if (createdTarget && getBook(entry.id) == null) {
+          try {
+            if (await target.exists()) await target.delete();
+          } on FileSystemException {
+            // Next manual attempt verifies the orphan hash before reuse.
+          }
+        }
+        rethrow;
+      } finally {
+        try {
+          if (await temp.exists()) await temp.delete();
+        } on FileSystemException {
+          // Windows may hold a transient file lock; no database row
+          // points to the .part file.
+        }
+      }
+      onProgress?.call(added + skipped, inspected.books.length);
+    }
+    return LibraryRestoreResult(
+      added: added, skipped: skipped, bookmarksImported: bookmarks,
     );
   }
 
