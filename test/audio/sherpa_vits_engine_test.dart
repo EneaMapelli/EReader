@@ -91,6 +91,19 @@ void main() {
         temporaryDirectory: () async => root,
       );
 
+  test('owned WAV session metadata is removed on settled Dispose',
+      () async {
+    final synth = engine();
+    await synth.speak('One', language: 'en-US', rate: 0.5, pitch: 1);
+    final sessions = await root.list().toList();
+    expect(sessions, hasLength(1),
+        reason: 'One live OS-leased private staging session');
+    expect(sessions.single, isA<Directory>());
+    await synth.dispose();
+    expect(await root.list().toList(), isEmpty,
+        reason: 'No stale marker/lock when every WAV was cleaned');
+  });
+
   test('offline speech exposes only installed local voice and WAV playback',
       () async {
     final synth = engine();

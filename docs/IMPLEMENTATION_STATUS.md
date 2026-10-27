@@ -1826,3 +1826,20 @@ temporary WAV deletion. Cancelled delayed loads cannot start audio or
 dispose the native decoder prematurely. Added injectable WaveDecoder and
 five focused race regression tests. Flutter/native tests NOT executed;
 no Windows builds or GitHub Actions were triggered.
+
+### 2026-10-27 — private WAV crash recovery (experimental Windows VITS)
+
+A versioned EReader-only temporary session now owns each VITS WAV staging
+directory and holds an OS-exclusive file lock through all active audio
+work. Reopening the VITS adapter checks at most 512 temp-root entries,
+16 candidate sessions and 64 known WAV clips per session for abandoned,
+unlocked, strictly marked/allowlisted directories. This avoids scanning
+arbitrary user files and never deletes live sessions whose lease is held.
+Only regular speech.wav files and owned empty directories are removed;
+unexpected contents/symlinks cause the candidate to be skipped.
+Unmarked pre-v1 legacy temp folders cannot be attributed reliably and
+are intentionally left alone. On settled Dispose, an empty session's
+marker, lock file and directory are removed; otherwise it remains
+recoverable. Added pure-Dart OS-file tests for active lease, crash
+simulation, ownership, unexpected files, bounds and normal cleanup.
+No Dart/Flutter or physical Windows tests run. No builds/Actions.

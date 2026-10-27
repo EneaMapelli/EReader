@@ -482,12 +482,17 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
     } catch (_) {
       // Optional warming is best effort; audible speak reports real errors.
     } finally {
-      if (!next.ready || _disposed || token != _generation ||
-          !identical(_prepared, next)) {
-        if (identical(_prepared, next)) _prepared = null;
-        await _deleteStaging(next.staging);
+      try {
+        if (!next.ready || _disposed || token != _generation ||
+            !identical(_prepared, next)) {
+          if (identical(_prepared, next)) _prepared = null;
+          await _deleteStaging(next.staging);
+        }
+      } finally {
+        // A rare filesystem error must not leave the OS session lease
+        // held indefinitely after its last WAV owner has finished.
+        _endWaveJob();
       }
-      _endWaveJob();
     }
   }
 
@@ -614,8 +619,16 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
         await _wavCleanup.retryPending(maxAttempts: _wavCleanup.maxPending);
         final opening = _wavSessionOpening;
         if (opening != null) {
-          final session = await opening;
-          await session.close();
+          try {
+            final session = await opening;
+            await session.close();
+          } on FileSystemException {
+            // Best effort after Windows file locks: keep the marker for
+            // a subsequent OS-lease-guarded recovery attempt.
+          } on StateError {
+            // Session creation may have been cancelled by this Dispose
+            // before opening an OS lease. No native audio was started.
+          }
         }
       }
       if (_activeWaveJobs == 0) {
