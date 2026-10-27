@@ -188,11 +188,18 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
       return true;
     }
     if (!_useLegacyJobs) {
-      final session = _nativeSession ??= _sessionFactory(VitsSessionModel(
-        modelPath: pack.modelPath,
-        tokensPath: pack.tokensPath,
-        dataDir: dataDir,
-      ));
+      // An idle-timeout retires a resident model after book completion
+      // without changing the player's speech generation. Start a new
+      // native session only when the next explicit clip is requested.
+      var session = _nativeSession;
+      if (session == null || session.isClosed) {
+        session = _sessionFactory(VitsSessionModel(
+          modelPath: pack.modelPath,
+          tokensPath: pack.tokensPath,
+          dataDir: dataDir,
+        ));
+        _nativeSession = session;
+      }
       try {
         await session.synthesize(text: text, wavPath: wavPath, speed: speed);
         return true;

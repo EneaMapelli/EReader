@@ -18,24 +18,60 @@ class VitsSessionModel {
   final String dataDir;
 }
 
+/// Factory for easily testable timeouts without waiting for wall-clock time.
+typedef VitsTimerScheduler = Timer Function(
+    Duration delay, void Function() callback);
+
 /// A single reusable local VITS worker. At most ONE outstanding synthesis
 /// may use its native OfflineTts object. Stop kills the entire isolate.
 class VitsPersistentSession {
-  VitsPersistentSession(VitsSessionModel model)
-      : this.withEntrypoint(model, vitsPersistentWorkerMain);
+  VitsPersistentSession(
+    VitsSessionModel model, {
+    Duration modelStartupTimeout = const Duration(seconds: 60),
+    Duration synthesisTimeout = const Duration(minutes: 3),
+    Duration idleTimeout = const Duration(minutes: 3),
+    VitsTimerScheduler? timerScheduler,
+  }) : this.withEntrypoint(
+          model,
+          vitsPersistentWorkerMain,
+          modelStartupTimeout: modelStartupTimeout,
+          synthesisTimeout: synthesisTimeout,
+          idleTimeout: idleTimeout,
+          timerScheduler: timerScheduler,
+        );
 
   /// Tests inject a pure-Dart worker; no native model or files are required.
   VitsPersistentSession.withEntrypoint(
     VitsSessionModel model,
-    void Function((SendPort, VitsSessionModel)) entrypoint,
-  ) {
+    void Function((SendPort, VitsSessionModel)) entrypoint, {
+    Duration modelStartupTimeout = const Duration(seconds: 60),
+    Duration synthesisTimeout = const Duration(minutes: 3),
+    Duration idleTimeout = const Duration(minutes: 3),
+    VitsTimerScheduler? timerScheduler,
+  })  : assert(modelStartupTimeout > Duration.zero),
+        assert(synthesisTimeout > Duration.zero),
+        assert(idleTimeout > Duration.zero),
+        _modelStartupTimeout = modelStartupTimeout,
+        _synthesisTimeout = synthesisTimeout,
+        _idleTimeout = idleTimeout,
+        _timerScheduler = timerScheduler ?? Timer.new {
     _events = ReceivePort();
     _subscription = _events.listen(_onMessage);
+    _startupTimer = _timerScheduler(_modelStartupTimeout, () {
+      _closeWith(StateError('Local voice model initialization timed out'));
+    });
     unawaited(_spawn(entrypoint, model));
   }
 
   late final ReceivePort _events;
   late final StreamSubscription<dynamic> _subscription;
+  final Duration _modelStartupTimeout;
+  final Duration _synthesisTimeout;
+  final Duration _idleTimeout;
+  final VitsTimerScheduler _timerScheduler;
+  Timer? _startupTimer;
+  Timer? _synthesisTimer;
+  Timer? _idleTimer;
   Isolate? _isolate;
   SendPort? _commands;
   List<Object>? _queued;
@@ -43,6 +79,22 @@ class VitsPersistentSession {
   int _activeId = 0;
   int _nextId = 0;
   bool _closed = false;
+
+  /// True after Stop, a native failure, timeout or idle retirement.
+  /// Callers must construct a fresh session before synthesizing again.
+  bool get isClosed => _closed;
+
+  void _beginIdleTimer() {
+    _idleTimer?.cancel();
+    if (_closed || _active != null || _commands == null) return;
+    _idleTimer = _timerScheduler(_idleTimeout, () {
+      // End-of-book and prolonged inactivity release the heavy ONNX model.
+      // An in-flight native request cancels this timer synchronously.
+      if (!_closed && _active == null) {
+        _closeWith(const VitsWaveCancelled());
+      }
+    });
+  }
 
   Future<void> _spawn(
     void Function((SendPort, VitsSessionModel)) worker,
@@ -72,9 +124,15 @@ class VitsPersistentSession {
         return;
       }
       _commands = message;
+      _startupTimer?.cancel();
+      _startupTimer = null;
       final queued = _queued;
       _queued = null;
-      if (queued != null) message.send(queued);
+      if (queued != null) {
+        message.send(queued);
+      } else {
+        _beginIdleTimer();
+      }
       return;
     }
     if (message is List && message.length == 2 &&
@@ -83,6 +141,9 @@ class VitsPersistentSession {
           _active != null) {
         final active = _active!;
         _active = null;
+        _synthesisTimer?.cancel();
+        _synthesisTimer = null;
+        _beginIdleTimer();
         active.complete();
         return;
       }
@@ -107,9 +168,16 @@ class VitsPersistentSession {
       return Future<void>.error(
           const FormatException('Invalid local VITS request'));
     }
+    _idleTimer?.cancel();
+    _idleTimer = null;
     final active = Completer<void>();
     _active = active;
     _activeId = ++_nextId;
+    // Covers a worker that becomes unresponsive during FFI or after
+    // receiving a queued command. Timeout retires the whole native model.
+    _synthesisTimer = _timerScheduler(_synthesisTimeout, () {
+      _closeWith(StateError('Local VITS synthesis timed out'));
+    });
     final payload = <Object>[_activeId, text, wavPath, speed];
     if (_commands == null) {
       _queued = payload;
@@ -122,6 +190,12 @@ class VitsPersistentSession {
   void _closeWith(Object reason) {
     if (_closed) return;
     _closed = true;
+    _startupTimer?.cancel();
+    _startupTimer = null;
+    _synthesisTimer?.cancel();
+    _synthesisTimer = null;
+    _idleTimer?.cancel();
+    _idleTimer = null;
     final active = _active;
     _active = null;
     _queued = null;

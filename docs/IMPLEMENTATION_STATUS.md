@@ -1795,3 +1795,14 @@ release the worker, and failure invalidates it. Pure-Dart synthetic
 isolate and engine tests were authored but NOT RUN. Native Win/Android
 validation, memory measurement and latency benchmarks remain open gates.
 No build or GitHub Actions triggered. Overall estimates unchanged.
+
+### 2026-10-27 — idle retirement and synthesis watchdogs for VITS
+
+Added independent startup (60s), native WAV-request (180s) and
+post-synthesis idle (180s) timers to the persistent offline ONNX
+isolate. Idle retirement unloads the worker; subsequent narration
+creates a new instance rather than skipping the next phrase.
+Failure/timeout invalidates the entire session with sanitized errors,
+and cancellation clears all timers. Tests with controlled fake timers
+and child isolates were authored but not executed; native validation
+and memory measurement remain pending. No Actions/build.

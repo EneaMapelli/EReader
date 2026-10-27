@@ -329,3 +329,14 @@ Pausa/Stop/cambio posizione/chiusura eliminano il worker: Play successivo
 ricarica il modello, privilegiando sicurezza e rilascio delle risorse.
 Può ridurre i tempi morti, ma prestazioni native e RAM richiedono
 ancora test reali su Windows. Nessuna API o richiesta di rete.
+
+### Gestione automatica memoria e timeout VITS
+
+Il worker ONNX della voce neurale locale viene terminato dopo circa
+3 minuti senza richieste di sintesi, per evitare di mantenere il modello
+in memoria alla fine del libro. Sono stati introdotti limiti temporali
+di inizializzazione (60 s) e di generazione (180 s); se superati, la
+sessione viene invalidata e l'errore mostrato senza eseguire audio
+obsoleto. Quando necessario il modello viene ricreato alla lettura
+successiva. Gli effetti reali su RAM e tempi di risposta vanno
+ancora misurati su Windows.

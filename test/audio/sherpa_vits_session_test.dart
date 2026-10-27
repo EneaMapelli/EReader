@@ -32,6 +32,43 @@ void _blockedReusableWorker((SendPort, VitsSessionModel) init) async {
   }
 }
 
+/// An ONNX isolate that never sends readiness, for deterministic startup
+/// timeout without waiting 60 real seconds.
+void _neverReadyWorker((SendPort, VitsSessionModel) init) {
+  ReceivePort();
+}
+
+/// A ready synthetic ONNX model that intentionally never completes WAV work.
+void _neverCompletesWorker((SendPort, VitsSessionModel) init) async {
+  final commands = ReceivePort();
+  init.$1.send(commands.sendPort);
+  await for (final _ in commands) {
+    // Keep receiving but intentionally never reply.
+  }
+}
+
+class _ManualVitsTimer implements Timer {
+  _ManualVitsTimer(this.delay, this.action);
+  final Duration delay;
+  final void Function() action;
+  bool _active = true;
+  int _tick = 0;
+
+  @override
+  bool get isActive => _active;
+  @override
+  int get tick => _tick;
+  @override
+  void cancel() => _active = false;
+
+  void fire() {
+    if (!_active) return;
+    _active = false;
+    _tick++;
+    action();
+  }
+}
+
 class _StringWaveOutput implements OfflineWaveOutput {
   final played = <String>[];
   @override
@@ -100,6 +137,120 @@ void main() {
         started, throwsA(isA<VitsWaveCancelled>()));
     session.cancel();
     await canceled;
+  });
+
+  test('startup timeout rejects queued text and closes worker', () async {
+    final timers = <_ManualVitsTimer>[];
+    final session = VitsPersistentSession.withEntrypoint(
+      model, _neverReadyWorker,
+      timerScheduler: (duration, action) {
+        final timer = _ManualVitsTimer(duration, action);
+        timers.add(timer);
+        return timer;
+      },
+    );
+    final pending = session.synthesize(
+      text: 'queued', wavPath: p.join(root.path, 'queued.wav'), speed: 1,
+    );
+    final failure = expectLater(pending, throwsStateError);
+    final startup = timers.firstWhere(
+        (timer) => timer.delay == const Duration(seconds: 60));
+    startup.fire();
+    await failure;
+    expect(session.isClosed, isTrue);
+    expect(timers.every((timer) => !timer.isActive), isTrue);
+    await expectLater(session.synthesize(
+        text: 'again', wavPath: p.join(root.path, 'again.wav'), speed: 1),
+        throwsA(isA<VitsWaveCancelled>()));
+  });
+
+  test('synthesis watchdog retires unresponsive worker with a safe error',
+      () async {
+    final timers = <_ManualVitsTimer>[];
+    final session = VitsPersistentSession.withEntrypoint(
+      model, _neverCompletesWorker,
+      timerScheduler: (duration, action) {
+        final timer = _ManualVitsTimer(duration, action);
+        timers.add(timer);
+        return timer;
+      },
+    );
+    final pending = session.synthesize(
+      text: 'blocked', wavPath: p.join(root.path, 'blocked.wav'), speed: 1,
+    );
+    final failure = expectLater(pending, throwsStateError);
+    timers.firstWhere(
+      (timer) => timer.delay == const Duration(minutes: 3) &&
+          timer.isActive,
+    ).fire();
+    await failure;
+    expect(session.isClosed, isTrue);
+    expect(timers.every((timer) => !timer.isActive), isTrue);
+  });
+
+  test('idle worker is released without an active request', () async {
+    final timers = <_ManualVitsTimer>[];
+    final session = VitsPersistentSession.withEntrypoint(
+      model, _fakeReusableWorker,
+      idleTimeout: const Duration(minutes: 4),
+      timerScheduler: (duration, action) {
+        final timer = _ManualVitsTimer(duration, action);
+        timers.add(timer);
+        return timer;
+      },
+    );
+    await session.synthesize(
+      text: 'one', wavPath: p.join(root.path, 'one.wav'), speed: 1,
+    );
+    expect(session.isClosed, isFalse);
+    final idle = timers.lastWhere(
+        (timer) => timer.delay == const Duration(minutes: 4) &&
+            timer.isActive);
+    idle.fire();
+    expect(session.isClosed, isTrue);
+    await expectLater(session.synthesize(
+        text: 'two', wavPath: p.join(root.path, 'two.wav'), speed: 1),
+        throwsA(isA<VitsWaveCancelled>()));
+  });
+
+  test('engine recovers from idle worker retirement on next phrase', () async {
+    final pack = InstalledOfflineVoicePack(
+      manifest: OfflineVoicePackManifest(
+        id: 'mock-pack', displayName: 'Mock', locale: 'en-US',
+        licenseId: 'MIT', modelSha256: 'a' * 64,
+        tokensSha256: 'b' * 64,
+      ),
+      modelPath: p.join(root.path, 'voice.onnx'),
+      tokensPath: p.join(root.path, 'tokens.txt'),
+    );
+    final timers = <_ManualVitsTimer>[];
+    var created = 0;
+    final output = _StringWaveOutput();
+    final engine = SherpaVitsSpeechEngine(
+      pack: pack,
+      output: output,
+      temporaryDirectory: () async => root,
+      sessionFactory: (config) {
+        created++;
+        return VitsPersistentSession.withEntrypoint(
+          config, _fakeReusableWorker,
+          idleTimeout: const Duration(minutes: 4),
+          timerScheduler: (duration, action) {
+            final timer = _ManualVitsTimer(duration, action);
+            timers.add(timer);
+            return timer;
+          },
+        );
+      },
+    );
+    await engine.speak('one', language: 'en-US', rate: 0.5, pitch: 1);
+    timers.lastWhere((t) => t.delay == const Duration(minutes: 4) &&
+        t.isActive).fire();
+    await engine.speak('two', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(created, 2);
+    expect(output.played, ['instance=1;request=1', 'instance=1;request=1']);
+    await engine.dispose();
+    expect(await root.list().toList(), isEmpty);
   });
 
   test('engine reuses one model across speech, then recreates after Stop',

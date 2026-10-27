@@ -550,3 +550,12 @@ a fresh initialization on resumed playback. The existing one-ahead
 WAV lookahead uses the same serialized worker. New unit tests authored,
 NOT executed. Native timing/RAM and cancellation remain to be measured.
 No Windows build and no GitHub Actions; estimates unchanged.
+
+### M3 — bounded native session lifespan (2026-10-27)
+
+Resident VITS worker gains separate startup/synthesis watchdogs plus
+automatic idle-model retirement, preventing indefinite memory retention
+at completed-book idle. Engine reconstructs a retired worker on the
+next speech request without changing read anchors. Failure is explicit,
+not a silent skip. Unit regressions authored but NOT RUN; no Windows
+build or GitHub Actions. Overall estimates unchanged pending on-device gates.

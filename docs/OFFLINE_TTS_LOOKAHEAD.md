@@ -65,3 +65,23 @@ qualification CLI and test-injected native workers.
 New pure-Dart isolate tests exercise reuse, ordering, cancellation,
 backpressure and engine wiring, but have NOT been executed. This is not
 proof of Windows native ONNX correctness or a measured latency gain.
+
+## Worker life-cycle and bounded resource use (2026-10-27)
+
+The persistent model isolate now has distinct bounded deadlines:
+**60 seconds to initialize**, **3 minutes per WAV request** (including
+startup if still pending), and **3 minutes idle** after an initialized
+model has no outstanding request. Idle retirement releases the ONNX
+isolate after a finished book or a prolonged silent interval.
+The native output may still be playing a previously rendered WAV:
+idle retirement never interrupts that output or changes a bookmark.
+
+Every accepted next request cancels the idle timer. A failed startup
+or timed-out native generation invalidates the model and reports
+a sanitized error rather than waiting indefinitely. The next normally
+scheduled request after idle retirement creates a fresh model automatically.
+Stop/Seek/Dispose remain immediate generation invalidations.
+
+Synthetic timers/isolate regressions were written but not run. These
+are *logical* timeouts; exact native FFI preemption, actual working-set
+memory reclamation and perceived audio latency require Windows tests.
