@@ -17,7 +17,10 @@ on:
       - lib/features/reader/reader_screen.dart
       - lib/features/reader/speech_provider_screen.dart
       - lib/data/offline_voice_pack.dart
+      - lib/data/piper_paola_installer.dart
+      - lib/features/reader/offline_voice_manager_screen.dart
       - test/audio/free_tts_selection_test.dart
+      - test/data/piper_paola_installer_test.dart
   workflow_dispatch:
 
 # A private GitHub prerelease is written only AFTER a verified Windows
