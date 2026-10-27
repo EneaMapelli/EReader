@@ -24,6 +24,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   bool _busy = false;
   int _importCompleted = 0;
   int _importTotal = 0;
+  int _backupTotal = 0;
+  int _backupCompleted = 0;
+  bool _exportingBackup = false;
   bool _cancelRemainingImports = false;
   final _searchController = TextEditingController();
   String _query = '';
@@ -213,6 +216,110 @@ class _LibraryScreenState extends State<LibraryScreen> {
     ),
   );
 
+  /// A full SQLite/EPUB/PDF/TXT library snapshot is deliberately private,
+  /// local and opt-in. Never persist destination paths or move native
+  /// credential-vault secrets. No overwrite of existing backup folders.
+  Future<void> _exportBackup() async {
+    if (_busy || !mounted) return;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Export private library backup?'),
+        content: const Text(
+          'EReader will copy your books, bookmarks, reading positions '
+          'and library annotations to a folder you choose. '
+          'The backup is NOT encrypted and may contain private reading '
+          'history, character annotations and cloud-consent settings. '
+          'Store it securely. Cloud API keys and OS secrets are NOT copied. '
+          'Restore on another device is not available yet; never replace '
+          'your live EReader database with these files manually.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Choose destination'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true || !mounted) return;
+    final destination = await FilePicker.getDirectoryPath();
+    if (destination == null || !mounted) return;
+    setState(() {
+      _busy = true;
+      _exportingBackup = true;
+      _backupTotal = widget.store.books.length;
+      _backupCompleted = 0;
+    });
+    try {
+      final result = await widget.store.exportLibraryBackup(
+        Directory(destination),
+        onProgress: (done, total) {
+          if (mounted) {
+            setState(() {
+              _backupCompleted = done;
+              _backupTotal = total;
+            });
+          }
+        },
+      );
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Library backup exported'),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Verified books: ${result.bookCount}'),
+                Text('Copied: ${(result.bookBytes / (1024 * 1024))
+                    .toStringAsFixed(1)} MiB'),
+                const SizedBox(height: 12),
+                const Text('Keep this private folder safe:'),
+                SelectableText(result.directory.path),
+                const SizedBox(height: 12),
+                const Text('No cloud upload was performed. '
+                    'Automatic restore is not available yet.'),
+              ],
+            ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        // Do not leak internal filesystem paths or private database data
+        // from raw SQLite/IO exception messages into the UI.
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Backup could not be completed. Verify that '
+              'all books are present and the destination has free space. '
+              'No completed backup folder was created.'),
+        ));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _exportingBackup = false;
+          _backupTotal = 0;
+          _backupCompleted = 0;
+        });
+      }
+    }
+  }
+
   Future<void> _open(BookRecord book) async {
     try {
       await widget.store.markBookOpened(book.id);
@@ -384,6 +491,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
         title: const Text('EReader'),
         actions: [
           IconButton(
+            tooltip: 'Export private library backup',
+            onPressed: _busy ? null : _exportBackup,
+            icon: const Icon(Icons.backup_outlined),
+          ),
+          IconButton(
             tooltip: 'Import book',
             onPressed: _busy ? null : _import,
             icon: const Icon(Icons.file_upload_outlined),
@@ -401,6 +513,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   const SizedBox(height: 8),
                   const Text('Import a TXT, EPUB, or PDF to begin'),
                   if (_importTotal > 0) _batchImportProgress(),
+                  if (_exportingBackup)
+                    Text('Backing up books: $_backupCompleted / $_backupTotal'),
                   const SizedBox(height: 20),
                   FilledButton.icon(
                     onPressed: _busy ? null : _import,
@@ -413,6 +527,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
           : Column(
               children: [
                 if (_importTotal > 0) _batchImportProgress(),
+                if (_exportingBackup)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    child: Column(
+                      children: [
+                        LinearProgressIndicator(
+                          value: _backupTotal > 0
+                              ? _backupCompleted / _backupTotal : null,
+                        ),
+                        Text('Backing up books: '
+                            '$_backupCompleted / $_backupTotal'),
+                      ],
+                    ),
+                  ),
                 if (interrupted != null)
                   Card(
                     margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
