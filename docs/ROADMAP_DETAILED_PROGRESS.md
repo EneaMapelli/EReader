@@ -342,3 +342,13 @@ in caso di fallimento successivo; cartella sorgente non modificata.
 Test previsti in `test/data/library_backup_restore_test.dart`
 ma non eseguiti, nessuna compilazione/actions.
 [Guida](LIBRARY_BACKUP_RESTORE.md).
+
+### M1 — drag & drop libri Windows (2026-10-27)
+
+Implementato target native desktop DropTarget limitato a file con
+overlay "Drop EPUB, PDF or TXT", basenames sanitizzati, filtro
+formati ammessi e limite 50. Passaggio allo stesso importer seriale
+del picker, senza leggere i percorsi originali e consumando gli
+stream dentro onDrop; riepilogo dei file scartati con privacy.
+Android non cambia. Test Dart scritti, non eseguiti. Nessuna Action
+o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
