@@ -227,3 +227,18 @@ richiede ancora una verifica locale aggiornata.
 ### Voce italiana Paola (Windows, sperimentale)
 
 In **Speech engines → Manage offline neural voices**, usa **Install Paola — Italian neural voice (free)**. EReader scarica su richiesta la voce Paola già convertita per sherpa-onnx, verifica il checksum pubblicato e installa i file privati. Torna a **Speech engines** per scegliere il motore locale VITS; non viene attivato automaticamente. La funzione è sperimentale e deve ancora superare i test audio manuali Windows. [Guida dettagliata](docs/PIPER_PAOLA_ONE_CLICK.md).
+
+### Importa più libri insieme (Windows e Android)
+
+Il pulsante **Import** consente di scegliere fino a 50 EPUB/PDF/TXT
+contemporaneamente. EReader li importa uno per volta, deduplica
+per hash senza cancellare progressi o metadati, mostra una barra di
+avanzamento e consente di annullare i file ancora in coda. Il
+riepilogo finale distingue libri aggiunti, già presenti ed errori
+senza esporre i percorsi privati. Con un solo libro rimane
+l'apertura automatica al termine dell'importazione.
+
+**Prima build Windows compilata con questa funzione:**
+[windows-test-45a013cf](https://github.com/EneaMapelli/EReader/releases/tag/windows-test-45a013cf)
+(`EReader-Windows-x64-45a013cf.zip`). Test reali su Windows/Android
+ancora necessari. [Specifiche e checklist](docs/LIBRARY_BATCH_IMPORT.md).
