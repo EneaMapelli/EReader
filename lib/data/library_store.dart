@@ -9,6 +9,7 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/book.dart';
 import 'epub_catalog_metadata.dart';
+import 'library_backup.dart';
 import 'pdf_cover_thumbnail.dart';
 import '../domain/reading_anchor.dart';
 import '../domain/pronunciation_rule.dart';
@@ -567,6 +568,31 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     } on FileSystemException {
       // Keep the original; idempotent migration can be retried.
     }
+  }
+
+  /// Explicit local backup only. A WAL-safe VACUUM INTO SQLite snapshot
+  /// is paired with exact managed book bytes, validated by SHA-256 before
+  /// the output folder is promoted. The OS credential vault is excluded.
+  /// Restoring on a different device requires later path relinking.
+  Future<LibraryBackupResult> exportLibraryBackup(
+    Directory destination, {
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final sourceHome = _home;
+    if (sourceHome == null) {
+      throw StateError('LibraryStore is not initialized');
+    }
+    return exportPortableLibraryBackup(
+      sourceHome: sourceHome,
+      destinationParent: destination,
+      books: books,
+      writeSqliteSnapshot: (output) {
+        // SQLite's native VACUUM INTO yields a standalone consistent
+        // snapshot, unlike copying an active WAL-mode DB file directly.
+        _database.execute('VACUUM INTO ?', [output]);
+      },
+      onProgress: onProgress,
+    );
   }
 
   List<BookRecord> get books => _database
