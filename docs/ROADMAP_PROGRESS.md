@@ -475,3 +475,18 @@ Added explicit one-click Piper Paola installation in the Windows offline voice m
   New regression fixtures authored but **NOT RUN**; no Windows build
   and no GitHub Actions job started, as requested.
   [Restore specification](LIBRARY_BACKUP_RESTORE.md).
+
+### M1 — drag & drop Windows Explorer nella biblioteca (2026-10-27)
+
+- Aggiunto `desktop_drop: 0.9.2` (Flutter 3.47.7); schermata biblioteca
+  Windows avvolta in un target file-only con overlay visivo, indicazione
+  permanente e filtro EPUB/PDF/TXT. Android rimane sul picker SAF.
+- I file vengono importati in sequenza dalla callback asincrona,
+  perché l'accesso ai file virtuali Windows termina al completamento
+  del drop. I percorsi trascinati non sono considerati affidabili.
+  Zero download di URL o import di cartelle; massimo 50 file.
+- Riutilizzate le verifiche/hash, importazione multipla,
+  annullamento e messaggio finale con duplicati e file ignorati.
+  Aggiunti test unitari di filtro e handoff, **non eseguiti**.
+- **Nessuna build Windows e nessuna Action avviata**. I workflow rimangono
+  manuali secondo la richiesta. [Guida](LIBRARY_DESKTOP_DRAG_DROP.md).
