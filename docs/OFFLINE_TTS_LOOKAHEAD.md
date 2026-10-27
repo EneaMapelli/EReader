@@ -330,3 +330,28 @@ the standard `test/` folder. Run `flutter test tool/offline_vits_soak_test.dart`
 explicitly to provide Flutter's `dart:ui` runtime. A plain Dart VM
 may not load the Flutter plugin dependencies; the runner does not
 require or trigger a Windows application build.
+
+## Production PCM validation before decoder playback (2026-10-27)
+
+Previously a native ONNX generation was accepted if its WAV path
+merely existed. Now the production, non-injected VITS engine uses the
+already implemented bounded `inspectOfflinePcmWave` parser after
+each successful native generation and BEFORE accepting it as prepared
+or sending the path to the decoder. It validates regular-file type,
+RIFF/WAVE chunks, PCM16 encoding, sample rate, channel/block alignment,
+audio length (100 ms to 90 seconds) and a 24 MiB file-size ceiling
+without reading all PCM samples into memory.
+
+An invalid native WAV is deleted by the existing per-clip staging
+finalizer, counts as a failure, and prevents native playback. If it
+came from the persistent model, that session is retired to allow a
+fresh load on the next audible phrase. Corrupt one-ahead speculative
+WAVs are discarded silently so the actual requested phrase can
+regenerate normally. Errors never include book text or local paths.
+
+This production guard is explicitly bypassed by default only when
+using injected mock synthesis/job/session factories, whose synthetic
+test fixtures are deliberately not PCM; test callers can turn it on
+with `validateNativeWaveOutput: true`. Added valid PCM, malformed
+audible PCM and malformed lookahead/retry regression tests. Authored,
+NOT run here; Windows ONNX validation still required.

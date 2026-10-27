@@ -1843,3 +1843,12 @@ marker, lock file and directory are removed; otherwise it remains
 recoverable. Added pure-Dart OS-file tests for active lease, crash
 simulation, ownership, unexpected files, bounds and normal cleanup.
 No Dart/Flutter or physical Windows tests run. No builds/Actions.
+
+### 2026-10-27 — production offline PCM WAV verification
+
+Production sherpa VITS output is validated using the existing bounded
+PCM16 RIFF inspector before playing or warming a WAV. Rejects missing
+or malformed headers, invalid duration, oversized and non-regular files;
+retires native session on corruption. Source, tests and docs committed.
+Fixtures injecting dummy synth/job/session factories skip verification
+by default, with explicit test override. No Dart/Flutter/native test run.

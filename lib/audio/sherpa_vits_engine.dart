@@ -10,6 +10,7 @@ import 'sherpa_vits_session.dart';
 import 'offline_voice_diagnostics.dart';
 import 'offline_wav_cleanup.dart';
 import 'offline_wav_session.dart';
+import 'offline_wave_metrics.dart';
 
 /// A separate audio boundary makes model synthesis testable with no native
 /// ONNX library, sound output, model download or network permissions.
@@ -235,7 +236,12 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
     OfflineWaveOutput? output,
     Future<Directory> Function()? temporaryDirectory,
     OfflineWavCleanup? wavCleanup,
-  })  : _wavCleanup = wavCleanup ?? OfflineWavCleanup(),
+    bool? validateNativeWaveOutput,
+  })  : _validateNativeWaveOutput = validateNativeWaveOutput ??
+            (synthesizer == null &&
+             jobFactory == null &&
+             sessionFactory == null),
+        _wavCleanup = wavCleanup ?? OfflineWavCleanup(),
         _synthesizer = synthesizer,
         _jobFactory = jobFactory ?? VitsWaveJob.new,
         _useLegacyJobs = jobFactory != null,
@@ -259,6 +265,11 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
   final OfflineWaveOutput _output;
   final Future<Directory> Function() _temporaryDirectory;
   final OfflineWavCleanup _wavCleanup;
+  // In production every completed sherpa WAV must pass bounded PCM
+  // structural inspection BEFORE any decoder is allowed to load it.
+  // Synthetic injection seams disable this by default (they often write
+  // intentionally fake WAVs), but tests may explicitly opt in.
+  final bool _validateNativeWaveOutput;
   Future<OfflineWavSession>? _wavSessionOpening;
   int _activeWaveJobs = 0;
   Completer<void> _allWaveJobsEnded = Completer<void>()..complete();
@@ -351,6 +362,20 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       final successful = await _synthesizeWaveNative(text, wavPath, rate);
       clock.stop();
       if (successful) {
+        if (_validateNativeWaveOutput) {
+          try {
+            // Cheap bounded header inspection; no PCM is buffered and
+            // no book text or WAV path appears in an error message.
+            await inspectOfflinePcmWave(File(wavPath));
+          } catch (_) {
+            // Corrupted output invalidates this native ONNX instance.
+            // An optional lookahead is dropped; a later real speak may
+            // create a fresh worker rather than consuming bad output.
+            _nativeSession?.cancel();
+            _nativeSession = null;
+            throw const FormatException('Offline voice produced invalid PCM');
+          }
+        }
         _diagnostics.recordSynthesis(
           clock.elapsed,
           ahead: ahead,

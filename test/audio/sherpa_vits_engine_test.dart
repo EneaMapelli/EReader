@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ereader/audio/sherpa_vits_engine.dart';
 import 'package:ereader/audio/speech_engine.dart';
@@ -50,6 +51,34 @@ class _FailedDisposeOutput extends _FakeWaveOutput {
     disposals++;
     throw StateError('Native audio disposal failed');
   }
+}
+
+/// 0.25-second PCM16 mono WAV for integrity tests. No native or paid TTS.
+List<int> _validPcmWav() {
+  const frames = 4000;
+  const rate = 16000;
+  const pcmBytes = frames * 2;
+  final bytes = Uint8List(44 + pcmBytes);
+  final header = ByteData.sublistView(bytes);
+  void tag(int offset, String value) {
+    for (var i = 0; i < value.length; i++) {
+      bytes[offset + i] = value.codeUnitAt(i);
+    }
+  }
+  tag(0, 'RIFF');
+  header.setUint32(4, bytes.length - 8, Endian.little);
+  tag(8, 'WAVE');
+  tag(12, 'fmt ');
+  header.setUint32(16, 16, Endian.little);
+  header.setUint16(20, 1, Endian.little);
+  header.setUint16(22, 1, Endian.little);
+  header.setUint32(24, rate, Endian.little);
+  header.setUint32(28, rate * 2, Endian.little);
+  header.setUint16(32, 2, Endian.little);
+  header.setUint16(34, 16, Endian.little);
+  tag(36, 'data');
+  header.setUint32(40, pcmBytes, Endian.little);
+  return bytes;
 }
 
 void main() {
@@ -343,6 +372,109 @@ void main() {
     expect(texts, ['One', 'Allowed']);
     expect(cleaner.pendingCount, 0);
     await synth.dispose();
+  });
+
+  test('production PCM validator accepts correct WAV before audio output',
+      () async {
+    Future<void> valid({
+      required String text,
+      required String modelPath,
+      required String tokensPath,
+      required String dataDir,
+      required String wavPath,
+      required double speed,
+    }) async {
+      await File(wavPath).writeAsBytes(_validPcmWav());
+    }
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack,
+      synthesizer: valid,
+      validateNativeWaveOutput: true,
+      output: output,
+      temporaryDirectory: () async => root,
+    );
+    await synth.speak('valid', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(output.playedBytes, hasLength(1));
+    expect(output.playedBytes.single, _validPcmWav());
+    expect(synth.offlineVoiceStatistics.syntheses, 1);
+    await synth.dispose();
+    expect(await root.list().toList(), isEmpty);
+  });
+
+  test('malformed native WAV fails before decoder and removes staging',
+      () async {
+    Future<void> invalid({
+      required String text,
+      required String modelPath,
+      required String tokensPath,
+      required String dataDir,
+      required String wavPath,
+      required double speed,
+    }) async {
+      await File(wavPath).writeAsBytes([82, 73, 70, 70]);
+    }
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack,
+      synthesizer: invalid,
+      validateNativeWaveOutput: true,
+      output: output,
+      temporaryDirectory: () async => root,
+    );
+    await expectLater(synth.speak('corrupt', language: 'en-US',
+        rate: 0.5, pitch: 1), throwsFormatException);
+    expect(output.filePaths, isEmpty);
+    expect(synth.offlineVoiceStatistics.syntheses, 0);
+    expect(synth.offlineVoiceStatistics.failures, 1);
+    await synth.dispose();
+    expect(await root.list().toList(), isEmpty);
+  });
+
+  test('invalid prepared WAV is discarded and audible speech regenerates',
+      () async {
+    var secondAttempts = 0;
+    Future<void> invalidAhead({
+      required String text,
+      required String modelPath,
+      required String tokensPath,
+      required String dataDir,
+      required String wavPath,
+      required double speed,
+    }) async {
+      if (text == 'Second') secondAttempts++;
+      if (text == 'Second' && secondAttempts == 1) {
+        await File(wavPath).writeAsBytes([82, 73, 70, 70]);
+      } else {
+        await File(wavPath).writeAsBytes(_validPcmWav());
+      }
+    }
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack,
+      synthesizer: invalidAhead,
+      validateNativeWaveOutput: true,
+      output: output,
+      temporaryDirectory: () async => root,
+    );
+    final playing = Completer<void>();
+    output.playGate = playing;
+    final first = synth.speak('First',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    for (var i = 0; i < 50 && output.filePaths.isEmpty; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(output.filePaths, hasLength(1));
+    await synth.prepareOfflineSpeech('Second',
+        voice: null, language: 'en-US', rate: 0.5, pitch: 1);
+    expect(synth.offlineVoiceStatistics.failures, 1);
+    output.playGate = null;
+    playing.complete();
+    await first;
+    await synth.speak('Second',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    expect(secondAttempts, 2);
+    expect(output.filePaths, hasLength(2));
+    expect(synth.offlineVoiceStatistics.syntheses, 2);
+    await synth.dispose();
+    expect(await root.list().toList(), isEmpty);
   });
 
   test('native synthesis failure does not leak temporary voice audio',

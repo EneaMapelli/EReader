@@ -638,3 +638,13 @@ No Windows build/GitHub Actions or native acceptance change.
 
 Manual soak invocation uses explicit Flutter-test wrapper in `tool/`,
 not a bare Dart VM; the ordinary test suite remains unaffected.
+
+### M3 — real native WAV validity gate before playback (2026-10-27)
+
+VITS production now checks the full PCM container headers and file/
+duration limits rather than merely testing file existence. Invalid
+WAVs invalidate the resident model, cannot reach the decoder and
+are removed; speculative corrupt WAVs trigger fresh audible synthesis.
+The parser is bounded and needs no waveform load. Added injected WAV
+tests for valid, corrupt and lookahead scenarios; not executed here.
+No builds or GitHub Actions.
