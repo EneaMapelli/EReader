@@ -1667,3 +1667,14 @@ Native/free speech can be selected with interpreted pauses or OS-native punctuat
 ### 2026-10-27 — Paola one-click Windows voice installer
 
 The existing experimental VITS/Piper adapter gains a curated Italian Paola installer under the offline neural voice manager. Download requires explicit approval and is bounded to an official model archive with pinned published SHA-256; staging is private, the pack is hash-checked, and only expected assets reach atomic installation. No Python conversion, model in the EXE, background downloads or cloud fallback. Test code authored but not executed; manual installation and Windows audio still open validation gates. [PIPER_PAOLA_ONE_CLICK.md](PIPER_PAOLA_ONE_CLICK.md).
+
+### 2026-10-27 — importazione multipla EPUB/PDF/TXT con progressi
+
+`importPickedBooks` usa il file picker v13 per importare serialmente
+fino a 50 selezioni, isolare gli errori, preservare record/progressi
+esistenti e fornire un risultato per file senza esporre le eccezioni
+grezze. Il widget biblioteca mostra avanzamento, cancellazione dei
+file in coda, e riepilogo con nomi privati sanitizzati. Android SAF
+stream-only è supportato dall'adapter preesistente. Nessun servizio
+TTS/LLM è invocato. `test/data/batch_book_import_test.dart` aggiunto,
+NON eseguito. [Guida Windows/Android](LIBRARY_BATCH_IMPORT.md).
