@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/library_store.dart';
+import '../../data/batch_book_import.dart';
 import '../../data/picked_book_import.dart';
 import '../../audio/reader_media_handler.dart';
 import '../../domain/book.dart';
@@ -21,6 +22,9 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   bool _busy = false;
+  int _importCompleted = 0;
+  int _importTotal = 0;
+  bool _cancelRemainingImports = false;
   final _searchController = TextEditingController();
   String _query = '';
   BookFormat? _formatFilter;
@@ -41,36 +45,173 @@ class _LibraryScreenState extends State<LibraryScreen> {
     super.dispose();
   }
 
+  /// The picker supports single and multi-file selection on Windows and
+  /// Android SAF. Files are imported sequentially, with isolated per-file
+  /// errors and no automatic audio or cloud requests.
   Future<void> _import() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      // file_picker v13 exposes a PlatformFile directly. Some Android SAF
-      // providers expose only a stream, not a readable filesystem path.
-      final selected = await FilePicker.pickFile(
+      // file_picker >=12 returns List<PlatformFile> directly; v13 uses
+      // readAsByteStream() and exposes stream-only Android SAF selections.
+      final selected = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: const ['epub', 'pdf', 'txt'],
       );
-      if (selected == null) return;
-      final record = await importPickedBook<BookRecord>(
-        originalName: selected.name,
-        pickedPath: selected.path,
-        readAsByteStream: selected.readAsByteStream,
+      if (!mounted || selected.isEmpty) return;
+      if (selected.length > 50) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Select at most 50 books per import.'),
+        ));
+        return;
+      }
+      setState(() {
+        _importCompleted = 0;
+        _importTotal = selected.length;
+        _cancelRemainingImports = false;
+      });
+      final result = await importPickedBooks(
+        selections: [
+          for (final item in selected)
+            BatchPickedBook(
+              name: item.name,
+              pickedPath: item.path,
+              readAsByteStream: item.readAsByteStream,
+            ),
+        ],
         importFile: widget.store.importFile,
+        knownBookIds: widget.store.books.map((book) => book.id),
+        cancelRemaining: () => _cancelRemainingImports || !mounted,
+        onProgress: (completed, total) {
+          if (mounted) {
+            setState(() {
+              _importCompleted = completed;
+              _importTotal = total;
+            });
+          }
+        },
       );
       if (!mounted) return;
-      setState(() {});
-      await _open(record);
-    } catch (error) {
+      setState(() {
+        _importTotal = 0;
+        _importCompleted = 0;
+      });
+      final onlyBook = result.onlySuccessfulBook;
+      if (onlyBook != null) {
+        await _open(onlyBook);
+      } else if (result.selectedCount == 1 && result.failedCount == 1) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('The selected book could not be imported. '
+              'Check the file format and read permissions.'),
+        ));
+      } else {
+        await _showBatchImportReport(result);
+      }
+    } catch (_) {
+      // File-system/SAF errors may contain private absolute filenames,
+      // so never display or log the raw exception.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cannot import book: $error')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Cannot import books. Check file picker access '
+              'and available storage.'),
+        ));
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _importTotal = 0;
+          _importCompleted = 0;
+          _cancelRemainingImports = false;
+        });
+      }
     }
   }
+
+  Future<void> _showBatchImportReport(BatchBookImportResult report) async {
+    if (!mounted) return;
+    // Only show sanitized display basenames from the native picker, never
+    // private absolute paths or exception strings from failed decoders.
+    String displayName(String text) {
+      final name = text.replaceAll('\\', '/').split('/').last
+          .replaceAll(RegExp(r'[\\r\\n\\t]'), ' ').trim();
+      return name.length <= 70 ? name : '${name.substring(0, 67)}...';
+    }
+    final failures = report.entries.where((item) =>
+        item.outcome != BookImportOutcome.added &&
+        item.outcome != BookImportOutcome.alreadyPresent).toList();
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Book import summary'),
+        content: SizedBox(
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Added: ${report.addedCount}'),
+                Text('Already in library: ${report.existingCount}'),
+                Text('Could not import: ${report.failedCount}'),
+                if (report.notProcessedCount > 0)
+                  Text('Cancelled / not processed: '
+                      '${report.notProcessedCount}'),
+                if (failures.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('Files to review:'),
+                  for (final item in failures.take(10))
+                    Text('• ${displayName(item.name)} — '
+                        '${switch (item.outcome) {
+                          BookImportOutcome.invalid => 'invalid or unsupported',
+                          BookImportOutcome.unavailable => 'unavailable file',
+                          _ => 'import failed',
+                        }}'),
+                  if (failures.length > 10)
+                    Text('...and ${failures.length - 10} more.'),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _batchImportProgress() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        LinearProgressIndicator(
+          value: _importTotal == 0
+              ? null : _importCompleted / _importTotal,
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(child: Text(
+              'Importing books: $_importCompleted / $_importTotal',
+              semanticsLabel: 'Book import progress',
+            )),
+            TextButton(
+              onPressed: _cancelRemainingImports
+                  ? null
+                  : () => setState(() => _cancelRemainingImports = true),
+              child: Text(_cancelRemainingImports
+                  ? 'Stopping after this file' : 'Cancel remaining'),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 
   Future<void> _open(BookRecord book) async {
     try {
@@ -259,6 +400,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   const Text('Your library is empty'),
                   const SizedBox(height: 8),
                   const Text('Import a TXT, EPUB, or PDF to begin'),
+                  if (_importTotal > 0) _batchImportProgress(),
                   const SizedBox(height: 20),
                   FilledButton.icon(
                     onPressed: _busy ? null : _import,
@@ -270,6 +412,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             )
           : Column(
               children: [
+                if (_importTotal > 0) _batchImportProgress(),
                 if (interrupted != null)
                   Card(
                     margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
@@ -281,7 +424,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         'Audio will not start automatically.',
                       ),
                       isThreeLine: true,
-                      onTap: () => _open(interrupted),
+                      onTap: _busy ? null : () => _open(interrupted),
                       trailing: IconButton(
                         tooltip: 'Dismiss interrupted narration notice',
                         icon: const Icon(Icons.close),
@@ -304,7 +447,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       trailing: const Icon(Icons.arrow_forward),
-                      onTap: () => _open(lastOpened),
+                      onTap: _busy ? null : () => _open(lastOpened),
                     ),
                   ),
                 Padding(
@@ -424,19 +567,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        onTap: () => _open(book),
+                        onTap: _busy ? null : () => _open(book),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
                               icon: const Icon(Icons.edit_outlined),
                               tooltip: 'Edit book details',
-                              onPressed: () => _editMetadata(book),
+                              onPressed: _busy ? null : () => _editMetadata(book),
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete_outline),
                               tooltip: 'Remove book',
-                              onPressed: () => _remove(book),
+                              onPressed: _busy ? null : () => _remove(book),
                             ),
                           ],
                         ),
