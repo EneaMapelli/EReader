@@ -21,6 +21,9 @@ on:
       - lib/features/reader/offline_voice_manager_screen.dart
       - test/audio/free_tts_selection_test.dart
       - test/data/piper_paola_installer_test.dart
+      - lib/features/library/library_screen.dart
+      - lib/data/batch_book_import.dart
+      - test/data/batch_book_import_test.dart
   workflow_dispatch:
 
 # A private GitHub prerelease is written only AFTER a verified Windows
