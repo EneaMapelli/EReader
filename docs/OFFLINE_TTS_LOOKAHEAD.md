@@ -97,3 +97,24 @@ and the correct passage is then synthesized. Stop/Dispose generation
 checks continue to suppress delayed playback. New tests cover a
 completed wrong prediction and an in-flight wrong-rate prediction.
 No Dart/Flutter tests or native builds were executed here.
+
+## In-app, local-only performance counters (2026-10-27)
+
+An experimental offline voice exposes a **read-only** expansion tile in
+the reader settings. It displays, per engine instance: number of native
+model loads, completed WAV syntheses, speculative generations and reused
+WAVs, failures/cancellations, last/mean synthesis time, rolling P95
+(last 64), last speak-to-decoder *handoff*, and the most recent sampled
+**whole-process RSS**. No text, book title, file path, audio, voice ID
+or key is stored or exported. There is no analytics SDK, HTTP or upload.
+
+The handoff timestamp is recorded BEFORE calling the audio output
+decoder. It is NOT first audible sample latency and does not measure
+acoustic gaplessness. The RSS number is an OS snapshot of the complete
+Flutter process, NOT peak RAM or bytes attributable to ONNX.
+The running sample window is bounded (64 numbers); averages represent
+only successfully completed native/model syntheses. Compare with a
+real stopwatch/audio recording on Windows before claiming performance gains.
+
+Tests verify counters, P95 bounds and copy-on-read snapshots, but have
+not been executed in this GitHub-only editing environment.

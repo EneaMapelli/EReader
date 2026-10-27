@@ -340,3 +340,13 @@ sessione viene invalidata e l'errore mostrato senza eseguire audio
 obsoleto. Quando necessario il modello viene ricreato alla lettura
 successiva. Gli effetti reali su RAM e tempi di risposta vanno
 ancora misurati su Windows.
+
+### Diagnostica delle prestazioni TTS offline
+
+Per il motore sperimentale VITS è disponibile nel lettore un pannello
+espandibile con tempi di sintesi (ultimo, media e P95 sugli ultimi 64),
+riutilizzi WAV, ricaricamenti ONNX, errori e memoria RSS del processo.
+Queste metriche sono **solo locali e temporanee**; non vengono raccolti
+testi, percorsi dei libri o contenuti audio. Il tempo di passaggio al
+decoder non equivale al momento in cui il suono diventa udibile,
+e la RAM indicata è dell'intera applicazione.

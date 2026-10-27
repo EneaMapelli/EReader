@@ -7,6 +7,7 @@ import '../data/offline_voice_pack.dart';
 import 'speech_engine.dart';
 import 'sherpa_vits_worker.dart';
 import 'sherpa_vits_session.dart';
+import 'offline_voice_diagnostics.dart';
 
 /// A separate audio boundary makes model synthesis testable with no native
 /// ONNX library, sound output, model download or network permissions.
@@ -101,7 +102,7 @@ class _PreparedWave {
 /// Stop requests immediate worker-isolate termination and suppresses delayed
 /// WAV playback. Dart cannot guarantee instantaneous preemption of a native
 /// blocking FFI call; physical device testing remains mandatory.
-class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
+class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, OfflineVoiceDiagnosticsProvider {
   static const providerId = 'sherpa-vits';
 
   SherpaVitsSpeechEngine({
@@ -134,6 +135,11 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
   Future<void>? _currentSynthesisReady;
   final OfflineWaveOutput _output;
   final Future<Directory> Function() _temporaryDirectory;
+
+  final OfflineVoiceDiagnostics _diagnostics = OfflineVoiceDiagnostics();
+
+  @override
+  OfflineVoiceStatistics get offlineVoiceStatistics => _diagnostics.snapshot;
 
   int _generation = 0;
   bool _disposed = false;
@@ -177,7 +183,33 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
     }
   }
 
-  Future<bool> _synthesizeWave(String text, String wavPath, double rate) async {
+  /// Times native/model work only. The surrounding WAV decoder handoff
+  /// is measured separately; neither is guaranteed acoustic onset time.
+  Future<bool> _synthesizeWave(
+    String text, String wavPath, double rate, {
+    bool ahead = false,
+  }) async {
+    final clock = Stopwatch()..start();
+    try {
+      final successful = await _synthesizeWaveNative(text, wavPath, rate);
+      clock.stop();
+      if (successful) {
+        _diagnostics.recordSynthesis(
+          clock.elapsed,
+          ahead: ahead,
+          wholeProcessRssBytes: ProcessInfo.currentRss,
+        );
+      } else {
+        _diagnostics.recordCancellation();
+      }
+      return successful;
+    } catch (_) {
+      _diagnostics.recordFailure();
+      rethrow;
+    }
+  }
+
+  Future<bool> _synthesizeWaveNative(String text, String wavPath, double rate) async {
     final speed = (rate / 0.5).clamp(0.4, 2.0).toDouble();
     final mock = _synthesizer;
     if (mock != null) {
@@ -199,6 +231,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
           dataDir: dataDir,
         ));
         _nativeSession = session;
+        _diagnostics.recordModelLoad();
       }
       try {
         await session.synthesize(text: text, wavPath: wavPath, speed: speed);
@@ -214,6 +247,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
     if (_nativeJob != null) {
       throw StateError('Offline synthesis is already running');
     }
+    _diagnostics.recordModelLoad();
     final job = _jobFactory(VitsWaveRequest(
       text: text, modelPath: pack.modelPath, tokensPath: pack.tokensPath,
       dataDir: dataDir, wavPath: wavPath, speed: speed,
@@ -285,7 +319,8 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
       if (_disposed || token != _generation ||
           !identical(_prepared, next)) return;
       final completed =
-          await _synthesizeWave(next.text, next.wavPath!, next.rate);
+          await _synthesizeWave(next.text, next.wavPath!, next.rate,
+              ahead: true);
       if (!completed || _disposed || token != _generation ||
           !identical(_prepared, next)) return;
       if (!await File(next.wavPath!).exists()) return;
@@ -313,6 +348,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
     _validateSpeech(text, language, rate, pitch);
     if (text.isEmpty) return;
     final token = _generation;
+    final decoderHandoff = Stopwatch()..start();
     final ready = Completer<void>();
     // Synchronously publish the synthesis barrier before our first await.
     _currentSynthesisReady = ready.future;
@@ -334,6 +370,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
           staging = pending.staging;
           wavPath = pending.wavPath;
           _prepared = null; // Audible clip now owns this private WAV.
+          _diagnostics.recordReuse();
         } else if (identical(_prepared, pending)) {
           // A mismatched, completed WAV must never be played and must not
           // occupy a future lookahead slot or leak private source audio.
@@ -356,6 +393,8 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
       }
       if (_disposed || token != _generation) return;
       if (!ready.isCompleted) ready.complete();
+      decoderHandoff.stop();
+      _diagnostics.recordHandoff(decoderHandoff.elapsed);
       await _output.play(wavPath);
     } finally {
       if (!ready.isCompleted) ready.complete();

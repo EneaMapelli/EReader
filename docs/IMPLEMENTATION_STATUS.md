@@ -1806,3 +1806,14 @@ Failure/timeout invalidates the entire session with sanitized errors,
 and cancellation clears all timers. Tests with controlled fake timers
 and child isolates were authored but not executed; native validation
 and memory measurement remain pending. No Actions/build.
+
+### 2026-10-27 — offline TTS in-reader local measurements
+
+A read-only performance tile for experimental sherpa/VITS now reports
+bounded in-memory counters and rolling synthesis latency statistics;
+also shows most recently sampled whole-process RSS and estimated
+speak-to-decoder handoff. No text, titles, local paths, keys, waveform
+contents, persistence or network reporting. Added pure-Dart unit tests.
+No actual Flutter/native tests, builds or GitHub Actions executed.
+These are diagnostic markers, not measured audio onset or native
+acceptance evidence; progress estimates unchanged.

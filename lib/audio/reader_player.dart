@@ -303,6 +303,15 @@ class ReaderPlayer extends ChangeNotifier {
   Object? lastError;
 
   List<SpeechSegment> get segments => _segments;
+
+  /// Local-only, read-only counters for the experimental neural engine.
+  /// Every other speech engine returns null.
+  OfflineVoiceStatistics? get offlineVoiceStatistics {
+    final engine = _engine;
+    return engine is OfflineVoiceDiagnosticsProvider
+        ? engine.offlineVoiceStatistics : null;
+  }
+
   bool get hasNext => currentIndex + 1 < _segments.length;
 
   void setRate(double value) {

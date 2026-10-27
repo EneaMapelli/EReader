@@ -1810,6 +1810,56 @@ class _ReaderScreenState extends State<ReaderScreen>
                   onChanged: (enabled) =>
                       player.setOfflineWarmup(enabled ?? false),
                 ),
+              if (player.engineProviderId == 'sherpa-vits' &&
+                  player.offlineVoiceStatistics != null)
+                Builder(builder: (context) {
+                  final d = player.offlineVoiceStatistics!;
+                  return ExpansionTile(
+                    key: const ValueKey('offline-vits-performance'),
+                    title: const Text('Offline voice performance'),
+                    subtitle: const Text(
+                      'This session only. No book text or audio logged; '
+                      'RAM reflects the entire app, not just ONNX.',
+                    ),
+                    children: [
+                      ListTile(
+                        dense: true,
+                        title: Text(
+                          'Model loads: ${d.modelLoads} · '
+                          'Syntheses: ${d.syntheses} · '
+                          'Prepared in advance: ${d.aheadSyntheses} · '
+                          'WAVs reused: ${d.warmedWaveReuses}',
+                        ),
+                      ),
+                      ListTile(
+                        dense: true,
+                        title: Text(
+                          'Last synthesis: ${d.lastSynthesisMs} ms · '
+                          'Average: ${d.averageSynthesisMs} ms · '
+                          'P95 of last 64: ${d.p95SynthesisMs} ms',
+                        ),
+                        subtitle: const Text(
+                          'Native/model synthesis duration; '
+                          'P95 is a rolling sample statistic.',
+                        ),
+                      ),
+                      ListTile(
+                        dense: true,
+                        title: Text(
+                          'Decoder handoff: ${d.lastDecoderHandoffMs} ms · '
+                          'Whole-process RSS: '
+                          '${d.lastWholeProcessRssMiB} MiB',
+                        ),
+                        subtitle: Text(
+                          'Failed: ${d.failures} · '
+                          'Cancelled: ${d.cancelledSyntheses}. '
+                          'Handoff is not audible onset; '
+                          'RSS is not model-only memory.',
+                        ),
+                      ),
+                    ],
+                  );
+                }),
               if (player.engineProviderId ==
                   OpenAiSpeechEngine.providerId)
                 CheckboxListTile(

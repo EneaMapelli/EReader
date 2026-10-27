@@ -559,3 +559,13 @@ at completed-book idle. Engine reconstructs a retired worker on the
 next speech request without changing read anchors. Failure is explicit,
 not a silent skip. Unit regressions authored but NOT RUN; no Windows
 build or GitHub Actions. Overall estimates unchanged pending on-device gates.
+
+### M3 — developer-readable offline latency and memory snapshots
+
+Added an offline VITS performance panel and numerically bounded
+in-memory diagnostics for native model reloads, WAV generation, lookahead
+reuse, late handoff, failures and whole-process RSS. This supports manual
+Windows benchmarking without ever logging book text or file paths.
+The panel is available only for the manually qualified experimental
+VITS provider. P95 uses at most 64 latest synthesis samples. Tests
+authored but not executed; no Windows builds or Actions.

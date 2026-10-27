@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_tts/flutter_tts.dart';
 
 import 'windows_speech_punctuation.dart';
+import 'offline_voice_diagnostics.dart';
 
 class SpeechVoice {
   const SpeechVoice({required this.name, required this.locale});
@@ -66,6 +67,12 @@ abstract interface class OfflineAheadSpeechEngine {
     required double rate,
     required double pitch,
   });
+}
+
+/// Read-only, local per-engine performance information. The caller never
+/// gets access to private TTS source chunks or WAV file names.
+abstract interface class OfflineVoiceDiagnosticsProvider {
+  OfflineVoiceStatistics get offlineVoiceStatistics;
 }
 
 class SystemSpeechEngine implements SpeechEngine {
