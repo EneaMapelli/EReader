@@ -105,10 +105,6 @@ Future<BatchBookImportResult> importPickedBooks({
       processed.add(BatchBookImportEntry(
         name: chosen.name, outcome: BookImportOutcome.unavailable,
       ));
-    } on PathNotFoundException {
-      processed.add(BatchBookImportEntry(
-        name: chosen.name, outcome: BookImportOutcome.unavailable,
-      ));
     } catch (_) {
       processed.add(BatchBookImportEntry(
         name: chosen.name, outcome: BookImportOutcome.failed,
