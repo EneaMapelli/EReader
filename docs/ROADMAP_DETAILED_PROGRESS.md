@@ -316,3 +316,15 @@ Nessuna richiesta TTS o cloud durante l'importazione; ripresa e dati
 SQLite dei duplicati restano invariati. Test scritti, non eseguiti;
 manca ancora drag&drop Esplora risorse e integrazione con librerie
 esterne. [Dettagli](LIBRARY_BATCH_IMPORT.md).
+
+### M6 — backup locale della biblioteca (2026-10-27)
+
+Nuova opzione esplicita di esportazione privata della biblioteca con
+snapshot SQLite consistente `VACUUM INTO`, copia integrale dei libri
+EPUB/PDF/TXT verificata SHA-256 e manifest del progresso/metadati.
+Salvataggio atomico in una cartella autonoma, errori fail-closed,
+nessun overwrite, nessun upload o segreto credenziali OS.
+Backup ancora privo di cifratura e ripristino automatico; test unitari
+scritti ma non eseguiti. `windows-user-build.yml` è stato reso
+esclusivamente manuale: i commit non avviano più build Actions.
+[Guida](LIBRARY_BACKUP_EXPORT.md).
