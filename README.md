@@ -223,3 +223,7 @@ durante la lettura vocale, senza modificare gli offset UTF-16 del libro,
 le voci attribuite ai personaggi, i limiti TTS o il consenso cloud.
 [Dettagli e test](docs/SPEECH_SENTENCE_BOUNDARIES.md). La modifica
 richiede ancora una verifica locale aggiornata.
+
+### Voce italiana Paola (Windows, sperimentale)
+
+In **Speech engines → Manage offline neural voices**, usa **Install Paola — Italian neural voice (free)**. EReader scarica su richiesta la voce Paola già convertita per sherpa-onnx, verifica il checksum pubblicato e installa i file privati. Torna a **Speech engines** per scegliere il motore locale VITS; non viene attivato automaticamente. La funzione è sperimentale e deve ancora superare i test audio manuali Windows. [Guida dettagliata](docs/PIPER_PAOLA_ONE_CLICK.md).
