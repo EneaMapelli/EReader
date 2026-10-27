@@ -1678,3 +1678,21 @@ file in coda, e riepilogo con nomi privati sanitizzati. Android SAF
 stream-only è supportato dall'adapter preesistente. Nessun servizio
 TTS/LLM è invocato. `test/data/batch_book_import_test.dart` aggiunto,
 NON eseguito. [Guida Windows/Android](LIBRARY_BATCH_IMPORT.md).
+
+### 2026-10-27 — Windows Actions disattivate sui push; backup biblioteca
+
+Per richiesta esplicita, `.github/workflows/windows-user-build.yml`
+è eseguibile solo su `workflow_dispatch`; il trigger `push` è stato
+rimosso. Questa fase non ha attivato compilazioni o test Actions.
+
+Nuovo `LibraryStore.exportLibraryBackup` e helper
+`exportPortableLibraryBackup`: snapshot SQLite WAL-safe con
+`VACUUM INTO`, riapertura/integrity_check e verifica della lista
+dei libri; copia dei file gestiti con SHA-256 ricontrollato, manifest
+sorgente, output in staging privato e rename finale atomico, limiti
+sulla quantità di libri e sui byte. La biblioteca offre un pulsante
+di backup locale con avvertimento privacy, contatore e risultato.
+I backup non sono cifrati, non includono segreti OS ed il
+ripristino multipiattaforma è tuttora da sviluppare.
+Test `test/data/library_backup_test.dart` scritti ma non eseguiti.
+[Specifiche e checklist](LIBRARY_BACKUP_EXPORT.md).
