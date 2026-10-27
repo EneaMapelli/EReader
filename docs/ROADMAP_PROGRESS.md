@@ -610,3 +610,11 @@ reclaimed without the marker; never an unmarked WAV. Added
 same-process single-flight scan ownership and idempotent, awaitable
 session close. Five regression tests added, execution pending.
 No Windows compilation or GitHub Actions.
+
+### M3 — fair scheduling of crash recovery batches (2026-10-27)
+
+The at-most-16-session recovery budget is now rotated across up to 512
+inspected root entries. Sorting plus a cursor keeps invalid/active
+earlier sessions from starving later recoverable sessions. Extended
+unit regression covers recovery progress across two sweeps. No native
+tests, Windows compilation or GitHub Actions triggered.

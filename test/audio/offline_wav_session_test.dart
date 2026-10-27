@@ -169,5 +169,10 @@ void main() {
     expect(left.length,
         greaterThanOrEqualTo(abandoned.length -
             OfflineWavSession.maxScannedSessions));
+    // The NEXT bounded scan must rotate onto sessions not visited
+    // previously rather than repeatedly checking the earliest 16.
+    final second = await OfflineWavSession.recoverAbandoned(root);
+    expect(removed + second, abandoned.length);
+    expect(await root.list().toList(), isEmpty);
   });
 }

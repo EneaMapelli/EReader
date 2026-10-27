@@ -23,6 +23,9 @@ class OfflineWavSession {
   // Two simultaneous recovery scans within one process must never try
   // to acquire or unlink the same OS lease independently.
   static final Set<String> _recoveringPaths = <String>{};
+  // A deterministic rotating cursor prevents the same 16 locked/invalid
+  // sessions from starving every recoverable candidate after them.
+  static int _recoveryCursor = 0;
 
   final Directory directory;
   final RandomAccessFile _lease;
@@ -165,113 +168,117 @@ class OfflineWavSession {
     return count == 1;
   }
 
-  /// Bounded recovery on explicit experimental VITS engine initialization.
+  /// Bounded, fair recovery on explicit experimental VITS initialization.
   ///
-  /// Marked, strictly allowlisted WAV folders can be deleted ONLY after
-  /// taking their unlocked exclusive lease. A special metadata-only mode
-  /// may remove an otherwise-empty abandoned lease directory, never WAVs.
-  /// A running reader is guarded by both OS locks and a same-process
-  /// registry. This never traverses arbitrary user directories recursively.
+  /// Examine at most 512 *direct* system-temp entries in one call, then
+  /// visit at most 16 matching session candidates. Sort the discovered
+  /// candidates and rotate a cursor so permanently locked or invalid
+  /// earlier entries do not starve later crashed sessions.
   static Future<int> recoverAbandoned(Directory tempRoot) async {
     if (await FileSystemEntity.type(tempRoot.path, followLinks: false) !=
         FileSystemEntityType.directory) return 0;
-    var seen = 0;
-    var candidates = 0;
-    var recovered = 0;
+
+    final discovered = <Directory>[];
+    var entries = 0;
     try {
-      await for (final entry in tempRoot.list(followLinks: false)) {
-        if (++seen > maxRootEntries || candidates >= maxScannedSessions) {
-          break;
-        }
-        if (!p.basename(entry.path).startsWith(sessionPrefix) ||
-            entry is! Directory) continue;
-        candidates++;
-        final candidate = Directory(entry.path);
-        final path = p.normalize(candidate.absolute.path);
-        if (_liveSessionPaths.contains(path) ||
-            !_recoveringPaths.add(path)) continue;
-        try {
-          final marked = await _isValidSession(candidate);
-          if (marked) {
-            if (await _clips(candidate) == null) continue;
-          } else if (!await _isLeaseOnlyMetadata(candidate)) {
-            continue;
-          }
-          // This lease is known to exist as a regular file at both
-          // validation stages. Never create one for arbitrary folders.
-          final lease = await _leaseFile(candidate).open(mode: FileMode.append);
-          var locked = false;
-          var eligible = false;
-          try {
-            try {
-              // FileLock.exclusive is non-blocking. A live process must
-              // never hold up reopening the reader's native voice.
-              await lease.lock(FileLock.exclusive);
-              locked = true;
-            } on FileSystemException {
-              continue;
-            }
-            // Revalidate UNDER the lease: another recovery operation or
-            // malicious local file replacement could have changed content.
-            if (await _isValidSession(candidate)) {
-              final clips = await _clips(candidate);
-              if (clips == null) continue;
-              var allRemoved = true;
-              for (final folder in clips) {
-                try {
-                  final wav = File(p.join(folder.path, 'speech.wav'));
-                  final type = await FileSystemEntity.type(
-                      wav.path, followLinks: false);
-                  if (type == FileSystemEntityType.file) {
-                    await wav.delete();
-                  } else if (type != FileSystemEntityType.notFound) {
-                    allRemoved = false;
-                    break;
-                  }
-                  // Deletion is intentionally NOT recursive.
-                  await folder.delete();
-                } on FileSystemException {
-                  allRemoved = false;
-                  break;
-                }
-              }
-              if (!allRemoved) continue;
-              await _marker(candidate).delete();
-              eligible = true;
-            } else if (await _isLeaseOnlyMetadata(candidate)) {
-              // Never use this branch to recover an unmarked WAV, even
-              // if it shares our prefix or looks like our audio layout.
-              eligible = true;
-            }
-          } finally {
-            if (locked) {
-              try { await lease.unlock(); } on FileSystemException {}
-            }
-            await lease.close();
-          }
-          if (!eligible) continue;
-          // No recursive deletion and no unknown contents permitted.
-          // These two operations may be blocked transiently on Windows.
-          try {
-            if (!await _isLeaseOnlyMetadata(candidate)) continue;
-            await _leaseFile(candidate).delete();
-            await candidate.delete();
-            recovered++;
-          } on FileSystemException {
-            // The next scan can finish strictly empty metadata.
-          }
-        } on FileSystemException {
-          // Live file locks, permission failures and unreadable entries
-          // must never prevent the user from opening a new book.
-        } on FormatException {
-          // Unknown marker data is never treated as proof of ownership.
-        } finally {
-          _recoveringPaths.remove(path);
+      await for (final item in tempRoot.list(followLinks: false)) {
+        if (++entries > maxRootEntries) break;
+        if (item is Directory &&
+            p.basename(item.path).startsWith(sessionPrefix)) {
+          discovered.add(Directory(item.path));
         }
       }
     } on FileSystemException {
-      // Failure to enumerate temp-root entries is best-effort cleanup,
-      // NOT a fatal error for the next native VITS session.
+      // Best-effort cleanup must not block normal audio initialization.
+      return 0;
+    }
+    if (discovered.isEmpty) return 0;
+    discovered.sort((a, b) => a.path.compareTo(b.path));
+
+    final start = _recoveryCursor % discovered.length;
+    final visit = discovered.length < maxScannedSessions
+        ? discovered.length : maxScannedSessions;
+    _recoveryCursor = (start + visit) % discovered.length;
+    var recovered = 0;
+
+    for (var index = 0; index < visit; index++) {
+      final candidate = discovered[(start + index) % discovered.length];
+      final path = p.normalize(candidate.absolute.path);
+      if (_liveSessionPaths.contains(path) ||
+          !_recoveringPaths.add(path)) continue;
+      try {
+        final marked = await _isValidSession(candidate);
+        if (marked) {
+          if (await _clips(candidate) == null) continue;
+        } else if (!await _isLeaseOnlyMetadata(candidate)) {
+          continue;
+        }
+        // The regular lease file was checked above. FileLock.exclusive
+        // is non-blocking; a live process is skipped without waiting.
+        final lease = await _leaseFile(candidate).open(mode: FileMode.append);
+        var locked = false;
+        var eligible = false;
+        try {
+          try {
+            await lease.lock(FileLock.exclusive);
+            locked = true;
+          } on FileSystemException {
+            continue;
+          }
+          // Recheck AFTER taking the OS lease, before ANY deletion.
+          if (await _isValidSession(candidate)) {
+            final clips = await _clips(candidate);
+            if (clips == null) continue;
+            var allRemoved = true;
+            for (final folder in clips) {
+              try {
+                final wav = File(p.join(folder.path, 'speech.wav'));
+                final type = await FileSystemEntity.type(
+                    wav.path, followLinks: false);
+                if (type == FileSystemEntityType.file) {
+                  await wav.delete();
+                } else if (type != FileSystemEntityType.notFound) {
+                  allRemoved = false;
+                  break;
+                }
+                // No recursive deletion of unknown children.
+                await folder.delete();
+              } on FileSystemException {
+                allRemoved = false;
+                break;
+              }
+            }
+            if (!allRemoved) continue;
+            await _marker(candidate).delete();
+            eligible = true;
+          } else if (await _isLeaseOnlyMetadata(candidate)) {
+            // Metadata-only special case: no unmarked WAV is removed.
+            eligible = true;
+          }
+        } finally {
+          if (locked) {
+            try { await lease.unlock(); } on FileSystemException {}
+          }
+          await lease.close();
+        }
+        if (!eligible) continue;
+        // Deleting the now-empty lease may fail transiently on Windows.
+        // Later sweeps can safely retry the metadata-only candidate.
+        try {
+          if (!await _isLeaseOnlyMetadata(candidate)) continue;
+          await _leaseFile(candidate).delete();
+          await candidate.delete();
+          recovered++;
+        } on FileSystemException {
+          // Retain only the empty metadata for the next sweep.
+        }
+      } on FileSystemException {
+        // Treat locked or inaccessible candidates as harmless.
+      } on FormatException {
+        // Never trust malformed metadata.
+      } finally {
+        _recoveringPaths.remove(path);
+      }
     }
     return recovered;
   }

@@ -265,3 +265,15 @@ best-effort cleanup rather than a reason to fail new VITS playback.
 Five additional tests cover metadata interruption, unmarked WAV
 preservation, unexpected files, concurrent scans and repeated close.
 No Dart/Flutter test execution or native Windows builds occurred.
+
+## Fair bounded recovery scheduling (2026-10-27)
+
+The recovery scan continues to inspect at most 512 direct entries in the
+system-temp root and to attempt only 16 matched WAV sessions per call.
+Discovered candidates are sorted and visited using a rotating cursor.
+This prevents 16 persistently live, invalid or locked directories from
+starving valid later sessions on every VITS activation. Recovery still
+requires the exact versioned marker + exclusive OS lease (or the strict
+empty lease-only metadata special case); no recursive user-folder sweep.
+The scan-limit regression now verifies a *second* pass recovers the
+remaining marked sessions. The tests have not been run on Windows.
