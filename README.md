@@ -242,3 +242,20 @@ l'apertura automatica al termine dell'importazione.
 [windows-test-45a013cf](https://github.com/EneaMapelli/EReader/releases/tag/windows-test-45a013cf)
 (`EReader-Windows-x64-45a013cf.zip`). Test reali su Windows/Android
 ancora necessari. [Specifiche e checklist](docs/LIBRARY_BATCH_IMPORT.md).
+
+### Backup locale della biblioteca (codice, da provare)
+
+Dal menu principale della biblioteca, **Export private library backup**
+crea su richiesta una cartella locale contenente i libri originali,
+il database SQLite autonomo (con posizioni, segnalibri e preferenze)
+e un manifest. Ogni libro è verificato tramite SHA-256 e il backup
+viene reso visibile solo dopo il completamento. Nessuna chiave API
+dello storage sicuro viene esportata e non c'è alcun upload.
+
+**Attenzione:** il backup non è cifrato; contiene dati di lettura privati.
+Il ripristino su un altro dispositivo è **ancora da sviluppare** e
+non bisogna sovrascrivere manualmente il database attivo.
+[Limiti, integrità e test](docs/LIBRARY_BACKUP_EXPORT.md).
+
+Le build Windows rimangono **solo manuali** dopo richiesta esplicita:
+il workflow non si avvia più automaticamente a ogni commit.
