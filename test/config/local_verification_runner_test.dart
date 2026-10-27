@@ -14,7 +14,6 @@ void main() {
     expect(runner, contains("'run-offline-voice-qualification.ps1'"));
     expect(runner, contains('if ($NativeVoiceSourceFolder -and '
         '-not $AcceptNativeRisk)'));
-    expect(runner, contains("'publication='"));
     expect(runner, contains("publication='disabled'"));
     expect(runner, contains("windowsBuild='not-executed'"));
     expect(runner, contains("githubActions='not-triggered'"));

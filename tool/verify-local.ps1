@@ -61,10 +61,14 @@ $psExe = (Get-Command powershell.exe -ErrorAction Stop).Source
 function Find-Flutter {
   $which = Get-Command flutter -ErrorAction SilentlyContinue
   if ($which) { return $which.Source }
-  foreach ($candidate in @(
-    $(if ($env:FLUTTER_ROOT) { Join-Path $env:FLUTTER_ROOT 'bin\flutter.bat' }),
-    $(if ($env:TEMP) { Join-Path $env:TEMP 'flutter\bin\flutter.bat' })
-  )) {
+  $candidates = @()
+  if ($env:FLUTTER_ROOT) {
+    $candidates += (Join-Path $env:FLUTTER_ROOT 'bin\flutter.bat')
+  }
+  if ($env:TEMP) {
+    $candidates += (Join-Path $env:TEMP 'flutter\bin\flutter.bat')
+  }
+  foreach ($candidate in $candidates) {
     if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
       return $candidate
     }
