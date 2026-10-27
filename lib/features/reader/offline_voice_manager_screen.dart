@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../data/offline_voice_pack.dart';
+import '../../data/piper_paola_installer.dart';
 
 /// Model management is deliberately separate from provider activation.
 /// This screen lists verified on-device assets and can uninstall them,
@@ -37,6 +38,8 @@ class _OfflineVoiceManagerScreenState
   String? _message;
   OfflineVoiceImportPreview? _importPreview;
   bool _licenseReviewed = false;
+  int _paolaDownloadBytes = 0;
+  int? _paolaTotalBytes;
 
   Future<Directory> _directory() async {
     final resolver = widget.modelsDirectory;
@@ -193,6 +196,84 @@ class _OfflineVoiceManagerScreenState
     await _refresh(clearMessage: false);
   }
 
+  Future<void> _installPiperPaola() async {
+    if (!Platform.isWindows || _loading || _busyId != null) return;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Install Paola — free Italian neural voice?'),
+        content: const Text(
+          'EReader will download about 67 MB from the official '
+          'sherpa-onnx GitHub release, verify its pinned SHA-256, and '
+          'install the converted Piper voice privately. No book text, '
+          'API key or personal data is uploaded. The model repository '
+          'declares MIT; the underlying voice dataset declares CC0; '
+          'please review both licenses and the publisher. '
+          'This Windows voice is EXPERIMENTAL: native audio, memory, '
+          'Stop/Pause and performance have not been certified. '
+          'You can switch back to system voices at any time.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Download and verify'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true || !mounted) return;
+    setState(() {
+      _busyId = PiperPaolaCatalog.id;
+      _message = null;
+      _paolaDownloadBytes = 0;
+      _paolaTotalBytes = null;
+    });
+    try {
+      final root = await _directory();
+      final installed = await installCuratedPiperPaola(
+        modelsDirectory: root,
+        stagingParent: Directory(
+          p.join(root.parent.path, 'voice-downloads'),
+        ),
+        onProgress: (received, total) {
+          if (mounted) {
+            setState(() {
+              _paolaDownloadBytes = received;
+              _paolaTotalBytes = total;
+            });
+          }
+        },
+      );
+      if (mounted) {
+        setState(() {
+          _message = '${installed.manifest.displayName} installed. '
+              'Return to Speech engines and explicitly select '
+              'Free local VITS / Piper to try it.';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _message =
+            'Paola could not be installed. Check Internet, disk space, '
+            'Windows tar availability and the model checksum. '
+            'No incomplete model is activated.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busyId = null;
+          _paolaDownloadBytes = 0;
+          _paolaTotalBytes = null;
+        });
+      }
+    }
+    await _refresh(clearMessage: false);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -221,6 +302,32 @@ class _OfflineVoiceManagerScreenState
                   'Free system voices are available.',
         ),
         const SizedBox(height: 12),
+        if (Platform.isWindows) ...[
+          FilledButton.icon(
+            key: const ValueKey('install-piper-paola'),
+            onPressed: _loading || _busyId != null
+                ? null : _installPiperPaola,
+            icon: const Icon(Icons.record_voice_over_outlined),
+            label: const Text('Install Paola — Italian neural voice (free)'),
+          ),
+          const SizedBox(height: 6),
+          const Text('About 67 MB. Official sherpa-onnx archive; verified '
+              'SHA-256; works offline after installation. '
+              'Experimental Windows playback only.'),
+          if (_busyId == PiperPaolaCatalog.id) ...[
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: _paolaTotalBytes == null ||
+                      _paolaTotalBytes == 0
+                  ? null
+                  : (_paolaDownloadBytes / _paolaTotalBytes!).clamp(0.0, 1.0),
+            ),
+            Text('Downloaded '
+                '${(_paolaDownloadBytes / (1024 * 1024)).toStringAsFixed(1)} MB'
+                '${_paolaTotalBytes == null ? "" :
+                    " / ${(_paolaTotalBytes! / (1024 * 1024)).toStringAsFixed(1)} MB"}'),
+          ],
+        ],
         const SizedBox(height: 12),
         if (Platform.isWindows || widget.pickSourceDirectory != null)
           OutlinedButton.icon(
