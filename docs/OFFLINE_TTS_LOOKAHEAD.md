@@ -38,3 +38,12 @@ Regressions authored for one-ahead reuse, Stop during/after preparation,
 private file cleanup, and ReaderPlayer skip/disable behavior. NOT EXECUTED:
 this GitHub editing session has no local Dart/Flutter native toolchain.
 No Windows build and no GitHub Actions triggered.
+
+## Native Stop priority
+
+The Stop/Dispose operation invalidates speculative work immediately and
+first awaits native output Stop/Dispose before attempting deletion of an
+already prepared future WAV. Private-file cleanup must not hold up audible
+Stop. If native worker cancellation is delayed, stale synthesis is still
+generation-blocked from playing; device-level cancellation timing is an
+outstanding acceptance gate.

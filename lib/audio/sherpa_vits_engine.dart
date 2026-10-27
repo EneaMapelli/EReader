@@ -330,10 +330,15 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
     _nativeJob = null;
     final pending = _prepared;
     _prepared = null;
-    if (pending != null && pending.ready) {
-      await _deleteStaging(pending.staging);
+    // Native audible Stop is more important than deleting a future WAV.
+    // Cleanup must not delay the user's Pause/Stop or focus release.
+    try {
+      await _output.stop();
+    } finally {
+      if (pending != null && pending.ready) {
+        await _deleteStaging(pending.staging);
+      }
     }
-    await _output.stop();
   }
 
   @override
@@ -345,9 +350,13 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine {
     _nativeJob = null;
     final pending = _prepared;
     _prepared = null;
-    if (pending != null && pending.ready) {
-      await _deleteStaging(pending.staging);
+    // Dispose the active decoder first so Windows can release WAV handles.
+    try {
+      await _output.dispose();
+    } finally {
+      if (pending != null && pending.ready) {
+        await _deleteStaging(pending.staging);
+      }
     }
-    await _output.dispose();
   }
 }
