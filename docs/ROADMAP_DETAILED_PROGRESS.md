@@ -328,3 +328,17 @@ Backup ancora privo di cifratura e ripristino automatico; test unitari
 scritti ma non eseguiti. `windows-user-build.yml` è stato reso
 esclusivamente manuale: i commit non avviano più build Actions.
 [Guida](LIBRARY_BACKUP_EXPORT.md).
+
+### M6 — ripristino conservativo e verificato della biblioteca (2026-10-27)
+
+Implementati verifica completa del backup v1, preview read-only,
+conferma esplicita e import add-only dei soli libri assenti. Per ogni
+ebook la copia originale viene ricontrollata SHA-256 e i suoi metadati,
+segnalibri, ancore, progressi e pagina PDF sono inseriti con una
+transazione SQLite. Nessun overwrite dei record locali, nessuna
+riattivazione consensi LLM/cloud, nessuna preferenza TTS/cast, cache
+o credenziale trasferita. Le importazioni riuscite restano anche
+in caso di fallimento successivo; cartella sorgente non modificata.
+Test previsti in `test/data/library_backup_restore_test.dart`
+ma non eseguiti, nessuna compilazione/actions.
+[Guida](LIBRARY_BACKUP_RESTORE.md).
