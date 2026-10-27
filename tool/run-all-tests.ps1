@@ -14,7 +14,8 @@ param(
   [switch]$NoPublish,
   [switch]$SkipPubGet,
   [switch]$SkipFormat,
-  [ValidateRange(1,120)][int]$TestTimeoutMinutes = 20,
+  [switch]$SkipCombinedRun,
+  [ValidateRange(1,120)][int]$TestTimeoutMinutes = 5,
   [ValidateRange(1,120)][int]$ToolTimeoutMinutes = 20
 )
 Set-StrictMode -Version Latest
@@ -253,16 +254,21 @@ if (-not $SkipFormat) {
 }
 $analyze = Execute 'flutter-analyze' $flutter @('analyze','--no-pub') $ToolTimeoutMinutes
 $allFiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'test') -Recurse -File -Filter '*_test.dart' | Sort-Object FullName)
-$global = Execute 'flutter-test-all' $flutter @(
-  'test','--reporter','json','--no-pub'
-) $TestTimeoutMinutes
-Collect-CompileLocations $global.Stdout '<full_suite>'
-Collect-CompileLocations $global.Stderr '<full_suite>'
-if ($global.ExitCode -eq 0) {
-  Read-TestEvents $global.Stdout '' 'full_suite'
+if (-not $SkipCombinedRun) {
+  $global = Execute 'flutter-test-all' $flutter @(
+    'test','--reporter','json','--no-pub'
+  ) $TestTimeoutMinutes
+  Collect-CompileLocations $global.Stdout '<full_suite>'
+  Collect-CompileLocations $global.Stderr '<full_suite>'
+  if ($global.ExitCode -eq 0) {
+    Read-TestEvents $global.Stdout '' 'full_suite'
+  } else {
+    Write-Host 'Combined run failed. Running each test file for complete isolation.' -ForegroundColor Yellow
+  }
 } else {
-  Write-Host 'Combined run failed. Running each test file for complete isolation.' -ForegroundColor Yellow
-  for ($i = 0; $i -lt $allFiles.Count; $i++) {
+  Write-Host 'Skipping combined run. Running each test file for complete isolation.' -ForegroundColor Yellow
+}
+for ($i = 0; $i -lt $allFiles.Count; $i++) {
     $relative = $allFiles[$i].FullName.Substring($root.Length).TrimStart('\','/').Replace('\','/')
     $name = ('individual-{0:D4}' -f ($i+1))
     Write-Host ("[{0}/{1}] {2}" -f ($i+1), $allFiles.Count, $relative)
@@ -289,7 +295,6 @@ if ($global.ExitCode -eq 0) {
       [void]$failures.Add($record)
     }
   }
-}
 $pass = @($cases | Where-Object { $_.status -eq 'success' }).Count
 $fail = @($cases | Where-Object { $_.status -eq 'failure' }).Count
 $errorCount = @($cases | Where-Object {
