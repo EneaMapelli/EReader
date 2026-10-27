@@ -40,6 +40,6 @@ void main() {
     expect(guide, contains('-SoakIterations 500'));
     expect(guide, contains('-IncludeCorpus -DeepCorpus'));
     expect(guide, contains('-AcceptNativeRisk'));
-    expect(guide, contains('Non aggiungere -PublishSummary'));
+    expect(guide, contains('NON aggiungere -PublishSummary'));
   });
 }
