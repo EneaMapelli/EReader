@@ -165,6 +165,44 @@ void main() {
     expect(consent.maxCharacters, 0);
   });
 
+  test('PDF page restores without changing narrated source position',
+      () async {
+    final pdf = File(p.join(root.path, 'sample.pdf'));
+    await pdf.writeAsBytes('%PDF-1.4\nsample static test fixture'
+        .codeUnits);
+    final saved = await source.importFile(pdf.path);
+    await source.savePosition(saved.id, 5);
+    source.savePdfVisualPage(saved.id, 7);
+    final exported = await source.exportLibraryBackup(exports);
+    final restored = await target.restoreLibraryBackup(exported.directory);
+    expect(restored.added, 1);
+    expect(target.getBook(saved.id)!.progressOffset, 5);
+    expect(target.getPdfVisualPage(saved.id), 7);
+  });
+
+  test('corrupted SQLite backup fails closed before copying books',
+      () async {
+    await add(source, 'book.txt', 'One unchanged ebook');
+    final exported = await source.exportLibraryBackup(exports);
+    final db = File(p.join(exported.directory.path, 'library.sqlite'));
+    await db.writeAsString('Corrupt database contents', flush: true);
+    await expectLater(target.restoreLibraryBackup(exported.directory),
+        throwsA(anything));
+    expect(target.books, isEmpty);
+  });
+
+  test('existing unrelated managed file cannot be silently overwritten',
+      () async {
+    final id = await add(source, 'book.txt', 'Original backup bytes');
+    final exported = await source.exportLibraryBackup(exports);
+    final conflicting = File(p.join(targetHome.path, 'books', '$id.txt'));
+    await conflicting.writeAsString('Different private data');
+    await expectLater(target.restoreLibraryBackup(exported.directory),
+        throwsFormatException);
+    expect(await conflicting.readAsString(), 'Different private data');
+    expect(target.books, isEmpty);
+  });
+
   test('backup folder inside the active library is forbidden', () async {
     await add(source, 'novel.txt', 'Local library original');
     final exported = await source.exportLibraryBackup(exports);
