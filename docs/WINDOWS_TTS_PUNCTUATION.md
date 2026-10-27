@@ -97,3 +97,24 @@ Compilazione e pubblicazione della prerelease concluse con successo:
 
 Questa è una verifica di **compilazione**, non una misura della qualità
 della pronuncia. Per validarla servono i primi ascolti su Windows.
+
+## Continuità per titoli, iniziali e acronimi (2026-10-27)
+
+Il pianificatore Windows riconosce ora un piccolo insieme di **titoli**
+seguiti da un nome con iniziale maiuscola, per esempio «Dott. Rossi» e
+«Mr. Darcy», oltre alle iniziali di autore «J. R. R. Tolkien» e agli
+acronimi puntati come «U.S.A.». I punti all'interno del nome producono
+una separazione lessicale ma non una pausa di fine frase. Il testo mostrato
+e i suoi offset sorgente NON cambiano e la voce non riceve segni che
+potrebbe pronunciare come «punto».
+
+L'euristica è deliberatamente limitata: non riconosce tutte le
+abbreviazioni del mondo, non modifica i punti nelle cifre e non tenta
+di correggere automaticamente gli acronimi con pronunce specifiche.
+La punteggiatura tra due vere frasi continua a produrre pause. È
+possibile mantenere il profilo di punteggiatura nativo Windows tramite
+l'opzione TTS già esistente.
+
+Aggiunti test Dart puri sulle abbreviazioni italiane e inglesi, le
+iniziali, gli acronimi, la punteggiatura normale e i casi di termine
+frase. **Test scritti ma non eseguiti**, nessuna build/Action avviata.

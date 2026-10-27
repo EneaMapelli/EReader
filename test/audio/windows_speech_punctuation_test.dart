@@ -57,6 +57,33 @@ void main() {
         ['È là', '🐉', 'disse']);
   });
 
+  test('Italian and English title abbreviations do not break names', () {
+    const source = 'Il Dott. Rossi incontrò Mr. Darcy. Poi uscirono.';
+    expect(words(source), ['Il Dott Rossi incontrò Mr Darcy', 'Poi uscirono']);
+    expect(pauses(source), [360, 360]);
+  });
+
+  test('author initials and dotted acronyms avoid unnatural full stops', () {
+    expect(words('J. R. R. Tolkien scrisse. A. Manzoni anche.'),
+        ['J R R Tolkien scrisse', 'A Manzoni anche']);
+    expect(pauses('J. R. R. Tolkien scrisse. A. Manzoni anche.'),
+        [360, 360]);
+    expect(words('Gli U.S.A. hanno risposto.'),
+        ['Gli U S A', 'hanno risposto']);
+  });
+
+  test('ordinary sentence boundaries and trailing titles remain pauses', () {
+    expect(words('Una frase. Poi un’altra. Fine.'),
+        ['Una frase', 'Poi un’altra', 'Fine']);
+    expect(pauses('Una frase. Poi un’altra. Fine.'), [360, 360, 360]);
+    expect(words('È arrivato il dott.'),
+        ['È arrivato il dott']);
+    expect(pauses('È arrivato il dott.'), [360]);
+    // Only listed titles or isolated uppercase initials qualify.
+    expect(words('Si vede la Stella. Marco guarda.'),
+        ['Si vede la Stella', 'Marco guarda']);
+  });
+
   test('empty or punctuation-only input produces no native utterance',
       () {
     expect(interpreter.plan(''), isEmpty);

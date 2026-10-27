@@ -1740,3 +1740,15 @@ database quota is modified. No new API calls or account billing claims.
 This is **not** a monetary hard stop; variable tariffs, failed calls and
 provider-side accounting remain outside local guarantees. Pure Dart tests
 authored but NOT RUN. No Windows build or GitHub Actions workflow started.
+
+### 2026-10-27 — Windows native-voice name and acronym continuity
+
+Extended the existing Windows-only speech punctuation planner: selected
+proper-name titles (Dott., Mr., Dr., Prof. etc.), capitalized initials
+(J. R. R. Tolkien) and internal dotted acronyms (U.S.A.) no longer
+generate artificial full-stop pauses. Only the transient spoken phrase
+changes; displayed source, UTF-16 anchors, dialogue casting, pronunciation
+rules and cloud/offline TTS providers are untouched. The allow-list
+deliberately avoids generic sentence punctuation and decimal separators.
+Added targeted pure-Dart tests but DID NOT RUN them or native Windows
+audio verification. Manual-only Actions policy unchanged.

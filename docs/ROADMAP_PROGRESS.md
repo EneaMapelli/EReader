@@ -509,3 +509,13 @@ Added explicit one-click Piper Paola installation in the Windows offline voice m
   determinati dal provider. Mancano ancora prezzi ufficiali verificati,
   ceiling monetario multi-sessione, reporting da API e secondo provider.
   Test puri aggiunti ma NON eseguiti; nessuna nuova Action o build.
+
+### M2 — continuous proper names in Windows speech (2026-10-27)
+
+Windows system narration now avoids extra period pauses in recognized
+titles followed by capitalized names, author initials and internal
+uppercase dotted acronyms, while retaining normal sentence pauses.
+Source offsets, LLM/cast and cloud character usage are unchanged.
+Test cases authored but NOT executed. M2 remains ~70% and overall
+~55% estimated until native Windows listening and green regression gates.
+No Windows build or Actions workflow was started.

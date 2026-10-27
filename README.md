@@ -287,3 +287,13 @@ Non memorizza né aggiorna prezzi e non offre una garanzia di spesa massima:
 il tetto tecnicamente applicato prima delle richieste cloud rimane quello
 sui caratteri, con lo storico già consumato incluso. Questa funzionalità
 non avvia alcuna build Windows né invoca API.
+
+### Nomi e sigle pronunciati senza pause inutili su Windows
+
+Le voci di sistema Windows con **interpreted pauses** non inseriscono
+più pause da fine frase tra titoli e nomi (per esempio «Dott. Rossi»),
+iniziali («J. R. R. Tolkien») o lettere interne delle sigle («U.S.A.»).
+La modifica riguarda soltanto il testo temporaneamente consegnato al
+TTS; il libro originale e i segnalibri restano invariati. Per confrontare
+il comportamento della voce Windows è ancora disponibile la modalità
+**native punctuation**. Test automatici nuovi non ancora eseguiti.
