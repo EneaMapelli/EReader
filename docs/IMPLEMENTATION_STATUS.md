@@ -1663,3 +1663,7 @@ but not run; a Windows portable Release rebuild was requested.
 ### 2026-10-26 — free Windows speech engine choices
 
 Native/free speech can be selected with interpreted pauses or OS-native punctuation; both use the installed Windows voice list. Existing native VITS can now be explicitly selected in a Windows alpha after a user-supplied local voice pack has been installed and checked, re-verifying on open and never downloading model data or falling back to the paid cloud. Kokoro 82M and Chatterbox are research candidates, not working providers. Source/checkbox and factory tests are authored but not executed. Native audio and End/Stop stability are manual gates. Details: [FREE_TTS_ENGINES.md](FREE_TTS_ENGINES.md).
+
+### 2026-10-27 — Paola one-click Windows voice installer
+
+The existing experimental VITS/Piper adapter gains a curated Italian Paola installer under the offline neural voice manager. Download requires explicit approval and is bounded to an official model archive with pinned published SHA-256; staging is private, the pack is hash-checked, and only expected assets reach atomic installation. No Python conversion, model in the EXE, background downloads or cloud fallback. Test code authored but not executed; manual installation and Windows audio still open validation gates. [PIPER_PAOLA_ONE_CLICK.md](PIPER_PAOLA_ONE_CLICK.md).
