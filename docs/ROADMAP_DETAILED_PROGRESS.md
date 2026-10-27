@@ -305,3 +305,14 @@ aggiornati, non eseguiti; nessuna illustrazione inventata.
   ancora **non eseguiti**. Griglie complesse HTML/CSS restano escluse.
   Avanzamento M2 ~70%, totale ~55%.
   [Specifica](EPUB_FIGURE_CAPTION_TABLE_FLOW.md).
+
+### M1 — Import multiplo ebook nella biblioteca (2026-10-27)
+
+Il picker di Windows/Android permette fino a 50 EPUB/PDF/TXT in un'unica
+selezione. Import seriale, progressi/cancellazione tra file, errori
+isolati, riconoscimento duplicati tramite SHA-256 e supporto Android
+SAF senza percorso, mantenendo l'archiviazione locale originale.
+Nessuna richiesta TTS o cloud durante l'importazione; ripresa e dati
+SQLite dei duplicati restano invariati. Test scritti, non eseguiti;
+manca ancora drag&drop Esplora risorse e integrazione con librerie
+esterne. [Dettagli](LIBRARY_BATCH_IMPORT.md).
