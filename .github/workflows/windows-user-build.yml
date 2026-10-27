@@ -1,29 +1,11 @@
 name: EReader Windows portable user build
 
-# Building is independent from the manual Flutter analyzer/test suite.
-# The initial push adding this workflow requests one unsigned user build.
-# Subsequent source commits do NOT automatically consume Windows runner time.
+# MANUAL ONLY. The user explicitly requested that no GitHub Actions
+# minutes are consumed by routine source commits. Do not add push, pull_request,
+# schedule, workflow_run or other automatic triggers without their approval.
+# Start via GitHub Actions > EReader Windows portable user build > Run workflow
+# ONLY after the user requests a new Windows executable.
 on:
-  push:
-    branches:
-      - feature/m0-flutter-foundation
-    paths:
-      - .github/workflows/windows-user-build.yml
-      - tool/build-windows.ps1
-      - lib/audio/speech_engine.dart
-      - lib/audio/windows_speech_punctuation.dart
-      - lib/audio/speech_engine_factory.dart
-      - lib/audio/sherpa_vits_engine.dart
-      - lib/features/reader/reader_screen.dart
-      - lib/features/reader/speech_provider_screen.dart
-      - lib/data/offline_voice_pack.dart
-      - lib/data/piper_paola_installer.dart
-      - lib/features/reader/offline_voice_manager_screen.dart
-      - test/audio/free_tts_selection_test.dart
-      - test/data/piper_paola_installer_test.dart
-      - lib/features/library/library_screen.dart
-      - lib/data/batch_book_import.dart
-      - test/data/batch_book_import_test.dart
   workflow_dispatch:
 
 # A private GitHub prerelease is written only AFTER a verified Windows
