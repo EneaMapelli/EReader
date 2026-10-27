@@ -8,6 +8,7 @@ import 'package:ereader/audio/sherpa_vits_worker.dart';
 import 'package:ereader/data/offline_voice_pack.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import '../support/windows_temp_cleanup.dart';
 
 void _fakeReusableWorker((SendPort, VitsSessionModel) init) async {
   final incoming = ReceivePort();
@@ -90,7 +91,7 @@ void main() {
     root = await Directory.systemTemp.createTemp('ereader-vits-session-');
   });
   tearDown(() async {
-    if (await root.exists()) await root.delete(recursive: true);
+    await deleteOwnedTestTemp(root);
   });
 
   test('two sequential WAVs use same model worker and numbered requests',

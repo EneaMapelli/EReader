@@ -7,6 +7,7 @@ import 'package:ereader/features/reader/offline_voice_manager_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import '../support/windows_temp_cleanup.dart';
 
 void main() {
   late Directory root;
@@ -31,7 +32,7 @@ void main() {
   });
 
   tearDown(() async {
-    if (await root.exists()) await root.delete(recursive: true);
+    await deleteOwnedTestTemp(root);
   });
 
   Future<void> mount(WidgetTester tester) async {

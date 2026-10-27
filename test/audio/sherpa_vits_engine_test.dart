@@ -8,6 +8,7 @@ import 'package:ereader/audio/offline_wav_cleanup.dart';
 import 'package:ereader/data/offline_voice_pack.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import '../support/windows_temp_cleanup.dart';
 
 class _FakeWaveOutput implements OfflineWaveOutput {
   final playedBytes = <List<int>>[];
@@ -143,7 +144,7 @@ void main() {
   });
 
   tearDown(() async {
-    if (await root.exists()) await root.delete(recursive: true);
+    await deleteOwnedTestTemp(root);
   });
 
   Future<void> fakeSynthesize({
@@ -492,9 +493,7 @@ void main() {
     output.playGate = playing;
     final first = synth.speak('First',
         language: 'en-US', rate: 0.5, pitch: 1);
-    for (var i = 0; i < 50 && output.filePaths.isEmpty; i++) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await waitForNativeCondition(() => output.filePaths.isNotEmpty);
     expect(output.filePaths, hasLength(1));
     await synth.prepareOfflineSpeech('Second',
         voice: null, language: 'en-US', rate: 0.5, pitch: 1);
@@ -588,9 +587,7 @@ void main() {
     );
     final first = synth.speak('First',
         language: 'en-US', rate: 0.5, pitch: 1);
-    for (var i = 0; i < 100 && primary.plays == 0; i++) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await waitForNativeCondition(() => primary.plays > 0);
     expect(primary.plays, 1);
     expect(standby.plays, 0);
 
@@ -633,9 +630,7 @@ void main() {
     );
     final first = synth.speak('First',
         language: 'en-US', rate: 0.5, pitch: 1);
-    for (var i = 0; i < 100 && primary.plays == 0; i++) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await waitForNativeCondition(() => primary.plays > 0);
     await synth.prepareOfflineSpeech('Predicted',
         voice: null, language: 'en-US', rate: 0.5, pitch: 1);
     final wav = standby.loaded.single;
@@ -643,9 +638,7 @@ void main() {
     await first;
     final actual = synth.speak('Actual',
         language: 'en-US', rate: 0.5, pitch: 1);
-    for (var i = 0; i < 100 && standby.stops == 0; i++) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await waitForNativeCondition(() => standby.stops > 0);
     expect(standby.stops, 1);
     expect(await File(wav).exists(), isTrue,
         reason: 'File remains owned while standby native Stop is pending');
@@ -665,9 +658,7 @@ void main() {
     output.playGate = gate;
     final first = synth.speak(
         'First', language: 'en-US', rate: 0.5, pitch: 1);
-    for (var n = 0; n < 50 && output.filePaths.isEmpty; n++) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await waitForNativeCondition(() => output.filePaths.isNotEmpty);
     expect(output.filePaths, hasLength(1));
     await synth.prepareOfflineSpeech(
       'Second', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
@@ -699,9 +690,7 @@ void main() {
     output.playGate = gate;
     final first = synth.speak(
         'First', language: 'en-US', rate: 0.5, pitch: 1);
-    for (var n = 0; n < 50 && output.filePaths.isEmpty; n++) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await waitForNativeCondition(() => output.filePaths.isNotEmpty);
     expect(output.filePaths, hasLength(1));
     await synth.prepareOfflineSpeech(
       'Predicted', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
@@ -744,9 +733,7 @@ void main() {
     output.playGate = gate;
     final first = synth.speak(
         'First', language: 'en-US', rate: 0.5, pitch: 1);
-    for (var n = 0; n < 50 && output.filePaths.isEmpty; n++) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await waitForNativeCondition(() => output.filePaths.isNotEmpty);
     expect(output.filePaths, hasLength(1));
     final preparing = synth.prepareOfflineSpeech(
       'Next', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
@@ -777,9 +764,7 @@ void main() {
     output.playGate = Completer<void>();
     final first = synth.speak(
         'First', language: 'en-US', rate: 0.5, pitch: 1);
-    for (var n = 0; n < 50 && output.filePaths.isEmpty; n++) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await waitForNativeCondition(() => output.filePaths.isNotEmpty);
     expect(output.filePaths, hasLength(1));
     await synth.prepareOfflineSpeech(
       'Second', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
@@ -814,9 +799,7 @@ void main() {
     output.playGate = Completer<void>();
     final first = synth.speak(
         'First', language: 'en-US', rate: 0.5, pitch: 1);
-    for (var n = 0; n < 50 && output.filePaths.isEmpty; n++) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await waitForNativeCondition(() => output.filePaths.isNotEmpty);
     final speculative = synth.prepareOfflineSpeech(
       'Second', voice: null, language: 'en-US', rate: 0.5, pitch: 1);
     await entered.future;

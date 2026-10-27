@@ -159,3 +159,14 @@ localmente prima di analizzare o provare la suite.
 Queste modifiche sono soltanto sorgenti; nessun test Windows è stato
 eseguito nell'ambiente di modifica GitHub. Il report originale resta
 una misura del commit precedente e non convalida le correzioni.
+
+## Test VITS con file temporanei su Windows
+
+I test audio/widget utilizzano una pulizia limitata a 5 secondi con retry
+sul solo percorso casuale creato dal test. Il timeout NON viene soppresso:
+se un decoder/worker continua a trattenere il file, la suite registra
+ancora l'errore. Le attese sul completamento I/O VITS adesso sono
+limitate dal tempo effettivo (5 secondi), invece di usare solo 50–100
+turni microtask, che su Windows possono finire prima dell'accesso disco.
+Queste sono modifiche ai fixture di test, non un'affermazione che il
+motore audio abbia già superato i test nativi.
