@@ -642,6 +642,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   if (_importTotal > 0) _batchImportProgress(),
                   if (_exportingBackup)
                     Text('Backing up books: $_backupCompleted / $_backupTotal'),
+                  if (_restoringBackup && _restoreTotal == 0)
+                    const Text('Checking library backup integrity...'),
                   if (_restoringBackup && _restoreTotal > 0)
                     Text('Restoring books: $_restoreDone / $_restoreTotal'),
                   const SizedBox(height: 20),
@@ -656,6 +658,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
           : Column(
               children: [
                 if (_importTotal > 0) _batchImportProgress(),
+                if (_restoringBackup && _restoreTotal == 0)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    child: Column(
+                      children: [
+                        LinearProgressIndicator(),
+                        Text('Checking backup integrity...'),
+                      ],
+                    ),
+                  ),
                 if (_restoringBackup && _restoreTotal > 0)
                   Padding(
                     padding: const EdgeInsets.symmetric(
