@@ -71,6 +71,110 @@ Future<void> _waitFor(bool Function() reached) async {
 }
 
 void main() {
+  test('second decoder preloads during playback and reuses setFilePath',
+      () async {
+    final first = _ControlledDecoder()..playbackGate = Completer<void>();
+    final second = _ControlledDecoder();
+    var created = 0;
+    final output = DualJustAudioWaveOutput(
+      decoderFactory: () => created++ == 0 ? first : second,
+    );
+    final playing = output.play('first.wav');
+    await _waitFor(() => first.playCalls == 1);
+    await output.prepareNext('second.wav');
+    expect(first.playCalls, 1);
+    expect(second.events, ['load:start:second.wav', 'load:done:second.wav']);
+    expect(second.playCalls, 0,
+        reason: 'Warming the next decoder must never play it');
+    first.playbackGate!.complete();
+    await playing;
+    await output.play('second.wav');
+    expect(second.playCalls, 1);
+    expect(second.events
+        .where((event) => event.startsWith('load:start:')).length, 1,
+        reason: 'Playback must reuse its preloaded native source');
+    expect(first.stopCalls, 1);
+    await output.dispose();
+    expect(first.disposed, isTrue);
+    expect(second.disposed, isTrue);
+    expect(created, 2);
+  });
+
+  test('obsolete speculative load never blocks correct audible clip',
+      () async {
+    final first = _ControlledDecoder()..playbackGate = Completer<void>();
+    final second = _ControlledDecoder()..loadGate = Completer<void>();
+    var created = 0;
+    final output = DualJustAudioWaveOutput(
+        decoderFactory: () => created++ == 0 ? first : second);
+    final ongoing = output.play('one.wav');
+    await _waitFor(() => first.playCalls == 1);
+    final speculative = output.prepareNext('predicted.wav');
+    await _waitFor(() => second.loading);
+    first.playbackGate!.complete();
+    await ongoing;
+    // The correct WAV loads on the now-idle first decoder, without
+    // waiting for the other physical decoder's pending setFilePath.
+    final actual = output.play('actual.wav');
+    await _waitFor(() => first.playCalls == 2);
+    await actual;
+    expect(second.playCalls, 0);
+    expect(first.events, contains('load:start:actual.wav'));
+    second.loadGate!.complete();
+    await speculative;
+    await output.stop();
+    await output.dispose();
+    expect(second.stopCalls, 1,
+        reason: 'Wrong speculative WAV releases its decoder handle');
+  });
+
+  test('Stop waits for both decoder loads before WAV may be deleted',
+      () async {
+    final first = _ControlledDecoder()..playbackGate = Completer<void>();
+    final second = _ControlledDecoder()..loadGate = Completer<void>();
+    var created = 0;
+    final output = DualJustAudioWaveOutput(
+        decoderFactory: () => created++ == 0 ? first : second);
+    final playing = output.play('first.wav');
+    await _waitFor(() => first.playCalls == 1);
+    final speculative = output.prepareNext('next.wav');
+    await _waitFor(() => second.loading);
+    var stopped = false;
+    final stopping = output.stop().then((_) => stopped = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(stopped, isFalse,
+        reason: 'Private WAV remains owned until standby decoder stops');
+    expect(second.stopCalls, 0,
+        reason: 'Native Stop must wait until setFilePath has settled');
+    second.loadGate!.complete();
+    await speculative;
+    await Future.wait([playing, stopping]);
+    expect(stopped, isTrue);
+    expect(first.stopCalls, 1);
+    expect(second.stopCalls, 1);
+    await output.dispose();
+  });
+
+  test('Stop during pending warm load prevents stale decoder playback',
+      () async {
+    final first = _ControlledDecoder()..playbackGate = Completer<void>();
+    final second = _ControlledDecoder()..loadGate = Completer<void>();
+    var created = 0;
+    final output = DualJustAudioWaveOutput(
+        decoderFactory: () => created++ == 0 ? first : second);
+    final playing = output.play('first.wav');
+    await _waitFor(() => first.playCalls == 1);
+    final speculative = output.prepareNext('next.wav');
+    await _waitFor(() => second.loading);
+    final stopped = output.stop();
+    second.loadGate!.complete();
+    await Future.wait([playing, speculative, stopped]);
+    await output.play('new.wav');
+    expect(first.playCalls, 2);
+    expect(second.playCalls, 0);
+    await output.dispose();
+  });
+
   test('Stop during slow setFilePath waits for it, then blocks stale Play',
       () async {
     final decoder = _ControlledDecoder()..loadGate = Completer<void>();

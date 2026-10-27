@@ -400,3 +400,13 @@ deleting a WAV held by Windows.
 This is a decoder-handoff optimization, NOT a claim of zero audio gaps.
 Audible output timing, device contention and native Stop performance
 must be tested on Windows. Tests are authored but not run here.
+
+### Two-decoder synthetic races
+
+Four decoder-only regressions cover (1) independent next-WAV native load
+while the current decoder remains audible and exact reuse without a
+second native `setFilePath`, (2) changed prediction while standby load
+hangs, (3) Stop awaiting both native decoder loads before WAV release,
+and (4) preventing replay of a late prepared WAV after Stop. No real
+sound card is required and no cloud/provider requests are made.
+Tests are written but were not run in this GitHub editing session.
