@@ -245,3 +245,23 @@ lock implementations are process-scoped. OS-exclusive file locking still
 protects separate processes; both checks must pass before recovery.
 The registry contains only private staging directory paths and is never
 exported, persisted, printed or uploaded.
+
+## Interrupted metadata cleanup and concurrent scan hardening (2026-10-27)
+
+A normal close may crash AFTER removing the marker but BEFORE removing
+the empty lease-file metadata. The recovery pass now recognizes exactly
+one exceptionally narrow unmarked layout: a version-prefixed directory
+containing only its regular, EMPTY lease file. It obtains the same
+exclusive OS lock, revalidates the layout, and removes that empty
+metadata. **Unmarked WAV directories remain untouchable**, even when
+they use familiar audio folder names. Unexpected files, non-empty
+leases, symlinks and arbitrary directories are skipped.
+
+A same-process candidate guard also prevents simultaneous recovery
+passes from racing to unlock/delete the same directory. close() is
+single-flight: concurrent dispose callers wait for its actual lock
+release. Failure to enumerate individual temporary files is
+best-effort cleanup rather than a reason to fail new VITS playback.
+Five additional tests cover metadata interruption, unmarked WAV
+preservation, unexpected files, concurrent scans and repeated close.
+No Dart/Flutter test execution or native Windows builds occurred.

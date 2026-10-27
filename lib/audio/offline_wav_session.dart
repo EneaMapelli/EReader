@@ -20,10 +20,13 @@ class OfflineWavSession {
   // in-process engine instances from reclaiming each other's live WAVs.
   // The OS lease separately guards against other processes.
   static final Set<String> _liveSessionPaths = <String>{};
+  // Two simultaneous recovery scans within one process must never try
+  // to acquire or unlink the same OS lease independently.
+  static final Set<String> _recoveringPaths = <String>{};
 
   final Directory directory;
   final RandomAccessFile _lease;
-  bool _closed = false;
+  Future<void>? _closing;
 
   static File _marker(Directory directory) =>
       File(p.join(directory.path, markerName));
@@ -54,9 +57,9 @@ class OfflineWavSession {
   /// Only closes the lease after every caller has finished with the WAV
   /// folders. If no clips remain, remove the empty session metadata too.
   /// If Windows still owns a WAV, leave the MARKED session for next launch.
-  Future<void> close() async {
-    if (_closed) return;
-    _closed = true;
+  Future<void> close() => _closing ??= _closeOnce();
+
+  Future<void> _closeOnce() async {
     try {
       final contents = await directory.list(followLinks: false).toList();
       final empty = contents.length == 2 &&
@@ -142,79 +145,133 @@ class OfflineWavSession {
     return sawMarker && sawLease ? result : null;
   }
 
+  /// Some Windows crashes can interrupt close() after the ownership
+  /// marker has been removed but before the lease file/directory are
+  /// unlinked. ONLY a strictly empty, lease-only directory can be
+  /// recovered without an ownership marker; WAVs remain forbidden.
+  static Future<bool> _isLeaseOnlyMetadata(Directory directory) async {
+    if (await FileSystemEntity.type(directory.path, followLinks: false) !=
+        FileSystemEntityType.directory) return false;
+    var count = 0;
+    await for (final entry in directory.list(followLinks: false)) {
+      if (++count > 1 ||
+          p.basename(entry.path) != leaseName ||
+          await FileSystemEntity.type(entry.path, followLinks: false) !=
+              FileSystemEntityType.file) return false;
+      // An exclusive OS record lock does not modify file contents.
+      // The private lease file is created empty and never written to.
+      if (await File(entry.path).length() != 0) return false;
+    }
+    return count == 1;
+  }
+
   /// Bounded recovery on explicit experimental VITS engine initialization.
   ///
-  /// Deletion is permitted only after obtaining the non-blocking exclusive
-  /// lease of a marked, strictly validated session. Live readers keep their
-  /// lock so multiple Windows processes cannot delete each other's WAVs.
-  /// No file names, book text, audio or private paths are logged.
+  /// Marked, strictly allowlisted WAV folders can be deleted ONLY after
+  /// taking their unlocked exclusive lease. A special metadata-only mode
+  /// may remove an otherwise-empty abandoned lease directory, never WAVs.
+  /// A running reader is guarded by both OS locks and a same-process
+  /// registry. This never traverses arbitrary user directories recursively.
   static Future<int> recoverAbandoned(Directory tempRoot) async {
     if (await FileSystemEntity.type(tempRoot.path, followLinks: false) !=
         FileSystemEntityType.directory) return 0;
     var seen = 0;
     var candidates = 0;
     var recovered = 0;
-    await for (final entry in tempRoot.list(followLinks: false)) {
-      if (++seen > maxRootEntries || candidates >= maxScannedSessions) {
-        break;
-      }
-      if (!p.basename(entry.path).startsWith(sessionPrefix) ||
-          entry is! Directory) continue;
-      candidates++;
-      final candidate = Directory(entry.path);
-      if (_liveSessionPaths.contains(
-          p.normalize(candidate.absolute.path))) continue;
-      try {
-        if (!await _isValidSession(candidate)) continue;
-        // Validate BEFORE trying to lock; a malformed tree is untouched.
-        var clips = await _clips(candidate);
-        if (clips == null) continue;
-        final lease = await _leaseFile(candidate).open(mode: FileMode.append);
-        var locked = false;
-        try {
-          try {
-            await lease.lock(FileLock.exclusive); // Nonblocking attempt.
-            locked = true;
-          } on FileSystemException {
-            continue; // Another live engine owns this session.
-          }
-          // Verify AGAIN after locking: the directory could have changed.
-          if (!await _isValidSession(candidate)) continue;
-          clips = await _clips(candidate);
-          if (clips == null) continue;
-          var succeeded = true;
-          for (final folder in clips) {
-            try {
-              final wav = File(p.join(folder.path, 'speech.wav'));
-              if (await FileSystemEntity.type(wav.path,
-                      followLinks: false) == FileSystemEntityType.file) {
-                await wav.delete();
-              }
-              await folder.delete(); // Nonrecursive, strict allowlist.
-            } on FileSystemException {
-              succeeded = false;
-              break;
-            }
-          }
-          if (!succeeded) continue;
-          await _marker(candidate).delete();
-          recovered++;
-        } finally {
-          if (locked) {
-            try { await lease.unlock(); } on FileSystemException {}
-          }
-          await lease.close();
+    try {
+      await for (final entry in tempRoot.list(followLinks: false)) {
+        if (++seen > maxRootEntries || candidates >= maxScannedSessions) {
+          break;
         }
-        // Remove only the now-unmarked metadata directory, no recursion.
+        if (!p.basename(entry.path).startsWith(sessionPrefix) ||
+            entry is! Directory) continue;
+        candidates++;
+        final candidate = Directory(entry.path);
+        final path = p.normalize(candidate.absolute.path);
+        if (_liveSessionPaths.contains(path) ||
+            !_recoveringPaths.add(path)) continue;
         try {
-          await _leaseFile(candidate).delete();
-          await candidate.delete();
-        } on FileSystemException {}
-      } on FileSystemException {
-        // Locked or inaccessible files remain for a future attempt.
-      } on FormatException {
-        // Malformed markers are never treated as authoritative.
+          final marked = await _isValidSession(candidate);
+          if (marked) {
+            if (await _clips(candidate) == null) continue;
+          } else if (!await _isLeaseOnlyMetadata(candidate)) {
+            continue;
+          }
+          // This lease is known to exist as a regular file at both
+          // validation stages. Never create one for arbitrary folders.
+          final lease = await _leaseFile(candidate).open(mode: FileMode.append);
+          var locked = false;
+          var eligible = false;
+          try {
+            try {
+              // FileLock.exclusive is non-blocking. A live process must
+              // never hold up reopening the reader's native voice.
+              await lease.lock(FileLock.exclusive);
+              locked = true;
+            } on FileSystemException {
+              continue;
+            }
+            // Revalidate UNDER the lease: another recovery operation or
+            // malicious local file replacement could have changed content.
+            if (await _isValidSession(candidate)) {
+              final clips = await _clips(candidate);
+              if (clips == null) continue;
+              var allRemoved = true;
+              for (final folder in clips) {
+                try {
+                  final wav = File(p.join(folder.path, 'speech.wav'));
+                  final type = await FileSystemEntity.type(
+                      wav.path, followLinks: false);
+                  if (type == FileSystemEntityType.file) {
+                    await wav.delete();
+                  } else if (type != FileSystemEntityType.notFound) {
+                    allRemoved = false;
+                    break;
+                  }
+                  // Deletion is intentionally NOT recursive.
+                  await folder.delete();
+                } on FileSystemException {
+                  allRemoved = false;
+                  break;
+                }
+              }
+              if (!allRemoved) continue;
+              await _marker(candidate).delete();
+              eligible = true;
+            } else if (await _isLeaseOnlyMetadata(candidate)) {
+              // Never use this branch to recover an unmarked WAV, even
+              // if it shares our prefix or looks like our audio layout.
+              eligible = true;
+            }
+          } finally {
+            if (locked) {
+              try { await lease.unlock(); } on FileSystemException {}
+            }
+            await lease.close();
+          }
+          if (!eligible) continue;
+          // No recursive deletion and no unknown contents permitted.
+          // These two operations may be blocked transiently on Windows.
+          try {
+            if (!await _isLeaseOnlyMetadata(candidate)) continue;
+            await _leaseFile(candidate).delete();
+            await candidate.delete();
+            recovered++;
+          } on FileSystemException {
+            // The next scan can finish strictly empty metadata.
+          }
+        } on FileSystemException {
+          // Live file locks, permission failures and unreadable entries
+          // must never prevent the user from opening a new book.
+        } on FormatException {
+          // Unknown marker data is never treated as proof of ownership.
+        } finally {
+          _recoveringPaths.remove(path);
+        }
       }
+    } on FileSystemException {
+      // Failure to enumerate temp-root entries is best-effort cleanup,
+      // NOT a fatal error for the next native VITS session.
     }
     return recovered;
   }

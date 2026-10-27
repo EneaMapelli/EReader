@@ -379,3 +379,12 @@ appartenenti a sessioni concluse o terminate anormalmente, senza
 toccare quelli di istanze ancora attive. Cartelle senza identificatore
 e contenuti non riconosciuti vengono sempre lasciati intatti.
 Le verifiche native su Windows sono ancora necessarie.
+
+### Recupero dei file di lock rimasti dopo un crash
+
+Se Windows interrompe la chiusura dopo la rimozione del marcatore,
+EReader può recuperare anche una cartella di sessione contenente
+**soltanto** il file di lock vuoto. Il controllo resta rigoroso:
+una cartella senza marcatore ma con file WAV non viene mai eliminata
+automaticamente. Le scansioni concorrenti sono serializzate per
+sessione. La verifica effettiva dei lock su Windows resta necessaria.

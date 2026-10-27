@@ -58,6 +58,61 @@ void main() {
     expect(await root.list().toList(), isEmpty);
   });
 
+  test('metadata-only directory after interrupted close is recoverable',
+      () async {
+    final partial = await root.createTemp(OfflineWavSession.sessionPrefix);
+    await File(p.join(partial.path, OfflineWavSession.leaseName))
+        .writeAsBytes([]);
+    expect(await OfflineWavSession.recoverAbandoned(root), 1);
+    expect(await partial.exists(), isFalse);
+  });
+
+  test('unmarked lease plus WAV is NOT proof of ownership', () async {
+    final suspicious =
+        await root.createTemp(OfflineWavSession.sessionPrefix);
+    await File(p.join(suspicious.path, OfflineWavSession.leaseName))
+        .writeAsBytes([]);
+    final clip = await suspicious.createTemp('ereader-local-tts-');
+    final wav = File(p.join(clip.path, 'speech.wav'));
+    await wav.writeAsBytes([7, 8, 9]);
+    expect(await OfflineWavSession.recoverAbandoned(root), 0);
+    expect(await wav.readAsBytes(), [7, 8, 9]);
+  });
+
+  test('lease-only metadata with an unexpected file remains untouched',
+      () async {
+    final suspicious =
+        await root.createTemp(OfflineWavSession.sessionPrefix);
+    await File(p.join(suspicious.path, OfflineWavSession.leaseName))
+        .writeAsBytes([]);
+    final stranger = File(p.join(suspicious.path, 'notes.txt'));
+    await stranger.writeAsString('unrelated');
+    expect(await OfflineWavSession.recoverAbandoned(root), 0);
+    expect(await stranger.readAsString(), 'unrelated');
+  });
+
+  test('concurrent recovery sweeps reclaim one abandoned session once',
+      () async {
+    final old = await OfflineWavSession.create(root);
+    await addWav(old);
+    await old.close();
+    final results = await Future.wait([
+      OfflineWavSession.recoverAbandoned(root),
+      OfflineWavSession.recoverAbandoned(root),
+    ]);
+    expect(results.reduce((a, b) => a + b), 1);
+    expect(await root.list().toList(), isEmpty);
+  });
+
+  test('repeated calls to close wait for the same session cleanup', () async {
+    final session = await OfflineWavSession.create(root);
+    final first = session.close();
+    final second = session.close();
+    expect(identical(first, second), isTrue);
+    await Future.wait([first, second]);
+    expect(await session.directory.exists(), isFalse);
+  });
+
   test('legacy unmarked temp WAV is never touched', () async {
     final legacy = await root.createTemp('ereader-local-tts-');
     final wav = File(p.join(legacy.path, 'speech.wav'));

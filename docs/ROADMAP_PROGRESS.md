@@ -600,3 +600,13 @@ and unknown layouts are skipped, and old unmarked temp directories are
 intentionally untouched. On Dispose the lease survives until all staging
 work finalizers have finished. Device-level verification remains open.
 No Windows build or GitHub Actions was triggered.
+
+### M3 — interrupted WAV metadata cleanup (2026-10-27)
+
+Completed the narrow recovery gap where native shutdown had already
+removed the session marker but Windows could not remove an empty
+lease file. Only a strictly empty lease-only directory can now be
+reclaimed without the marker; never an unmarked WAV. Added
+same-process single-flight scan ownership and idempotent, awaitable
+session close. Five regression tests added, execution pending.
+No Windows compilation or GitHub Actions.
