@@ -358,34 +358,48 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
     bool ahead = false,
   }) async {
     final clock = Stopwatch()..start();
+    final epoch = _generation;
+    bool obsolete() => _disposed || epoch != _generation;
     try {
       final successful = await _synthesizeWaveNative(text, wavPath, rate);
       clock.stop();
-      if (successful) {
-        if (_validateNativeWaveOutput) {
-          try {
-            // Cheap bounded header inspection; no PCM is buffered and
-            // no book text or WAV path appears in an error message.
-            await inspectOfflinePcmWave(File(wavPath));
-          } catch (_) {
-            // Corrupted output invalidates this native ONNX instance.
-            // An optional lookahead is dropped; a later real speak may
-            // create a fresh worker rather than consuming bad output.
-            _nativeSession?.cancel();
-            _nativeSession = null;
-            throw const FormatException('Offline voice produced invalid PCM');
-          }
-        }
-        _diagnostics.recordSynthesis(
-          clock.elapsed,
-          ahead: ahead,
-          wholeProcessRssBytes: ProcessInfo.currentRss,
-        );
-      } else {
+      // Native FFI or an injected synthesizer may report SUCCESS after
+      // Stop invalidates this session. Never accept or count that result.
+      if (obsolete() || !successful) {
         _diagnostics.recordCancellation();
+        return false;
       }
-      return successful;
+      if (_validateNativeWaveOutput) {
+        try {
+          // Bounded PCM inspection; never retains the audio samples.
+          await inspectOfflinePcmWave(File(wavPath));
+        } catch (_) {
+          if (obsolete()) {
+            _diagnostics.recordCancellation();
+            return false;
+          }
+          // Only the CURRENT generation may retire its resident model.
+          // A stale post-Stop validation must not cancel a newer Play.
+          _nativeSession?.cancel();
+          _nativeSession = null;
+          throw const FormatException('Offline voice produced invalid PCM');
+        }
+      }
+      if (obsolete()) {
+        _diagnostics.recordCancellation();
+        return false;
+      }
+      _diagnostics.recordSynthesis(
+        clock.elapsed,
+        ahead: ahead,
+        wholeProcessRssBytes: ProcessInfo.currentRss,
+      );
+      return true;
     } catch (_) {
+      if (obsolete()) {
+        _diagnostics.recordCancellation();
+        return false;
+      }
       _diagnostics.recordFailure();
       rethrow;
     }

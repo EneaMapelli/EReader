@@ -355,3 +355,14 @@ test fixtures are deliberately not PCM; test callers can turn it on
 with `validateNativeWaveOutput: true`. Added valid PCM, malformed
 audible PCM and malformed lookahead/retry regression tests. Authored,
 NOT run here; Windows ONNX validation still required.
+
+## Post-Stop native result isolation (2026-10-27)
+
+Every attempted WAV generation captures the engine's session epoch.
+The result is discarded and counted as cancelled if Stop/Dispose
+invalidated it while native synthesis or asynchronous PCM validation
+was still pending. Importantly, a stale/cancelled WAV validation
+cannot kill the NEW model instance created by a later Play. Only the
+current epoch can mark a WAV valid or retire ONNX for corruption.
+Added a test where Stop, a new audible Play and the old native result
+arrive in that order. No physical device tests or builds executed.

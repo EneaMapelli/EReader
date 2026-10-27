@@ -477,6 +477,47 @@ void main() {
     expect(await root.list().toList(), isEmpty);
   });
 
+  test('late successful generation after Stop is not counted or played',
+      () async {
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    Future<void> late({
+      required String text,
+      required String modelPath,
+      required String tokensPath,
+      required String dataDir,
+      required String wavPath,
+      required double speed,
+    }) async {
+      if (text == 'Old') {
+        entered.complete();
+        await release.future;
+      }
+      await File(wavPath).writeAsBytes(_validPcmWav());
+    }
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack, synthesizer: late,
+      validateNativeWaveOutput: true,
+      output: output,
+      temporaryDirectory: () async => root,
+    );
+    final old = synth.speak('Old',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    await entered.future;
+    await synth.stop();
+    // A fresh Play runs before the stale synthesis response arrives.
+    await synth.speak('New',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    release.complete();
+    await old;
+    expect(output.filePaths, hasLength(1));
+    expect(synth.offlineVoiceStatistics.syntheses, 1,
+        reason: 'Old result is cancelled, only New is successful');
+    expect(synth.offlineVoiceStatistics.cancelledSyntheses, 1);
+    await synth.dispose();
+    expect(await root.list().toList(), isEmpty);
+  });
+
   test('native synthesis failure does not leak temporary voice audio',
       () async {
     Future<void> fails({
