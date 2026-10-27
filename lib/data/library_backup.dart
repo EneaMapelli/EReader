@@ -108,7 +108,7 @@ Future<LibraryBackupResult> exportPortableLibraryBackup({
     // Confirm it opens and includes exactly the expected book identities.
     final check = sqlite3.open(databaseSnapshot.path);
     try {
-      final status = check.select('PRAGMA integrity_check').first.values.first;
+      final status = check.select('PRAGMA integrity_check').first['integrity_check'];
       if (status != 'ok') {
         throw const FormatException('SQLite backup failed integrity check');
       }
