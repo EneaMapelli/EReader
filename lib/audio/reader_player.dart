@@ -310,7 +310,8 @@ class ReaderPlayer extends ChangeNotifier {
   OfflineVoiceStatistics? get offlineVoiceStatistics {
     final engine = _engine;
     return engine is OfflineVoiceDiagnosticsProvider
-        ? engine.offlineVoiceStatistics : null;
+        ? (engine as OfflineVoiceDiagnosticsProvider).offlineVoiceStatistics
+        : null;
   }
 
   bool get hasNext => currentIndex + 1 < _segments.length;

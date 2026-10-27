@@ -2,6 +2,7 @@ import 'package:ereader/audio/reader_player.dart';
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/domain/speech_preferences.dart';
 import 'package:ereader/domain/dialogue_segmenter.dart';
+import 'package:ereader/domain/cast_span.dart';
 import 'package:ereader/domain/speech_segment.dart';
 import 'package:flutter_test/flutter_test.dart';
 

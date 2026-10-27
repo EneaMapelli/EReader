@@ -143,3 +143,19 @@ Questo script crea commit e push del solo report filtrato della suite
 ordinaria; NON include i libri, i log raw, il soak o la qualifica ONNX.
 verify-local.ps1 non lo esegue mai automaticamente. Se non desideri
 pubblicare niente, non usarlo.
+
+## Ripristino degli errori di compilazione del 27/10
+
+Il report pubblicato come `test-results/runs/latest-analyze.txt`
+includeva 19 errori reali (oltre a lint/info), quindi
+`flutter analyze` NON era INFO_ONLY. Sono stati corretti cast delle
+statistiche offline, StateError non const, variabile mancante per
+test MP3, funzione di checkpoint dichiarata troppo tardi, stringhe
+Dart interpolate involontariamente, import PreparedCastSpeech e API
+`desktop_drop` 0.9.2. Il file lock delle dipendenze era ancora su
+`desktop_drop` 0.8.0: **eseguire `flutter pub get`** per rigenerarlo
+localmente prima di analizzare o provare la suite.
+
+Queste modifiche sono soltanto sorgenti; nessun test Windows è stato
+eseguito nell'ambiente di modifica GitHub. Il report originale resta
+una misura del commit precedente e non convalida le correzioni.

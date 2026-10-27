@@ -12,8 +12,8 @@ void main() {
     expect(runner, contains("'tool/offline_vits_soak_test.dart'"));
     expect(runner, contains("'run-example-corpus.ps1'"));
     expect(runner, contains("'run-offline-voice-qualification.ps1'"));
-    expect(runner, contains('if ($NativeVoiceSourceFolder -and '
-        '-not $AcceptNativeRisk)'));
+    expect(runner, contains(r'if ($NativeVoiceSourceFolder -and '
+        r'-not $AcceptNativeRisk)'));
     expect(runner, contains("publication='disabled'"));
     expect(runner, contains("windowsBuild='not-executed'"));
     expect(runner, contains("githubActions='not-triggered'"));

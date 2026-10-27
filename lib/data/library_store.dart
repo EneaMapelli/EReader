@@ -701,7 +701,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         // unique remapped bookmark IDs. No existing catalog row is touched.
         _transaction(_database, () {
           if (getBook(entry.id) != null) {
-            throw const StateError('Book appeared during restore');
+            throw StateError('Book appeared during restore');
           }
           _insert(_database, BookRecord(
             id: entry.id,

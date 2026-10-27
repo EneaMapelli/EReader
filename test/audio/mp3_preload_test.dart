@@ -87,12 +87,14 @@ void main() {
   Completer<void>? firstLoadGate;
   int failFileDeletions = 0;
   bool failStandbyFirstLoad = false;
+  bool failActiveFirstLoad = false;
 
   setUp(() async {
     nextLoadGate = null;
     firstLoadGate = null;
     failFileDeletions = 0;
     failStandbyFirstLoad = false;
+    failActiveFirstLoad = false;
     temp = await Directory.systemTemp.createTemp('ereader-mp3-warm-');
     decoders = [];
     output = JustAudioMp3Output(

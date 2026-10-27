@@ -113,6 +113,17 @@ void main() {
     await store.initialize();
   }
 
+  int activeCheckpoints() {
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    try {
+      final rows = db.select('SELECT book_id FROM speech_recovery_marker');
+      expect(rows.every((row) => row['book_id'] == bookId), isTrue);
+      return rows.length;
+    } finally {
+      db.dispose();
+    }
+  }
+
   test('real ReaderPlayer checkpoints before speech and pause clears it',
       () async {
     final engine = _SpeechEngine();
@@ -314,17 +325,6 @@ void main() {
     await restartStore();
     expect(store.interruptedNarrationBook, isNull);
   });
-
-  int activeCheckpoints() {
-    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
-    try {
-      final rows = db.select('SELECT book_id FROM speech_recovery_marker');
-      expect(rows.every((row) => row['book_id'] == bookId), isTrue);
-      return rows.length;
-    } finally {
-      db.dispose();
-    }
-  }
 
   test('seek preserves crash checkpoint while native stop is pending',
       () async {
