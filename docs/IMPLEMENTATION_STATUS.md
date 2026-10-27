@@ -1712,3 +1712,17 @@ screen now exposes a restore preview, consent and progress.
 `test/data/library_backup_restore_test.dart` is authored, NOT RUN;
 no Windows Release or Actions workflow was triggered.
 [Documentation](LIBRARY_BACKUP_RESTORE.md).
+
+### 2026-10-27 — Windows Explorer drag-and-drop book import
+
+Pinned `desktop_drop 0.9.2` adds file-only `DropTarget` to the
+Windows library screen, with full-window overlay and explicit hints.
+Dropped EPUB/PDF/TXT files are sanitized and mapped to the existing
+bounded sequential importer. The asynchronous drop callback keeps
+native file-provider streams alive until the last import finishes;
+the report appears only afterward. Up to 50 files; no folders,
+URLs or auto cloud calls. Existing SHA dedup, per-file error handling
+and Cancel remaining apply. Android SAF picker unchanged. New pure
+filter/stream tests authored but NOT RUN. No Windows build or GitHub
+Actions job triggered; user approval is required for a build.
+[Details](LIBRARY_DESKTOP_DRAG_DROP.md).
