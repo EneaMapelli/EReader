@@ -27,6 +27,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   int _backupTotal = 0;
   int _backupCompleted = 0;
   bool _exportingBackup = false;
+  bool _restoringBackup = false;
+  int _restoreTotal = 0;
+  int _restoreDone = 0;
   bool _cancelRemainingImports = false;
   final _searchController = TextEditingController();
   String _query = '';
@@ -320,6 +323,125 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
+  /// Preview validates the entire archive without touching local books.
+  /// A second, explicit confirmation is needed before importing anything.
+  Future<void> _restoreBackup() async {
+    if (_busy || !mounted) return;
+    final destination = await FilePicker.getDirectoryPath();
+    if (destination == null || !mounted) return;
+    final folder = Directory(destination);
+    setState(() {
+      _busy = true;
+      _restoringBackup = true;
+      _restoreDone = 0;
+      _restoreTotal = 0;
+    });
+    try {
+      final preview = await widget.store.previewLibraryRestore(folder);
+      if (!mounted) return;
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Restore books from backup?'),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 480,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Backup verified: ${preview.total} books'),
+                  Text('New books to import: ${preview.availableToImport}'),
+                  Text('Already in your library: ${preview.alreadyPresent}'),
+                  Text('New bookmarks: ${preview.bookmarksToImport}'),
+                  Text('Verified source bytes: '
+                      '${(preview.verifiedBytes / (1024 * 1024))
+                          .toStringAsFixed(1)} MiB'),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Existing books, their positions, bookmarks and '
+                    'settings will NOT be changed. New books regain '
+                    'saved positions, bookmarks and catalog details. '
+                    'Cloud/LLM consent, API keys, cached audio, voice '
+                    'choices and cast data are NOT imported. '
+                    'The process is add-only; earlier successfully '
+                    'restored books stay imported if a later book fails.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: preview.availableToImport == 0
+                  ? null : () => Navigator.pop(dialog, true),
+              child: const Text('Restore new books'),
+            ),
+          ],
+        ),
+      );
+      if (approved != true || !mounted) return;
+      setState(() {
+        _restoreTotal = preview.total;
+        _restoreDone = 0;
+      });
+      final result = await widget.store.restoreLibraryBackup(
+        folder,
+        onProgress: (done, total) {
+          if (mounted) {
+            setState(() {
+              _restoreDone = done;
+              _restoreTotal = total;
+            });
+          }
+        },
+      );
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Library restore complete'),
+          content: Text(
+            'Imported: ${result.added} books\n'
+            'Kept unchanged: ${result.skipped} books\n'
+            'Bookmarks restored: ${result.bookmarksImported}\n\n'
+            'No cloud permissions or API keys were imported.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+            'Cannot restore this backup. Check folder integrity and '
+            'disk space. Existing books were not overwritten; if '
+            'restoration stopped midway, some new books may already '
+            'have been imported.',
+          ),
+        ));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _restoringBackup = false;
+          _restoreDone = 0;
+          _restoreTotal = 0;
+        });
+      }
+    }
+  }
+
   Future<void> _open(BookRecord book) async {
     try {
       await widget.store.markBookOpened(book.id);
@@ -491,6 +613,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
         title: const Text('EReader'),
         actions: [
           IconButton(
+            tooltip: 'Restore books from library backup',
+            onPressed: _busy ? null : _restoreBackup,
+            icon: const Icon(Icons.settings_backup_restore_outlined),
+          ),
+          IconButton(
             tooltip: 'Export private library backup',
             onPressed: _busy ? null : _exportBackup,
             icon: const Icon(Icons.backup_outlined),
@@ -515,6 +642,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   if (_importTotal > 0) _batchImportProgress(),
                   if (_exportingBackup)
                     Text('Backing up books: $_backupCompleted / $_backupTotal'),
+                  if (_restoringBackup && _restoreTotal > 0)
+                    Text('Restoring books: $_restoreDone / $_restoreTotal'),
                   const SizedBox(height: 20),
                   FilledButton.icon(
                     onPressed: _busy ? null : _import,
@@ -527,6 +656,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
           : Column(
               children: [
                 if (_importTotal > 0) _batchImportProgress(),
+                if (_restoringBackup && _restoreTotal > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    child: Column(
+                      children: [
+                        LinearProgressIndicator(
+                          value: _restoreDone / _restoreTotal,
+                        ),
+                        Text('Restoring books: '
+                            '$_restoreDone / $_restoreTotal'),
+                      ],
+                    ),
+                  ),
                 if (_exportingBackup)
                   Padding(
                     padding: const EdgeInsets.symmetric(
