@@ -71,7 +71,7 @@ Oppure nello stesso orchestratore:
     powershell -NoProfile -ExecutionPolicy Bypass -File .\tool\verify-local.ps1 -NativeVoiceSourceFolder "C:\voice-models\italian" -AcceptNativeRisk -ExerciseNativeStop
 
 Con -RetainWav (script individuale) o -RetainNativeWav (runner
-complessivo) si conservano i WAV fittizi di qualifica per ascolto.
+complessivo) si conservano i WAV reali di qualifica per ascolto.
 NON aggiungere -PublishSummary per mantenere tutto locale.
 
 Il benchmark ONNX CLI include l'avvio a freddo del modello. Un PASS
@@ -123,3 +123,23 @@ Windows, non attiva workflow, non effettua upload, commit o push.
 
 Questi comandi sono stati scritti, non eseguiti in questo ambiente
 GitHub-only. Segnalare i veri errori e risultati dopo l'esecuzione.
+
+
+## Come farmi leggere i risultati dopo i tuoi test
+
+Per farmi analizzare i problemi SENZA pubblicare dati personali,
+puoi allegare in chat il file summary.json del run locale e il file
+failures.json della suite completa, controllandone prima il contenuto.
+
+Se invece vuoi pubblicare soltanto il report sanitizzato dell'ULTIMA
+suite ordinaria nel branch GitHub, esiste uno script separato di
+pubblicazione esplicita, da utilizzare soltanto dopo aver verificato
+i file JSON ed esserti assicurato che non contengano informazioni
+sensibili:
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File .\tool\publish-local-test-report.ps1
+
+Questo script crea commit e push del solo report filtrato della suite
+ordinaria; NON include i libri, i log raw, il soak o la qualifica ONNX.
+verify-local.ps1 non lo esegue mai automaticamente. Se non desideri
+pubblicare niente, non usarlo.

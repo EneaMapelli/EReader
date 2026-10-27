@@ -667,3 +667,13 @@ optional example/ EPUB/PDF corpus, and explicitly approved real ONNX
 qualification. Nonpublishing by design; per-stage exit codes and raw
 logs remain in gitignored local-test-results. Tests not executed;
 no Windows build or GitHub Actions.
+
+### Source guard for privacy-safe local test execution (2026-10-27)
+
+Added a source regression for the local orchestrator's explicit
+-NoPublish child runner, native-risk opt-in, recorded no-build/no-Actions
+flags, ignored stdout/stderr storage and the manual verification guide.
+It does not execute PowerShell or Windows audio. Guide also documents
+how to attach locally reviewed JSON results or explicitly publish only
+the filtered existing full-suite report for later repository review.
+No remote test execution.
