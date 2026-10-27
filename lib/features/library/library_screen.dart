@@ -134,7 +134,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     // private absolute paths or exception strings from failed decoders.
     String displayName(String text) {
       final name = text.replaceAll('\\', '/').split('/').last
-          .replaceAll(RegExp(r'[\\r\\n\\t]'), ' ').trim();
+          .replaceAll(RegExp(r'[\r\n\t]'), ' ').trim();
       return name.length <= 70 ? name : '${name.substring(0, 67)}...';
     }
     final failures = report.entries.where((item) =>
