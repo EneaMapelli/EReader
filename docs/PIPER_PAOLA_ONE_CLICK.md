@@ -45,3 +45,10 @@ Dal lettore apri **Speech engines → Manage offline neural voices → Install P
 La procedura di compilazione `windows-user-build.yml` genera uno ZIP con EXE e runtime completo su GitHub Actions, indipendentemente dai test automatici. Quando i permessi di questo repository privato impediscono la creazione di una GitHub prerelease, l'artefatto Actions rimane la fonte attendibile dello ZIP (retention 14 giorni).
 
 [Apri le build Windows](https://github.com/EneaMapelli/EReader/actions/workflows/windows-user-build.yml).
+
+## Prima build Windows verificata dal compilatore
+
+- GitHub Actions: [run 40462287757](https://github.com/EneaMapelli/EReader/actions/runs/40462287757) — compilazione Windows Release, caricamento ZIP e pubblicazione della prerelease **riusciti**.
+- [Scarica la prerelease Windows `windows-test-960cfb5d`](https://github.com/EneaMapelli/EReader/releases/tag/windows-test-960cfb5d), file `EReader-Windows-x64-960cfb5d.zip` nella sezione **Assets**.
+- La versione di codice compilata contiene già il pulsante **Install Paola** e il percorso di download/verifica SHA-256.
+- Il successo del compilatore non dimostra ancora che il **download da GUI**, l'estrazione del modello, l'avvio della voce e il sistema audio siano corretti su PC reale. Questi passaggi restano nel checklist manuale.
