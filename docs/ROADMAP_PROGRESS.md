@@ -433,3 +433,23 @@ Added explicit one-click Piper Paola installation in the Windows offline voice m
 - Build Windows Release con import multiplo effettivamente
   **compilata e pubblicata**: [windows-test-45a013cf](https://github.com/EneaMapelli/EReader/releases/tag/windows-test-45a013cf),
   run 40465285992. Test d'interazione e corpus non eseguiti.
+
+### M6 — manual-only Windows Actions + private library backup (2026-10-27)
+
+- Windows portable build workflow now has **only `workflow_dispatch`**.
+  The `push` trigger and file-watch list were removed as requested;
+  ordinary source commits must never consume Windows Actions minutes.
+  No workflow was run for this increment.
+- Introduced a guarded **local library backup export**: database snapshot
+  through SQLite `VACUUM INTO`, all managed EPUB/PDF/TXT copied and
+  reverified with SHA-256, plus a portable JSON manifest.
+  Database integrity and book identity must pass before atomically
+  promoting a staging directory; corrupted/missing files abort without
+  creating a completed backup. Old backups are never overwritten.
+- Book positions, bookmarks, metadata, voice/cast settings and saved
+  DB annotations are represented, but OS credential-vault secrets and
+  disposable caches are excluded. Backup is **unencrypted** and needs
+  a restore/path-relinking feature before it can be safely imported to
+  another installation. No cloud upload.
+- UI warning, destination picker, progress and end-of-export summary.
+  Unit tests authored but NOT RUN. [Details](LIBRARY_BACKUP_EXPORT.md).
