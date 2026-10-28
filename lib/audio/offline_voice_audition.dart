@@ -84,12 +84,17 @@ class OfflineVoiceAudition {
         pitch: 1.0,
       );
     } finally {
-      // When Stop detached this engine, Stop exclusively owns disposal.
-      if (owned != null && identical(_active, owned)) {
-        _active = null;
-        await owned.dispose();
+      try {
+        // When Stop detached this engine, Stop exclusively owns disposal.
+        if (owned != null && identical(_active, owned)) {
+          _active = null;
+          await owned.dispose();
+        }
+      } finally {
+        // Even native cleanup failure must not leave a permanently busy UI.
+        // Failure is reported rather than silently retrying model execution.
+        _running = false;
       }
-      _running = false;
     }
   }
 
