@@ -677,3 +677,17 @@ It does not execute PowerShell or Windows audio. Guide also documents
 how to attach locally reviewed JSON results or explicitly publish only
 the filtered existing full-suite report for later repository review.
 No remote test execution.
+
+### Android SAF provider-stream import restored (2026-10-28)
+
+The last local-agent alignment downgraded file_picker to 3.0.4 and
+replaced file-picker streams with an empty stream when the native
+selection had no local path, breaking Android SAF/cloud books.
+Restored file_picker >=13.1.0 static APIs (pickFiles returns a list,
+getDirectoryPath is static), and PlatformFile.readAsByteStream for
+stream-only imports; the private temporary file is still capped to
+100 MB and removed after completion. content:// URIs never enter
+dart:io. Added SAF URI/import regression and a source API guard.
+Flutter pub get must regenerate pubspec.lock on a machine with SDK:
+the existing lockfile still contains old 3.0.4 transitive versions.
+Not tested here; no Windows builds/Actions.

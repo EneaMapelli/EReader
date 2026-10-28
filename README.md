@@ -422,3 +422,13 @@ Flutter con -NoPublish, analisi, la simulazione audio e opzionalmente i
 tuoi EPUB/PDF locali. Salva i log in .local-test-results/, senza
 upload, push, build o Actions. Consulta docs/LOCAL_VERIFICATION_GUIDE.md
 per comandi separati, qualifica native e test di ascolto.
+
+### Importazione di libri Android da SAF
+
+La selezione EPUB/PDF/TXT utilizza `file_picker` 13 e legge i documenti
+come stream anche quando Android o un provider cloud restituisce
+soltanto un URI `content://` senza percorso su disco. I byte vengono
+copiati in una cartella temporanea privata, con limite 100 MB e pulizia
+obbligatoria; nessun URI esterno viene salvato come percorso del libro.
+Dopo il pull eseguire `flutter pub get` per aggiornare il lockfile
+locale e verificare i plugin prima di compilare Android.

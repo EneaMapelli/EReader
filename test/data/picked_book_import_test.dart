@@ -72,6 +72,29 @@ void main() {
     expect(await root.list().toList(), isEmpty);
   });
 
+  test('SAF content URI is consumed only through provider byte stream',
+      () async {
+    var calls = 0;
+    final result = await importPickedBook<String>(
+      originalName: 'Private.pdf',
+      pickedPath: 'content://documents/document/private-epub',
+      stagingParent: root,
+      readAsByteStream: () {
+        calls++;
+        return Stream<List<int>>.fromIterable([[37, 80], [68, 70]]);
+      },
+      importFile: (path, {originalName}) async {
+        expect(path, isNot(contains('content://')));
+        expect(await File(path).readAsBytes(), [37, 80, 68, 70]);
+        expect(originalName, 'Private.pdf');
+        return 'saved';
+      },
+    );
+    expect(result, 'saved');
+    expect(calls, 1);
+    expect(await root.list().toList(), isEmpty);
+  });
+
   test('oversized streams reject before crossing the bound and clean up',
       () async {
     var importerCalls = 0;

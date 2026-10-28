@@ -141,7 +141,7 @@ class _OfflineVoiceManagerScreenState
       final selected = picker != null
           ? await picker()
           : Platform.isWindows
-              ? await FilePicker.platform.getDirectoryPath()
+              ? await FilePicker.getDirectoryPath()
               : null;
       if (selected == null) return;
       final preview = await inspectOfflineVoiceImportFolder(

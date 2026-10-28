@@ -31,8 +31,20 @@ Future<T> importPickedBook<T>({
 
   // The normal desktop and cached mobile paths use the existing validated
   // library import without an additional byte copy.
-  if (pickedPath != null && await File(pickedPath).exists()) {
-    return importFile(pickedPath, originalName: originalName);
+  // Android SAF can expose a content:// URI instead of an OS file.
+  // Never pass provider URIs to dart:io; use the bounded stream path.
+  // A missing/inaccessible *cached* path is also retried as a stream.
+  if (pickedPath != null && !pickedPath.startsWith('content://')) {
+    var isFile = false;
+    try {
+      isFile = await File(pickedPath).exists();
+    } on FileSystemException {
+      // Windows/Android may reject a virtual path; fall back to the
+      // provider's official stream rather than skipping a real book.
+    }
+    if (isFile) {
+      return importFile(pickedPath, originalName: originalName);
+    }
   }
 
   // SAF/cloud document providers may return no real path. Stage only a
