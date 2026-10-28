@@ -49,6 +49,19 @@ void main() {
     inbox.dispose();
   });
 
+  test('disposing during streaming fails instead of accepting partial TXT',
+      () async {
+    final inbox = MethodChannelAndroidSharedBookInbox(channel: channel);
+    final seen = <List<int>>[];
+    await expectLater(() async {
+      await for (final bytes in inbox.read('a')) {
+        seen.add(bytes);
+        inbox.dispose();
+      }
+    }(), throwsA(isA<Exception>()));
+    expect(seen, [[65, 66]]);
+  });
+
   test('provider exceptions never expose private URI to the caller',
       () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
