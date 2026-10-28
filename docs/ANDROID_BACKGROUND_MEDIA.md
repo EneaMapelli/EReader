@@ -151,3 +151,13 @@ On a real Android device, once the user elects to compile:
   checkpoint. See [Native Stop Timeout](NATIVE_STOP_TIMEOUT.md).
 
 No native build or device run is claimed by this document.
+
+## Share-sheet entrypoint (2026-10-28)
+
+The tracked `tool/android/MainActivity.kt` now subclasses
+`AudioServiceActivity` rather than naming the library activity directly in
+the manifest. This retains the audio-service Flutter engine while enabling
+native document shares. Bootstrap and manual verification workflows install
+the matching Kotlin file and manifest. This is **not Android-compiled**;
+notification, focus and background controls must be rechecked on a device
+after the manifest merge. See [Android share import](ANDROID_SHARE_SHEET_IMPORT.md).

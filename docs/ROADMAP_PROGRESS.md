@@ -764,3 +764,18 @@ Android Activity recreation remains a manual device gate.
 - Added unit, SQLite restart and widget regression cases. These tests were
   **authored but not executed** here; Windows/Android builds and Actions remain
   deferred by user instruction. See [Library Reading History](LIBRARY_READING_HISTORY.md).
+
+### M1 — Android sharesheet import (2026-10-28)
+
+- New opt-in `ACTION_SEND` / `ACTION_SEND_MULTIPLE` receipt in native
+  `MainActivity : AudioServiceActivity`; temporary `content://` grants stay
+  native, Flutter sees only opaque identifiers, streams in 64 KiB blocks.
+- Reuses serial 50-book, 100-MiB `importPickedBooks` safety, content-hash
+  deduplication, per-file isolation and private staging cleanup.
+  Does not start TTS/LLM or navigate into the reader.
+- Updated checked-in manifest, both Flutter bootstrap scripts and
+  **manual-only** Android workflow; no new plugin dependency.
+- Static/MethodChannel/widget regression tests authored **but not run**.
+  Native Flutter/Android compilation, real share providers, process restart
+  and media-service interactions still need validation. No build or Actions
+  was triggered. See [ANDROID_SHARE_SHEET_IMPORT.md](ANDROID_SHARE_SHEET_IMPORT.md).

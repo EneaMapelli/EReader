@@ -432,3 +432,13 @@ copiati in una cartella temporanea privata, con limite 100 MB e pulizia
 obbligatoria; nessun URI esterno viene salvato come percorso del libro.
 Dopo il pull eseguire `flutter pub get` per aggiornare il lockfile
 locale e verificare i plugin prima di compilare Android.
+
+
+### Android: import a book from another app (source preview)
+
+The tracked Android manifest and Activity now accept explicitly shared
+EPUB/PDF/TXT files through the system Sharesheet. EReader copies supported
+books into the private library using the normal size/deduplication checks;
+receiving a share does not start narration or a cloud request. This Android
+feature is **unverified on device** and requires the next user-triggered
+Android build. See [Android share import](docs/ANDROID_SHARE_SHEET_IMPORT.md).
