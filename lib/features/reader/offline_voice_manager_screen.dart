@@ -11,8 +11,9 @@ import '../../data/piper_paola_installer.dart';
 import '../../audio/offline_voice_audition.dart';
 
 /// Model management is deliberately separate from provider activation.
-/// This screen lists verified on-device assets and can uninstall them,
-/// but does not download binaries, initialize native FFI or select a voice.
+/// This screen lists verified on-device assets, can uninstall them and
+/// optionally plays a user-confirmed local sample. Native FFI is initialized
+/// ONLY after explicit preview approval. Choosing book voices remains separate.
 class OfflineVoiceManagerScreen extends StatefulWidget {
   const OfflineVoiceManagerScreen({
     super.key,
