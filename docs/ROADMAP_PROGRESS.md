@@ -743,3 +743,12 @@ test-injectable provider enables widget regression without native
 Android. No user data/history recovery guarantee beyond the newest
 OS-persisted picker result. Android device confirmation pending.
 `pubspec.lock` needs local `flutter pub get` to refresh Android deps.
+
+### Android recovered picker lifecycle regressions (2026-10-28)
+
+Additional widget fixtures verify that a selection returned after
+LibraryScreen disposal does not read a provider stream or import
+books. A multi-book recovered pick retains the normal batch report,
+correctly counts one valid TXT and one rejected extension, and leaves
+the user in the library rather than starting narration. Native
+Android Activity recreation remains a manual device gate.

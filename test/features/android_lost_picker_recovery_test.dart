@@ -106,6 +106,67 @@ void main() {
     expect(find.textContaining('at most 50 books'), findsOneWidget);
   });
 
+  testWidgets('late native picker result does not import after screen is gone',
+      (tester) async {
+    final pending = Completer<InterruptedBookSelection?>();
+    var opened = 0;
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(
+      store: store,
+      retrieveInterruptedPick: () {
+        opened++;
+        return pending.future;
+      },
+    )));
+    await tester.pump();
+    expect(opened, 1);
+
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(body: Text('Closed library')),
+    ));
+    var streamReads = 0;
+    pending.complete(InterruptedBookSelection(selections: [
+      streamed('ShouldNotImport.txt', 'Private bytes',
+          onRead: () => streamReads++),
+    ]));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Closed library'), findsOneWidget);
+    expect(streamReads, 0);
+    expect(store.books, isEmpty);
+  });
+
+  testWidgets('several recovered items use the ordinary batch summary',
+      (tester) async {
+    final source = File(
+        root.path + Platform.pathSeparator + 'already.txt');
+    await source.writeAsString('Previously imported');
+    await store.importFile(source.path);
+
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(
+      store: store,
+      retrieveInterruptedPick: () async => InterruptedBookSelection(
+        selections: [
+          streamed('New.txt', 'One new book.'),
+          streamed('Invalid.exe', 'not a book'),
+        ],
+      ),
+    )));
+    await tester.runAsync(() async {
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (store.books.length < 2 && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    });
+    await tester.pumpAndSettle();
+    expect(store.books, hasLength(2));
+    expect(find.text('Book import summary'), findsOneWidget);
+    expect(find.text('Added: 1'), findsOneWidget);
+    expect(find.text('Could not import: 1'), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryScreen), findsOneWidget);
+  });
+
   testWidgets('empty Android recovery is an ordinary no-op', (tester) async {
     await tester.pumpWidget(MaterialApp(home: LibraryScreen(
       store: store,
