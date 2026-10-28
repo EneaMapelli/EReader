@@ -9,15 +9,25 @@ import '../../data/library_store.dart';
 import '../../data/batch_book_import.dart';
 import '../../data/desktop_book_drop.dart';
 import '../../data/picked_book_import.dart';
+import '../../data/android_picker_recovery.dart';
 import '../../audio/reader_media_handler.dart';
 import '../../domain/book.dart';
 import '../../domain/library_catalog.dart';
 import '../reader/reader_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({super.key, required this.store, this.mediaHandler});
+  const LibraryScreen({
+    super.key,
+    required this.store,
+    this.mediaHandler,
+    this.retrieveInterruptedPick,
+  });
   final LibraryStore store;
   final ReaderMediaHandler? mediaHandler;
+
+  /// Injectable for widget tests. Android uses native one-time lost-data
+  /// recovery after the Activity is killed while the picker is in front.
+  final Future<InterruptedBookSelection?> Function()? retrieveInterruptedPick;
 
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
@@ -25,6 +35,7 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   bool _busy = false;
+  bool _recoveringInterruptedPick = false;
   bool _dragHover = false;
   int _importCompleted = 0;
   int _importTotal = 0;
@@ -50,25 +61,82 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    if (Platform.isAndroid || widget.retrieveInterruptedPick != null) {
+      // The plugin must be registered and the LibraryScreen mounted; use
+      // the first frame instead of blocking app startup or widget build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_recoverInterruptedPick());
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
+  Future<void> _recoverInterruptedPick() async {
+    if (!mounted || _busy || _recoveringInterruptedPick) return;
+    _recoveringInterruptedPick = true;
+    try {
+      final selection = await
+          (widget.retrieveInterruptedPick ?? recoverInterruptedAndroidBookPick)();
+      if (!mounted || selection == null) return;
+      if (selection.failed) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('The previous Android book selection could not '
+              'be recovered. You can choose the books again.'),
+        ));
+        return;
+      }
+      if (selection.selections.isNotEmpty) {
+        await _import(recoveredBooks: selection.selections);
+      }
+    } catch (_) {
+      // Never log exception text: OS providers can reveal full private URIs.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not recover the interrupted book selection. '
+              'Please choose your books again.'),
+        ));
+      }
+    } finally {
+      _recoveringInterruptedPick = false;
+    }
+  }
+
   /// The picker supports single and multi-file selection on Windows and
   /// Android SAF. Files are imported sequentially, with isolated per-file
   /// errors and no automatic audio or cloud requests.
-  Future<void> _import() async {
-    if (_busy) return;
+  Future<void> _import({List<BatchPickedBook>? recoveredBooks}) async {
+    if (_busy || (_recoveringInterruptedPick && recoveredBooks == null)) {
+      return;
+    }
     setState(() => _busy = true);
     try {
-      // file_picker >=12 returns List<PlatformFile>, not FilePickerResult.
-      // v13 supports lazy readAsByteStream even if Android SAF provides
-      // no usable filesystem path. No book bytes are eagerly buffered.
-      final selected = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: const ['epub', 'pdf', 'txt'],
-      );
+      // Android's one-time lost-data pick uses exactly the same bounded
+      // import path as an ordinary selection. Neither case uploads books.
+      final List<BatchPickedBook> selected;
+      if (recoveredBooks != null) {
+        selected = recoveredBooks;
+      } else {
+        // v13 exposes streams even if Android SAF has no OS file path.
+        final picked = await FilePicker.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: const ['epub', 'pdf', 'txt'],
+        );
+        selected = [
+          for (final item in picked)
+            BatchPickedBook(
+              name: item.name,
+              pickedPath: item.path,
+              readAsByteStream: item.readAsByteStream,
+            ),
+        ];
+      }
       if (!mounted || selected.isEmpty) return;
       if (selected.length > 50) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -82,17 +150,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _cancelRemainingImports = false;
       });
       final result = await importPickedBooks(
-        selections: [
-          for (final item in selected)
-            BatchPickedBook(
-              name: item.name,
-              pickedPath: item.path,
-              // A stream-only SAF/cloud file must be READ, not silently
-              // treated as a zero-byte input when no local path exists.
-              // importPickedBook enforces a 100 MB streaming hard limit.
-              readAsByteStream: item.readAsByteStream,
-            ),
-        ],
+        selections: selected,
         importFile: widget.store.importFile,
         knownBookIds: widget.store.books.map((book) => book.id),
         cancelRemaining: () => _cancelRemainingImports || !mounted,
@@ -111,8 +169,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _importCompleted = 0;
       });
       final onlyBook = result.onlySuccessfulBook;
-      if (onlyBook != null) {
+      if (onlyBook != null && recoveredBooks == null) {
         await _open(onlyBook);
+      } else if (onlyBook != null && recoveredBooks != null) {
+        // On cold app restart, leave the user in their library rather
+        // than unexpectedly opening a book or starting narration.
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Recovered your interrupted book selection. '
+              'The book is now in your library.'),
+        ));
       } else if (result.selectedCount == 1 && result.failedCount == 1) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('The selected book could not be imported. '

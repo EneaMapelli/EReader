@@ -229,3 +229,20 @@ file remoto bloccato viene classificato come `unavailable` e
 l'importazione seriale continua con il successivo. Il test di regressione
 verifica la cancellazione dello stream originale, il report di avanzamento
 e la pulizia della directory temporanea. Il valore predefinito è 90 s.
+
+## Recovery di un selettore Android interrotto
+
+Con `android_file_picker >=2.1.0`, quando Android distrugge
+l'Activity mentre il selettore file è aperto, alla successiva apertura
+della libreria EReader prova **una sola volta** a recuperare l'ultima
+selezione tramite `retrieveLostData()`. Gli EPUB/PDF/TXT vengono
+validati e importati nella memoria privata con gli stessi limiti
+50 file / 100 MB per file del selettore normale. Non viene memorizzato
+un URI SAF nei dati persistenti, né aperto automaticamente il lettore.
+Errori del provider sono mostrati senza percorsi privati.
+Il recupero non è garantito se Android o il provider non conserva il
+risultato e non può riprendere i byte dopo la morte del processo.
+Test manuale: Android Opzioni sviluppatore -> "Non mantenere attività",
+scegli un file, torna all'app, verifica la libreria e riprova a scegliere
+un nuovo file. Prima eseguire `flutter pub get` per la dipendenza
+`android_file_picker`. Nessuna build Android avviata.

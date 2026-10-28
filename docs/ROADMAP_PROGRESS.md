@@ -727,3 +727,19 @@ verifies provider stream cancellation, no importer invocation and
 removal of the partial private PDF. This tests a critical loss-of-
 connection case separately from zero-byte provider stalls. Source
 tests not executed here.
+
+### M2 — Android interrupted picker selection recovery (2026-10-28)
+
+Integrated `android_file_picker` >=2.1.0 one-time
+`FilePickerAndroid.retrieveLostData()` on the initial LibraryScreen
+frame. If Android kills the app Activity while the OS document picker
+is open, a recovered selection passes through the SAME 50-book batch,
+100-MB per-book limit, SAF stream timeout and private-library copy as
+the normal picker. Recovery is once per OS payload, never caches
+provider URIs, does not invoke cloud/TTS, and leaves the app on the
+library after a recovered single book. Unsupported/failed recovery
+displays a generic message without logging private file paths. A
+test-injectable provider enables widget regression without native
+Android. No user data/history recovery guarantee beyond the newest
+OS-persisted picker result. Android device confirmation pending.
+`pubspec.lock` needs local `flutter pub get` to refresh Android deps.
