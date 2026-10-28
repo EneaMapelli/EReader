@@ -54,6 +54,25 @@ void main() {
     expect(store.getBook(first)!.progressAnchor!.localOffset, 9);
   });
 
+  test('per-book opening history is readable and survives restart', () async {
+    final one = await addBook('visited.txt', 'This is a first book.');
+    final two = await addBook('unvisited.txt', 'This is another book.');
+    expect(store.getBook(one)!.lastOpenedAt, isNull);
+    expect(store.getBook(two)!.lastOpenedAt, isNull);
+    await store.markBookOpened(one);
+    final opened = store.getBook(one)!.lastOpenedAt;
+    expect(opened, isNotNull);
+    expect(store.books.singleWhere((b) => b.id == one).lastOpenedAt, opened);
+    expect(store.getBook(two)!.lastOpenedAt, isNull);
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getBook(one)!.lastOpenedAt, opened);
+    expect(store.getBook(two)!.lastOpenedAt, isNull);
+    // Pure catalog activity never alters the saved narration cursor.
+    expect(store.getBook(one)!.progressOffset, 0);
+  });
+
   test('deleted and unavailable book files are never resumed', () async {
     final first = await addBook('first.txt', 'One.');
     final second = await addBook('second.txt', 'Two.');

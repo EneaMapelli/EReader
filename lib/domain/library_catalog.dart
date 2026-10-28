@@ -1,18 +1,36 @@
 import 'book.dart';
 
 /// Library-only view controls. Filtering never changes SQLite records.
-enum LibrarySortOrder { recentlyImported, titleAscending, titleDescending, authorAscending, seriesAscending, format }
+enum LibrarySortOrder {
+  recentlyImported,
+  recentlyOpened,
+  titleAscending,
+  titleDescending,
+  authorAscending,
+  seriesAscending,
+  format,
+}
+
+/// Opening a reader is different from advancing narration or finishing a book.
+/// Filtering uses only the existing explicit-open timestamp in SQLite.
+enum LibraryActivityFilter { all, opened, neverOpened }
 
 List<BookRecord> filterAndSortLibraryBooks(
   Iterable<BookRecord> books, {
   String query = '',
   BookFormat? format,
+  LibraryActivityFilter activity = LibraryActivityFilter.all,
   LibrarySortOrder sort = LibrarySortOrder.recentlyImported,
 }) {
   final needle = query.trim().toLowerCase();
   final matching = <BookRecord>[
     for (final book in books)
       if ((format == null || book.format == format) &&
+          (activity == LibraryActivityFilter.all ||
+              (activity == LibraryActivityFilter.opened &&
+                  book.lastOpenedAt != null) ||
+              (activity == LibraryActivityFilter.neverOpened &&
+                  book.lastOpenedAt == null)) &&
           (needle.isEmpty ||
               book.title.toLowerCase().contains(needle) ||
               (book.author?.toLowerCase().contains(needle) ?? false) ||
@@ -22,6 +40,21 @@ List<BookRecord> filterAndSortLibraryBooks(
   int compare(BookRecord a, BookRecord b) {
     final title = a.title.toLowerCase().compareTo(b.title.toLowerCase());
     switch (sort) {
+      case LibrarySortOrder.recentlyOpened:
+        final aOpened = a.lastOpenedAt;
+        final bOpened = b.lastOpenedAt;
+        if (aOpened != null && bOpened != null) {
+          final byOpen = bOpened.compareTo(aOpened);
+          if (byOpen != 0) return byOpen;
+        } else if (aOpened != null) {
+          return -1;
+        } else if (bOpened != null) {
+          return 1;
+        }
+        // Unopened and equal-timestamp books remain deterministic.
+        final imported = b.importedAt.compareTo(a.importedAt);
+        if (imported != 0) return imported;
+        break;
       case LibrarySortOrder.recentlyImported:
         final date = b.importedAt.compareTo(a.importedAt);
         if (date != 0) return date;

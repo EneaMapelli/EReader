@@ -752,3 +752,15 @@ books. A multi-book recovered pick retains the normal batch report,
 correctly counts one valid TXT and one rejected extension, and leaves
 the user in the library rather than starting narration. Native
 Android Activity recreation remains a manual device gate.
+
+### M1 library activity discovery (2026-10-28)
+
+- Added deterministic **Recently opened** sorting and separate **Opened / Never opened**
+  library chips, composable with existing metadata search and file-format filters.
+  This uses the existing v14 `last_opened_at` SQLite field. It is not a read
+  percentage or a claim that an opened book has been finished.
+- No schema migration, automatic audio playback, cloud request or paid analysis.
+  Activity timestamps remain local and are not exported through `BookRecord` JSON.
+- Added unit, SQLite restart and widget regression cases. These tests were
+  **authored but not executed** here; Windows/Android builds and Actions remain
+  deferred by user instruction. See [Library Reading History](LIBRARY_READING_HISTORY.md).

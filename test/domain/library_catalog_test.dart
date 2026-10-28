@@ -70,4 +70,61 @@ void main() {
     expect(books.first.progressOffset, 12);
     expect(filterAndSortLibraryBooks(const <BookRecord>[]), isEmpty);
   });
+  test('recently opened sorts actual reader activity above new imports', () {
+    final entries = <BookRecord>[
+      BookRecord(id: 'new', title: 'New', localPath: '/new',
+          format: BookFormat.txt, importedAt: DateTime.utc(2026, 10, 28)),
+      BookRecord(id: 'old', title: 'Old', localPath: '/old',
+          format: BookFormat.epub, importedAt: DateTime.utc(2026, 10, 1),
+          lastOpenedAt: DateTime.utc(2026, 10, 27)),
+      BookRecord(id: 'latest', title: 'Latest', localPath: '/latest',
+          format: BookFormat.pdf, importedAt: DateTime.utc(2026, 10, 2),
+          lastOpenedAt: DateTime.utc(2026, 10, 28)),
+    ];
+    expect(filterAndSortLibraryBooks(entries,
+        sort: LibrarySortOrder.recentlyOpened).map((e) => e.id),
+        ['latest', 'old', 'new']);
+    expect(filterAndSortLibraryBooks(entries,
+        sort: LibrarySortOrder.recentlyImported).map((e) => e.id),
+        ['new', 'latest', 'old']);
+  });
+
+  test('activity filters combine with title and format without changing books', () {
+    final entries = <BookRecord>[
+      BookRecord(id: 'read', title: 'Atlas', localPath: '/read',
+          format: BookFormat.epub, importedAt: DateTime.utc(2026, 10, 20),
+          lastOpenedAt: DateTime.utc(2026, 10, 26)),
+      BookRecord(id: 'unread', title: 'Atlas Two', localPath: '/unread',
+          format: BookFormat.epub, importedAt: DateTime.utc(2026, 10, 21)),
+      BookRecord(id: 'other', title: 'Other', localPath: '/other',
+          format: BookFormat.txt, importedAt: DateTime.utc(2026, 10, 22),
+          lastOpenedAt: DateTime.utc(2026, 10, 25)),
+    ];
+    expect(filterAndSortLibraryBooks(entries, query: 'atlas',
+        format: BookFormat.epub, activity: LibraryActivityFilter.opened)
+        .map((b) => b.id), ['read']);
+    expect(filterAndSortLibraryBooks(entries, query: 'atlas',
+        activity: LibraryActivityFilter.neverOpened)
+        .map((b) => b.id), ['unread']);
+    expect(filterAndSortLibraryBooks(entries,
+        activity: LibraryActivityFilter.neverOpened,
+        sort: LibrarySortOrder.recentlyOpened).map((b) => b.id), ['unread']);
+    expect(entries, hasLength(3));
+  });
+
+  test('equal open dates and never opened fallback are stable', () {
+    final date = DateTime.utc(2026, 10, 27);
+    final entries = <BookRecord>[
+      BookRecord(id: 'b', title: 'Same', localPath: '/b',
+          format: BookFormat.txt, importedAt: date, lastOpenedAt: date),
+      BookRecord(id: 'a', title: 'Same', localPath: '/a',
+          format: BookFormat.txt, importedAt: date, lastOpenedAt: date),
+      BookRecord(id: 'unopened', title: 'New', localPath: '/u',
+          format: BookFormat.txt, importedAt: DateTime.utc(2026, 10, 28)),
+    ];
+    expect(filterAndSortLibraryBooks(entries,
+        sort: LibrarySortOrder.recentlyOpened).map((b) => b.id),
+        ['a', 'b', 'unopened']);
+  });
+
 }

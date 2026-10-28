@@ -49,6 +49,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   BookFormat? _formatFilter;
+  LibraryActivityFilter _activityFilter = LibraryActivityFilter.all;
   LibrarySortOrder _sortOrder = LibrarySortOrder.recentlyImported;
 
   void _clearFilters() {
@@ -56,6 +57,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     setState(() {
       _query = '';
       _formatFilter = null;
+      _activityFilter = LibraryActivityFilter.all;
       _sortOrder = LibrarySortOrder.recentlyImported;
     });
   }
@@ -784,7 +786,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget build(BuildContext context) {
     final allBooks = widget.store.books;
     final books = filterAndSortLibraryBooks(
-      allBooks, query: _query, format: _formatFilter, sort: _sortOrder,
+      allBooks, query: _query, format: _formatFilter,
+      activity: _activityFilter, sort: _sortOrder,
     );
     final lastOpened = widget.store.lastOpenedBook;
     final interrupted = widget.store.interruptedNarrationBook;
@@ -971,6 +974,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               value: LibrarySortOrder.recentlyImported,
                               child: Text('Recently imported')),
                             DropdownMenuItem(
+                              value: LibrarySortOrder.recentlyOpened,
+                              child: Text('Recently opened')),
+                            DropdownMenuItem(
                               value: LibrarySortOrder.titleAscending,
                               child: Text('Title A–Z')),
                             DropdownMenuItem(
@@ -1008,6 +1014,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           selected: _formatFilter == format,
                           onSelected: (_) =>
                               setState(() => _formatFilter = format),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ],
+                  ),
+                ),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    children: [
+                      for (final activity in LibraryActivityFilter.values) ...[
+                        ChoiceChip(
+                          key: ValueKey('library-activity-${activity.name}'),
+                          label: Text(switch (activity) {
+                            LibraryActivityFilter.all => 'All activity',
+                            LibraryActivityFilter.opened => 'Opened',
+                            LibraryActivityFilter.neverOpened => 'Never opened',
+                          }),
+                          selected: _activityFilter == activity,
+                          onSelected: (_) =>
+                              setState(() => _activityFilter = activity),
                         ),
                         const SizedBox(width: 8),
                       ],

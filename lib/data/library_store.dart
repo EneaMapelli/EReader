@@ -2430,6 +2430,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         localPath: row['local_path'] as String,
         format: BookFormat.values.byName(row['format'] as String),
         importedAt: DateTime.parse(row['imported_at'] as String),
+        lastOpenedAt: row['last_opened_at'] is String
+            ? DateTime.parse(row['last_opened_at'] as String)
+            : null,
         author: row['author'] as String?,
         series: row['series'] as String?,
         language: row['language'] as String?,

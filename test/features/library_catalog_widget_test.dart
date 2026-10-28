@@ -66,4 +66,45 @@ void main() {
     await tester.pump();
     expect(find.byType(ListTile), findsNWidgets(3));
   });
+  testWidgets('activity filters and last-open sort use persisted history',
+      (tester) async {
+    final ids = {for (final book in store.books) book.title: book.id};
+    await store.markBookOpened(ids['Zulu']!);
+    await Future<void>.delayed(const Duration(milliseconds: 3));
+    await store.markBookOpened(ids['Beta']!);
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+
+    await tester.tap(find.byKey(const ValueKey('library-activity-neverOpened')));
+    await tester.pump();
+    expect(find.byKey(ValueKey('cover-tile-${ids['Alpha']}')), findsOneWidget);
+    expect(find.byKey(ValueKey('cover-tile-${ids['Zulu']}')), findsNothing);
+    expect(find.byKey(ValueKey('cover-tile-${ids['Beta']}')), findsNothing);
+    expect(store.books, hasLength(3));
+
+    await tester.tap(find.byKey(const ValueKey('library-activity-opened')));
+    await tester.pump();
+    expect(find.byKey(ValueKey('cover-tile-${ids['Alpha']}')), findsNothing);
+    expect(find.byKey(ValueKey('cover-tile-${ids['Zulu']}')), findsOneWidget);
+    expect(find.byKey(ValueKey('cover-tile-${ids['Beta']}')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('library-sort')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Recently opened').last);
+    await tester.pumpAndSettle();
+    final visible = tester.widgetList<ListTile>(
+        find.byType(ListTile)).where((tile) => tile.title is Text &&
+        ['Alpha', 'Beta', 'Zulu'].contains((tile.title! as Text).data))
+        .map((tile) => (tile.title! as Text).data).toList();
+    expect(visible, ['Beta', 'Zulu']);
+
+    await tester.enterText(find.byKey(const ValueKey('library-search')), 'none');
+    await tester.pump();
+    await tester.tap(find.text('Clear filters'));
+    await tester.pump();
+    expect(find.byKey(ValueKey('cover-tile-${ids['Alpha']}')), findsOneWidget);
+    expect(find.byKey(ValueKey('cover-tile-${ids['Beta']}')), findsOneWidget);
+    expect(find.byKey(ValueKey('cover-tile-${ids['Zulu']}')), findsOneWidget);
+    expect(store.books, hasLength(3));
+  });
+
 }

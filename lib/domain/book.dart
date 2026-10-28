@@ -26,6 +26,7 @@ class BookRecord {
     this.language,
     this.progressOffset = 0,
     this.progressAnchor,
+    this.lastOpenedAt,
   });
 
   final String id;
@@ -40,6 +41,9 @@ class BookRecord {
   /// Fallback for older libraries; authoritative when no source anchor exists.
   final int progressOffset;
   final ReadingAnchor? progressAnchor;
+  /// Locally stored last explicit reader opening, not a reading-completion flag.
+  /// This optional activity timestamp is intentionally not exported as book JSON.
+  final DateTime? lastOpenedAt;
 
   BookRecord atOffset(int offset, {ReadingAnchor? anchor}) => BookRecord(
         id: id,
@@ -52,6 +56,7 @@ class BookRecord {
         language: language,
         progressOffset: offset,
         progressAnchor: anchor,
+        lastOpenedAt: lastOpenedAt,
       );
 
   Map<String, Object> toJson() => {
