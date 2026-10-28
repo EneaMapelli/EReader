@@ -25,6 +25,16 @@ void main() {
     expect(runner, isNot(contains("'PublishSummary'")));
   });
 
+  test('full suite success never relaunches every test file', () async {
+    final source = await File('tool/run-all-tests.ps1').readAsString();
+    expect(source, contains(r'$runIndividual = [bool]$SkipCombinedRun'));
+    expect(source, contains(r'if ($runIndividual) {'));
+    expect(source, contains(r'if ($nativeAssetBlocker) {'));
+    expect(source, contains('environment_native_asset_lock'));
+    expect(source, contains('isolatedFileRunsSkipped'));
+    expect(source, isNot(contains('testFilesNotExecuted=')));
+  });
+
   test('full-suite raw output stays ignored and manual guide exists',
       () async {
     final runner = await File('tool/verify-local.ps1').readAsString();

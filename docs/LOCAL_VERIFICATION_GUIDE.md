@@ -197,3 +197,14 @@ The VITS regression `changed speed waits for unfinished speculative
 synthesis` now gates only the FIRST 'Next' synthesis attempt, avoiding
 a double-complete of its `Completer` when the audible retry occurs.
 This test correction needs a local rerun before being declared PASS.
+
+## Avoid repeating a successful complete run (2026-10-28)
+
+`run-all-tests.ps1` now enters the per-file fallback only if
+`flutter test` fails, times out, or if the user explicitly chooses
+`-SkipCombinedRun`. A green combined run is already conclusive:
+its 107 source files are NOT executed a second time. Source report
+fields distinguish `isolatedFileRunsAttempted` from
+`isolatedFileRunsSkipped` (which means "not attempted individually",
+not "tests skipped"). The runner does not start a Windows app build,
+any Action or attempt to force-delete native assets.

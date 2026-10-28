@@ -267,6 +267,9 @@ function Has-NativeAssetLock($run) {
   }
   return $false
 }
+# Do not repeat 107 individual invocations when the combined suite PASSes.
+# Per-file isolation is a diagnostic fallback or an explicit user option.
+$runIndividual = [bool]$SkipCombinedRun
 if (-not $SkipCombinedRun) {
   $global = Execute 'flutter-test-all' $flutter @(
     'test','--reporter','json','--no-pub'
@@ -280,12 +283,14 @@ if (-not $SkipCombinedRun) {
   if ($global.ExitCode -eq 0) {
     Read-TestEvents $global.Stdout '' 'full_suite'
   } else {
+    $runIndividual = $true
     Write-Host 'Combined run failed. Running each test file for complete isolation.' -ForegroundColor Yellow
   }
 } else {
   Write-Host 'Skipping combined run. Running each test file for complete isolation.' -ForegroundColor Yellow
 }
-for ($i = 0; $i -lt $allFiles.Count; $i++) {
+if ($runIndividual) {
+  for ($i = 0; $i -lt $allFiles.Count; $i++) {
     if ($nativeAssetBlocker) {
       Write-Warning 'Stopping per-file attempts after a Flutter native asset setup failure.'
       break
@@ -320,6 +325,7 @@ for ($i = 0; $i -lt $allFiles.Count; $i++) {
       [void]$failures.Add($record)
     }
   }
+}
 $pass = @($cases | Where-Object { $_.status -eq 'success' }).Count
 $fail = @($cases | Where-Object { $_.status -eq 'failure' }).Count
 $errorCount = @($cases | Where-Object {
@@ -386,7 +392,8 @@ if ($null -ne $format) {
 $totals = [ordered]@{
   passed=$pass;failed=$fail;errors=$errorCount;skipped=$skipped
   testFilesDiscovered=$allFiles.Count;testOutcomesParsed=$cases.Count
-  testFilesNotExecuted=($allFiles.Count - $fileRuns.Count)
+  isolatedFileRunsAttempted=$fileRuns.Count
+  isolatedFileRunsSkipped=$(if ($runIndividual) { $allFiles.Count - $fileRuns.Count } else { 0 })
   nativeAssetBlocker=$nativeAssetBlocker
 }
 $summary = [ordered]@{
