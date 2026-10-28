@@ -58,8 +58,8 @@ InstalledOfflineVoicePack samplePack({String id = 'italian',
         displayName: 'Local preview',
         locale: locale,
         licenseId: 'MIT',
-        modelSha256: 'a' * 64,
-        tokensSha256: 'b' * 64,
+        modelSha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        tokensSha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
         phonemizerResources: withPhonemizer
             ? const [OfflineVoiceResource(
                 relativePath: 'espeak-ng-data/phonemes',
