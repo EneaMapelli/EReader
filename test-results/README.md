@@ -154,3 +154,22 @@ This command is particularly useful for the 2026-10-25 run
 `20261025T092418Z-0ff39187-2aa89e` documented separately in
 `docs/LOCAL_EXECUTION_REPORT.md`: its summary is on GitHub, but the
 current structured failure/case files are not yet published.
+
+## Repository hygiene: raw logs are not test reports
+
+Only filtered `.json` / `.md` summaries and test-case outcomes are
+eligible to be tracked in this directory. Keep `*.stdout.log`,
+`*.stderr.log`, Flutter `flutter_*.log`, generated
+`individual-*.cmd` / `individual-*.exit-code`, and unfiltered
+`latest-analyze.txt` / `latest-test-run.txt` under the already ignored
+`.local-test-results/` on the Windows PC. Never bulk-stage them with
+`git add -f`, regardless of whether all tests pass.
+
+The 2026-10-28 maintenance commit removes existing raw diagnostics
+from the **current branch tree**, without deleting structured results
+or the `test-results/README.md` documentation. It intentionally
+does not rewrite Git history: previously committed raw data may still
+be obtainable from old commit SHAs, clones or caches. If any log held
+secrets or highly sensitive information, historical purging would
+require a separately coordinated history rewrite and credential
+rotation, not a normal fast-forward deletion commit.

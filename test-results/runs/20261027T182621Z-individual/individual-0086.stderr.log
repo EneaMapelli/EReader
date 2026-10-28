@@ -1,2 +1,0 @@
-Flutter failed to delete file at "E:\GitHub\EReader\build\native_assets\windows\sqlite3.dll". The flutter tool cannot access the file or directory.
-Please ensure that the SDK and/or project is installed in a location that has read/write permissions for the current user.

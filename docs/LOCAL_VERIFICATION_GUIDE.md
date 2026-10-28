@@ -146,7 +146,7 @@ pubblicare niente, non usarlo.
 
 ## Ripristino degli errori di compilazione del 27/10
 
-Il report pubblicato come `test-results/runs/latest-analyze.txt`
+Il vecchio log grezzo (successivamente rimosso dal branch per privacy)
 includeva 19 errori reali (oltre a lint/info), quindi
 `flutter analyze` NON era INFO_ONLY. Sono stati corretti cast delle
 statistiche offline, StateError non const, variabile mancante per
@@ -170,3 +170,13 @@ limitate dal tempo effettivo (5 secondi), invece di usare solo 50–100
 turni microtask, che su Windows possono finire prima dell'accesso disco.
 Queste sono modifiche ai fixture di test, non un'affermazione che il
 motore audio abbia già superato i test nativi.
+
+## Pulizia dei file grezzi pubblicati accidentalmente (2026-10-28)
+
+Il branch di sviluppo conserva solo risultati di test strutturati e
+riepiloghi filtrati; i file `.log`, i wrapper `.cmd`, gli
+`.exit-code` e i due dump `latest-*.txt` sono stati eliminati
+dal tree Git. `.gitignore` ne previene la nuova aggiunta ordinaria.
+Sul PC i log utili possono rimanere in `.local-test-results/`.
+Un commit di cancellazione NON rimuove il contenuto dai commit Git
+storici: non condividere i vecchi commit o gli archivi dei log.

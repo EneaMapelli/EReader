@@ -34,3 +34,12 @@ example/
 
 # Local unsigned Windows portable Release ZIPs and native staging
 .local-windows-build/
+
+# Raw diagnostics MUST stay on the local machine. Never commit test
+# console output, Flutter crash dumps, generated command wrappers or
+# process exit-code files; they may contain OS usernames / private paths.
+*.log
+/test-results/runs/**/*.cmd
+/test-results/runs/**/*.exit-code
+/test-results/runs/latest-analyze.txt
+/test-results/runs/latest-test-run.txt
