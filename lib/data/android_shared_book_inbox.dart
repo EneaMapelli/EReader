@@ -59,7 +59,10 @@ class MethodChannelAndroidSharedBookInbox implements AndroidSharedBookInbox {
   @override
   Stream<List<int>> read(String id) async* {
     if (id.isEmpty) throw const FileSystemException('Invalid shared book');
-    while (!_disposed) {
+    while (true) {
+      if (_disposed) {
+        throw const FileSystemException('Shared document import cancelled');
+      }
       Uint8List? chunk;
       try {
         chunk = await _channel.invokeMethod<Uint8List>('read', {'id': id});
@@ -67,7 +70,12 @@ class MethodChannelAndroidSharedBookInbox implements AndroidSharedBookInbox {
         // Never propagate provider exceptions; they can contain private URIs.
         throw const FileSystemException('Shared document is unavailable');
       }
-      if (chunk == null || chunk.isEmpty) break;
+      // Only an explicit empty native block is EOF. A null reply or disposal
+      // during streaming must not silently import truncated TXT contents.
+      if (_disposed || chunk == null) {
+        throw const FileSystemException('Shared document import interrupted');
+      }
+      if (chunk.isEmpty) break;
       if (chunk.length > 64 * 1024) {
         throw const FileSystemException('Invalid shared document block');
       }
