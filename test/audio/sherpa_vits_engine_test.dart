@@ -721,7 +721,9 @@ void main() {
     }) async {
       texts.add(text);
       speeds.add(speed);
-      if (text == 'Next') {
+      if (text == 'Next' && !entered.isCompleted) {
+        // Exactly the speculative first attempt must wait. The audible
+        // retry is a different synthesis of the same source text.
         entered.complete();
         await release.future;
       }

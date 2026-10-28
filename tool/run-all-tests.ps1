@@ -254,12 +254,29 @@ if (-not $SkipFormat) {
 }
 $analyze = Execute 'flutter-analyze' $flutter @('analyze','--no-pub') $ToolTimeoutMinutes
 $allFiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'test') -Recurse -File -Filter '*_test.dart' | Sort-Object FullName)
+$nativeAssetBlocker = $null
+function Has-NativeAssetLock($run) {
+  # This is a *Flutter tool setup failure*, never a failed test case.
+  # Do not run 106 more identical commands, or claim every suite failed.
+  foreach ($path in @($run.Stdout, $run.Stderr)) {
+    if (-not $path -or -not (Test-Path -LiteralPath $path)) { continue }
+    $content = [IO.File]::ReadAllText($path)
+    if ($content -match '(?i)(?:failed to delete file at|cannot copy file to).{0,400}native_assets[\\/](?:windows|linux|macos)[\\/].{0,250}\.(?:dll|so|dylib)') {
+      return $true
+    }
+  }
+  return $false
+}
 if (-not $SkipCombinedRun) {
   $global = Execute 'flutter-test-all' $flutter @(
     'test','--reporter','json','--no-pub'
   ) $TestTimeoutMinutes
   Collect-CompileLocations $global.Stdout '<full_suite>'
   Collect-CompileLocations $global.Stderr '<full_suite>'
+  if (Has-NativeAssetLock $global) {
+    $nativeAssetBlocker = 'native_asset_file_lock'
+    Write-Warning 'Flutter cannot replace a locked native asset. Stop the owning process before rerunning tests.'
+  }
   if ($global.ExitCode -eq 0) {
     Read-TestEvents $global.Stdout '' 'full_suite'
   } else {
@@ -269,6 +286,10 @@ if (-not $SkipCombinedRun) {
   Write-Host 'Skipping combined run. Running each test file for complete isolation.' -ForegroundColor Yellow
 }
 for ($i = 0; $i -lt $allFiles.Count; $i++) {
+    if ($nativeAssetBlocker) {
+      Write-Warning 'Stopping per-file attempts after a Flutter native asset setup failure.'
+      break
+    }
     $relative = $allFiles[$i].FullName.Substring($root.Length).TrimStart('\','/').Replace('\','/')
     $name = ('individual-{0:D4}' -f ($i+1))
     Write-Host ("[{0}/{1}] {2}" -f ($i+1), $allFiles.Count, $relative)
@@ -279,6 +300,10 @@ for ($i = 0; $i -lt $allFiles.Count; $i++) {
     Read-TestEvents $one.Stdout $relative $name
     Collect-CompileLocations $one.Stdout $relative
     Collect-CompileLocations $one.Stderr $relative
+    if (Has-NativeAssetLock $one) {
+      $nativeAssetBlocker = 'native_asset_file_lock'
+      Write-Warning 'Native asset DLL is locked. Remaining test files were NOT executed.'
+    }
     $parsed = $cases.Count - $before
     [void]$fileRuns.Add([ordered]@{
       file=$relative;exitCode=$one.ExitCode;timedOut=$one.TimedOut
@@ -288,7 +313,7 @@ for ($i = 0; $i -lt $allFiles.Count; $i++) {
       $record = [ordered]@{
         file=$relative;name='<suite could not load>'
         status='error'
-        issue=$(if ($one.TimedOut) {'timeout'} else {'compile_or_runner_error'})
+        issue=$(if ($nativeAssetBlocker) {'environment_native_asset_lock'} elseif ($one.TimedOut) {'timeout'} else {'compile_or_runner_error'})
         run=$name
       }
       [void]$cases.Add($record)
@@ -361,6 +386,8 @@ if ($null -ne $format) {
 $totals = [ordered]@{
   passed=$pass;failed=$fail;errors=$errorCount;skipped=$skipped
   testFilesDiscovered=$allFiles.Count;testOutcomesParsed=$cases.Count
+  testFilesNotExecuted=($allFiles.Count - $fileRuns.Count)
+  nativeAssetBlocker=$nativeAssetBlocker
 }
 $summary = [ordered]@{
   runId=$id;sourceCommit=$sourceSha;branch=$localBranch

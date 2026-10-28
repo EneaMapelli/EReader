@@ -180,3 +180,20 @@ dal tree Git. `.gitignore` ne previene la nuova aggiunta ordinaria.
 Sul PC i log utili possono rimanere in `.local-test-results/`.
 Un commit di cancellazione NON rimuove il contenuto dai commit Git
 storici: non condividere i vecchi commit o gli archivi dei log.
+
+## Preflight failure for locked Flutter native assets (2026-10-28)
+
+The test script now recognizes Flutter setup errors such as
+`Flutter failed to delete file ... build/native_assets/windows/sqlite3.dll`.
+When the runner sees this blocker, it records
+`environment_native_asset_lock` and stops the per-file loop: the
+unattempted 106 files are recorded as **not executed**, rather than
+falsely labeled compilation failures. It does **not** delete or
+force-unlock DLLs, kill processes or rebuild Windows executables.
+Unblock the owning process first; a single file may then be tested
+with `flutter test --concurrency=1 test/audio/wav_decoder_race_test.dart`.
+
+The VITS regression `changed speed waits for unfinished speculative
+synthesis` now gates only the FIRST 'Next' synthesis attempt, avoiding
+a double-complete of its `Completer` when the audible retry occurs.
+This test correction needs a local rerun before being declared PASS.
