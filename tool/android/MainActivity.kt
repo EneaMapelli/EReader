@@ -21,6 +21,7 @@ class MainActivity : AudioServiceActivity() {
     private val executor = Executors.newCachedThreadPool()
     private val ui = Handler(Looper.getMainLooper())
     private var bridge: MethodChannel? = null
+    @Volatile private var destroyed = false
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -115,21 +116,30 @@ class MainActivity : AudioServiceActivity() {
             for (i in 0 until clip.itemCount.coerceAtMost(50))
                 clip.getItemAt(i).uri?.let(uris::add)
         }
-        var added = false
-        for (uri in uris.take(50)) {
-            if (uri.scheme != "content") continue
-            val name = supportedName(uri, incoming.type) ?: continue
-            synchronized(sources) {
-                if (sources.size < 50) {
-                    sources[UUID.randomUUID().toString()] = Source(uri, name)
-                    added = true
-                }
-            }
-        }
+        // Clear the received Intent to prevent replay on Activity recreation.
+        // URI grants are copied into native memory, not exposed to Flutter.
+        val mime = incoming.type
         incoming.replaceExtras(Bundle())
         incoming.clipData = null
         incoming.action = Intent.ACTION_MAIN
-        if (added) bridge?.invokeMethod("sharedBooksAvailable", null)
+        // Metadata queries for cloud providers can block: NEVER do them on
+        // Android's main thread, even for a warm share of up to 50 documents.
+        executor.execute {
+            var added = false
+            for (uri in uris.take(50)) {
+                if (destroyed || uri.scheme != "content") continue
+                val name = supportedName(uri, mime) ?: continue
+                synchronized(sources) {
+                    if (!destroyed && sources.size < 50) {
+                        sources[UUID.randomUUID().toString()] = Source(uri, name)
+                        added = true
+                    }
+                }
+            }
+            if (added) ui.post {
+                if (!destroyed) bridge?.invokeMethod("sharedBooksAvailable", null)
+            }
+        }
     }
 
     private fun supportedName(uri: Uri, intentMime: String?): String? {
@@ -168,6 +178,7 @@ class MainActivity : AudioServiceActivity() {
     }
 
     override fun onDestroy() {
+        destroyed = true
         bridge?.setMethodCallHandler(null)
         val retired = synchronized(sources) {
             val list = sources.values.toList()
