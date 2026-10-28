@@ -10,6 +10,7 @@ import '../../data/batch_book_import.dart';
 import '../../data/desktop_book_drop.dart';
 import '../../data/picked_book_import.dart';
 import '../../data/android_picker_recovery.dart';
+import '../../data/android_shared_book_inbox.dart';
 import '../../audio/reader_media_handler.dart';
 import '../../domain/book.dart';
 import '../../domain/library_catalog.dart';
@@ -21,6 +22,7 @@ class LibraryScreen extends StatefulWidget {
     required this.store,
     this.mediaHandler,
     this.retrieveInterruptedPick,
+    this.sharedBookInbox,
   });
   final LibraryStore store;
   final ReaderMediaHandler? mediaHandler;
@@ -28,6 +30,8 @@ class LibraryScreen extends StatefulWidget {
   /// Injectable for widget tests. Android uses native one-time lost-data
   /// recovery after the Activity is killed while the picker is in front.
   final Future<InterruptedBookSelection?> Function()? retrieveInterruptedPick;
+  /// Injectable native receiver for Android share-sheet widget tests.
+  final AndroidSharedBookInbox? sharedBookInbox;
 
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
@@ -36,6 +40,8 @@ class LibraryScreen extends StatefulWidget {
 class _LibraryScreenState extends State<LibraryScreen> {
   bool _busy = false;
   bool _recoveringInterruptedPick = false;
+  bool _processingSharedBooks = false;
+  AndroidSharedBookInbox? _sharedInbox;
   bool _dragHover = false;
   int _importCompleted = 0;
   int _importTotal = 0;
@@ -65,6 +71,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   void initState() {
     super.initState();
+    _sharedInbox = widget.sharedBookInbox ??
+        (Platform.isAndroid ? MethodChannelAndroidSharedBookInbox() : null);
+    _sharedInbox?.listen(() => unawaited(_consumeSharedBooks()));
+    if (_sharedInbox != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_consumeSharedBooks());
+      });
+    }
     if (Platform.isAndroid || widget.retrieveInterruptedPick != null) {
       // The plugin must be registered and the LibraryScreen mounted; use
       // the first frame instead of blocking app startup or widget build.
@@ -76,6 +90,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   void dispose() {
+    _sharedInbox?.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -107,13 +122,58 @@ class _LibraryScreenState extends State<LibraryScreen> {
       }
     } finally {
       _recoveringInterruptedPick = false;
+      if (mounted) unawaited(_consumeSharedBooks());
+    }
+  }
+
+  /// Reads pending Android shares after startup or a warm share intent.
+  /// Their provider grants are short-lived: finish all handles after import.
+  /// The same serial SAF pipeline checks size, deduplication and format.
+  Future<void> _consumeSharedBooks() async {
+    final inbox = _sharedInbox;
+    if (inbox == null || !mounted || _busy ||
+        _recoveringInterruptedPick || _processingSharedBooks) return;
+    _processingSharedBooks = true;
+    try {
+      while (mounted && !_busy && !_recoveringInterruptedPick) {
+        final shared = await inbox.pending();
+        if (!mounted || _busy || _recoveringInterruptedPick ||
+            shared.isEmpty) break;
+        try {
+          await _import(
+            recoveredBooks: [
+              for (final item in shared)
+                BatchPickedBook(
+                  name: item.name,
+                  pickedPath: null,
+                  readAsByteStream: () => inbox.read(item.id),
+                ),
+            ],
+            sharedFromAndroid: true,
+          );
+        } finally {
+          await inbox.finish([for (final item in shared) item.id]);
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not import shared Android books. '
+              'Share the files again if needed.'),
+        ));
+      }
+    } finally {
+      _processingSharedBooks = false;
     }
   }
 
   /// The picker supports single and multi-file selection on Windows and
   /// Android SAF. Files are imported sequentially, with isolated per-file
   /// errors and no automatic audio or cloud requests.
-  Future<void> _import({List<BatchPickedBook>? recoveredBooks}) async {
+  Future<void> _import({
+    List<BatchPickedBook>? recoveredBooks,
+    bool sharedFromAndroid = false,
+  }) async {
     if (_busy || (_recoveringInterruptedPick && recoveredBooks == null)) {
       return;
     }
@@ -171,7 +231,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _importCompleted = 0;
       });
       final onlyBook = result.onlySuccessfulBook;
-      if (onlyBook != null && recoveredBooks == null) {
+      if (onlyBook != null && sharedFromAndroid) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Shared book imported into your library. '
+              'Narration will not start automatically.'),
+        ));
+      } else if (onlyBook != null && recoveredBooks == null) {
         await _open(onlyBook);
       } else if (onlyBook != null && recoveredBooks != null) {
         // On cold app restart, leave the user in their library rather
@@ -205,6 +270,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
           _importCompleted = 0;
           _cancelRemainingImports = false;
         });
+      }
+      if (mounted && !_processingSharedBooks) {
+        unawaited(_consumeSharedBooks());
       }
     }
   }
