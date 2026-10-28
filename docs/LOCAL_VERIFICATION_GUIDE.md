@@ -222,3 +222,10 @@ spoken text: picture sections and blank pages retain their visual
 anchors while TTS advances to the next playable clip. A stale older
 test expecting those sections to be omitted has been updated.
 Verify using real Android cloud/SAF providers and an illustrated EPUB.
+
+Il timeout di inattività può essere passato anche a
+`importPickedBooks(providerIdleTimeout: ...)`: il risultato di un
+file remoto bloccato viene classificato come `unavailable` e
+l'importazione seriale continua con il successivo. Il test di regressione
+verifica la cancellazione dello stream originale, il report di avanzamento
+e la pulizia della directory temporanea. Il valore predefinito è 90 s.

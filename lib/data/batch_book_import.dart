@@ -71,7 +71,11 @@ Future<BatchBookImportResult> importPickedBooks({
   bool Function()? cancelRemaining,
   Directory? stagingParent,
   int maxSelections = 50,
+  Duration providerIdleTimeout = const Duration(seconds: 90),
 }) async {
+  if (providerIdleTimeout <= Duration.zero) {
+    throw ArgumentError.value(providerIdleTimeout, 'providerIdleTimeout');
+  }
   if (maxSelections < 1 || maxSelections > 50) {
     throw ArgumentError.value(maxSelections, 'maxSelections');
   }
@@ -89,6 +93,7 @@ Future<BatchBookImportResult> importPickedBooks({
         readAsByteStream: chosen.readAsByteStream,
         importFile: importFile,
         stagingParent: stagingParent,
+        providerIdleTimeout: providerIdleTimeout,
       );
       processed.add(BatchBookImportEntry(
         name: chosen.name,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:ereader/data/batch_book_import.dart';
@@ -80,6 +81,40 @@ void main() {
     expect(result.existingCount, 1);
     expect(result.onlySuccessfulBook, same(old));
     expect(result.onlySuccessfulBook!.progressOffset, 42);
+  });
+
+  test('stalled first SAF provider cancels, reports and continues batch',
+      () async {
+    var canceled = false;
+    final blocked = StreamController<List<int>>(onCancel: () {
+      canceled = true;
+    });
+    final progress = <String>[];
+    final result = await importPickedBooks(
+      selections: [
+        BatchPickedBook(
+          name: 'Remote.epub', pickedPath: 'content://provider/book/1',
+          readAsByteStream: () => blocked.stream,
+        ),
+        streamed('Available.txt', [66, 111, 111, 107]),
+      ],
+      knownBookIds: const [],
+      stagingParent: temp,
+      providerIdleTimeout: const Duration(milliseconds: 40),
+      onProgress: (done, total) => progress.add('$done/$total'),
+      importFile: (path, {originalName}) async {
+        final bytes = await File(path).readAsBytes();
+        expect(bytes, [66, 111, 111, 107]);
+        return record('available', originalName!);
+      },
+    );
+    expect(canceled, isTrue);
+    expect(progress, ['1/2', '2/2']);
+    expect(result.completedCount, 2);
+    expect(result.entries.map((e) => e.outcome),
+        [BookImportOutcome.unavailable, BookImportOutcome.added]);
+    expect(await temp.list().toList(), isEmpty);
+    await blocked.close();
   });
 
   test('one provider stream closing with an IO failure preserves later items',

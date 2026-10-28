@@ -707,3 +707,13 @@ with the already-implemented correct behavior of retaining silent OPF
 spine sections (illustrations/empty XHTML) as visual-only chapters;
 they never invent narration or replay the previous spoken clip.
 New unit regressions are authored, not executed here.
+
+### Batch-level SAF stream timeout propagation (2026-10-28)
+
+`importPickedBooks` now forwards the provider inactivity deadline
+to each independent source import. A stalled Android cloud provider
+is marked `BookImportOutcome.unavailable`, its one-shot temporary
+file and stream are released, the progress counter advances, and the
+next book is imported rather than blocking the entire selection.
+Added an injected 40 ms stalled stream unit regression. Real Android
+provider behavior remains to be validated locally.
