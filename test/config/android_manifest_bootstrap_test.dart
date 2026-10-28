@@ -10,7 +10,7 @@ void main() {
     final manifest = await File('tool/android/AndroidManifest.xml')
         .readAsString();
     for (final required in [
-      'com.ryanheise.audioservice.AudioServiceActivity',
+      'android:name=".MainActivity"',
       'com.ryanheise.audioservice.AudioService',
       'com.ryanheise.audioservice.MediaButtonReceiver',
       'android.permission.FOREGROUND_SERVICE',
@@ -32,10 +32,13 @@ void main() {
     expect(scriptWindows, contains('tool/android/AndroidManifest.xml'));
     expect(scriptWindows,
         contains('android/app/src/main/AndroidManifest.xml'));
+    expect(scriptWindows, contains('tool/android/MainActivity.kt'));
     expect(scriptUnix, contains('tool/android/AndroidManifest.xml'));
     expect(scriptUnix,
         contains('android/app/src/main/AndroidManifest.xml'));
+    expect(scriptUnix, contains('tool/android/MainActivity.kt'));
     expect(ci, contains('tool/android/AndroidManifest.xml'));
+    expect(ci, contains('tool/android/MainActivity.kt'));
     expect(ci, contains('android/app/src/main/AndroidManifest.xml'));
 
     final copyIndex = ci.indexOf('cp tool/android/AndroidManifest.xml');

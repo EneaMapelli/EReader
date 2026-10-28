@@ -36,10 +36,13 @@ jobs:
           cache: true
       - name: Generate Android project
         run: flutter create --project-name ereader --org com.example.ereader --platforms=android .
-      - name: Apply tracked Android media-service manifest
+      - name: Apply tracked Android manifest and share receiver
         run: |
           cp tool/android/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-          grep -q 'com.ryanheise.audioservice.AudioServiceActivity' android/app/src/main/AndroidManifest.xml
+          mkdir -p android/app/src/main/kotlin/com/example/ereader/ereader
+          cp tool/android/MainActivity.kt android/app/src/main/kotlin/com/example/ereader/ereader/MainActivity.kt
+          grep -q 'android:name=".MainActivity"' android/app/src/main/AndroidManifest.xml
+          grep -q 'class MainActivity : AudioServiceActivity()' android/app/src/main/kotlin/com/example/ereader/ereader/MainActivity.kt
           grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' android/app/src/main/AndroidManifest.xml
           grep -q 'com.ryanheise.audioservice.MediaButtonReceiver' android/app/src/main/AndroidManifest.xml
       - name: Resolve dependencies

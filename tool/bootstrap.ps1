@@ -7,6 +7,9 @@ flutter create --project-name ereader --org com.example.ereader --platforms=wind
 if ($LASTEXITCODE -ne 0) { throw "flutter create failed" }
 # Apply audio_service declarations to generated Android project.
 Copy-Item -LiteralPath "tool/android/AndroidManifest.xml" -Destination "android/app/src/main/AndroidManifest.xml" -Force
+$androidActivity = "android/app/src/main/kotlin/com/example/ereader/ereader/MainActivity.kt"
+New-Item -ItemType Directory -Force -Path (Split-Path $androidActivity) | Out-Null
+Copy-Item -LiteralPath "tool/android/MainActivity.kt" -Destination $androidActivity -Force
 flutter pub get
 flutter analyze
 flutter test

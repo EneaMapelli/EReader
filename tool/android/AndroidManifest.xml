@@ -10,12 +10,12 @@
         android:label="EReader"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        <!-- AudioServiceActivity links the activity to the same Flutter
-             engine used by the Android background media service. -->
+        <!-- Project MainActivity inherits AudioServiceActivity: preserve the
+             media-session engine while accepting shared documents. -->
         <activity
-            android:name="com.ryanheise.audioservice.AudioServiceActivity"
+            android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
@@ -27,6 +27,20 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Android Sharesheet: only actual shared document streams. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/epub+zip"/>
+                <data android:mimeType="application/pdf"/>
+                <data android:mimeType="text/plain"/>
+                <data android:mimeType="application/octet-stream"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="*/*"/>
             </intent-filter>
         </activity>
 
