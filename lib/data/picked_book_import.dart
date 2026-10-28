@@ -90,7 +90,12 @@ Future<T> importPickedBook<T>({
     }
     return await importFile(stagedFile.path, originalName: originalName);
   } finally {
-    if (writer != null) await writer.close();
-    if (await staging.exists()) await staging.delete(recursive: true);
+    try {
+      if (writer != null) await writer.close();
+    } finally {
+      // Even if closing a failed provider write itself throws, still
+      // attempt to remove private partial book data from local storage.
+      if (await staging.exists()) await staging.delete(recursive: true);
+    }
   }
 }

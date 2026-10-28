@@ -717,3 +717,13 @@ file and stream are released, the progress counter advances, and the
 next book is imported rather than blocking the entire selection.
 Added an injected 40 ms stalled stream unit regression. Real Android
 provider behavior remains to be validated locally.
+
+### Partial SAF provider file secure cleanup (2026-10-28)
+
+Nested finalizers guarantee that private partial source-file cleanup
+is attempted even if closing a failed stream writer also throws.
+An extra unit regression supplies some bytes then stalls indefinitely,
+verifies provider stream cancellation, no importer invocation and
+removal of the partial private PDF. This tests a critical loss-of-
+connection case separately from zero-byte provider stalls. Source
+tests not executed here.

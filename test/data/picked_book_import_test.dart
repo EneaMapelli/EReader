@@ -124,6 +124,33 @@ void main() {
     await provider.close();
   });
 
+  test('idle timeout after partial bytes also deletes private source',
+      () async {
+    var canceled = false;
+    late StreamController<List<int>> provider;
+    provider = StreamController<List<int>>(
+      onListen: () => provider.add([1, 2, 3, 4]),
+      onCancel: () => canceled = true,
+    );
+    var invokedImporter = false;
+    await expectLater(importPickedBook<String>(
+      originalName: 'Partial.pdf',
+      pickedPath: null,
+      stagingParent: root,
+      providerIdleTimeout: const Duration(milliseconds: 40),
+      readAsByteStream: () => provider.stream,
+      importFile: (path, {originalName}) async {
+        invokedImporter = true;
+        return 'should not import a partial PDF';
+      },
+    ), throwsA(isA<FileSystemException>()));
+    expect(canceled, isTrue);
+    expect(invokedImporter, isFalse);
+    expect(await root.list().toList(), isEmpty,
+        reason: 'Partially downloaded private file must not survive');
+    await provider.close();
+  });
+
   test('active slow provider succeeds when every chunk arrives in time',
       () async {
     final result = await importPickedBook<int>(
