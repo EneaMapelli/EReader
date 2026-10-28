@@ -48,6 +48,7 @@ class _OfflineVoiceManagerScreenState
   late final OfflineVoiceAudition _audition;
   String? _sampleId;
   bool _stoppingSample = false;
+  bool _sampleCancelled = false;
 
   Future<Directory> _directory() async {
     final resolver = widget.modelsDirectory;
@@ -77,7 +78,10 @@ class _OfflineVoiceManagerScreenState
 
   Future<void> _stopSample() async {
     if (_sampleId == null || _stoppingSample) return;
-    setState(() => _stoppingSample = true);
+    setState(() {
+      _stoppingSample = true;
+      _sampleCancelled = true;
+    });
     try {
       await _audition.stop();
       if (mounted) {
@@ -126,11 +130,12 @@ class _OfflineVoiceManagerScreenState
     setState(() {
       _busyId = entry.id;
       _sampleId = entry.id;
+      _sampleCancelled = false;
       _message = 'Preparing a short local voice sample...';
     });
     try {
       await _audition.play(entry.id);
-      if (mounted && !_stoppingSample) {
+      if (mounted && !_sampleCancelled) {
         setState(() => _message = 'Local voice sample finished. '
             'This does not change the voice selected for any book.');
       }
