@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../data/offline_voice_pack.dart';
 import '../../data/piper_paola_installer.dart';
+import '../../audio/offline_voice_audition.dart';
 
 /// Model management is deliberately separate from provider activation.
 /// This screen lists verified on-device assets and can uninstall them,
@@ -17,6 +18,7 @@ class OfflineVoiceManagerScreen extends StatefulWidget {
     super.key,
     this.modelsDirectory,
     this.pickSourceDirectory,
+    this.audition,
   });
 
   /// Injected in tests. Ordinary apps use private application support.
@@ -24,6 +26,9 @@ class OfflineVoiceManagerScreen extends StatefulWidget {
 
   /// Injects the picker in tests without loading Windows/Android plugins.
   final Future<String?> Function()? pickSourceDirectory;
+
+  /// Optional injected sample service for tests (never touches native FFI).
+  final OfflineVoiceAudition? audition;
 
   @override
   State<OfflineVoiceManagerScreen> createState() =>
@@ -40,6 +45,9 @@ class _OfflineVoiceManagerScreenState
   bool _licenseReviewed = false;
   int _paolaDownloadBytes = 0;
   int? _paolaTotalBytes;
+  late final OfflineVoiceAudition _audition;
+  String? _sampleId;
+  bool _stoppingSample = false;
 
   Future<Directory> _directory() async {
     final resolver = widget.modelsDirectory;
@@ -51,7 +59,96 @@ class _OfflineVoiceManagerScreenState
   @override
   void initState() {
     super.initState();
+    _audition = widget.audition ?? OfflineVoiceAudition(
+      loadPack: (id) async => loadInstalledOfflineVoicePack(
+        packId: id, modelsDirectory: await _directory(),
+      ),
+    );
     unawaited(_refresh());
+  }
+
+  @override
+  void dispose() {
+    // Dispose invalidates model verification and cancels any active preview.
+    // The controller retains native WAV cleanup ownership until it settles.
+    unawaited(_audition.dispose().catchError((Object _) {}));
+    super.dispose();
+  }
+
+  Future<void> _stopSample() async {
+    if (_sampleId == null || _stoppingSample) return;
+    setState(() => _stoppingSample = true);
+    try {
+      await _audition.stop();
+      if (mounted) {
+        setState(() => _message = 'Offline voice sample stopped.');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _message = 'Native voice Stop was not confirmed. '
+            'Do not begin another preview until audio has ended.');
+      }
+    } finally {
+      if (mounted) setState(() => _stoppingSample = false);
+    }
+  }
+
+  Future<void> _previewVoice(OfflineVoicePackInspection entry) async {
+    if (!mounted || _loading || _busyId != null || !entry.ready ||
+        entry.installed?.phonemizerDataDir == null ||
+        offlineVoiceSampleText(entry.installed!.manifest.locale) == null) {
+      return;
+    }
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Play experimental offline voice sample?'),
+        content: const Text(
+          'This will speak a short, built-in demonstration phrase using '
+          'your installed local model. It does not use your books, make '
+          'cloud requests or spend API credits. Pause any current book '
+          'narration first. Native Windows audio and Stop are still '
+          'experimental; the model can use substantial CPU and RAM.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Play sample'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || approved != true || _busyId != null) return;
+    setState(() {
+      _busyId = entry.id;
+      _sampleId = entry.id;
+      _message = 'Preparing a short local voice sample...';
+    });
+    try {
+      await _audition.play(entry.id);
+      if (mounted && !_stoppingSample) {
+        setState(() => _message = 'Local voice sample finished. '
+            'This does not change the voice selected for any book.');
+      }
+    } catch (_) {
+      // A native exception may include OS paths or model details.
+      if (mounted) {
+        setState(() => _message =
+            'Offline sample failed. Verify the model, phonemizer and '
+            'Windows audio output; no cloud fallback was used.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _sampleId = null;
+          _busyId = null;
+        });
+      }
+    }
   }
 
   Future<void> _refresh({bool clearMessage = true}) async {
@@ -414,11 +511,34 @@ class _OfflineVoiceManagerScreenState
                   ? 'Verified files · ${entry.installed!.manifest.locale} · '
                       '${entry.installed!.manifest.licenseId}'
                   : 'Unavailable: missing or damaged voice files'),
-              trailing: IconButton(
-                tooltip: 'Remove voice ${entry.id}',
-                icon: const Icon(Icons.delete_outline),
-                onPressed: _loading || _busyId != null
-                    ? null : () => _remove(entry),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if ((Platform.isWindows || widget.audition != null) &&
+                      entry.ready &&
+                      entry.installed?.phonemizerDataDir != null &&
+                      offlineVoiceSampleText(
+                          entry.installed!.manifest.locale) != null)
+                    IconButton(
+                      key: ValueKey('offline-voice-preview-${entry.id}'),
+                      tooltip: _sampleId == entry.id
+                          ? 'Stop sample ${entry.id}'
+                          : 'Preview voice ${entry.id}',
+                      icon: Icon(_sampleId == entry.id
+                          ? Icons.stop_circle_outlined
+                          : Icons.play_circle_outline),
+                      onPressed: _sampleId == entry.id
+                          ? (_stoppingSample ? null : _stopSample)
+                          : (_loading || _busyId != null
+                              ? null : () => _previewVoice(entry)),
+                    ),
+                  IconButton(
+                    tooltip: 'Remove voice ${entry.id}',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: _loading || _busyId != null
+                        ? null : () => _remove(entry),
+                  ),
+                ],
               ),
             ),
           ),
