@@ -246,3 +246,24 @@ Test manuale: Android Opzioni sviluppatore -> "Non mantenere attività",
 scegli un file, torna all'app, verifica la libreria e riprova a scegliere
 un nuovo file. Prima eseguire `flutter pub get` per la dipendenza
 `android_file_picker`. Nessuna build Android avviata.
+
+
+### Test locali specifici per il recupero dell'Activity Android
+
+Dopo aver aggiornato il ramo e risolto le dipendenze:
+
+    flutter pub get
+    flutter test test/features/android_lost_picker_recovery_test.dart
+    flutter test test/config/android_picker_stream_contract_test.dart
+    flutter test test/data/picked_book_import_test.dart test/data/batch_book_import_test.dart
+
+Il test Flutter inietta una selezione simulata: verifica che uno stream
+TXT venga importato una volta, che la libreria resti aperta, che un
+errore di ripristino venga mostrato senza URI privati e che oltre 50
+file non vengano neppure letti. Non certifica la vera Activity Android.
+Per quella, usare un dispositivo con "Non mantenere attività" attivo,
+selezionare un documento SAF, tornare all'app e controllare la libreria.
+
+Il lockfile attuale non include ancora il plugin Android 2.1, né è
+stato aggiornato a file_picker 13. Rigenerarlo mediante flutter pub get
+sul PC con l'SDK installato e includere poi il nuovo pubspec.lock.

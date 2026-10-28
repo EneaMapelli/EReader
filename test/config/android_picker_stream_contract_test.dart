@@ -15,7 +15,13 @@ void main() {
             .readAsString();
 
     expect(manifest, contains('file_picker: ^13.1.0'));
+    expect(manifest, contains('android_file_picker: ^2.1.0'));
     expect(library, contains('FilePicker.pickFiles('));
+    expect(library, contains('recoverInterruptedAndroidBookPick'));
+    expect(library, contains('recoveredBooks: selection.selections'));
+    expect(library, contains('if (Platform.isAndroid || widget.retrieveInterruptedPick != null)'));
+    expect(library, contains('onlyBook != null && recoveredBooks == null'));
+    expect(library, contains('onlyBook != null && recoveredBooks != null'));
     expect(library, contains('readAsByteStream: item.readAsByteStream'));
     expect(library, contains('allowedExtensions: const'));
     expect(library, isNot(contains('Stream<List<int>>.empty()')));
