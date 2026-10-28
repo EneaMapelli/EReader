@@ -132,9 +132,18 @@ void main() {
     );
     final speech = segmentEpubSpine(content);
     final chapters = buildEpubChapters(content, speech);
-    expect(chapters.map((c) => c.idref).toList(), ['intro', 'main']);
+    // Visual-only OPF spine sections must remain accessible from the
+    // directory even though they have no narratable text themselves.
+    expect(chapters.map((c) => c.idref).toList(),
+        ['intro', 'empty', 'main']);
     expect(chapters.map((c) => c.title).toList(),
-        ['Chapter 1', 'Chapter III']);
+        ['Chapter 1', 'Chapter 2', 'Chapter III']);
+    expect(chapters.map((c) => c.hasSpeech), [true, false, true]);
+    expect(chapters.map((c) => c.segmentIndex), [0, 1, 1]);
+    expect(chapters[1].start, 5);
+    expect(chapters[1].end, 7);
+    expect(chapterIndexForOffset(chapters, 5), 1);
+    expect(chapterIndexForOffset(chapters, 7), 2);
     expect(chapterIndexForOffset(chapters, -100), 0);
     expect(chapterIndexForOffset(const [], 2), -1);
   });

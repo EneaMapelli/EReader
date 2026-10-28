@@ -82,6 +82,28 @@ void main() {
     expect(result.onlySuccessfulBook!.progressOffset, 42);
   });
 
+  test('one provider stream closing with an IO failure preserves later items',
+      () async {
+    final result = await importPickedBooks(
+      selections: [
+        BatchPickedBook(
+          name: 'Remote.pdf', pickedPath: null,
+          readAsByteStream: () => Stream<List<int>>.error(
+              const FileSystemException('Document provider unavailable')),
+        ),
+        streamed('Next.txt', [78, 101, 120, 116]),
+      ],
+      stagingParent: temp,
+      knownBookIds: const [],
+      importFile: (path, {originalName}) async =>
+          record('success', originalName!),
+    );
+    expect(result.entries.map((e) => e.outcome),
+        [BookImportOutcome.unavailable, BookImportOutcome.added]);
+    expect(result.completedCount, 2);
+    expect(await temp.list().toList(), isEmpty);
+  });
+
   test('one item failing IO does not abort later imports', () async {
     var count = 0;
     final result = await importPickedBooks(

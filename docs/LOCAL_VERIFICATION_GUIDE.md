@@ -208,3 +208,17 @@ fields distinguish `isolatedFileRunsAttempted` from
 `isolatedFileRunsSkipped` (which means "not attempted individually",
 not "tests skipped"). The runner does not start a Windows app build,
 any Action or attempt to force-delete native assets.
+
+## SAF/cloud stalls and visual-only EPUB chapters (2026-10-28)
+
+A provider that stops transmitting data but keeps its stream open
+should now return an `unavailable` error after 90 seconds without a
+chunk (there is no limit on total transfer duration while chunks
+continue arriving). The temporary private staging file is closed and
+deleted. The other books in a batch remain importable.
+
+EPUB spine navigation intentionally preserves sections without any
+spoken text: picture sections and blank pages retain their visual
+anchors while TTS advances to the next playable clip. A stale older
+test expecting those sections to be omitted has been updated.
+Verify using real Android cloud/SAF providers and an illustrated EPUB.

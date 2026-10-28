@@ -20,9 +20,13 @@ Future<T> importPickedBook<T>({
   required PickedBookImporter<T> importFile,
   Directory? stagingParent,
   int maxBytes = 100 * 1024 * 1024,
+  Duration providerIdleTimeout = const Duration(seconds: 90),
 }) async {
   if (maxBytes < 1 || maxBytes > 100 * 1024 * 1024) {
     throw ArgumentError.value(maxBytes, 'maxBytes');
+  }
+  if (providerIdleTimeout <= Duration.zero) {
+    throw ArgumentError.value(providerIdleTimeout, 'providerIdleTimeout');
   }
   final format = BookFormatPath.parse(originalName);
   if (format == null) {
@@ -58,7 +62,19 @@ Future<T> importPickedBook<T>({
   try {
     writer = await stagedFile.open(mode: FileMode.write);
     var length = 0;
-    await for (final bytes in readAsByteStream()) {
+    // A remote SAF/cloud provider may stop delivering bytes without
+    // closing its stream. Bound *idle time between chunks*, not overall
+    // import duration: a healthy slow transfer can still finish. Dart's
+    // timeout cancels the subscribed source stream on close.
+    final incoming = readAsByteStream().timeout(
+      providerIdleTimeout,
+      onTimeout: (sink) {
+        sink.addError(const FileSystemException(
+            'The selected document provider stopped responding'));
+        sink.close();
+      },
+    );
+    await for (final bytes in incoming) {
       if (bytes.length > maxBytes - length) {
         throw const FormatException('Book must be 1 byte to 100 MB');
       }

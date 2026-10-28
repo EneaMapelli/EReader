@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:ereader/data/picked_book_import.dart';
@@ -92,6 +93,73 @@ void main() {
     );
     expect(result, 'saved');
     expect(calls, 1);
+    expect(await root.list().toList(), isEmpty);
+  });
+
+  test('stalled SAF/cloud stream times out, cancels and removes staging',
+      () async {
+    var canceled = false;
+    late StreamController<List<int>> provider;
+    provider = StreamController<List<int>>(onCancel: () {
+      canceled = true;
+    });
+    var imported = false;
+    await expectLater(
+      importPickedBook<String>(
+        originalName: 'Cloud.pdf',
+        pickedPath: null,
+        stagingParent: root,
+        providerIdleTimeout: const Duration(milliseconds: 25),
+        readAsByteStream: () => provider.stream,
+        importFile: (path, {originalName}) async {
+          imported = true;
+          return 'unexpected';
+        },
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(canceled, isTrue);
+    expect(imported, isFalse);
+    expect(await root.list().toList(), isEmpty);
+    await provider.close();
+  });
+
+  test('active slow provider succeeds when every chunk arrives in time',
+      () async {
+    final result = await importPickedBook<int>(
+      originalName: 'Remote.epub',
+      pickedPath: 'content://some-provider/saf',
+      stagingParent: root,
+      providerIdleTimeout: const Duration(milliseconds: 150),
+      readAsByteStream: () async* {
+        yield [1, 2];
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        yield [3, 4];
+      },
+      importFile: (path, {originalName}) async {
+        expect(await File(path).readAsBytes(), [1, 2, 3, 4]);
+        return 4;
+      },
+    );
+    expect(result, 4);
+    expect(await root.list().toList(), isEmpty);
+  });
+
+  test('nonpositive idle timeout is rejected without touching provider',
+      () async {
+    var accessed = false;
+    await expectLater(importPickedBook<int>(
+      originalName: 'Idle.txt',
+      pickedPath: null,
+      stagingParent: root,
+      providerIdleTimeout: Duration.zero,
+      readAsByteStream: () {
+        accessed = true;
+        return const Stream<List<int>>.empty();
+      },
+      importFile: (path, {originalName}) async => 1,
+    ), throwsArgumentError);
+    expect(accessed, isFalse);
     expect(await root.list().toList(), isEmpty);
   });
 

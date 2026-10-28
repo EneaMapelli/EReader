@@ -691,3 +691,19 @@ dart:io. Added SAF URI/import regression and a source API guard.
 Flutter pub get must regenerate pubspec.lock on a machine with SDK:
 the existing lockfile still contains old 3.0.4 transitive versions.
 Not tested here; no Windows builds/Actions.
+
+### Android SAF/cloud provider stream idle guard (2026-10-28)
+
+Document providers may stall after an initial or partial byte stream.
+`importPickedBook` now applies a 90-second **inter-chunk inactivity**
+timeout (not a total book-import deadline), treats a stalled stream as
+an unavailable-file I/O error, closes/cancels its stream and deletes
+the staged source. Serial batch importing can then proceed to later
+books. Callers may override the limit in test fixtures. The 100 MB
+hard limit and source format checks remain unchanged.
+
+A previously contradictory chapter-navigation test has been aligned
+with the already-implemented correct behavior of retaining silent OPF
+spine sections (illustrations/empty XHTML) as visual-only chapters;
+they never invent narration or replay the previous spoken clip.
+New unit regressions are authored, not executed here.
