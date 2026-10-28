@@ -121,3 +121,17 @@ ascolti e misure su hardware reale.
 **Stato:** la scelta dei provider è stata integrata al codice, ma
 l'audio VITS resta in fase **alpha, opt-in, non collaudato su dispositivo**.
 Non si rivendicano benchmark o vantaggi non misurati.
+
+## Anteprima audio VITS locale su Windows (28 ottobre 2026)
+
+La voce neurale già **installata, pronta e dotata di dati eSpeak** mostra
+`Preview voice` nella schermata dei modelli. Dopo conferma, EReader legge
+solo un breve esempio dimostrativo incluso nell'app, in italiano o inglese;
+non importa testo da EPUB/PDF né consuma crediti cloud. `Stop sample`
+invalida anche la verifica del pack eventualmente ancora in corso.
+L'anteprima è isolata dalle preferenze del libro e non attribuisce alcuna
+nuova voce ai personaggi.
+
+In questa sessione non sono stati eseguiti test Flutter, native build o
+prove d'ascolto. `sherpa-vits` rimane **alpha Windows non collaudata**.
+Vedi [OFFLINE_VOICE_PREVIEW.md](OFFLINE_VOICE_PREVIEW.md).

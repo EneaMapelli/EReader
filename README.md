@@ -442,3 +442,13 @@ books into the private library using the normal size/deduplication checks;
 receiving a share does not start narration or a cloud request. This Android
 feature is **unverified on device** and requires the next user-triggered
 Android build. See [Android share import](docs/ANDROID_SHARE_SHEET_IMPORT.md).
+
+
+### Local neural voice preview (experimental Windows)
+
+A verified installed VITS/Piper voice with eSpeak data can be auditioned in
+**Manage offline neural voices → Preview voice**, with explicit Play/Stop
+controls and a built-in demo phrase instead of book text. No cloud TTS request
+or change to book preferences occurs. The feature is source-only until a
+new requested Windows build and listening test. See
+[Offline voice preview](docs/OFFLINE_VOICE_PREVIEW.md).

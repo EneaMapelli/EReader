@@ -779,3 +779,17 @@ Android Activity recreation remains a manual device gate.
   Native Flutter/Android compilation, real share providers, process restart
   and media-service interactions still need validation. No build or Actions
   was triggered. See [ANDROID_SHARE_SHEET_IMPORT.md](ANDROID_SHARE_SHEET_IMPORT.md).
+
+### M3 — Offline voice audio audition (2026-10-28)
+
+- A user-confirmed `Preview voice` action now re-verifies a local installed
+  VITS pack before speaking a fixed, public Italian/English demo sentence.
+  A dedicated Stop invalidates in-flight model checks and synthesis; the
+  engine is not saved into book preferences and no cloud speech is involved.
+- The preview remains visible only for suitable SHA-checked Windows packs
+  with phonemizer files and supported sample language; unready entries
+  have no preview action. Android neural narration remains disabled.
+- Domain + widget regressions were written using fake speech engines,
+  **not executed**; no Windows/Android build, Github Actions or native
+  listening test was launched. Roadmap estimates are unchanged pending
+  acceptance. See [OFFLINE_VOICE_PREVIEW.md](OFFLINE_VOICE_PREVIEW.md).
