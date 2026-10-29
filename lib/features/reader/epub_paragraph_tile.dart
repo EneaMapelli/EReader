@@ -5,9 +5,8 @@ import '../../data/epub_embedded_content.dart';
 import '../../domain/book_search.dart';
 import 'epub_visual_layout.dart';
 
-/// Display-only, session-local colors. A future reader-preferences screen
-/// can persist these without touching source anchors or speech settings.
-enum EpubReadingPalette { system, sepia, night }
+/// EPUB-only visual colors, persisted separately from speech settings.
+enum EpubReadingPalette { system, sepia, night, highContrast }
 
 extension EpubReadingPaletteColors on EpubReadingPalette {
   Color background(BuildContext context) => switch (this) {
@@ -15,18 +14,21 @@ extension EpubReadingPaletteColors on EpubReadingPalette {
         Theme.of(context).scaffoldBackgroundColor,
     EpubReadingPalette.sepia => const Color(0xFFF4ECD9),
     EpubReadingPalette.night => const Color(0xFF17191E),
+    EpubReadingPalette.highContrast => const Color(0xFFFFFFFF),
   };
 
   Color foreground(BuildContext context) => switch (this) {
     EpubReadingPalette.system => Theme.of(context).colorScheme.onSurface,
     EpubReadingPalette.sepia => const Color(0xFF372B20),
     EpubReadingPalette.night => const Color(0xFFE2E3E7),
+    EpubReadingPalette.highContrast => const Color(0xFF000000),
   };
 
   Color highlight(BuildContext context) => switch (this) {
     EpubReadingPalette.system => Theme.of(context).colorScheme.primaryContainer,
     EpubReadingPalette.sepia => const Color(0xFFE7D39B),
     EpubReadingPalette.night => const Color(0xFF3C4968),
+    EpubReadingPalette.highContrast => const Color(0xFFFFE36B),
   };
 
   Color highlightForeground(BuildContext context) => switch (this) {
@@ -34,6 +36,7 @@ extension EpubReadingPaletteColors on EpubReadingPalette {
         Theme.of(context).colorScheme.onPrimaryContainer,
     EpubReadingPalette.sepia => const Color(0xFF302414),
     EpubReadingPalette.night => const Color(0xFFF0F3FF),
+    EpubReadingPalette.highContrast => const Color(0xFF000000),
   };
 
   Color searchHighlight(BuildContext context) => switch (this) {
@@ -41,6 +44,14 @@ extension EpubReadingPaletteColors on EpubReadingPalette {
         Theme.of(context).colorScheme.tertiaryContainer,
     EpubReadingPalette.sepia => const Color(0xFFF1B66C),
     EpubReadingPalette.night => const Color(0xFF7D5B2C),
+    EpubReadingPalette.highContrast => const Color(0xFF003C9E),
+  };
+
+  Color linkForeground(BuildContext context) => switch (this) {
+    EpubReadingPalette.system => Theme.of(context).colorScheme.primary,
+    EpubReadingPalette.sepia => const Color(0xFF194F72),
+    EpubReadingPalette.night => const Color(0xFF9FC5FF),
+    EpubReadingPalette.highContrast => const Color(0xFF003C9E),
   };
 
   Color searchForeground(BuildContext context) => switch (this) {
@@ -48,6 +59,7 @@ extension EpubReadingPaletteColors on EpubReadingPalette {
         Theme.of(context).colorScheme.onTertiaryContainer,
     EpubReadingPalette.sepia => const Color(0xFF241A12),
     EpubReadingPalette.night => const Color(0xFFFFFFFF),
+    EpubReadingPalette.highContrast => const Color(0xFFFFFFFF),
   };
 }
 
@@ -64,6 +76,8 @@ class EpubParagraphTile extends StatefulWidget {
     required this.fontSize,
     this.lineHeight = 1.75,
     this.fontFamily = 'serif',
+    this.contentWidth = 760,
+    this.textAlignment = 'auto',
     required this.onSelectSegment,
     this.onOpenLink,
     this.onOpenFootnote,
@@ -78,6 +92,8 @@ class EpubParagraphTile extends StatefulWidget {
   final double fontSize;
   final double lineHeight;
   final String fontFamily;
+  final double contentWidth;
+  final String textAlignment;
   final ValueChanged<int> onSelectSegment;
   /// Source offset of a verified internal EPUB fragment (never a URL).
   final ValueChanged<int>? onOpenLink;
@@ -211,7 +227,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
           : run.figureCaption ? widget.fontSize * 0.92 : null,
       backgroundColor: active ? palette.highlight(context) : null,
       color: active ? palette.highlightForeground(context)
-          : linked ? Theme.of(context).colorScheme.primary : null,
+          : linked ? palette.linkForeground(context) : null,
       decoration: linked ? TextDecoration.underline : null,
     );
     final recognizer = run.auxiliaryFootnoteKey != null &&
@@ -268,7 +284,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760),
+        constraints: BoxConstraints(maxWidth: widget.contentWidth),
         child: Padding(
           padding: EdgeInsets.fromLTRB(
             8, widget.block.chapterStart ? 24 : 4,
@@ -336,7 +352,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
                           _renderRun(context, run),
                       ]),
                       style: style,
-                      textAlign: heading
+                      textAlign: heading || widget.textAlignment == 'start'
                           ? TextAlign.start : TextAlign.justify,
                       softWrap: true,
                     ),
