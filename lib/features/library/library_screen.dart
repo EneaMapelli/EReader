@@ -611,6 +611,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   Text('New books to import: ${preview.availableToImport}'),
                   Text('Already in your library: ${preview.alreadyPresent}'),
                   Text('New bookmarks: ${preview.bookmarksToImport}'),
+                  Text('New collections: ${preview.collectionsToImport}'),
                   Text('Verified source bytes: '
                       '${(preview.verifiedBytes / (1024 * 1024))
                           .toStringAsFixed(1)} MiB'),
@@ -619,6 +620,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     'Existing books, their positions, bookmarks and '
                     'settings will NOT be changed. New books regain '
                     'saved positions, bookmarks and catalog details. '
+                    'Collection names from the backup are added when '
+                    'missing, including empty collections; existing '
+                    'collection assignments remain unchanged. '
                     'Cloud/LLM consent, API keys, cached audio, voice '
                     'choices and cast data are NOT imported. '
                     'The process is add-only; earlier successfully '
@@ -634,9 +638,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: preview.availableToImport == 0
+              onPressed: preview.availableToImport == 0 &&
+                      preview.collectionsToImport == 0
                   ? null : () => Navigator.pop(dialog, true),
-              child: const Text('Restore new books'),
+              child: const Text('Restore library additions'),
             ),
           ],
         ),
@@ -665,7 +670,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
           content: Text(
             'Imported: ${result.added} books\n'
             'Kept unchanged: ${result.skipped} books\n'
-            'Bookmarks restored: ${result.bookmarksImported}\n\n'
+            'Bookmarks restored: ${result.bookmarksImported}\n'
+            'Collections added: ${result.collectionsImported}\n\n'
             'No cloud permissions or API keys were imported.',
           ),
           actions: [
