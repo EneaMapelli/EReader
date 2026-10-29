@@ -947,3 +947,20 @@ Android Activity recreation remains a manual device gate.
   increase without native visual acceptance.
 - [PERSISTENT_READING_APPEARANCE.md](PERSISTENT_READING_APPEARANCE.md).
 
+
+### M1/M2/M6 — Foreground keyboard controls for reading (2026-10-29)
+
+- Added safe keyboard navigation for the active reader: **Space**
+  Play/Pause, **Left/Right** spoken segment, **Ctrl/Cmd+F** search,
+  **Ctrl/Cmd+B** bookmarks, **F1** in-app shortcut reference.
+- Uses existing TTS player and cloud-consent checks; does not start a
+  new engine, move visual-only EPUB source positions or bypass native
+  Stop/Seek protection. PDF page view remains unchanged.
+- Focus-aware routing ignores editable text fields, open dialogs,
+  inactive routes, repeats/key-up and modified navigation keys.
+  Reader controls now expose discoverable shortcut tooltips/help.
+- Authored mapping, widget, modal focus and accessibility regression
+  cases. **Not executed**; no Windows/Android build or GitHub Actions.
+  No milestone completion percentage changes without device testing.
+- [READER_KEYBOARD_SHORTCUTS.md](READER_KEYBOARD_SHORTCUTS.md).
+
