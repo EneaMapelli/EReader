@@ -33,6 +33,46 @@ void main() {
     expect(SpeechPreferences.fromJson(old).modelId, 'gpt-4o-mini-tts');
   });
 
+  test('dialogue pause round-trips with provider and global voice settings',
+      () {
+    const prefs = SpeechPreferences(
+      providerId: 'system-native',
+      language: 'it-IT',
+      dialogueTurnPauseMs: 350,
+    );
+    final restored = SpeechPreferences.fromJson(prefs.toJson());
+    expect(restored.dialogueTurnPauseMs, 350);
+    expect(restored.providerId, 'system-native');
+    expect(restored.copyWith(rate: 0.7).dialogueTurnPauseMs, 350);
+    expect(restored.copyWith(dialogueTurnPauseMs: 0).dialogueTurnPauseMs, 0);
+    expect(restored.copyWith(providerId: 'openai-speech')
+        .dialogueTurnPauseMs, 350,
+        reason: 'Free-voice preference survives switching cloud providers');
+  });
+
+  test('older stored JSON defaults to the previously fixed 110ms pause',
+      () {
+    final legacy = Map<String, dynamic>.from(
+        const SpeechPreferences().toJson())
+      ..remove('dialogueTurnPauseMs');
+    expect(SpeechPreferences.fromJson(legacy).dialogueTurnPauseMs, 110);
+    expect(const SpeechPreferences().dialogueTurnPauseMs, 110);
+  });
+
+  test('rejects malformed or excessive dialogue pause durations', () {
+    for (final duration in [-1, 2001]) {
+      expect(() => SpeechPreferences(
+        dialogueTurnPauseMs: duration,
+      ).validate(), throwsFormatException);
+    }
+    for (final value in ['110', 110.0, true, []]) {
+      expect(() => SpeechPreferences.fromJson({
+        ...const SpeechPreferences().toJson(),
+        'dialogueTurnPauseMs': value,
+      }), throwsFormatException);
+    }
+  });
+
   test('rejects invalid or non-finite settings', () {
     expect(
       () => const SpeechPreferences(rate: 5).validate(),
