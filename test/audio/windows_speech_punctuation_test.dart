@@ -29,6 +29,32 @@ void main() {
     expect(pauses(source), [260, 260, 140, 360, 420, 420]);
   });
 
+  test('unpunctuated Italian dialogue stays distinct from speech tags', () {
+    const source = '«Vieni» disse Elena. «Arrivo» rispose Marco.';
+    expect(words(source),
+        ['Vieni', 'disse Elena', 'Arrivo', 'rispose Marco']);
+    expect(pauses(source), [140, 360, 140, 360]);
+  });
+
+  test('quoted speech with punctuation does not double its pause', () {
+    const source = '“Vieni!” disse Elena. “Davvero?” chiese lui.';
+    expect(words(source),
+        ['Vieni', 'disse Elena', 'Davvero', 'chiese lui']);
+    expect(pauses(source), [420, 360, 420, 360]);
+  });
+
+  test('speech separated by quotation marks is not concatenated', () {
+    const source = 'Disse "seguimi" e si mosse.';
+    expect(words(source), ['Disse', 'seguimi', 'e si mosse']);
+    expect(pauses(source), [140, 140, 360]);
+  });
+
+  test('dialogue dashes and accented text preserve lexical content', () {
+    const source = '— Buongiorno, Èlia.\n— Vieni qui… per favore!';
+    expect(words(source), ['Buongiorno', 'Èlia', 'Vieni qui', 'per favore']);
+    expect(pauses(source), [140, 260, 360, 420]);
+  });
+
   test('decimal punctuation, times and signed numerals remain meaningful',
       () {
     expect(words('3,14 e 1.000 alle 12:30. Debito -5,20 €.'),
@@ -48,7 +74,9 @@ void main() {
       () {
     expect(words(
         '"Ciao" (Marco) [nota] {appendice} * • prima – seconda.'),
-        ['Ciao Marco nota appendice prima', 'seconda']);
+        ['Ciao', 'Marco nota appendice prima', 'seconda']);
+    expect(pauses('"Ciao" (Marco) [nota] {appendice} * • prima – seconda.'),
+        [140, 260, 360]);
   });
 
   test('Unicode emoji and accented text are never split or rewritten',

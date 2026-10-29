@@ -86,20 +86,28 @@ class WindowsSpeechPunctuation {
           flush(questionPause);
         case 0x2026: // … (ellipsis)
           flush(fullStopPause);
-        case 0x22: // " (quotation)
+        case 0x22: // " (plain paired quotations)
         case 0x00ab: // «
         case 0x00bb: // »
         case 0x201c: // “
         case 0x201d: // ”
         case 0x201e: // „
         case 0x201f: // ‟
+          // Distinguish quoted speech from a following dialogue tag:
+          // «Vieni» disse Elena must not become "Vieni disse Elena".
+          // A short breath also separates a narrator's introductory tag
+          // from quoted speech without adding words or changing source
+          // offsets. Terminal !/?/. already carries the longer pause;
+          // flush() preserves that maximum rather than double-pausing.
+          flush(shortPause);
         case 0x28: // (
         case 0x29: // )
         case 0x5b: // [
         case 0x5d: // ]
         case 0x7b: // {
         case 0x7d: // }
-          // Prevent quotes/brackets collapsing two adjacent words.
+          // Parentheses are not necessarily a speaker change. Preserve
+          // word separation but avoid an artificial pause inside notes.
           current.write(' ');
         case 0x27: // straight apostrophe
         case 0x2019: // curly apostrophe in the middle of a word
