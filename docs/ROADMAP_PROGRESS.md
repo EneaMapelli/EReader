@@ -964,3 +964,20 @@ Android Activity recreation remains a manual device gate.
   No milestone completion percentage changes without device testing.
 - [READER_KEYBOARD_SHORTCUTS.md](READER_KEYBOARD_SHORTCUTS.md).
 
+
+### M1/M2 — Whole-book visual source progress and safe scrubber (2026-10-29)
+
+- Replaced a speech-segment-only progress readout with a **separate**
+  canonical-text percentage and source seek slider in EPUB, TXT and
+  PDF **text mode**. Do not confuse source percentage with audio time.
+- Dragging previews only; release pauses narration before navigating,
+  so it cannot trigger cloud TTS or resume unexpectedly. EPUB navigates
+  using existing source-exact destinations, including silent trailing
+  content; TXT/PDF seek their real next spoken segment or source EOF.
+- Fine-grained manual scroll updates only the progress control unless
+  an EPUB directory title actually changes, minimizing rebuilds in
+  large books. Faithful PDF page mode remains page-based.
+- Added pure bounds and widget interaction regressions, **not run**;
+  no builds or GitHub Actions and no milestone percentage increase.
+- [WHOLE_BOOK_SOURCE_PROGRESS.md](WHOLE_BOOK_SOURCE_PROGRESS.md).
+
