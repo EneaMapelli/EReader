@@ -7,6 +7,7 @@ class SpeechPreferences {
     this.language = 'it-IT',
     this.rate = 0.5,
     this.pitch = 1.0,
+    this.dialogueTurnPauseMs = 110,
     this.voiceName,
     this.voiceLocale,
   });
@@ -16,6 +17,11 @@ class SpeechPreferences {
   final String language;
   final double rate;
   final double pitch;
+
+  /// Extra breath between genuinely different installed system voices.
+  /// Zero disables the transition pause. Stored as a value on the book or
+  /// global speech profile; cloud/experimental neural TTS ignore it.
+  final int dialogueTurnPauseMs;
   final String? voiceName;
   final String? voiceLocale;
 
@@ -34,6 +40,9 @@ class SpeechPreferences {
     }
     if (!pitch.isFinite || pitch < 0.5 || pitch > 1.5) {
       throw const FormatException('Speech pitch outside supported range');
+    }
+    if (dialogueTurnPauseMs < 0 || dialogueTurnPauseMs > 2000) {
+      throw const FormatException('System dialogue turn pause must be 0–2000 ms');
     }
     if (voiceName != null &&
         (voiceName!.isEmpty || voiceName!.length > 200)) {
@@ -54,6 +63,7 @@ class SpeechPreferences {
         'language': language,
         'rate': rate,
         'pitch': pitch,
+        'dialogueTurnPauseMs': dialogueTurnPauseMs,
         'voiceName': voiceName,
         'voiceLocale': voiceLocale,
       };
@@ -62,12 +72,17 @@ class SpeechPreferences {
     if (json['version'] != 1) {
       throw const FormatException('Unsupported speech settings version');
     }
+    final pauseValue = json['dialogueTurnPauseMs'];
+    if (pauseValue != null && pauseValue is! int) {
+      throw const FormatException('Invalid dialogue pause duration');
+    }
     final prefs = SpeechPreferences(
       providerId: json['providerId'] as String,
       modelId: json['modelId'] as String? ?? 'gpt-4o-mini-tts',
       language: json['language'] as String,
       rate: (json['rate'] as num).toDouble(),
       pitch: (json['pitch'] as num).toDouble(),
+      dialogueTurnPauseMs: pauseValue as int? ?? 110,
       voiceName: json['voiceName'] as String?,
       voiceLocale: json['voiceLocale'] as String?,
     );
@@ -81,6 +96,7 @@ class SpeechPreferences {
     String? language,
     double? rate,
     double? pitch,
+    int? dialogueTurnPauseMs,
     String? voiceName,
     String? voiceLocale,
     bool clearVoice = false,
@@ -91,6 +107,7 @@ class SpeechPreferences {
       language: language ?? this.language,
       rate: rate ?? this.rate,
       pitch: pitch ?? this.pitch,
+      dialogueTurnPauseMs: dialogueTurnPauseMs ?? this.dialogueTurnPauseMs,
       voiceName: clearVoice ? null : (voiceName ?? this.voiceName),
       voiceLocale: clearVoice ? null : (voiceLocale ?? this.voiceLocale),
     );
