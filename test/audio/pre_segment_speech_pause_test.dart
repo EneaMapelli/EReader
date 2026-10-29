@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:ereader/audio/reader_player.dart';
 import 'package:ereader/audio/speech_engine.dart';
+import 'package:ereader/domain/cast_span.dart';
+import 'package:ereader/domain/dialogue_segmenter.dart';
 import 'package:ereader/domain/speech_preferences.dart';
 import 'package:ereader/domain/speech_segment.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -189,6 +191,98 @@ void main() {
         isEmpty);
     expect(engine.events.where((event) => event == 'choose:Actor'),
         isEmpty);
+    player.dispose();
+  });
+
+  test('a long, accepted dialogue only changes native voice at its edges',
+      () async {
+    final quote = '«' +
+        List.filled(65, 'Una battuta abbastanza lunga').join(' ') +
+        '.»';
+    final source = 'Prima la voce narrante. ' + quote +
+        ' Di nuovo il narratore.';
+    final from = source.indexOf('«');
+    final to = from + quote.length;
+    final quotes = splitQuotedSegmentsWithRegions(
+        segmentSpeech(source, maxChars: 65));
+    final assigned = prepareCastSpeech(
+      source: source,
+      base: [for (final q in quotes) q.segment],
+      annotations: [
+        CastSpan(
+          id: 'confirmed-long-turn',
+          bookId: 'book',
+          start: from,
+          end: to,
+          sourceDigest: CastSpan.digest(source.substring(from, to)),
+          speakerId: 'actor',
+          origin: CastSpanOrigin.user,
+          status: CastSpanStatus.accepted,
+          lockedByUser: true,
+        ),
+      ],
+      bookId: 'book',
+      knownCharacterIds: {'actor'},
+      offsetFromAnchor: (_) => null,
+    );
+    final smooth = coalesceQuotedSpeech(
+      source: source,
+      chunks: assigned.segments,
+      quotedChunks: quotes,
+      speakerByStart: assigned.speakerByStart,
+      maxChars: 220,
+    );
+    final engine = _GatedSystemEngine();
+    final completed = <int>[];
+    final player = ReaderPlayer(
+      engine: engine,
+      engineProviderId: 'system',
+      segments: smooth.segments,
+      dialogueTurnPause: const Duration(milliseconds: 110),
+      onSegmentStarted: (segment) async {
+        engine.events.add('checkpoint:${segment.start}');
+      },
+      onSegmentCompleted: (segment, _) async {
+        completed.add(segment.start);
+      },
+    );
+    await player.loadVoices();
+    await player.applyPreferences(const SpeechPreferences(
+      voiceName: 'Narrator', voiceLocale: 'it-IT',
+    ));
+    engine.events.clear();
+    player.castVoiceForSegment = (segment) =>
+        smooth.speakerByStart[segment.start] == 'actor'
+            ? _actor : null;
+    player.castSpeakerForSegment = (segment) =>
+        smooth.speakerByStart[segment.start];
+    await player.play();
+
+    final expectedStarts = [
+      for (final segment in smooth.segments) segment.start,
+    ];
+    final checkpoints = [
+      for (final event in engine.events)
+        if (event.startsWith('checkpoint:'))
+          int.parse(event.substring('checkpoint:'.length)),
+    ];
+    expect(smooth.segments.length, greaterThan(5));
+    expect(smooth.segments.every((part) =>
+        part.text == source.substring(part.start, part.end)), isTrue);
+    expect(smooth.segments.every((part) => part.text.length <= 220), isTrue);
+    expect(checkpoints, expectedStarts,
+        reason: 'Every spoken source span gets exactly one start highlight');
+    expect(completed, expectedStarts,
+        reason: 'A normally completed span must have one recovery completion');
+    expect(engine.requestedBreaths
+        .where((pause) => pause > Duration.zero), [
+      const Duration(milliseconds: 110),
+      const Duration(milliseconds: 110),
+    ]);
+    expect(engine.events.where((event) => event == 'choose:Actor').length, 1);
+    expect(engine.events.where((event) => event == 'choose:Narrator').length, 1);
+    expect(player.activeSpeakerId, isNull);
+    expect(player.currentIndex, smooth.segments.length);
     player.dispose();
   });
 
