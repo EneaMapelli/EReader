@@ -927,3 +927,23 @@ Android Activity recreation remains a manual device gate.
   builds or Actions. No change to milestone acceptance percentages.
 - [PERSISTED_VOICE_PREFERENCE_RACES.md](PERSISTED_VOICE_PREFERENCE_RACES.md).
 
+
+### M1/M6 — Persisted visual reading appearance (2026-10-29)
+
+- Reader appearance is now persistable **globally and per book**:
+  14–32 text size, 1.2–2.4 interline spacing, serif/sans-serif/monospace
+  family and EPUB paper/night/system palette. Added a reader settings
+  dialog with Save book / Set global / Use global / Cancel actions.
+- Existing quick font-size and EPUB palette controls also save the
+  current book's preferences instead of resetting on reopen.
+- SQLite **v18** introduces a separate `reading_preferences` table,
+  with no migration of speech profiles, cloud consent, bookmarks or
+  source anchors. Book removal cleans up its style override.
+- EPUB rendering uses preferences without rewriting any source text,
+  run offsets, cast spans, links or highlights. TXT and PDF text layer
+  use font and spacing; faithful PDF pages retain native zoom.
+- Domain, persistence/reopen/migration and widget regressions authored;
+  **not executed**. No builds, GitHub Actions or milestone percentage
+  increase without native visual acceptance.
+- [PERSISTENT_READING_APPEARANCE.md](PERSISTENT_READING_APPEARANCE.md).
+
