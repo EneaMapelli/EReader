@@ -55,6 +55,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   BookFormat? _formatFilter;
+  bool _favoritesOnly = false;
   LibraryActivityFilter _activityFilter = LibraryActivityFilter.all;
   LibrarySortOrder _sortOrder = LibrarySortOrder.recentlyImported;
 
@@ -63,6 +64,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     setState(() {
       _query = '';
       _formatFilter = null;
+      _favoritesOnly = false;
       _activityFilter = LibraryActivityFilter.all;
       _sortOrder = LibrarySortOrder.recentlyImported;
     });
@@ -827,6 +829,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
+  void _toggleFavorite(BookRecord book) {
+    try {
+      widget.store.setBookFavorite(book.id, !book.isFavorite);
+      if (mounted) setState(() {});
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Cannot update favorite: $error'),
+        ));
+      }
+    }
+  }
+
   Future<void> _remove(BookRecord book) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -856,6 +871,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final books = filterAndSortLibraryBooks(
       allBooks, query: _query, format: _formatFilter,
       activity: _activityFilter, sort: _sortOrder,
+      favoritesOnly: _favoritesOnly,
     );
     final lastOpened = widget.store.lastOpenedBook;
     final interrupted = widget.store.interruptedNarrationBook;
@@ -1059,6 +1075,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             DropdownMenuItem(
                               value: LibrarySortOrder.format,
                               child: Text('File format')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.favoritesFirst,
+                              child: Text('Favorites first')),
                           ],
                           onChanged: (value) {
                             if (value != null) setState(() => _sortOrder = value);
@@ -1093,6 +1112,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Row(
                     children: [
+                      FilterChip(
+                        key: const ValueKey('library-favorites-only'),
+                        avatar: const Icon(Icons.star, size: 18),
+                        label: const Text('Favorites'),
+                        selected: _favoritesOnly,
+                        onSelected: (value) =>
+                            setState(() => _favoritesOnly = value),
+                      ),
+                      const SizedBox(width: 8),
                       for (final activity in LibraryActivityFilter.values) ...[
                         ChoiceChip(
                           key: ValueKey('library-activity-${activity.name}'),
@@ -1151,6 +1179,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(
+                              key: ValueKey('library-favorite-${book.id}'),
+                              icon: Icon(book.isFavorite
+                                  ? Icons.star : Icons.star_border),
+                              tooltip: book.isFavorite
+                                  ? 'Remove from favorites'
+                                  : 'Add to favorites',
+                              onPressed: _busy
+                                  ? null : () => _toggleFavorite(book),
+                            ),
                             IconButton(
                               icon: const Icon(Icons.edit_outlined),
                               tooltip: 'Edit book details',
