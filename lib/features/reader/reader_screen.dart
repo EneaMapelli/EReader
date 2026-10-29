@@ -23,6 +23,7 @@ import '../../data/book_decoder.dart';
 import '../../data/offline_voice_pack.dart';
 import '../../data/pdf_text_navigation.dart';
 import 'pdf_page_navigation.dart';
+import 'pdf_visual_bookmarks_sheet.dart';
 import 'pdf_speech_navigation.dart';
 import '../../data/epub_reader_preflight.dart';
 import '../../data/epub_speech_note_filter.dart';
@@ -562,6 +563,20 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (_pdfPageCount != count) {
       setState(() => _pdfPageCount = count);
     }
+  }
+
+  Future<void> _openPdfVisualBookmarks() async {
+    if (!mounted || widget.book.format != BookFormat.pdf ||
+        _pdfTextMode || _pdfPageCount == null) return;
+    final selected = await showPdfVisualBookmarks(
+      context: context,
+      store: widget.store,
+      bookId: widget.book.id,
+      currentPage: _displayPdfPage,
+      pageCount: _pdfPageCount!,
+    );
+    if (!mounted || _pdfTextMode || selected == null) return;
+    await _goToPdfPage(selected);
   }
 
   Future<void> _goToPdfPage(int number) async {
@@ -1553,6 +1568,13 @@ class _ReaderScreenState extends State<ReaderScreen>
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
+          if (widget.book.format == BookFormat.pdf && !_pdfTextMode)
+            IconButton(
+              tooltip: 'PDF page bookmarks',
+              icon: const Icon(Icons.bookmarks_outlined),
+              onPressed: _pdfPageCount == null
+                  ? null : _openPdfVisualBookmarks,
+            ),
           if (widget.book.format == BookFormat.epub &&
               !_loading && _epubWorkerTimings != null)
             IconButton(
