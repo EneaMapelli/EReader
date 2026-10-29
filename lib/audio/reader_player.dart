@@ -48,6 +48,7 @@ class ReaderPlayer extends ChangeNotifier {
     this.dialogueTurnPause = Duration.zero,
   }) : assert(nativeStopTimeout > Duration.zero),
        assert(dialogueTurnPause >= Duration.zero),
+       _dialogueTurnPause = dialogueTurnPause,
        _engine = engine,
        _segments = segments,
        _timerScheduler = timerScheduler ?? Timer.new;
@@ -64,15 +65,32 @@ class ReaderPlayer extends ChangeNotifier {
   /// voices on a system TTS engine. Zero preserves the original timing for
   /// existing callers. The UI explicitly opts in on Windows/Android system
   /// voices, not cloud or neural engines. Never change source checkpoints.
-  final Duration dialogueTurnPause;
+  Duration _dialogueTurnPause;
+  Duration get dialogueTurnPause => _dialogueTurnPause;
+
+  /// Reconfigure future dialogue transitions without interrupting the
+  /// current spoken sentence. This updates only the local OS speech policy.
+  void setDialogueTurnPause(Duration duration) {
+    if (_disposed) return;
+    if (duration < Duration.zero ||
+        duration > const Duration(milliseconds: 2000) ||
+        duration.inMicroseconds % 1000 != 0) {
+      throw ArgumentError.value(duration, 'duration',
+          'Dialogue turn pause must be 0–2000 whole milliseconds');
+    }
+    if (_dialogueTurnPause == duration) return;
+    _dialogueTurnPause = duration;
+    _notify();
+  }
+
   Timer? _turnPauseTimer;
   Completer<void>? _turnPauseDone;
 
   Future<void> _waitForTurnBreath() {
-    if (dialogueTurnPause == Duration.zero) return Future<void>.value();
+    if (_dialogueTurnPause == Duration.zero) return Future<void>.value();
     final done = Completer<void>();
     _turnPauseDone = done;
-    _turnPauseTimer = Timer(dialogueTurnPause, () {
+    _turnPauseTimer = Timer(_dialogueTurnPause, () {
       if (identical(_turnPauseDone, done)) {
         _turnPauseTimer = null;
         _turnPauseDone = null;
@@ -340,6 +358,7 @@ class ReaderPlayer extends ChangeNotifier {
         language: language,
         rate: rate,
         pitch: pitch,
+        dialogueTurnPauseMs: _dialogueTurnPause.inMilliseconds,
         voiceName: selectedVoice?.name,
         voiceLocale: selectedVoice?.locale,
       );
@@ -452,7 +471,7 @@ class ReaderPlayer extends ChangeNotifier {
             (installed?.key != previousAudibleVoiceKey) &&
             (engineProviderId == 'system' ||
                 engineProviderId == 'system-native');
-        if (isNewAudibleVoiceTurn && dialogueTurnPause > Duration.zero) {
+        if (isNewAudibleVoiceTurn && _dialogueTurnPause > Duration.zero) {
           await _waitForTurnBreath();
           if (token != _session) return;
         }
