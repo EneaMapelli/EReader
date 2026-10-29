@@ -15,6 +15,7 @@ class _SlowVoiceEngine implements SpeechEngine {
   Completer<void>? voiceGate;
   String? activeVoice;
   int stops = 0;
+  bool failNextVoice = false;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => const [
@@ -28,6 +29,10 @@ class _SlowVoiceEngine implements SpeechEngine {
     chosen.add(voice.name);
     final gate = voiceGate;
     if (gate != null) await gate.future;
+    if (failNextVoice) {
+      failNextVoice = false;
+      throw StateError('Native voice selection rejected');
+    }
     activeVoice = voice.name;
   }
 
@@ -363,6 +368,35 @@ void main() {
     expect(player.selectedVoice?.name, 'Second');
     expect(engine.spoken, ['One'],
         reason: 'Restoring a saved voice does not resume abandoned Seek');
+  });
+
+  test('failed persisted voice change preserves previous usable settings',
+      () async {
+    await player.applyPreferences(const SpeechPreferences(
+      language: 'en-US', rate: 0.7,
+      voiceName: 'First', voiceLocale: 'en-US',
+    ));
+    engine.failNextVoice = true;
+    await expectLater(
+      player.applyPreferences(const SpeechPreferences(
+        language: 'en-US', rate: 0.3,
+        voiceName: 'Second', voiceLocale: 'en-US',
+      )),
+      throwsStateError,
+    );
+    expect(player.currentPreferences.rate, 0.7);
+    expect(player.selectedVoice?.name, 'First');
+    expect(engine.activeVoice, 'First');
+    expect(engine.spoken, isEmpty);
+
+    // A later explicit profile wins despite the previous failed gate.
+    await player.applyPreferences(const SpeechPreferences(
+      language: 'en-US', rate: 0.4,
+      voiceName: 'Second', voiceLocale: 'en-US',
+    ));
+    expect(player.currentPreferences.rate, 0.4);
+    expect(player.selectedVoice?.name, 'Second');
+    expect(engine.activeVoice, 'Second');
   });
 
   test('invalid provider cannot change in-flight navigation or voice',
