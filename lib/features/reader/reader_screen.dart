@@ -1842,42 +1842,45 @@ class _ReaderScreenState extends State<ReaderScreen>
                                     return Center(
                                       child: ConstrainedBox(
                                         constraints: BoxConstraints(
-                                            maxWidth: _readingPrefs.contentWidth),
-                                        child: InkWell(
-                                      onTap: () => _selectFromVisualTap(index),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(10),
-                                        margin: const EdgeInsets.only(bottom: 6),
-                                        decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          color: selected
-                                              ? Theme.of(context)
-                                                  .colorScheme
-                                                  .primaryContainer
-                                              : null,
+                                          maxWidth: _readingPrefs.contentWidth,
                                         ),
-                                        child: Semantics(
-                                          header: heading,
-                                          child: Text(
-                                            segment.text,
-                                            style: TextStyle(
-                                              fontSize: heading
-                                                  ? _fontSize + 5 : _fontSize,
-                                              fontWeight: heading
-                                                  ? FontWeight.w600 : null,
-                                              fontFamily: _readingPrefs.fontFamily,
-                                              height: heading ? 1.3
-                                                  : _readingPrefs.lineHeight,
+                                        child: InkWell(
+                                          onTap: () => _selectFromVisualTap(index),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(10),
+                                            margin: const EdgeInsets.only(bottom: 6),
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(8),
+                                              color: selected
+                                                  ? Theme.of(context)
+                                                      .colorScheme
+                                                      .primaryContainer
+                                                  : null,
                                             ),
-                                            textAlign: _readingPrefs.textAlignment ==
-                                                    'justify'
-                                                ? TextAlign.justify
-                                                : TextAlign.start,
+                                            child: Semantics(
+                                              header: heading,
+                                              child: Text(
+                                                segment.text,
+                                                style: TextStyle(
+                                                  fontSize: heading
+                                                      ? _fontSize + 5 : _fontSize,
+                                                  fontWeight: heading
+                                                      ? FontWeight.w600 : null,
+                                                  fontFamily:
+                                                      _readingPrefs.fontFamily,
+                                                  height: heading
+                                                      ? 1.3
+                                                      : _readingPrefs.lineHeight,
+                                                ),
+                                                textAlign:
+                                                    _readingPrefs.textAlignment ==
+                                                            'justify'
+                                                        ? TextAlign.justify
+                                                        : TextAlign.start,
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ),
                                       ),
                                     );
                                   },
