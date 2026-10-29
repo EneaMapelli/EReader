@@ -108,6 +108,40 @@ void main() {
         reason: 'Only actually completed nonempty speech can leave a tail');
   });
 
+  test('voice changes and terminal punctuation use maximum, not sum',
+      () {
+    final carry = WindowsSpeechPauseCarry();
+    carry.recordCompleted(interpreter.plan('«Vieni!»'));
+    expect(
+      carry.takeForTurn(const Duration(milliseconds: 110)),
+      const Duration(milliseconds: 420),
+      reason: 'Never add a speaker gap onto an existing exclamation pause',
+    );
+    expect(carry.takeForTurn(const Duration(milliseconds: 110)),
+        const Duration(milliseconds: 110),
+        reason: 'Previously completed pause must be consumed exactly once');
+
+    carry.recordCompleted(interpreter.plan('«Vieni»'));
+    expect(carry.takeForTurn(const Duration(milliseconds: 350)),
+        const Duration(milliseconds: 350),
+        reason: 'A longer user-selected voice breath wins the maximum');
+    expect(carry.take(), Duration.zero);
+  });
+
+  test('Stop clearing a pending punctuation breath does not erase settings',
+      () {
+    final carry = WindowsSpeechPauseCarry();
+    carry.recordCompleted(interpreter.plan('Davvero?'));
+    carry.clear();
+    expect(carry.takeForTurn(const Duration(milliseconds: 110)),
+        const Duration(milliseconds: 110));
+    expect(carry.takeForTurn(Duration.zero), Duration.zero);
+    expect(
+      () => carry.takeForTurn(const Duration(milliseconds: -1)),
+      throwsArgumentError,
+    );
+  });
+
   test('decimal punctuation, times and signed numerals remain meaningful',
       () {
     expect(words('3,14 e 1.000 alle 12:30. Debito -5,20 €.'),
