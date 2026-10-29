@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/book.dart';
+import '../domain/book_collection.dart';
 import '../domain/book_bookmark.dart';
 import '../domain/pdf_visual_bookmark.dart';
 import '../domain/reading_anchor.dart';
@@ -29,6 +30,7 @@ class VerifiedBackupBook {
     this.pdfVisualPage,
     this.isFavorite = false,
     this.readingStatus = BookReadingStatus.toRead,
+    this.collectionNames = const [],
   });
   final String id;
   final BookFormat format;
@@ -43,6 +45,7 @@ class VerifiedBackupBook {
   final int? pdfVisualPage;
   final bool isFavorite;
   final BookReadingStatus readingStatus;
+  final List<String> collectionNames;
   final List<BookBookmark> bookmarks;
   final List<PdfVisualBookmark> pdfVisualBookmarks;
 }
@@ -152,10 +155,10 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
         .first['integrity_check'];
     final schemaVersion =
         database.select('PRAGMA user_version').first['user_version'];
-    // New exports use v21. Older v17-v20 snapshots remain readable;
-    // the manual shelf defaults to To read if absent.
+    // New exports use v22. Older v17-v21 snapshots remain readable;
+    // collections default to absent if the join table does not exist.
     if (integrity != 'ok' || schemaVersion is! int ||
-        schemaVersion < 17 || schemaVersion > 21) {
+        schemaVersion < 17 || schemaVersion > 22) {
       throw const FormatException('Unsupported or damaged backup database');
     }
     final source = database.select(
@@ -227,6 +230,50 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
       }
     }
 
+    // All collection rows and memberships are checked, even for existing
+    // books that the user will choose not to re-import. This prevents a
+    // corrupt or malicious backup from smuggling unverified catalog state.
+    final backedCollections = <String, List<String>>{};
+    if (schemaVersion >= 22) {
+      final collections = database.select(
+        'SELECT id, name, created_at FROM book_collections',
+      );
+      if (collections.length > 1000) {
+        throw const FormatException('Too many backed-up collections');
+      }
+      final namesById = <String, String>{};
+      final uniqueNames = <String>{};
+      for (final row in collections) {
+        final id = row['id'] as String;
+        final name = row['name'] as String;
+        final createdAt = DateTime.parse(row['created_at'] as String);
+        final item = BookCollection(
+          id: id, name: name, createdAt: createdAt);
+        item.validate();
+        if (!uniqueNames.add(name.toLowerCase())) {
+          throw const FormatException('Duplicate backup collection names');
+        }
+        namesById[id] = name;
+      }
+      final members = database.select(
+        'SELECT collection_id, book_id FROM book_collection_members',
+      );
+      if (members.length > 200000) {
+        throw const FormatException('Too many backed-up memberships');
+      }
+      final seenPairs = <String>{};
+      for (final row in members) {
+        final cid = row['collection_id'] as String;
+        final bid = row['book_id'] as String;
+        final name = namesById[cid];
+        if (name == null || !rows.containsKey(bid) ||
+            !seenPairs.add('$cid:$bid')) {
+          throw const FormatException('Orphan/duplicate collection membership');
+        }
+        backedCollections.putIfAbsent(bid, () => []).add(name);
+      }
+    }
+
     final seen = <String>{};
     final result = <VerifiedBackupBook>[];
     var bytes = 0;
@@ -292,6 +339,16 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
           (schemaVersion >= 21 && raw['readingStatus'] != shelf)) {
         throw const FormatException('Backup reading shelf mismatch');
       }
+      final expectedCollections = backedCollections[id] ?? const <String>[];
+      if (schemaVersion >= 22) {
+        final declared = raw['collections'];
+        if (declared is! List || declared.length != expectedCollections.length ||
+            declared.any((value) => value is! String) ||
+            declared.toSet().length != declared.length ||
+            !declared.toSet().containsAll(expectedCollections)) {
+          throw const FormatException('Backup collections mismatch');
+        }
+      }
       if (raw['progressOffset'] != row['progress_offset']) {
         throw const FormatException('Backup source progress mismatch');
       }
@@ -324,6 +381,7 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
         pdfVisualPage: page is int ? page : null,
         isFavorite: favorite == 1,
         readingStatus: BookReadingStatus.values.byName(shelf),
+        collectionNames: List<String>.unmodifiable(expectedCollections),
         bookmarks: List<BookBookmark>.unmodifiable(
             savedBookmarks[id] ?? const []),
         pdfVisualBookmarks: List<PdfVisualBookmark>.unmodifiable(
