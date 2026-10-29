@@ -45,7 +45,9 @@ class ReaderPlayer extends ChangeNotifier {
     this.engineProviderId = 'system',
     SleepTimerScheduler? timerScheduler,
     this.nativeStopTimeout = const Duration(seconds: 8),
+    this.dialogueTurnPause = Duration.zero,
   }) : assert(nativeStopTimeout > Duration.zero),
+       assert(dialogueTurnPause >= Duration.zero),
        _engine = engine,
        _segments = segments,
        _timerScheduler = timerScheduler ?? Timer.new;
@@ -57,6 +59,37 @@ class ReaderPlayer extends ChangeNotifier {
   final String engineProviderId;
   final SleepTimerScheduler _timerScheduler;
   final Duration nativeStopTimeout;
+
+  /// Optional short breath ONLY between actually audible, DIFFERENT cast
+  /// voices on a system TTS engine. Zero preserves the original timing for
+  /// existing callers. The UI explicitly opts in on Windows/Android system
+  /// voices, not cloud or neural engines. Never change source checkpoints.
+  final Duration dialogueTurnPause;
+  Timer? _turnPauseTimer;
+  Completer<void>? _turnPauseDone;
+
+  Future<void> _waitForTurnBreath() {
+    if (dialogueTurnPause == Duration.zero) return Future<void>.value();
+    final done = Completer<void>();
+    _turnPauseDone = done;
+    _turnPauseTimer = Timer(dialogueTurnPause, () {
+      if (identical(_turnPauseDone, done)) {
+        _turnPauseTimer = null;
+        _turnPauseDone = null;
+      }
+      if (!done.isCompleted) done.complete();
+    });
+    return done.future;
+  }
+
+  void _cancelTurnBreath() {
+    _turnPauseTimer?.cancel();
+    _turnPauseTimer = null;
+    final done = _turnPauseDone;
+    _turnPauseDone = null;
+    if (done != null && !done.isCompleted) done.complete();
+  }
+
   Timer? _sleepTimer;
 
   /// This is a session-only wall-clock deadline. Pausing does not extend it.
@@ -382,6 +415,9 @@ class ReaderPlayer extends ChangeNotifier {
     isPlaying = true;
     lastError = null;
     _notify();
+    String? previousAudibleSpeaker;
+    String? previousAudibleVoiceKey;
+    var hadAudibleSegment = false;
     try {
       // A rapid pause/play must not synthesize before the old native
       // utterance has fully stopped, otherwise voices overlap.
@@ -404,6 +440,22 @@ class ReaderPlayer extends ChangeNotifier {
           _notify();
           continue;
         }
+        // Preview the resolved voice BEFORE checkpointing the new segment:
+        // when Stop/Seek arrives during this small breath, the next
+        // unheard segment must not be persisted as already started.
+        final installed = castVoiceForSegment != null
+            ? _voiceFor(segment) : selectedVoice;
+        final speaker = castSpeakerForSegment?.call(segment);
+        final isNewAudibleVoiceTurn = hadAudibleSegment &&
+            (speaker != previousAudibleSpeaker) &&
+            (speaker != null || previousAudibleSpeaker != null) &&
+            (installed?.key != previousAudibleVoiceKey) &&
+            (engineProviderId == 'system' ||
+                engineProviderId == 'system-native');
+        if (isNewAudibleVoiceTurn && dialogueTurnPause > Duration.zero) {
+          await _waitForTurnBreath();
+          if (token != _session) return;
+        }
         await onSegmentStarted(segment);
         if (token != _session) return;
         // Cast affects only synthesis voice, never text, offsets or order.
@@ -411,14 +463,12 @@ class ReaderPlayer extends ChangeNotifier {
         // A previous asynchronous native voice selection can complete
         // after an interrupted session. Reapply the chosen narrator voice
         // even when no multi-character casting callback is installed.
-        final installed = castVoiceForSegment != null
-            ? _voiceFor(segment) : selectedVoice;
         if (installed != null && installed.key != _engineVoiceKey) {
           await _choosePlaybackVoice(installed, token);
         }
         if (token != _session) return;
         final spokenLanguage = _languageForSegment(segment, installed);
-        activeSpeakerId = castSpeakerForSegment?.call(segment);
+        activeSpeakerId = speaker;
         _notify();
         final spokenText =
             speechTextTransform?.call(segment.text) ?? segment.text;
@@ -494,6 +544,9 @@ class ReaderPlayer extends ChangeNotifier {
           );
           if (token != _session) return;
         }
+        previousAudibleSpeaker = speaker;
+        previousAudibleVoiceKey = installed?.key;
+        hadAudibleSegment = true;
         currentIndex++;
         _notify();
       }
@@ -522,6 +575,9 @@ class ReaderPlayer extends ChangeNotifier {
   // but each public navigation operation has a distinct supersession epoch.
   Future<void> _stopCurrent() async {
     _session++;
+    // Unblock a pending narrator/character breath synchronously so Stop
+    // cannot leave an older Play task waiting to start stale audio.
+    _cancelTurnBreath();
     isPlaying = false;
     activeSpeakerId = null;
 
@@ -661,6 +717,7 @@ class ReaderPlayer extends ChangeNotifier {
     _session++;
     _navigationEpoch++;
     _resumeAfterNavigation = false;
+    _cancelTurnBreath();
     _sleepTimer?.cancel();
     _sleepTimer = null;
     sleepTimerEndsAt = null;

@@ -270,6 +270,13 @@ class _ReaderScreenState extends State<ReaderScreen>
       provisionalBinding = recoveryBinding;
       final player = ReaderPlayer(
         engineProviderId: prefs.providerId,
+        // A small cancellable breath is useful ONLY at actual
+        // narrator/character voice changes. Leave cloud and VITS timing
+        // untouched; no pause at plain narrator sentence boundaries.
+        dialogueTurnPause: prefs.providerId == 'system' ||
+                prefs.providerId == 'system-native'
+            ? const Duration(milliseconds: 110)
+            : Duration.zero,
         engine: SpeechEngineFactory(
             vault: _vault, offlineVoicePack: selectedLocalVoice).create(
           preferences: prefs,
