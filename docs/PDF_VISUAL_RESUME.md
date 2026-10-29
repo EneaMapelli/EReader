@@ -89,9 +89,49 @@ Regression cases were authored in
 release event, physical page percentage and semantic label, coarse
 long-document stepping with exact numeric fallback, and absent slider
 when no multi-page PDF is loaded. The legacy PDF migration fixture
-also now expects the current SQLite user_version **18**, not 17.
+was updated to SQLite **v18**, and is now updated again to the current **v19**.
 
 **No tests or platform builds were run** in this editing environment;
 no GitHub Actions were dispatched. Device verification is still
 required for PDF decoder responsiveness, accessible controls and
 visual-page checkpoint persistence.
+
+## 2026-10-29 — Saved physical PDF page bookmarks
+
+In the faithful visual PDF viewer, the **PDF page bookmarks** action
+opens a dedicated bottom sheet. It supports adding a named bookmark to
+the currently visible physical page, listing entries in page order,
+navigating to a saved page, and deleting a bookmark. Bookmarks to pages
+beyond the currently loaded document's page count cannot be opened
+but may still be deleted. The action is available only after the PDF
+viewer has established a valid page count.
+
+This is distinct from the automatically persisted *last visual page*
+and distinct from the **source-text/TTS bookmarks**. The feature works
+for scanned/image-only PDFs and never infers OCR text, rewrites
+narration anchors or authorizes synthesized audio.
+
+SQLite schema **v19** adds `pdf_visual_bookmarks` with a foreign key
+to `books`, a validated physical page number (1–100000), title and
+creation time. The one-time upgrade from v18 runs transactionally.
+Book deletion cascades to its page bookmarks. TTS preferences, cloud
+permissions, original PDF bytes and saved speech offsets are unchanged.
+
+A portable backup's standalone SQLite snapshot includes these marks.
+The safe add-only restore now explicitly accepts **v17, v18 and v19**
+snapshots, validates any v19 physical-page marks before importing and
+adds them transactionally only for genuinely new books. It does not
+overwrite bookmarks or source positions for any existing book. Both
+text and page marks are counted as recovered bookmarks.
+
+Regression cases were authored in:
+- `test/data/pdf_visual_bookmarks_test.dart`: persistence, isolation
+  from TTS, invalid entries, book deletion and v18→v19 migration;
+- `test/features/pdf_visual_bookmarks_sheet_test.dart`: add, choose,
+  remove and unavailable physical page;
+- `test/data/library_backup_restore_test.dart`: import v17/v18/v19
+  backups, page bookmark restore, corrupt-entry refusal and no duplicates.
+
+**Flutter/Dart tests remain unexecuted** and device-level page
+navigation/backup testing is still required. No Windows/Android
+builds or GitHub Actions were triggered.

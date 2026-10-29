@@ -16,7 +16,7 @@ dispositivi resta **parziale**.
 
 | Milestone | Copertura stimata | Concretamente presente | Non completo / condizione di uscita mancante |
 |---|---:|---|---|
-| **M0 — Fondazione e POC** | **60%** | Flutter/Dart modulari, SQLite con migrazioni fino a v18, parser e adattatori, bootstrap Windows/Android, runner e CI manuale | Progetti nativi generati fuori da Git; POC realmente passati su Windows e Android, ABI/minSDK/licenze, corpus EPUB/PDF e voci sherpa-onnx native |
+| **M0 — Fondazione e POC** | **60%** | Flutter/Dart modulari, SQLite con migrazioni fino a v19, parser e adattatori, bootstrap Windows/Android, runner e CI manuale | Progetti nativi generati fuori da Git; POC realmente passati su Windows e Android, ABI/minSDK/licenze, corpus EPUB/PDF e voci sherpa-onnx native |
 | **M1 — Reader MVP** | **83%** | Import EPUB/PDF/TXT e dedup, lettura, TOC, source anchors, progressi, segnalibri e ricerca, anteprime note, temi/layout, biblioteca con ricerca/ordinamento e editor di titolo/autore/serie/lingua | Test su 20 libri reali e due piattaforme, copertine, estrazione metadati automatica, CSS/CFI complessi, PDF multicolonna, drag&drop Windows e condivisione Android da verificare |
 | **M2 — TTS gratuito e read-along** | **70%** | Sistema TTS, voci e rate/pitch per capacità, segmentazione, seek, posizione sorgente, sleep timer, media handler e policy Stop/recovery | Capitolo continuativo provato su dispositivi, audio focus/interruzioni/cuffie/lock screen e chiavi multimediali Windows reali; timing parola non promesso |
 | **M3 — Offline neurale + cloud** | **35%** | Cloud Speech transitorio con consenso/quote per libro, chiavi protette, cache/prefetch; prototipo sherpa VITS con job cancellabili, gestore modelli, import locale e benchmark opt-in | VITS non abilitato/qualificato con voce reale, catalogo firme/licenze, SAF cartella Android, OpenAI Realtime, secondo provider cloud, cost ceiling monetario per sessione/mese e fallback esplicito |
@@ -501,4 +501,27 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - [PDF_VISUAL_RESUME.md](PDF_VISUAL_RESUME.md).
 - **Tests not run**, no Windows/Android builds or GitHub Actions;
   M1/M6 release acceptance remains pending native testing.
+
+
+### M1/M6 — PDF physical bookmarks and repaired cross-version backup restore (2026-10-29)
+
+- Added a dedicated **PDF page bookmarks** dialog: name/save the
+  currently visible page, list and open saved pages, and delete marks.
+  Works for scanned/image-only documents without OCR or any TTS engine.
+  Out-of-range page targets are displayed but cannot navigate.
+- SQLite **v19** adds a separate FK-backed `pdf_visual_bookmarks`
+  table with page-number validation, transactional migration from v18
+  and automatic cleanup when the PDF is deleted. The narration
+  bookmark table, last PDF visual page and source/TTS anchor are
+  independent and unchanged.
+- Corrected a real portability bug: the backup inspector formerly
+  rejected EReader's own v18 exports because it required **v17**.
+  It now accepts v17–v19, validates all v19 physical bookmarks
+  and restores them atomically *only* with missing books. Existing
+  books and their settings are never overwritten.
+- Authored local persistence/migration, UI and cross-version backup
+  regressions. **Not run** (no Flutter/Dart SDK), no Windows/Android
+  builds or GitHub Actions; release/restore acceptance remains open.
+- [PDF_VISUAL_RESUME.md](PDF_VISUAL_RESUME.md) and
+  [LIBRARY_BACKUP_RESTORE.md](LIBRARY_BACKUP_RESTORE.md).
 

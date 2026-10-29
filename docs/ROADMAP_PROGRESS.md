@@ -1015,3 +1015,26 @@ Android Activity recreation remains a manual device gate.
 - **Tests not run**, no Windows/Android builds or GitHub Actions;
   M1/M6 release acceptance remains pending native testing.
 
+
+### M1/M6 — PDF physical bookmarks and repaired cross-version backup restore (2026-10-29)
+
+- Added a dedicated **PDF page bookmarks** dialog: name/save the
+  currently visible page, list and open saved pages, and delete marks.
+  Works for scanned/image-only documents without OCR or any TTS engine.
+  Out-of-range page targets are displayed but cannot navigate.
+- SQLite **v19** adds a separate FK-backed `pdf_visual_bookmarks`
+  table with page-number validation, transactional migration from v18
+  and automatic cleanup when the PDF is deleted. The narration
+  bookmark table, last PDF visual page and source/TTS anchor are
+  independent and unchanged.
+- Corrected a real portability bug: the backup inspector formerly
+  rejected EReader's own v18 exports because it required **v17**.
+  It now accepts v17–v19, validates all v19 physical bookmarks
+  and restores them atomically *only* with missing books. Existing
+  books and their settings are never overwritten.
+- Authored local persistence/migration, UI and cross-version backup
+  regressions. **Not run** (no Flutter/Dart SDK), no Windows/Android
+  builds or GitHub Actions; release/restore acceptance remains open.
+- [PDF_VISUAL_RESUME.md](PDF_VISUAL_RESUME.md) and
+  [LIBRARY_BACKUP_RESTORE.md](LIBRARY_BACKUP_RESTORE.md).
+

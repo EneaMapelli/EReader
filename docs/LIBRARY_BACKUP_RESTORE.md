@@ -113,3 +113,24 @@ cast manuale, regole di pronuncia per libro e altri dati non sensibili
 attraverso un import relazionale controllato. In particolare,
 **non** bisogna ancora promettere un ripristino integrale di tutte le
 impostazioni utente, né eliminare il backup originale dopo l'importazione.
+
+## 29 ottobre 2026 — Segnalibri PDF e compatibilità backup v17–v19
+
+Correzione necessaria: il validatore di ripristino accettava soltanto
+`PRAGMA user_version = 17`, ma il programma esportava già backup con
+SQLite v18. Ora **accetta esplicitamente le versioni 17, 18 e 19**,
+continuando a rifiutare versioni più vecchie/non riconosciute.
+
+I nuovi PDF dispongono di segnalibri fisici separati dalle ancore
+testuali (schema v19). L'ispezione di un backup v19 verifica tutti i
+segnalibri di pagina e rifiuta quelli malformati o associati a libri
+non PDF; le versioni precedenti non richiedono tale tabella. Soltanto
+per i libri realmente nuovi il restore copia i segnalibri di pagina
+nella stessa transazione dei metadati e dei normali segnalibri.
+Gli ID sono rimappati, evitando collisioni. Libri locali già presenti
+restano completamente intatti. Il numero di segnalibri recuperati
+include sia quelli testuali sia quelli di pagina.
+
+Aggiunti test per importazione v17/v18, per PDF scannerizzati con
+segnalibri nel backup v19 e per rifiuto di dati alterati. Test non
+eseguiti nell'ambiente GitHub; nessuna compilazione o Action avviata.

@@ -94,3 +94,14 @@ Il primo restore con anteprima e ricollegamento percorsi dei libri
 assenti è implementato. Rimangono: import selettivo del cast,
 gestione esplicita dei conflitti per i libri già presenti,
 maggiori schemi legacy e opzione di archivio cifrato. Sono attività da sviluppare, non funzioni già disponibili.
+
+## 2026-10-29 — Physical PDF page bookmarks in standalone snapshots
+
+Current exports use SQLite schema **v19**. The WAL-free SQLite
+snapshot includes a dedicated `pdf_visual_bookmarks` table, so a
+book's separately named page markers are not silently lost on transfer.
+The portable restore supports older v17/v18 backups in addition to
+v19, validates each physical bookmark before import, and restores
+only missing books. Existing book data, speech consent, passwords and
+TTS configuration are never replaced. This remains a local,
+unencrypted backup: keep it in a private location.
