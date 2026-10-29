@@ -210,7 +210,7 @@ int? _closerFor(int unit) {
 // apostrophe. ASCII single quotes deliberately remain unsupported for cast
 // segmentation because distinguishing them from apostrophes is ambiguous.
 final RegExp _lexicalUnit =
-    RegExp(r'[\\p{L}\\p{N}]', unicode: true);
+    RegExp(r'[\p{L}\p{N}]', unicode: true);
 
 bool _lexicalApostrophe(String text, int index) =>
     index > 0 && index + 1 < text.length &&
