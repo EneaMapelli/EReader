@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:ereader/data/library_store.dart';
 import 'package:ereader/data/library_backup_restore.dart';
+import 'package:ereader/domain/book.dart';
 import 'package:ereader/domain/book_bookmark.dart';
 import 'package:ereader/domain/pdf_visual_bookmark.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -313,6 +314,71 @@ void main() {
     expect(inspected.books.single.isFavorite, isFalse);
     await target.restoreLibraryBackup(exported.directory);
     expect(target.getBook(id)!.isFavorite, isFalse);
+  });
+
+  test('portable v21 backup restores explicit shelves but preserves local choices',
+      () async {
+    final reading = await add(source, 'current.txt', 'Reading shelf source.');
+    final finished = await add(source, 'done.txt', 'Finished shelf source.');
+    source.setBookReadingStatus(reading, BookReadingStatus.reading);
+    source.setBookReadingStatus(finished, BookReadingStatus.finished);
+    final exported = await source.exportLibraryBackup(exports);
+    final preview = await target.previewLibraryRestore(exported.directory);
+    expect(preview.availableToImport, 2);
+    final restored = await target.restoreLibraryBackup(exported.directory);
+    expect(restored.added, 2);
+    expect(target.getBook(reading)!.readingStatus,
+        BookReadingStatus.reading);
+    expect(target.getBook(finished)!.readingStatus,
+        BookReadingStatus.finished);
+    expect(target.getBook(finished)!.progressOffset, 0);
+    expect(target.getBook(finished)!.lastOpenedAt, isNull);
+
+    target.setBookReadingStatus(finished, BookReadingStatus.toRead);
+    final again = await target.restoreLibraryBackup(exported.directory);
+    expect(again.skipped, 2);
+    expect(target.getBook(finished)!.readingStatus,
+        BookReadingStatus.toRead,
+        reason: 'Existing book shelf selection must not be overwritten');
+  });
+
+  test('tampered v21 reading shelf manifest is rejected before import',
+      () async {
+    final id = await add(source, 'protected.txt', 'Immutable source.');
+    source.setBookReadingStatus(id, BookReadingStatus.finished);
+    final exported = await source.exportLibraryBackup(exports);
+    final manifestFile =
+        File(p.join(exported.directory.path, 'manifest.json'));
+    final manifest = jsonDecode(await manifestFile.readAsString()) as Map;
+    final entry = (manifest['books'] as List).single as Map;
+    expect(entry['readingStatus'], 'finished');
+    entry['readingStatus'] = 'reading';
+    await manifestFile.writeAsString(jsonEncode(manifest));
+    await expectLater(target.previewLibraryRestore(exported.directory),
+        throwsFormatException);
+    expect(target.books, isEmpty);
+  });
+
+  test('v20 backup has no shelf metadata and imports To read by default',
+      () async {
+    final id = await add(source, 'legacy20.txt', 'Legacy shelf state.');
+    final exported = await source.exportLibraryBackup(exports);
+    final snapshot = sqlite3.open(
+        p.join(exported.directory.path, 'library.sqlite'));
+    snapshot.execute('ALTER TABLE books DROP COLUMN reading_status');
+    snapshot.execute('PRAGMA user_version = 20');
+    snapshot.dispose();
+    final manifestFile =
+        File(p.join(exported.directory.path, 'manifest.json'));
+    final manifest = jsonDecode(await manifestFile.readAsString()) as Map;
+    final entry = (manifest['books'] as List).single as Map;
+    entry.remove('readingStatus');
+    await manifestFile.writeAsString(jsonEncode(manifest));
+    final verified = await inspectLibraryBackup(exported.directory);
+    expect(verified.books.single.readingStatus, BookReadingStatus.toRead);
+    final restored = await target.restoreLibraryBackup(exported.directory);
+    expect(restored.added, 1);
+    expect(target.getBook(id)!.readingStatus, BookReadingStatus.toRead);
   });
 
   test('malformed PDF page bookmark in v21 backup fails closed', () async {
