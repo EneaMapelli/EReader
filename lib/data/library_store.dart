@@ -17,6 +17,7 @@ import '../domain/pronunciation_rule.dart';
 import '../domain/speech_preferences.dart';
 import '../domain/reading_preferences.dart';
 import '../domain/book_bookmark.dart';
+import '../domain/pdf_visual_bookmark.dart';
 import '../domain/cloud_speech_consent.dart';
 import '../domain/voice_cast.dart';
 import '../domain/cast_span.dart';
@@ -172,7 +173,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 18) {
+      if (version > 19) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -536,6 +537,27 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
             )
           ''');
           db.execute('PRAGMA user_version = 18');
+        });
+      }
+      // Dedicated visual-only PDF page bookmarks. Do not mix physical page
+      // numbers with source offsets in the narration bookmarks table.
+      if (version < 19) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS pdf_visual_bookmarks (
+              id TEXT PRIMARY KEY NOT NULL,
+              book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+              title TEXT NOT NULL,
+              page_number INTEGER NOT NULL
+                CHECK(page_number >= 1 AND page_number <= 100000),
+              created_at TEXT NOT NULL
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_pdf_visual_bookmark_book
+            ON pdf_visual_bookmarks(book_id, page_number)
+          ''');
+          db.execute('PRAGMA user_version = 19');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -944,6 +966,53 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
       throw StateError('Unknown PDF book');
     }
+  }
+
+  /// Physical page bookmarks, including image-only/scanned PDFs.
+  /// Always distinct from BookBookmark, TTS text positions and consent.
+  List<PdfVisualBookmark> listPdfVisualBookmarks(String bookId) {
+    final book = getBook(bookId);
+    if (book == null || book.format != BookFormat.pdf) {
+      throw StateError('Unknown PDF book for visual bookmarks');
+    }
+    final rows = _database.select('''
+      SELECT id, book_id, title, page_number, created_at
+      FROM pdf_visual_bookmarks
+      WHERE book_id = ? ORDER BY page_number, created_at, id
+    ''', [bookId]);
+    return rows.map((row) => PdfVisualBookmark(
+      id: row['id'] as String,
+      bookId: row['book_id'] as String,
+      title: row['title'] as String,
+      pageNumber: row['page_number'] as int,
+      createdAt: DateTime.parse(row['created_at'] as String),
+    )).toList();
+  }
+
+  void addPdfVisualBookmark(PdfVisualBookmark bookmark) {
+    bookmark.validate();
+    final book = getBook(bookmark.bookId);
+    if (book == null || book.format != BookFormat.pdf) {
+      throw StateError('Cannot visually bookmark a non-PDF book');
+    }
+    _database.execute('''
+      INSERT INTO pdf_visual_bookmarks
+        (id, book_id, title, page_number, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    ''', [
+      bookmark.id, bookmark.bookId, bookmark.title,
+      bookmark.pageNumber, bookmark.createdAt.toUtc().toIso8601String(),
+    ]);
+  }
+
+  void deletePdfVisualBookmark(String bookId, String bookmarkId) {
+    if (getBook(bookId)?.format != BookFormat.pdf) {
+      throw StateError('Unknown PDF book');
+    }
+    _database.execute(
+      'DELETE FROM pdf_visual_bookmarks WHERE id = ? AND book_id = ?',
+      [bookmarkId, bookId],
+    );
   }
 
   Future<BookRecord> importFile(String sourcePath, {String? originalName}) async {
