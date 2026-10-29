@@ -1026,7 +1026,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       throw const FormatException('Too many restored collections');
     }
     final id = 'restore_'
-        '${sha256.convert(utf8.encode(name.toLowerCase()))}';
+        '${sha256.convert(utf8.encode(name))}';
     _database.execute('''
       INSERT INTO book_collections (id, name, created_at)
       VALUES (?, ?, ?)
