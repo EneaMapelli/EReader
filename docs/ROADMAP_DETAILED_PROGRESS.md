@@ -16,7 +16,7 @@ dispositivi resta **parziale**.
 
 | Milestone | Copertura stimata | Concretamente presente | Non completo / condizione di uscita mancante |
 |---|---:|---|---|
-| **M0 — Fondazione e POC** | **60%** | Flutter/Dart modulari, SQLite con migrazioni fino a v17, parser e adattatori, bootstrap Windows/Android, runner e CI manuale | Progetti nativi generati fuori da Git; POC realmente passati su Windows e Android, ABI/minSDK/licenze, corpus EPUB/PDF e voci sherpa-onnx native |
+| **M0 — Fondazione e POC** | **60%** | Flutter/Dart modulari, SQLite con migrazioni fino a v18, parser e adattatori, bootstrap Windows/Android, runner e CI manuale | Progetti nativi generati fuori da Git; POC realmente passati su Windows e Android, ABI/minSDK/licenze, corpus EPUB/PDF e voci sherpa-onnx native |
 | **M1 — Reader MVP** | **83%** | Import EPUB/PDF/TXT e dedup, lettura, TOC, source anchors, progressi, segnalibri e ricerca, anteprime note, temi/layout, biblioteca con ricerca/ordinamento e editor di titolo/autore/serie/lingua | Test su 20 libri reali e due piattaforme, copertine, estrazione metadati automatica, CSS/CFI complessi, PDF multicolonna, drag&drop Windows e condivisione Android da verificare |
 | **M2 — TTS gratuito e read-along** | **70%** | Sistema TTS, voci e rate/pitch per capacità, segmentazione, seek, posizione sorgente, sleep timer, media handler e policy Stop/recovery | Capitolo continuativo provato su dispositivi, audio focus/interruzioni/cuffie/lock screen e chiavi multimediali Windows reali; timing parola non promesso |
 | **M3 — Offline neurale + cloud** | **35%** | Cloud Speech transitorio con consenso/quote per libro, chiavi protette, cache/prefetch; prototipo sherpa VITS con job cancellabili, gestore modelli, import locale e benchmark opt-in | VITS non abilitato/qualificato con voce reale, catalogo firme/licenze, SAF cartella Android, OpenAI Realtime, secondo provider cloud, cost ceiling monetario per sessione/mese e fallback esplicito |
@@ -467,4 +467,20 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Added pure bounds and widget interaction regressions, **not run**;
   no builds or GitHub Actions and no milestone percentage increase.
 - [WHOLE_BOOK_SOURCE_PROGRESS.md](WHOLE_BOOK_SOURCE_PROGRESS.md).
+
+
+### M1/M6 — Accessible reading column and high-contrast EPUB palette (2026-10-29)
+
+- Added per-book/global **480–1000 px responsive column width** and
+  **original/left/justified paragraph alignment** for EPUB, TXT and PDF
+  text mode; unchanged faithful PDF page rendering.
+- EPUB gains an explicit **high-contrast white/black** palette with
+  separate legible link, active speech and search highlight colors.
+- Extended existing SQLite v18 appearance **JSON v1** without a schema
+  migration. Old saved profiles retain their previous typography and
+  layout: newly absent fields use 760 px and original alignment.
+- Authored domain compatibility, SQLite reopen and source-preserving
+  Flutter widget regressions. **Not executed**; no native builds or
+  GitHub Actions. Real-device contrast/focus acceptance remains open.
+- See [PERSISTENT_READING_APPEARANCE.md](PERSISTENT_READING_APPEARANCE.md).
 

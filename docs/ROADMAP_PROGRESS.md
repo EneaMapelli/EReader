@@ -981,3 +981,19 @@ Android Activity recreation remains a manual device gate.
   no builds or GitHub Actions and no milestone percentage increase.
 - [WHOLE_BOOK_SOURCE_PROGRESS.md](WHOLE_BOOK_SOURCE_PROGRESS.md).
 
+
+### M1/M6 — Accessible reading column and high-contrast EPUB palette (2026-10-29)
+
+- Added per-book/global **480–1000 px responsive column width** and
+  **original/left/justified paragraph alignment** for EPUB, TXT and PDF
+  text mode; unchanged faithful PDF page rendering.
+- EPUB gains an explicit **high-contrast white/black** palette with
+  separate legible link, active speech and search highlight colors.
+- Extended existing SQLite v18 appearance **JSON v1** without a schema
+  migration. Old saved profiles retain their previous typography and
+  layout: newly absent fields use 760 px and original alignment.
+- Authored domain compatibility, SQLite reopen and source-preserving
+  Flutter widget regressions. **Not executed**; no native builds or
+  GitHub Actions. Real-device contrast/focus acceptance remains open.
+- See [PERSISTENT_READING_APPEARANCE.md](PERSISTENT_READING_APPEARANCE.md).
+

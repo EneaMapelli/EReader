@@ -74,3 +74,49 @@ viewing retains the existing viewer layout and zoom.
 Windows/Android builds or GitHub Actions were started. Verify actual
 font availability and layout/readability on Windows/Android before
 calling M1 accessibility acceptance complete.
+
+## 2026-10-29 — Column layout, paragraph alignment and high contrast
+
+Added **three persistent visual controls** to the same per-book/global
+appearance dialog. These settings remain local-only and are independent
+of speech synthesis, model selection and source bookmarks.
+
+| Setting | Values | Behavior |
+| --- | --- | --- |
+| Reading column | 480–1000 logical pixels, default 760 | Upper bound on width, never forces overflow on a narrow Android screen |
+| Paragraph alignment | Original / left / justified | Original retains EPUB justification and TXT/PDF text's start alignment |
+| High-contrast EPUB palette | White background, black text | Clear yellow narration highlight, dark-blue search highlight and readable links |
+
+The previous **SQLite v18** schema is unchanged. Its existing **JSON
+version 1** settings are extended with optional `contentWidth` and
+`textAlignment` fields. Stored v1 records with only the four older keys
+load using the previous 760-pixel paragraph width and existing EPUB/TXT
+alignment; no migration, data reset, or app update of an open ebook is
+required. Invalid/non-finite column sizes and unknown options are rejected.
+
+The colors of the added palette were chosen for high contrast. Computed
+relative-luminance contrast ratios: body text 21:1 (black on white),
+narration highlight 16.45:1 (black on yellow), search highlight and
+link text 9.81:1 (white on dark blue, or dark blue on white). These
+figures do **not** establish full WCAG conformance of the entire app;
+screen-reader and large-font accessibility still need device testing.
+
+EPUB `EpubParagraphTile` applies width and alignment around the
+original source-exact `RichText` spans, including illustrations,
+links and footnotes. TXT and PDF **text mode** use the same bounded
+column and explicitly selected alignment. The original-faithful PDF
+viewer remains unchanged.
+
+Extended unexecuted regression coverage:
+
+- `test/domain/reading_preferences_test.dart`: legacy v1 JSON, range
+  and enum validation, high-contrast round-trip.
+- `test/data/reading_preferences_store_test.dart`: old SQLite JSON
+  loaded and rewritten with new fields, per-book persistence across
+  reopen and TTS preference independence.
+- `test/features/epub_paragraph_tile_test.dart`: width constraint,
+  left/justified alignment, unchanged text/hit gestures and color mapping.
+
+**Tests authored, not executed** because Flutter/Dart is unavailable in
+the connected editing environment; no Windows/Android build or GitHub
+Actions launched.
