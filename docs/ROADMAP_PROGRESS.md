@@ -814,3 +814,23 @@ Android Activity recreation remains a manual device gate.
   still requires real Windows/Android native voices, user listening, focus,
   pronunciation and timing checks. No milestone percentage increase claimed.
 - See [MULTILINGUAL_CAST_HANDOFF.md](MULTILINGUAL_CAST_HANDOFF.md).
+
+### M2/M4 — Dialogue prosody, source-safe voice-turn breaths (2026-10-29)
+
+- The Windows *System — interpreted punctuation* profile now inserts
+  short audio-only boundaries at standalone quotation marks, preventing
+  sentences such as `«Vieni» disse Elena` from being spoken as a single
+  run-on phrase. Sentence punctuation continues to win over a shorter
+  closing-quote pause; book source/anchors are not modified.
+- Real reader sessions now opt in to a cancellable **110 ms** breath only
+  on true narrator/character voice changes using the free OS TTS engines.
+  Same-voice, ordinary narrator sentences, stale voice fallback, cloud,
+  and experimental neural synthesis are unchanged.
+- During the brief breath, a Stop/Seek/Dispose invalidates the pending
+  timer **before** the next unheard segment's recovery checkpoint. Skipped
+  note text does not erase an actual narrator-to-character transition.
+- Added source-level phrase regressions and fake-engine pause/cancel cases;
+  **tests were not run**, no Windows/Android builds or Actions invoked.
+  No milestone percentages are increased without native listening tests.
+- [DIALOGUE_PROSODY_WINDOWS.md](DIALOGUE_PROSODY_WINDOWS.md).
+

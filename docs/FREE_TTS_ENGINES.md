@@ -135,3 +135,21 @@ nuova voce ai personaggi.
 In questa sessione non sono stati eseguiti test Flutter, native build o
 prove d'ascolto. `sherpa-vits` rimane **alpha Windows non collaudata**.
 Vedi [OFFLINE_VOICE_PREVIEW.md](OFFLINE_VOICE_PREVIEW.md).
+
+## Naturalness of free dialogue speech (29 October 2026)
+
+The Windows system voice profile with interpreted punctuation now makes a
+short speech-only break around quotation marks, especially when an unpunctuated
+quote precedes a narrator's dialogue tag. Italian `«…»`, curly quotes
+and straight double quotes are recognized; sentence-ending pauses still
+override a weaker quote break.
+
+In the real reader, **system** and **system-native** voices additionally use
+a cancellable 110 ms breath only when switching between **different installed
+narrator/character voices**. This is not a pitch transformation, gender
+inference, cloud synthesis or source-text edit. The pause is zero by default
+for other `ReaderPlayer` consumers and is not applied to cloud/VITS engines.
+Any Stop/Seek during the breath prevents a new unheard checkpoint and
+synthesis. The rhythm still requires manual validation on actual hardware.
+See [DIALOGUE_PROSODY_WINDOWS.md](DIALOGUE_PROSODY_WINDOWS.md).
+
