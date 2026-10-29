@@ -411,6 +411,90 @@ void main() {
     expect(target.books, isEmpty);
   });
 
+  test('v22 portable backup restores collections with new books only',
+      () async {
+    final sourceId = await add(source, 'organized.txt', 'Source for collections.');
+    final noteId = await add(source, 'solo.txt', 'Another source book.');
+    final study = source.createCollection('Study');
+    final research = source.createCollection('Research');
+    source.createCollection('Unused empty group');
+    source.setBookCollection(sourceId, study.id, true);
+    source.setBookCollection(sourceId, research.id, true);
+    source.setBookCollection(noteId, research.id, true);
+
+    final localId = await add(target, 'local.txt', 'Local user-only source.');
+    final local = target.createCollection('study');
+    target.setBookCollection(localId, local.id, true);
+    final exported = await source.exportLibraryBackup(exports);
+    final preview = await target.previewLibraryRestore(exported.directory);
+    expect(preview.availableToImport, 2);
+    expect(target.listBookCollections(sourceId), throwsStateError);
+
+    final imported = await target.restoreLibraryBackup(exported.directory);
+    expect(imported.added, 2);
+    expect(target.listBookCollections(sourceId).map((e) => e.name),
+        ['Research', 'study']);
+    expect(target.listBookCollections(noteId).map((e) => e.name),
+        ['Research']);
+    expect(target.collectionBookIds(local.id), containsAll([localId, sourceId]));
+    expect(target.getBook(localId)!.progressOffset, 0);
+    final repeated = await target.restoreLibraryBackup(exported.directory);
+    expect(repeated.added, 0);
+    expect(target.listBookCollections(sourceId), hasLength(2));
+  });
+
+  test('v22 manifest membership tampering is rejected before any import',
+      () async {
+    final id = await add(source, 'categories.txt', 'Book for backed groups.');
+    final collection = source.createCollection('History');
+    source.setBookCollection(id, collection.id, true);
+    final exported = await source.exportLibraryBackup(exports);
+    final manifestFile = File(p.join(exported.directory.path, 'manifest.json'));
+    final manifest = jsonDecode(await manifestFile.readAsString()) as Map;
+    final entry = (manifest['books'] as List).single as Map;
+    expect(entry['collections'], ['History']);
+    entry['collections'] = ['Fiction'];
+    await manifestFile.writeAsString(jsonEncode(manifest));
+    await expectLater(target.previewLibraryRestore(exported.directory),
+        throwsFormatException);
+    await expectLater(target.restoreLibraryBackup(exported.directory),
+        throwsFormatException);
+    expect(target.books, isEmpty);
+  });
+
+  test('v22 SQLite membership tampering is rejected on preview', () async {
+    final id = await add(source, 'members.txt', 'Book for join validation.');
+    final collection = source.createCollection('Test');
+    source.setBookCollection(id, collection.id, true);
+    final exported = await source.exportLibraryBackup(exports);
+    final db = sqlite3.open(p.join(exported.directory.path, 'library.sqlite'));
+    db.execute('DELETE FROM book_collection_members');
+    db.dispose();
+    await expectLater(inspectLibraryBackup(exported.directory),
+        throwsFormatException);
+    expect(target.books, isEmpty);
+  });
+
+  test('legacy v21 snapshot without collections is accepted', () async {
+    final id = await add(source, 'old-v21.txt', 'Backup for v21 compatibility.');
+    final exported = await source.exportLibraryBackup(exports);
+    final db = sqlite3.open(p.join(exported.directory.path, 'library.sqlite'));
+    db.execute('DROP TABLE book_collection_members');
+    db.execute('DROP TABLE book_collections');
+    db.execute('PRAGMA user_version = 21');
+    db.dispose();
+    final manifestFile = File(p.join(exported.directory.path, 'manifest.json'));
+    final manifest = jsonDecode(await manifestFile.readAsString()) as Map;
+    final entry = (manifest['books'] as List).single as Map;
+    entry.remove('collections');
+    await manifestFile.writeAsString(jsonEncode(manifest));
+    final verified = await inspectLibraryBackup(exported.directory);
+    expect(verified.books.single.collectionNames, isEmpty);
+    final result = await target.restoreLibraryBackup(exported.directory);
+    expect(result.added, 1);
+    expect(target.listBookCollections(id), isEmpty);
+  });
+
   test('corrupted SQLite backup fails closed before copying books',
       () async {
     await add(source, 'book.txt', 'One unchanged ebook');
