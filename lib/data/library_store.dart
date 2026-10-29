@@ -765,6 +765,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
             importedAt: entry.importedAt,
             progressOffset: entry.progressOffset,
             progressAnchor: entry.anchor,
+            isFavorite: entry.isFavorite,
           ));
           if (entry.format == BookFormat.pdf &&
               entry.pdfVisualPage != null) {
