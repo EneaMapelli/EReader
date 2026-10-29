@@ -62,6 +62,8 @@ class EpubParagraphTile extends StatefulWidget {
     required this.activeSegmentIndex,
     this.searchMatch,
     required this.fontSize,
+    this.lineHeight = 1.75,
+    this.fontFamily = 'serif',
     required this.onSelectSegment,
     this.onOpenLink,
     this.onOpenFootnote,
@@ -74,6 +76,8 @@ class EpubParagraphTile extends StatefulWidget {
   /// Result positions are relative to the original extracted EPUB text.
   final BookSourceMatch? searchMatch;
   final double fontSize;
+  final double lineHeight;
+  final String fontFamily;
   final ValueChanged<int> onSelectSegment;
   /// Source offset of a verified internal EPUB fragment (never a URL).
   final ValueChanged<int>? onOpenLink;
@@ -255,9 +259,9 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
     final heading = widget.block.heading;
     final size = widget.fontSize;
     final style = TextStyle(
-      fontFamily: 'serif',
+      fontFamily: widget.fontFamily,
       fontSize: heading ? size + 5 : size,
-      height: heading ? 1.35 : 1.75,
+      height: heading ? 1.35 : widget.lineHeight,
       fontWeight: heading ? FontWeight.w600 : FontWeight.w400,
       color: palette.foreground(context),
     );
