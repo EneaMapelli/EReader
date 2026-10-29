@@ -429,7 +429,15 @@ class ReaderPlayer extends ChangeNotifier {
     // A direct Play invalidates outstanding seeks after their awaited stop.
     _navigationEpoch++;
     _resumeAfterNavigation = false;
-    if (currentIndex >= _segments.length) currentIndex = 0;
+    if (currentIndex >= _segments.length) {
+      // A natural EOF does not call native Stop. Clear only session-local
+      // punctuation carry before an explicit replay; ordinary Pause/Seek
+      // already cancel it through the engine's existing stop path.
+      if (_engine is SpeechSessionRestartAware) {
+        (_engine as SpeechSessionRestartAware).onNarrationRestart();
+      }
+      currentIndex = 0;
+    }
     final token = ++_session;
     isPlaying = true;
     lastError = null;

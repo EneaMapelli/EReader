@@ -29,6 +29,13 @@ abstract interface class SpeechEngine {
   Future<void> dispose();
 }
 
+/// Reset temporary prosody only when the book restarts after *natural EOF*.
+/// Ordinary Pause/Seek already call Stop and must not need this hook.
+/// The engine must not initiate synthesis, native Stop, or network access.
+abstract interface class SpeechSessionRestartAware {
+  void onNarrationRestart();
+}
+
 /// Optional ability to synthesize ONE future cloud chunk without playing it.
 /// This is never called for a native OS voice. Preparing a cache miss may
 /// transmit book text and debit the user's existing cloud-character budget.
@@ -75,7 +82,7 @@ abstract interface class OfflineVoiceDiagnosticsProvider {
   OfflineVoiceStatistics get offlineVoiceStatistics;
 }
 
-class SystemSpeechEngine implements SpeechEngine {
+class SystemSpeechEngine implements SpeechEngine, SpeechSessionRestartAware {
   SystemSpeechEngine({bool? interpretWindowsPunctuation})
       : _interpretWindowsPunctuation =
             interpretWindowsPunctuation ?? Platform.isWindows;
@@ -112,6 +119,13 @@ class SystemSpeechEngine implements SpeechEngine {
     final waiting = _pendingPause;
     _pendingPause = null;
     if (waiting != null && !waiting.isCompleted) waiting.complete();
+  }
+
+  @override
+  void onNarrationRestart() {
+    // An explicitly repeated book must not inherit the last punctuation
+    // breath from its *previous* complete narration session.
+    _punctuationTail.clear();
   }
 
   Future<void> _prepare() async {
