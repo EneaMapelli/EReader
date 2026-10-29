@@ -8,6 +8,8 @@ void main() {
     expect(original.lineHeight, 1.75);
     expect(original.fontFamily, 'serif');
     expect(original.palette, 'system');
+    expect(original.contentWidth, 760);
+    expect(original.textAlignment, 'auto');
     expect(original.toJson()['version'], 1);
   });
 
@@ -16,11 +18,13 @@ void main() {
     const original = ReadingPreferences(
       fontSize: 26, lineHeight: 2.2,
       fontFamily: 'sans-serif', palette: 'night',
+      contentWidth: 920, textAlignment: 'start',
     );
     expect(ReadingPreferences.fromJson(original.toJson()).toJson(),
         original.toJson());
     expect(original.copyWith(
       fontSize: 16, palette: 'sepia',
+      contentWidth: 520, textAlignment: 'justify',
     ).toJson()['fontFamily'], 'sans-serif');
   });
 
@@ -35,6 +39,10 @@ void main() {
       valid.copyWith(fontSize: double.infinity),
       valid.copyWith(fontFamily: 'remote://font'),
       valid.copyWith(palette: 'not-real'),
+      valid.copyWith(contentWidth: 479),
+      valid.copyWith(contentWidth: 1001),
+      valid.copyWith(contentWidth: double.nan),
+      valid.copyWith(textAlignment: 'center'),
     ];
     for (final item in cases) {
       expect(item.validate, throwsFormatException);
@@ -48,10 +56,36 @@ void main() {
         'fontFamily': 'serif', 'palette': 'system'},
       {'version': 1, 'fontSize': 19, 'lineHeight': 1.75,
         'fontFamily': 'serif', 'palette': 'xx'},
+      {'version': 1, 'fontSize': 19, 'lineHeight': 1.75,
+        'fontFamily': 'serif', 'palette': 'night', 'contentWidth': null},
+      {'version': 1, 'fontSize': 19, 'lineHeight': 1.75,
+        'fontFamily': 'serif', 'palette': 'night', 'textAlignment': null},
     ];
     for (final item in broken) {
       expect(() => ReadingPreferences.fromJson(item), throwsFormatException);
     }
+  });
+
+  test('legacy v1 SQLite JSON retains original appearance defaults', () {
+    final old = ReadingPreferences.fromJson({
+      'version': 1, 'fontSize': 25, 'lineHeight': 1.5,
+      'fontFamily': 'serif', 'palette': 'sepia',
+    });
+    expect(old.contentWidth, 760);
+    expect(old.textAlignment, 'auto');
+    expect(old.fontSize, 25);
+    expect(old.palette, 'sepia');
+    expect(old.toJson()['contentWidth'], 760);
+  });
+
+  test('high-contrast appearance and narrow-width choices round-trip', () {
+    const profile = ReadingPreferences(
+      palette: 'highContrast', contentWidth: 480,
+      textAlignment: 'start',
+    );
+    profile.validate();
+    expect(ReadingPreferences.fromJson(profile.toJson()).toJson(),
+        profile.toJson());
   });
 
   test('values on the supported bounds are valid', () {
@@ -61,7 +95,8 @@ void main() {
     ).validate();
     const ReadingPreferences(
       fontSize: 32, lineHeight: 2.4,
-      fontFamily: 'sans-serif', palette: 'night',
+      fontFamily: 'sans-serif', palette: 'highContrast',
+      contentWidth: 1000, textAlignment: 'justify',
     ).validate();
   });
 }
