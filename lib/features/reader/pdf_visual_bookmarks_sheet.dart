@@ -49,40 +49,38 @@ Future<int?> showPdfVisualBookmarks({
                         label: const Text('Save page'),
                         onPressed: currentPage >= 1 && currentPage <= pageCount
                             ? () async {
-                                final controller = TextEditingController(
-                                    text: 'Page $currentPage');
-                                String? title;
-                                try {
-                                  title = await showDialog<String>(
-                                    context: sheetContext,
-                                    builder: (dialogContext) => AlertDialog(
-                                      title: const Text('Bookmark this page'),
-                                      content: TextField(
-                                        key: const ValueKey('pdf-bookmark-title'),
-                                        controller: controller,
-                                        autofocus: true,
-                                        maxLength: 200,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Title',
-                                        ),
+                                // Keep the input inside the dialog lifecycle:
+                                // a controller disposed before the pop
+                                // transition completes can outlive the route.
+                                var draftTitle = 'Page $currentPage';
+                                final title = await showDialog<String>(
+                                  context: sheetContext,
+                                  builder: (dialogContext) => AlertDialog(
+                                    title: const Text('Bookmark this page'),
+                                    content: TextFormField(
+                                      key: const ValueKey('pdf-bookmark-title'),
+                                      initialValue: draftTitle,
+                                      onChanged: (value) => draftTitle = value,
+                                      autofocus: true,
+                                      maxLength: 200,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Title',
                                       ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(dialogContext),
-                                          child: const Text('Cancel'),
-                                        ),
-                                        FilledButton(
-                                          onPressed: () => Navigator.pop(
-                                            dialogContext, controller.text),
-                                          child: const Text('Save'),
-                                        ),
-                                      ],
                                     ),
-                                  );
-                                } finally {
-                                  controller.dispose();
-                                }
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(dialogContext),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () => Navigator.pop(
+                                            dialogContext, draftTitle),
+                                        child: const Text('Save'),
+                                      ),
+                                    ],
+                                  ),
+                                );
                                 if (!sheetContext.mounted || title == null ||
                                     title.trim().isEmpty) return;
                                 try {
