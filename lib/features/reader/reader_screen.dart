@@ -105,6 +105,9 @@ class _ReaderScreenState extends State<ReaderScreen>
   // change, reload or newer viewport event. Canceling the Timer normally
   // suffices, but the revision is a second guard for queued callbacks.
   int _visualSaveRevision = 0;
+  // Fast progress updates while manually scrolling must not rebuild
+  // the entire potentially large EPUB/painted-document widget tree.
+  final ValueNotifier<int> _visualProgressTick = ValueNotifier<int>(0);
 
   void _cancelPendingVisualSave() {
     _visualSaveRevision++;
@@ -620,6 +623,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (visible.isEmpty) return;
     visible.sort();
     final firstItem = visible.first;
+    final previousChapter = _currentChapterIndex;
+    final previousDirectory = _currentDirectoryIndex;
     final int index;
     final int sourceOffset;
     if (widget.book.format == BookFormat.epub) {
@@ -646,10 +651,13 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (index == _visiblePositionIndex) return;
     }
     _visiblePositionIndex = index;
-    // Each new visible source location updates the progress display.
-    // The early guards above suppress duplicate viewport notifications.
-    // The chapter label also reflects any real TOC/spine change.
-    setState(() {});
+    // Update only the small progress control on each real visual scroll.
+    // Rebuild the wider reader only when the displayed TOC label changes.
+    _visualProgressTick.value++;
+    if (_currentChapterIndex != previousChapter ||
+        _currentDirectoryIndex != previousDirectory) {
+      setState(() {});
+    }
     _cancelPendingVisualSave();
     final revision = _visualSaveRevision;
     final document = _document;
@@ -1350,6 +1358,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // widget releases its native renderer when unmounted. Do not call an
     // unavailable controller method during book/screen shutdown.
     _itemPositionsListener.itemPositions.removeListener(_onVisiblePositions);
+    _visualProgressTick.dispose();
     final player = _player;
     if (player != null) {
       widget.mediaHandler?.detach(player);
@@ -1946,11 +1955,15 @@ class _ReaderScreenState extends State<ReaderScreen>
                 }),
               ],
               if ((_document?.text.isNotEmpty ?? false))
-                ReadingProgressBar(
-                  sourceOffset: _visibleProgressOffset(
-                      player, _document!.text.length),
-                  sourceLength: _document!.text.length,
-                  onSeekToOffset: _jumpToSourceProgress,
+                ValueListenableBuilder<int>(
+                  valueListenable: _visualProgressTick,
+                  builder: (context, revision, child) =>
+                      ReadingProgressBar(
+                    sourceOffset: _visibleProgressOffset(
+                        player, _document!.text.length),
+                    sourceLength: _document!.text.length,
+                    onSeekToOffset: _jumpToSourceProgress,
+                  ),
                 ),
               Text(
                 player.currentIndex >= count
