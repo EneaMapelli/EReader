@@ -189,6 +189,79 @@ void main() {
     player.dispose();
   });
 
+  test('voice and language use one cast resolver snapshot per spoken chunk',
+      () async {
+    final engine = _CastHandoffEngine();
+    final player = _player(engine, const [
+      SpeechSegment(0, 6, 'Hello!'),
+    ]);
+    await _selectItalianNarrator(player);
+    var resolutions = 0;
+    player.castVoiceForSegment = (_) {
+      resolutions++;
+      // A mutable cast editor may change its answer between successive
+      // calls. One spoken chunk must not mix EN timbre and ES locale.
+      return resolutions.isOdd ? englishActor : spanishActor;
+    };
+    player.castSpeakerForSegment = (_) => 'actor';
+
+    await player.play();
+    expect(resolutions, 1);
+    expect(engine.voicesUsed, ['Actor EN']);
+    expect(engine.speechLanguages, ['en-US']);
+    expect(player.currentPreferences.language, 'it-IT');
+    player.dispose();
+  });
+
+  test('missing installed cast voice is resolved once and keeps book locale',
+      () async {
+    final engine = _CastHandoffEngine();
+    final player = _player(engine, const [
+      SpeechSegment(0, 5, 'Ciao!'),
+    ]);
+    await _selectItalianNarrator(player);
+    var resolutions = 0;
+    player.castVoiceForSegment = (_) {
+      resolutions++;
+      return wrongActor;
+    };
+    player.castSpeakerForSegment = (_) => 'actor';
+
+    await player.play();
+    expect(resolutions, 1);
+    expect(engine.voicesUsed, ['Narrator IT']);
+    expect(engine.speechLanguages, ['it-IT']);
+    player.dispose();
+  });
+
+  test('cloud lookahead captures one coherent locale/voice pair',
+      () async {
+    final engine = _CastHandoffEngine();
+    final player = _player(engine, const [
+      SpeechSegment(0, 5, 'Ciao!'),
+      SpeechSegment(6, 12, 'Hello!'),
+    ], provider: 'openai-speech');
+    await _selectItalianNarrator(player, provider: 'openai-speech');
+    final seen = <int, int>{};
+    player.castVoiceForSegment = (segment) {
+      seen[segment.start] = (seen[segment.start] ?? 0) + 1;
+      return segment.start == 6 ? englishActor : null;
+    };
+    player.castSpeakerForSegment = (segment) =>
+        segment.start == 6 ? 'actor' : null;
+    player.setCloudPrefetch(true);
+
+    await player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(seen, {0: 1, 6: 2},
+        reason: 'One lookup during prefetch, one during live playback');
+    expect(engine.preparedVoices, ['Actor EN']);
+    expect(engine.preparedLanguages, ['en-US']);
+    expect(engine.voicesUsed, ['Narrator IT', 'Actor EN']);
+    expect(engine.speechLanguages, ['it-IT', 'en-US']);
+    player.dispose();
+  });
+
   test('paid prefetch of next cast turn snapshots its language and voice',
       () async {
     final engine = _CastHandoffEngine();
