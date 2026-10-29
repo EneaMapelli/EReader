@@ -27,6 +27,7 @@ class BookRecord {
     this.progressOffset = 0,
     this.progressAnchor,
     this.lastOpenedAt,
+    this.isFavorite = false,
   });
 
   final String id;
@@ -44,6 +45,8 @@ class BookRecord {
   /// Locally stored last explicit reader opening, not a reading-completion flag.
   /// This optional activity timestamp is intentionally not exported as book JSON.
   final DateTime? lastOpenedAt;
+  /// Explicit user star in the library; unrelated to reading completion.
+  final bool isFavorite;
 
   BookRecord atOffset(int offset, {ReadingAnchor? anchor}) => BookRecord(
         id: id,
@@ -57,6 +60,7 @@ class BookRecord {
         progressOffset: offset,
         progressAnchor: anchor,
         lastOpenedAt: lastOpenedAt,
+        isFavorite: isFavorite,
       );
 
   Map<String, Object> toJson() => {
@@ -69,6 +73,7 @@ class BookRecord {
         if (series != null) 'series': series!,
         if (language != null) 'language': language!,
         'progressOffset': progressOffset,
+        'favorite': isFavorite,
         if (progressAnchor != null) 'progressAnchor': progressAnchor!.toJson(),
       };
 
@@ -83,6 +88,7 @@ class BookRecord {
       series: json['series'] as String?,
       language: json['language'] as String?,
       progressOffset: json['progressOffset'] as int? ?? 0,
+      isFavorite: json['favorite'] as bool? ?? false,
       progressAnchor: json['progressAnchor'] is Map
           ? ReadingAnchor.fromJson(
               Map<String, dynamic>.from(json['progressAnchor'] as Map))
