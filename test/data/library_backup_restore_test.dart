@@ -261,7 +261,7 @@ void main() {
     final exported = await source.exportLibraryBackup(exports);
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
-    db.execute('UPDATE pdf_visual_bookmarks SET title = ?', ['\\n']);
+    db.execute('UPDATE pdf_visual_bookmarks SET title = ?', ['\n']);
     db.dispose();
     await expectLater(inspectLibraryBackup(exported.directory),
         throwsFormatException);
