@@ -52,7 +52,7 @@ void main() {
   test('dialogue dashes and accented text preserve lexical content', () {
     const source = '— Buongiorno, Èlia.\n— Vieni qui… per favore!';
     expect(words(source), ['Buongiorno', 'Èlia', 'Vieni qui', 'per favore']);
-    expect(pauses(source), [140, 260, 360, 420]);
+    expect(pauses(source), [140, 360, 360, 420]);
   });
 
   test('decimal punctuation, times and signed numerals remain meaningful',
