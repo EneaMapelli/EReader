@@ -156,3 +156,18 @@ non ancora presenti sul dispositivo. Segnalibri, posizioni, stelle e
 autorizzazioni cloud dei libri già presenti rimangono intatti.
 I test sono stati scritti, **non eseguiti**; nessuna compilazione/Action.
 Vedi [LIBRARY_READING_SHELVES.md](LIBRARY_READING_SHELVES.md).
+
+## 29 ottobre 2026 — Collezioni personalizzate (v22)
+
+Il ripristino accetta ora snapshot **SQLite v17–v22**.
+Per i backup v22, l'anteprima verifica e conta anche le collezioni:
+ripristina i nomi assenti, incluse le collezioni vuote. Se un nome
+esiste già (senza distinzione tra maiuscole/minuscole), conserva
+l'identità locale. Le assegnazioni ai libri sono importate
+**solo con libri nuovi**, senza alterare le appartenenze dei libri
+già esistenti. È possibile recuperare soltanto collezioni, anche
+quando non ci sono libri mancanti. Manifest e tabelle SQLite devono
+coincidere, altrimenti il backup viene rifiutato.
+
+I test sono scritti ma non ancora eseguiti; nessuna build o Action.
+Dettagli: [LIBRARY_COLLECTIONS.md](LIBRARY_COLLECTIONS.md).

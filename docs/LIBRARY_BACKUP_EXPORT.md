@@ -123,3 +123,11 @@ value must match for every book. The values are `toRead`, `reading`
 and `finished` and come only from explicit user selection. Older
 v17–v20 backups do not carry the field and remain readable. See
 [LIBRARY_READING_SHELVES.md](LIBRARY_READING_SHELVES.md).
+
+## 2026-10-29 — Collections in v22 portable backups
+
+SQLite **v22** stores the category catalog and many-to-many
+membership mapping. The portable manifest includes all category
+names (even empty collections) as `collectionCatalog`, alongside
+per-book `collections` arrays validated against the WAL-free
+SQLite snapshot. See [LIBRARY_COLLECTIONS.md](LIBRARY_COLLECTIONS.md).

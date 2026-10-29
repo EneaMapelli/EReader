@@ -1075,3 +1075,25 @@ Android Activity recreation remains a manual device gate.
   GitHub Actions. Native acceptance remains outstanding.
 - [LIBRARY_READING_SHELVES.md](LIBRARY_READING_SHELVES.md).
 
+
+### M1/ER-034 — User-managed multi-book collections (2026-10-29)
+
+- Added **Manage collections** to the library: create, rename and
+  delete named categories without touching stored source files.
+  Each book can be added to multiple categories using its More menu.
+- Combined **Collection** filter with query, format, Favorites,
+  opened/unopened and reading-shelf filters; Clear filters never
+  removes saved memberships.
+- SQLite **v22** adds validated names, unique case-insensitive
+  catalog IDs and FK-cascaded many-to-many membership. Migration
+  preserves existing book positions, status, favorites, bookmarks,
+  cloud consent and TTS settings.
+- Full v22 portable backup/restore retains all collection names,
+  **including empty categories**. The manifest is validated
+  against the snapshot. Restore accepts **v17–v22**, creates only
+  missing category names and assigns only newly imported books.
+- Authored repository, filter, UI and portable-backup regression
+  tests. **Not executed**; no Windows/Android builds or GitHub
+  Actions, and no release readiness claim.
+- [LIBRARY_COLLECTIONS.md](LIBRARY_COLLECTIONS.md).
+
