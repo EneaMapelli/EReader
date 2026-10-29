@@ -166,3 +166,18 @@ ordinary narrator sentences or speakers sharing one installed voice.
 Cloud and neural voices do not use this setting. See
 [CONFIGURABLE_DIALOGUE_PAUSE.md](CONFIGURABLE_DIALOGUE_PAUSE.md).
 
+
+## Literary quotation and between-segment prosody (29 October 2026)
+
+Windows **Free system voices — interpreted pauses** now recognize
+standalone single curly/guillemet and straight-single quote marks as
+short speech boundaries. Lexical apostrophes remain intact. A
+sentence-ending punctuation breath is now carried from one completed
+TTS segment into the next, with no fake audio at EOF. Pause/Seek/Dispose
+cancel it and restarting a finished book clears it. The `system-native`
+comparison mode, Android OS-native handling, cloud and offline neural
+engines are unaffected. Source offsets, manual character labels and
+saved reading positions never change.
+
+See [SINGLE_QUOTE_AND_SEGMENT_PROSODY.md](SINGLE_QUOTE_AND_SEGMENT_PROSODY.md).
+

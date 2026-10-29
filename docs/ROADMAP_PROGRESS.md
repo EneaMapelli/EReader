@@ -851,3 +851,21 @@ Android Activity recreation remains a manual device gate.
   or GitHub Actions were launched. No new milestone percentage claimed.
 - See [CONFIGURABLE_DIALOGUE_PAUSE.md](CONFIGURABLE_DIALOGUE_PAUSE.md).
 
+
+### M2/M4 — Literary single quotes and Windows cross-segment prosody (2026-10-29)
+
+- Recognizes literary `‘…’`, `‹…›` and German `„…“` quote turns
+  while preserving contractions, original source UTF-16 offsets and
+  accepted cast boundaries. Nested quotations do not invent speakers;
+  ASCII single quote speaker inference remains disabled.
+- Windows interpreted-punctuation TTS now filters standalone single
+  typographic quote glyphs; a completed segment's final punctuation pause
+  carries to the next real speech segment rather than disappearing.
+- Stop/Seek/Dispose clear the pending pause, and replaying a completed
+  book clears it without issuing an additional native Stop.
+- Added source-level phrase, dialogue-region, approved-cast and
+  fake-engine continuity regressions; **tests were not run**. Native
+  listening, timing and interruption acceptance are still open.
+  No builds/Actions and no percentage increase.
+- [SINGLE_QUOTE_AND_SEGMENT_PROSODY.md](SINGLE_QUOTE_AND_SEGMENT_PROSODY.md).
+
