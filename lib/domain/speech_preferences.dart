@@ -1,3 +1,46 @@
+/// Uses only valid EPUB/catalog language tags. A bare language is mapped
+/// to a deterministic, commonly supported speech locale; an explicit
+/// region takes precedence. Unknown/malformed tags retain the system default
+/// rather than passing arbitrary imported metadata to a native TTS engine.
+/// This is a runtime default, NOT a persisted voice choice.
+String? speechLocaleForBookMetadata(String? metadataLanguage) {
+  if (metadataLanguage == null) return null;
+  final value = metadataLanguage.trim().replaceAll('_', '-');
+  final short = RegExp(r'^[a-zA-Z]{2,3}$');
+  if (short.hasMatch(value)) {
+    return const <String, String>{
+      'it': 'it-IT',
+      'en': 'en-US',
+      'fr': 'fr-FR',
+      'es': 'es-ES',
+      'de': 'de-DE',
+      'pt': 'pt-PT',
+      'nl': 'nl-NL',
+      'pl': 'pl-PL',
+      'sv': 'sv-SE',
+      'da': 'da-DK',
+      'nb': 'nb-NO',
+      'fi': 'fi-FI',
+      'cs': 'cs-CZ',
+      'tr': 'tr-TR',
+      'ro': 'ro-RO',
+      'ru': 'ru-RU',
+      'uk': 'uk-UA',
+      'ja': 'ja-JP',
+      'ko': 'ko-KR',
+      'zh': 'zh-CN',
+      'ar': 'ar-SA',
+      'hi': 'hi-IN',
+    }[value.toLowerCase()];
+  }
+  final regional = RegExp(r'^([a-zA-Z]{2,3})-([a-zA-Z]{2}|[0-9]{3})$')
+      .firstMatch(value);
+  if (regional == null) return null;
+  final language = regional.group(1)!.toLowerCase();
+  final region = regional.group(2)!.toUpperCase();
+  return '$language-$region';
+}
+
 /// Serializable voice and model selection, never contains credentials.
 /// Provider IDs are application protocol identifiers, not user-supplied URLs.
 class SpeechPreferences {

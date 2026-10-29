@@ -358,6 +358,62 @@ void main() {
     expect(store.getSpeechPreferences(bookId: book.id).rate, 0.8);
   });
 
+
+  test('book language drives TTS only with no saved speech profile',
+      () async {
+    final source = File(p.join(root.path, 'book-language.txt'));
+    await source.writeAsString('Test source, no network or cloud calls.');
+    final book = await store.importFile(source.path);
+    expect(store.getSpeechPreferences(bookId: book.id).language, 'it-IT');
+
+    store.updateBookMetadata(
+      book.id, title: book.title, language: 'en',
+    );
+    expect(store.getSpeechPreferences(bookId: book.id).language, 'en-US');
+    expect(store.getSpeechPreferences().language, 'it-IT',
+        reason: 'Global default must not be mutated by inference');
+
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.getSpeechPreferences(bookId: book.id).language, 'en-US');
+
+    store.updateBookMetadata(
+      book.id, title: book.title, language: 'fr_FR',
+    );
+    expect(store.getSpeechPreferences(bookId: book.id).language, 'fr-FR');
+
+    await store.saveSpeechPreferences(
+      const SpeechPreferences(language: 'de-DE', rate: 0.7),
+    );
+    expect(store.getSpeechPreferences(bookId: book.id).language, 'de-DE');
+    expect(store.getSpeechPreferences(bookId: book.id).rate, 0.7);
+
+    await store.saveSpeechPreferences(
+      const SpeechPreferences(language: 'es-ES', rate: 0.4),
+      bookId: book.id,
+    );
+    expect(store.getSpeechPreferences(bookId: book.id).language, 'es-ES');
+    await store.clearBookSpeechPreferences(book.id);
+    expect(store.getSpeechPreferences(bookId: book.id).language, 'de-DE');
+  });
+
+  test('unrecognized metadata falls back without persisting a voice',
+      () async {
+    final source = File(p.join(root.path, 'unknown-language.txt'));
+    await source.writeAsString('No voice configuration.');
+    final book = await store.importFile(source.path);
+    store.updateBookMetadata(
+      book.id, title: book.title, language: 'xx',
+    );
+    expect(store.getSpeechPreferences(bookId: book.id).language, 'it-IT');
+    store.updateBookMetadata(
+      book.id, title: book.title, language: 'en-GB',
+    );
+    expect(store.getSpeechPreferences(bookId: book.id).language, 'en-GB');
+    expect(store.getSpeechPreferences().language, 'it-IT');
+  });
+
   test('deleting a book removes its voice data, preserving global rules',
       () async {
     final source = File(p.join(root.path, 'cleanup.txt'));

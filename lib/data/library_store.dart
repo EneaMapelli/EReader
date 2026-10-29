@@ -1448,9 +1448,17 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     final global = _database.select(
       "SELECT value_json FROM speech_preferences WHERE scope_id = 'global'",
     );
-    return global.isEmpty
+    if (global.isNotEmpty) return _decodeSpeechPrefs(global.first);
+    // Only the absence of BOTH persisted scopes permits auto-language.
+    // Per-book and global voice choices always win, including their locale.
+    // Never write this inferred language back to SQLite: future metadata
+    // edits can then affect only books without an explicit speech profile.
+    final inferred = bookId == null
+        ? null
+        : speechLocaleForBookMetadata(getBook(bookId)?.language);
+    return inferred == null
         ? const SpeechPreferences()
-        : _decodeSpeechPrefs(global.first);
+        : const SpeechPreferences().copyWith(language: inferred);
   }
 
   Future<void> saveSpeechPreferences(SpeechPreferences preferences,

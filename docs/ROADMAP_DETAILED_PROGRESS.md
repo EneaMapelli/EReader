@@ -584,3 +584,16 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Actions, and no release readiness claim.
 - [LIBRARY_COLLECTIONS.md](LIBRARY_COLLECTIONS.md).
 
+### M2 — Auto-select system TTS locale from catalog metadata (2026-10-29)
+
+- Books without any saved speech preference now infer their narration
+  language from EPUB OPF or user-edited catalog locale: `en` maps to
+  `en-US`, explicit regions such as `en-GB` are retained.
+- Per-book speech preferences override global preferences; global settings
+  override inferred language; malformed/unsupported bare language tags
+  preserve the existing Italian default. Inference is never persisted and
+  never chooses or downloads a paid TTS provider.
+- Added pure locale normalization and SQLite scope/restart regressions.
+  **Tests not run** (Dart/Flutter SDK unavailable in this environment);
+  native system voice availability and pronunciation remain unverified.
+  No Windows/Android build or GitHub Actions started.

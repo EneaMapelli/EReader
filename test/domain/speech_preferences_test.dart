@@ -2,6 +2,26 @@ import 'package:ereader/domain/speech_preferences.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+
+  test('metadata language defaults normalize common language and region', () {
+    expect(speechLocaleForBookMetadata('en'), 'en-US');
+    expect(speechLocaleForBookMetadata(' IT '), 'it-IT');
+    expect(speechLocaleForBookMetadata('fr_fr'), 'fr-FR');
+    expect(speechLocaleForBookMetadata('pt-BR'), 'pt-BR');
+    expect(speechLocaleForBookMetadata('zh-TW'), 'zh-TW');
+    expect(speechLocaleForBookMetadata('en-001'), 'en-001');
+  });
+
+  test('malformed or unsupported book languages do not override TTS', () {
+    for (final tag in <String?>[
+      null, '', '  ', 'xx', 'english', 'en-US-extra',
+      '../en', 'en_US_other', 'e', '123', 'en-1234',
+    ]) {
+      expect(speechLocaleForBookMetadata(tag), isNull,
+          reason: 'Book locale: $tag');
+    }
+    expect(const SpeechPreferences().language, 'it-IT');
+  });
   test('round-trip persistent voice settings', () {
     const original = SpeechPreferences(
       providerId: 'system',
