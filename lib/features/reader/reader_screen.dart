@@ -49,6 +49,7 @@ import 'epub_paragraph_tile.dart';
 import 'epub_diagnostics_sheet.dart';
 import 'epub_opening_performance_sheet.dart';
 import 'epub_frame_sampler.dart';
+import 'reader_keyboard_shortcuts.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -1498,7 +1499,17 @@ class _ReaderScreenState extends State<ReaderScreen>
   @override
   Widget build(BuildContext context) {
     final player = _player;
-    return Scaffold(
+    return ReaderKeyboardShortcuts(
+      enabled: !_loading && player != null &&
+          player.segments.isNotEmpty &&
+          (widget.book.format != BookFormat.pdf || _pdfTextMode),
+      onPlayPause: () => unawaited(_playOrPause()),
+      onPreviousSegment: () => unawaited(_move(-1)),
+      onNextSegment: () => unawaited(_move(1)),
+      onSearch: () => unawaited(_searchInBook()),
+      onBookmarks: () => unawaited(_openBookmarks()),
+      onHelp: () => unawaited(showReaderKeyboardHelp(context)),
+      child: Scaffold(
       appBar: AppBar(
         title: Text(widget.book.title),
         actions: [
@@ -1581,13 +1592,13 @@ class _ReaderScreenState extends State<ReaderScreen>
           if (_player != null && _player!.segments.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.search),
-              tooltip: 'Search this book',
+              tooltip: 'Search this book (Ctrl/Cmd+F)',
               onPressed: _searchInBook,
             ),
           if (_player != null && _player!.segments.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.bookmarks_outlined),
-              tooltip: 'Bookmarks',
+              tooltip: 'Bookmarks (Ctrl/Cmd+B)',
               onPressed: _openBookmarks,
             ),
           IconButton(
@@ -1887,7 +1898,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    tooltip: 'Previous segment',
+                    tooltip: 'Previous segment (Left arrow)',
                     icon: const Icon(Icons.skip_previous),
                     onPressed: () => _move(-1),
                   ),
@@ -1897,9 +1908,10 @@ class _ReaderScreenState extends State<ReaderScreen>
                       player.isPlaying ? Icons.pause : Icons.play_arrow,
                     ),
                     label: Text(player.isPlaying ? 'Pause' : 'Play'),
+                    tooltip: 'Play or pause narration (Space)',
                   ),
                   IconButton(
-                    tooltip: 'Next segment',
+                    tooltip: 'Next segment (Right arrow)',
                     icon: const Icon(Icons.skip_next),
                     onPressed: () => _move(1),
                   ),
@@ -2269,6 +2281,7 @@ class _ReaderScreenState extends State<ReaderScreen>
             ],
           ),
         ),
+      ),
       ),
     );
   }
