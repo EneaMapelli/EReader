@@ -483,25 +483,27 @@ class ReaderPlayer extends ChangeNotifier {
             ? _dialogueTurnPause : Duration.zero;
         final freeSystemVoice = engineProviderId == 'system' ||
             engineProviderId == 'system-native';
+        // The last utterance is finished, so selecting the next native
+        // voice may safely overlap the *silent* punctuation/cast breath.
+        // Await BOTH before reporting the next source checkpoint: their
+        // durations must not stack just because the platform voice switch
+        // is slow. Future.wait uses eagerError=false (default), ensuring
+        // neither in-flight native operation is left unobserved if one
+        // fails. Pause/Seek/Dispose invalidate token and cancel the breath.
+        final preparation = <Future<void>>[];
         if (freeSystemVoice && _engine is PreSegmentSpeechPause) {
-          // System TTS merges the previous completed punctuation pause
-          // with the configured voice-turn breath (maximum, not sum).
-          // Do not highlight or checkpoint the new text until this
-          // cancellable wait is finished.
-          await (_engine as PreSegmentSpeechPause).waitBeforeSegment(
-            voiceTurnPause: requestedBreath,
-          );
+          preparation.add((_engine as PreSegmentSpeechPause)
+              .waitBeforeSegment(voiceTurnPause: requestedBreath));
         } else if (requestedBreath > Duration.zero) {
           // Compatibility with external/mock system engines which have
           // no punctuation-tail coordination hook.
-          await _waitForTurnBreath();
+          preparation.add(_waitForTurnBreath());
         }
-        if (token != _session) return;
-        // Native voice selection may also take time: it MUST complete
-        // before a source checkpoint or visual highlight claims the
-        // next, not-yet-spoken segment has started.
         if (installed != null && installed.key != _engineVoiceKey) {
-          await _choosePlaybackVoice(installed, token);
+          preparation.add(_choosePlaybackVoice(installed, token));
+        }
+        if (preparation.isNotEmpty) {
+          await Future.wait(preparation);
         }
         if (token != _session) return;
         await onSegmentStarted(segment);
