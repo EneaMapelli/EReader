@@ -77,9 +77,12 @@ class PdfPageNavigation extends StatelessWidget {
     final count = pageCount ?? 0;
     final ready = count > 0;
     final current = ready ? pageNumber.clamp(1, count).toInt() : pageNumber;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
         IconButton(
           tooltip: 'Previous PDF page',
           onPressed: ready && current > 1
@@ -111,7 +114,98 @@ class PdfPageNavigation extends StatelessWidget {
             onPressed: ready ? onZoomIn : null,
             icon: const Icon(Icons.zoom_in),
           ),
+          ],
+        ),
+        // This uses PHYSICAL pages, not extracted text offsets. A scanned
+        // PDF can use it without OCR or a synthesized speech checkpoint.
+        if (count > 1)
+          _PdfPageScrubber(
+            pageNumber: current,
+            pageCount: count,
+            onPageRequested: onPageRequested,
+          ),
       ],
     );
   }
 }
+
+/// Fast physical-page navigation for long or scanned PDFs.
+///
+/// A drag is a local preview only. It never calls onPageRequested until
+/// release, avoiding hundreds of native PDF decoder page loads while the
+/// user scrubs or any mutation of a separate TTS source checkpoint.
+/// The existing page number dialog remains the exact jump mechanism.
+class _PdfPageScrubber extends StatefulWidget {
+  const _PdfPageScrubber({
+    required this.pageNumber,
+    required this.pageCount,
+    required this.onPageRequested,
+  });
+
+  final int pageNumber;
+  final int pageCount;
+  final ValueChanged<int> onPageRequested;
+
+  @override
+  State<_PdfPageScrubber> createState() => _PdfPageScrubberState();
+}
+
+class _PdfPageScrubberState extends State<_PdfPageScrubber> {
+  int? _previewPage;
+
+  @override
+  void didUpdateWidget(covariant _PdfPageScrubber oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.pageCount != oldWidget.pageCount) {
+      // Never keep a stale drag coordinate after document replacement.
+      _previewPage = null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = widget.pageCount;
+    final shown = (_previewPage ?? widget.pageNumber)
+        .clamp(1, count).toInt();
+    final percent = ((shown - 1) * 100 / (count - 1)).round();
+    return Row(
+      children: [
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 58,
+          child: Text(
+            '$percent%',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
+        Expanded(
+          child: Slider(
+            key: const ValueKey('pdf-page-scrubber'),
+            value: shown.toDouble(),
+            min: 1,
+            max: count.toDouble(),
+            // Avoid huge semantics/slider ticks for multi-thousand-page
+            // technical manuals. The existing Go-to-page dialog is exact.
+            divisions: count <= 201 ? count - 1 : 200,
+            label: 'PDF page $shown of $count',
+            semanticFormatterCallback: (value) =>
+                'PDF page ${value.round()} of $count',
+            onChanged: (value) => setState(() {
+              _previewPage = value.round().clamp(1, count).toInt();
+            }),
+            onChangeEnd: (value) {
+              final destination = value.round().clamp(1, count).toInt();
+              setState(() => _previewPage = null);
+              if (destination != widget.pageNumber) {
+                widget.onPageRequested(destination);
+              }
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+}
+
