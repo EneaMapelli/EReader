@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/book.dart';
+import '../domain/book_collection.dart';
 
 /// A self-contained, private export, NOT an automatic cloud backup.
 ///
@@ -107,6 +108,7 @@ Future<LibraryBackupResult> exportPortableLibraryBackup({
     // VACUUM INTO produces a WAL-free, standalone SQLite database.
     // Confirm it opens and includes exactly the expected book identities.
     final check = sqlite3.open(databaseSnapshot.path);
+    final snapshotCollections = <String, List<String>>{};
     try {
       final status = check.select('PRAGMA integrity_check').first['integrity_check'];
       if (status != 'ok') {
@@ -116,6 +118,25 @@ Future<LibraryBackupResult> exportPortableLibraryBackup({
           .map((r) => r['id'] as String).toSet();
       if (ids.length != seen.length || !ids.containsAll(seen)) {
         throw const FormatException('SQLite snapshot book list differs');
+      }
+      if (check.select('PRAGMA user_version').single['user_version'] >= 22) {
+        final entries = check.select('''
+          SELECT m.book_id, c.name
+          FROM book_collection_members m
+          JOIN book_collections c ON c.id = m.collection_id
+          ORDER BY c.name COLLATE NOCASE, c.id
+        ''');
+        if (entries.length > 200000) {
+          throw const FormatException('Too many collection memberships');
+        }
+        for (final row in entries) {
+          final id = row['book_id'] as String;
+          final name = row['name'] as String;
+          if (!seen.contains(id) || BookCollection.cleanName(name) != name) {
+            throw const FormatException('Invalid collection in backup');
+          }
+          snapshotCollections.putIfAbsent(id, () => []).add(name);
+        }
       }
     } finally {
       check.dispose();
@@ -146,6 +167,7 @@ Future<LibraryBackupResult> exportPortableLibraryBackup({
         'progressOffset': book.progressOffset,
         'favorite': book.isFavorite,
         'readingStatus': book.readingStatus.name,
+        'collections': snapshotCollections[book.id] ?? const <String>[],
         if (book.progressAnchor != null)
           'progressAnchor': book.progressAnchor!.toJson(),
       });
