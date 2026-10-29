@@ -51,9 +51,11 @@ class VerifiedBackupBook {
 }
 
 class VerifiedLibraryBackup {
-  const VerifiedLibraryBackup({required this.books, required this.totalBookBytes});
+  const VerifiedLibraryBackup({required this.books, required this.totalBookBytes,
+    this.collectionCatalog = const []});
   final List<VerifiedBackupBook> books;
   final int totalBookBytes;
+  final List<String> collectionCatalog;
 }
 
 class LibraryRestorePreview {
@@ -63,6 +65,7 @@ class LibraryRestorePreview {
     required this.alreadyPresent,
     required this.bookmarksToImport,
     required this.verifiedBytes,
+    this.collectionsToImport = 0,
   });
 
   final int total;
@@ -70,6 +73,7 @@ class LibraryRestorePreview {
   final int alreadyPresent;
   final int bookmarksToImport;
   final int verifiedBytes;
+  final int collectionsToImport;
 }
 
 class LibraryRestoreResult {
@@ -77,11 +81,13 @@ class LibraryRestoreResult {
     required this.added,
     required this.skipped,
     required this.bookmarksImported,
+    this.collectionsImported = 0,
   });
 
   final int added;
   final int skipped;
   final int bookmarksImported;
+  final int collectionsImported;
 }
 
 String? _safeMetadata(Object? value, int maxLength) {
@@ -234,6 +240,7 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
     // books that the user will choose not to re-import. This prevents a
     // corrupt or malicious backup from smuggling unverified catalog state.
     final backedCollections = <String, List<String>>{};
+    final collectionCatalog = <String>[];
     if (schemaVersion >= 22) {
       final collections = database.select(
         'SELECT id, name, created_at FROM book_collections',
@@ -254,6 +261,7 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
           throw const FormatException('Duplicate backup collection names');
         }
         namesById[id] = name;
+        collectionCatalog.add(name);
       }
       final members = database.select(
         'SELECT collection_id, book_id FROM book_collection_members',
@@ -271,6 +279,17 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
           throw const FormatException('Orphan/duplicate collection membership');
         }
         backedCollections.putIfAbsent(bid, () => []).add(name);
+      }
+    }
+
+    if (schemaVersion >= 22) {
+      final declaredCatalog = decoded['collectionCatalog'];
+      if (declaredCatalog is! List ||
+          declaredCatalog.length != collectionCatalog.length ||
+          declaredCatalog.any((entry) => entry is! String) ||
+          declaredCatalog.toSet().length != declaredCatalog.length ||
+          !declaredCatalog.toSet().containsAll(collectionCatalog)) {
+        throw const FormatException('Backup collection catalog mismatch');
       }
     }
 
@@ -395,6 +414,7 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
     return VerifiedLibraryBackup(
       books: List<VerifiedBackupBook>.unmodifiable(result),
       totalBookBytes: bytes,
+      collectionCatalog: List<String>.unmodifiable(collectionCatalog),
     );
   } finally {
     database.dispose();
