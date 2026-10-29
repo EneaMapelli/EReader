@@ -55,7 +55,87 @@ class FakeSpeechEngine implements SpeechEngine {
   }
 }
 
+class VolumeFakeSpeechEngine extends FakeSpeechEngine
+    implements SpeechVolumeEngine {
+  final configured = <double>[];
+  final volumeAtSpeak = <double>[];
+  double currentVolume = 1.0;
+
+  @override
+  void configureVolume(double volume) {
+    currentVolume = volume;
+    configured.add(volume);
+  }
+
+  @override
+  Future<void> speak(String text, {
+    required String language,
+    required double rate,
+    required double pitch,
+  }) {
+    volumeAtSpeak.add(currentVolume);
+    return super.speak(text, language: language, rate: rate, pitch: pitch);
+  }
+}
+
 void main() {
+  test('volume capability applies saved choice before native speech',
+      () async {
+    final engine = VolumeFakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [SpeechSegment(0, 5, 'Hello')],
+      onSegmentStarted: (_) async {},
+    );
+    expect(player.supportsVolume, isTrue);
+    await player.applyPreferences(const SpeechPreferences(volume: 0.4));
+    expect(engine.configured, [0.4]);
+    expect(player.currentPreferences.volume, 0.4);
+
+    final reading = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.volumeAtSpeak, [0.4]);
+    player.setVolume(0.2);
+    expect(engine.configured, [0.4, 0.2]);
+    expect(player.currentPreferences.volume, 0.2);
+    await player.restartAfterSettingsChange();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.volumeAtSpeak, [0.4, 0.2]);
+    engine.finish();
+    await reading;
+    player.dispose();
+  });
+
+  test('unsupported engine exposes no volume and cannot change it',
+      () async {
+    final player = ReaderPlayer(
+      engine: FakeSpeechEngine(),
+      segments: const [],
+      onSegmentStarted: (_) async {},
+    );
+    expect(player.supportsVolume, isFalse);
+    await player.applyPreferences(const SpeechPreferences(volume: 0.55));
+    expect(player.currentPreferences.volume, 0.55,
+        reason: 'Unsupported engine preserves preferences without applying');
+    expect(() => player.setVolume(0.3), throwsUnsupportedError);
+    expect(player.currentPreferences.volume, 0.55);
+    player.dispose();
+  });
+
+  test('native volume input rejects invalid values without updating engine',
+      () async {
+    final engine = VolumeFakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine, segments: const [], onSegmentStarted: (_) async {},
+    );
+    for (final value in [-0.1, 1.1, double.nan]) {
+      expect(() => player.setVolume(value), throwsRangeError);
+    }
+    expect(engine.configured, isEmpty);
+    expect(player.currentPreferences.volume, 1.0);
+    player.dispose();
+  });
+
   test('pause stops speech; resume starts same segment', () async {
     final engine = FakeSpeechEngine();
     final positions = <int>[];

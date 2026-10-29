@@ -2408,6 +2408,33 @@ class _ReaderScreenState extends State<ReaderScreen>
                     ],
                   ),
                 ),
+              if (player.supportsVolume)
+                Row(
+                  children: [
+                    const Text('Volume'),
+                    Expanded(
+                      child: Slider(
+                        key: const ValueKey('system-speech-volume'),
+                        min: 0,
+                        max: 1,
+                        divisions: 20,
+                        value: player.volume,
+                        semanticFormatterCallback: (value) =>
+                            '${(value * 100).round()} percent',
+                        onChanged: player.setVolume,
+                        onChangeEnd: (_) {
+                          unawaited(player.restartAfterSettingsChange());
+                          unawaited(_saveVoiceSettings());
+                        },
+                      ),
+                    ),
+                    SizedBox(
+                      width: 54,
+                      child: Text('${(player.volume * 100).round()}%',
+                          textAlign: TextAlign.end),
+                    ),
+                  ],
+                ),
               Row(
                 children: [
                   const Text('Speed'),

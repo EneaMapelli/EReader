@@ -50,6 +50,7 @@ class SpeechPreferences {
     this.language = 'it-IT',
     this.rate = 0.5,
     this.pitch = 1.0,
+    this.volume = 1.0,
     this.dialogueTurnPauseMs = 110,
     this.voiceName,
     this.voiceLocale,
@@ -60,6 +61,9 @@ class SpeechPreferences {
   final String language;
   final double rate;
   final double pitch;
+  /// Native system TTS loudness (0 silent, 1 full). Unsupported providers
+  /// preserve the preference but must not pretend to apply it.
+  final double volume;
 
   /// Extra breath between genuinely different installed system voices.
   /// Zero disables the transition pause. Stored as a value on the book or
@@ -84,6 +88,9 @@ class SpeechPreferences {
     if (!pitch.isFinite || pitch < 0.5 || pitch > 1.5) {
       throw const FormatException('Speech pitch outside supported range');
     }
+    if (!volume.isFinite || volume < 0.0 || volume > 1.0) {
+      throw const FormatException('Speech volume outside supported range');
+    }
     if (dialogueTurnPauseMs < 0 || dialogueTurnPauseMs > 2000) {
       throw const FormatException('System dialogue turn pause must be 0–2000 ms');
     }
@@ -106,6 +113,7 @@ class SpeechPreferences {
         'language': language,
         'rate': rate,
         'pitch': pitch,
+        'volume': volume,
         'dialogueTurnPauseMs': dialogueTurnPauseMs,
         'voiceName': voiceName,
         'voiceLocale': voiceLocale,
@@ -114,6 +122,10 @@ class SpeechPreferences {
   factory SpeechPreferences.fromJson(Map<String, dynamic> json) {
     if (json['version'] != 1) {
       throw const FormatException('Unsupported speech settings version');
+    }
+    final volumeValue = json['volume'];
+    if (volumeValue != null && volumeValue is! num) {
+      throw const FormatException('Invalid speech volume');
     }
     final pauseValue = json['dialogueTurnPauseMs'];
     if (pauseValue != null && pauseValue is! int) {
@@ -125,6 +137,7 @@ class SpeechPreferences {
       language: json['language'] as String,
       rate: (json['rate'] as num).toDouble(),
       pitch: (json['pitch'] as num).toDouble(),
+      volume: (volumeValue as num?)?.toDouble() ?? 1.0,
       dialogueTurnPauseMs: pauseValue as int? ?? 110,
       voiceName: json['voiceName'] as String?,
       voiceLocale: json['voiceLocale'] as String?,
@@ -139,6 +152,7 @@ class SpeechPreferences {
     String? language,
     double? rate,
     double? pitch,
+    double? volume,
     int? dialogueTurnPauseMs,
     String? voiceName,
     String? voiceLocale,
@@ -150,6 +164,7 @@ class SpeechPreferences {
       language: language ?? this.language,
       rate: rate ?? this.rate,
       pitch: pitch ?? this.pitch,
+      volume: volume ?? this.volume,
       dialogueTurnPauseMs: dialogueTurnPauseMs ?? this.dialogueTurnPauseMs,
       voiceName: clearVoice ? null : (voiceName ?? this.voiceName),
       voiceLocale: clearVoice ? null : (voiceLocale ?? this.voiceLocale),

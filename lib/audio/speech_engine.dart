@@ -29,6 +29,16 @@ abstract interface class SpeechEngine {
   Future<void> dispose();
 }
 
+/// Optional native loudness capability. configureVolume only updates
+/// local configuration; the engine must apply it before starting the next
+/// utterance, inside its usual serialized/cancellable speech path. This
+/// prevents asynchronous volume calls racing Stop or native voice changes.
+/// Unsupported engines (cloud / offline VITS) intentionally do not expose
+/// the interface, rather than showing a misleading working volume slider.
+abstract interface class SpeechVolumeEngine {
+  void configureVolume(double volume);
+}
+
 /// Optional system-only, cancellation-aware gap before the next speech
 /// segment starts. Called BEFORE ReaderPlayer creates a recovery checkpoint
 /// or highlights the next segment. Merge voice changes with trailing
@@ -92,7 +102,7 @@ abstract interface class OfflineVoiceDiagnosticsProvider {
 
 class SystemSpeechEngine
     implements SpeechEngine, SpeechSessionRestartAware,
-        PreSegmentSpeechPause {
+        PreSegmentSpeechPause, SpeechVolumeEngine {
   SystemSpeechEngine({bool? interpretWindowsPunctuation})
       : _interpretWindowsPunctuation =
             interpretWindowsPunctuation ?? Platform.isWindows;
@@ -104,6 +114,7 @@ class SystemSpeechEngine
   final WindowsSpeechPauseCarry _punctuationTail =
       WindowsSpeechPauseCarry();
   SpeechVoice? _selectedVoice;
+  double _volume = 1.0;
   bool _completionConfigured = false;
   int _speechEpoch = 0;
   bool _pausePreparedForNextSpeak = false;
@@ -153,6 +164,14 @@ class SystemSpeechEngine
     // breath from its *previous* complete narration session.
     _punctuationTail.clear();
     _pausePreparedForNextSpeak = false;
+  }
+
+  @override
+  void configureVolume(double volume) {
+    if (!volume.isFinite || volume < 0 || volume > 1) {
+      throw RangeError.range(volume, 0, 1, 'volume');
+    }
+    _volume = volume;
   }
 
   Future<void> _prepare() async {
@@ -214,6 +233,11 @@ class SystemSpeechEngine
     await _tts.setSpeechRate(rate);
     if (epoch != _speechEpoch) return;
     await _tts.setPitch(pitch);
+    if (epoch != _speechEpoch) return;
+    // Apply once per utterance, after native voice/pitch selection and
+    // before any text is spoken. A Stop during the platform call cancels
+    // this epoch, preventing late audio from being started.
+    await _tts.setVolume(_volume);
     if (epoch != _speechEpoch) return;
 
     if (!_interpretWindowsPunctuation) {

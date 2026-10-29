@@ -145,6 +145,11 @@ class ReaderPlayer extends ChangeNotifier {
   String language;
   double rate = 0.5;
   double pitch = 1.0;
+  double volume = 1.0;
+
+  /// Only engines explicitly implementing native loudness advertise a
+  /// volume control; paid/experimental engines cannot silently ignore it.
+  bool get supportsVolume => _engine is SpeechVolumeEngine;
   List<SpeechVoice> availableVoices = const [];
   SpeechVoice? selectedVoice;
   String _providerId = 'system';
@@ -398,6 +403,10 @@ class ReaderPlayer extends ChangeNotifier {
       language = preferences.language;
       rate = preferences.rate;
       pitch = preferences.pitch;
+      if (_engine is SpeechVolumeEngine) {
+        (_engine as SpeechVolumeEngine).configureVolume(preferences.volume);
+      }
+      volume = preferences.volume;
       selectedVoice = restoredVoice;
       _engineVoiceKey = restoredVoice?.key;
       _notify();
@@ -412,6 +421,7 @@ class ReaderPlayer extends ChangeNotifier {
         language: language,
         rate: rate,
         pitch: pitch,
+        volume: volume,
         dialogueTurnPauseMs: _dialogueTurnPause.inMilliseconds,
         voiceName: selectedVoice?.name,
         voiceLocale: selectedVoice?.locale,
@@ -419,6 +429,21 @@ class ReaderPlayer extends ChangeNotifier {
 
   void setPitch(double value) {
     pitch = value;
+    _notify();
+  }
+
+  /// Changes the next native utterance; UI commits call
+  /// restartAfterSettingsChange to apply it to an active segment.
+  void setVolume(double value) {
+    if (_disposed) return;
+    if (!supportsVolume) {
+      throw UnsupportedError('Active speech engine has no volume control');
+    }
+    if (!value.isFinite || value < 0 || value > 1) {
+      throw RangeError.range(value, 0, 1, 'volume');
+    }
+    (_engine as SpeechVolumeEngine).configureVolume(value);
+    volume = value;
     _notify();
   }
 

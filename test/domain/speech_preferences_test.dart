@@ -38,6 +38,34 @@ void main() {
     expect(restored.pitch, 1.2);
   });
 
+  test('native volume persists without altering existing JSON version', () {
+    const prefs = SpeechPreferences(volume: 0.35);
+    final restored = SpeechPreferences.fromJson(prefs.toJson());
+    expect(restored.volume, 0.35);
+    expect(restored.toJson()['version'], 1);
+    expect(restored.copyWith(rate: 0.7).volume, 0.35);
+    expect(restored.copyWith(volume: 0).volume, 0);
+  });
+
+  test('legacy speech JSON defaults to full volume', () {
+    final legacy = Map<String, dynamic>.from(
+        const SpeechPreferences().toJson())..remove('volume');
+    expect(SpeechPreferences.fromJson(legacy).volume, 1.0);
+  });
+
+  test('rejects invalid volume values and malformed persisted volume', () {
+    for (final value in [-0.01, 1.01, double.nan, double.infinity]) {
+      expect(() => SpeechPreferences(volume: value).validate(),
+          throwsFormatException);
+    }
+    for (final value in <Object>['1', true, <int>[], 1.2]) {
+      expect(() => SpeechPreferences.fromJson({
+        ...const SpeechPreferences().toJson(),
+        'volume': value,
+      }), throwsFormatException);
+    }
+  });
+
   test('model selection persists while older settings receive a default',
       () {
     const prefs = SpeechPreferences(

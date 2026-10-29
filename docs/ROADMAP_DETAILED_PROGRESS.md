@@ -597,3 +597,20 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   **Tests not run** (Dart/Flutter SDK unavailable in this environment);
   native system voice availability and pronunciation remain unverified.
   No Windows/Android build or GitHub Actions started.
+
+### M2 — Capability-gated native speech volume (2026-10-29)
+
+- Added a **0–100%** slider for the two OS system-TTS modes only.
+  Free/native flutter_tts receives the configured volume before each
+  utterance; a committed slider change restarts the current source segment
+  using the existing cancellation and native Stop safety sequence.
+- Added volume to version-1 speech preferences (global and per-book),
+  retaining the existing SQLite schema and JSON version. Older settings
+  default to 100%; nonfinite or out-of-range input is rejected.
+- Cloud and experimental offline engines do **not** claim volume support.
+  Their existing saved profiles can round-trip the field but never apply
+  it, initiate any synthesis or grant cloud access.
+- Authored domain and injectable ReaderPlayer capability/volume tests.
+  **Not run** without Dart/Flutter; no Windows/Android build or GitHub
+  Actions triggered. Physical OS volume behavior remains an acceptance gate.
+
