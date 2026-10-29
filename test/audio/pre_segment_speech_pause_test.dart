@@ -177,6 +177,67 @@ void main() {
     player.dispose();
   });
 
+  test('speaker pause and native selection overlap without early checkpoint',
+      () async {
+    final engine = _GatedSystemEngine()
+      ..blockNextGap = true
+      ..blockActorChoice = true;
+    final player = await _createPlayer(engine);
+    final run = player.play();
+    await _until(() => engine.pendingGap != null &&
+        engine.pendingVoice != null);
+    expect(engine.spoken, ['Uno.'],
+        reason: 'Both independent operations start while the next is silent');
+    expect(engine.events.where((event) => event == 'checkpoint:5'), isEmpty);
+
+    engine.pendingVoice!.complete();
+    await _until(() => engine.pendingVoice == null);
+    expect(engine.events.where((event) => event == 'checkpoint:5'), isEmpty,
+        reason: 'Completed voice switch cannot skip an unfinished breath');
+    engine.pendingGap!.complete();
+    await run;
+    expect(engine.spoken, ['Uno.', 'Due.', 'Tre.']);
+    expect(engine.events.indexOf('checkpoint:5'),
+        greaterThan(engine.events.indexOf('choose:Actor')));
+    player.dispose();
+  });
+
+  test('completed breath still waits for slow voice before checkpoint',
+      () async {
+    final engine = _GatedSystemEngine()
+      ..blockNextGap = true
+      ..blockActorChoice = true;
+    final player = await _createPlayer(engine);
+    final run = player.play();
+    await _until(() => engine.pendingGap != null &&
+        engine.pendingVoice != null);
+    engine.pendingGap!.complete();
+    await _until(() => engine.pendingGap == null);
+    expect(engine.events.where((event) => event == 'checkpoint:5'), isEmpty);
+    engine.pendingVoice!.complete();
+    await run;
+    expect(engine.spoken, ['Uno.', 'Due.', 'Tre.']);
+    player.dispose();
+  });
+
+  test('simultaneous Stop cancels both in-flight preparations without progress',
+      () async {
+    final engine = _GatedSystemEngine()
+      ..blockNextGap = true
+      ..blockActorChoice = true;
+    final player = await _createPlayer(engine);
+    final run = player.play();
+    await _until(() => engine.pendingGap != null &&
+        engine.pendingVoice != null);
+    await player.pause();
+    await run.timeout(const Duration(milliseconds: 500));
+    expect(engine.events.where((event) => event == 'checkpoint:5'), isEmpty);
+    expect(engine.spoken, ['Uno.']);
+    expect(player.currentIndex, 1);
+    expect(player.isPlaying, isFalse);
+    player.dispose();
+  });
+
   test('skipped note never emits a source checkpoint or voice request',
       () async {
     final engine = _GatedSystemEngine();
