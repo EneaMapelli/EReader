@@ -1847,13 +1847,23 @@ class _ReaderScreenState extends State<ReaderScreen>
   /// utterance: manual EPUB scrolling, silent OPF items and exact note
   /// destinations are represented independently of the audio cursor.
   int _visibleProgressOffset(ReaderPlayer player, int totalLength) {
+    // Prefer a genuine manual visual position over speech EOF: scrolling
+    // back after completing the audio must move the text-position indicator.
+    // Do not confuse completion of the audio queue with the viewport.
+    if (!player.isPlaying) {
+      if (widget.book.format == BookFormat.epub) {
+        final precise = _visualCheckpoint.offset ??
+            _currentEpubVisualSourceOffset;
+        if (precise != null) return precise.clamp(0, totalLength).toInt();
+      } else if (player.currentIndex >= player.segments.length &&
+          _visiblePositionIndex != null &&
+          _visiblePositionIndex! < player.segments.length - 1) {
+        return player.segments[_visiblePositionIndex!].start
+            .clamp(0, totalLength).toInt();
+      }
+    }
     if (player.currentIndex >= player.segments.length) {
       return totalLength;
-    }
-    if (widget.book.format == BookFormat.epub && !player.isPlaying) {
-      final precise = _visualCheckpoint.offset ??
-          _currentEpubVisualSourceOffset;
-      if (precise != null) return precise.clamp(0, totalLength).toInt();
     }
     final index = player.isPlaying
         ? player.currentIndex
