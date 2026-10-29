@@ -83,37 +83,37 @@ class PdfPageNavigation extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+                IconButton(
+              tooltip: 'Previous PDF page',
+              onPressed: ready && current > 1
+                  ? () => onPageRequested(current - 1)
+                  : null,
+              icon: const Icon(Icons.chevron_left),
+            ),
+            TextButton(
+              key: const ValueKey('pdf-current-page'),
+              onPressed: ready ? () => _showPageJump(context) : null,
+              child: Text(ready ? '$current / $count' : '$pageNumber / …'),
+            ),
             IconButton(
-          tooltip: 'Previous PDF page',
-          onPressed: ready && current > 1
-              ? () => onPageRequested(current - 1)
-              : null,
-          icon: const Icon(Icons.chevron_left),
-        ),
-        TextButton(
-          key: const ValueKey('pdf-current-page'),
-          onPressed: ready ? () => _showPageJump(context) : null,
-          child: Text(ready ? '$current / $count' : '$pageNumber / …'),
-        ),
-        IconButton(
-          tooltip: 'Next PDF page',
-          onPressed: ready && current < count
-              ? () => onPageRequested(current + 1)
-              : null,
-          icon: const Icon(Icons.chevron_right),
-        ),
-        if (onZoomOut != null)
-          IconButton(
-            tooltip: 'Zoom out PDF',
-            onPressed: ready ? onZoomOut : null,
-            icon: const Icon(Icons.zoom_out),
-          ),
-        if (onZoomIn != null)
-          IconButton(
-            tooltip: 'Zoom in PDF',
-            onPressed: ready ? onZoomIn : null,
-            icon: const Icon(Icons.zoom_in),
-          ),
+              tooltip: 'Next PDF page',
+              onPressed: ready && current < count
+                  ? () => onPageRequested(current + 1)
+                  : null,
+              icon: const Icon(Icons.chevron_right),
+            ),
+            if (onZoomOut != null)
+              IconButton(
+                tooltip: 'Zoom out PDF',
+                onPressed: ready ? onZoomOut : null,
+                icon: const Icon(Icons.zoom_out),
+              ),
+            if (onZoomIn != null)
+              IconButton(
+                tooltip: 'Zoom in PDF',
+                onPressed: ready ? onZoomIn : null,
+                icon: const Icon(Icons.zoom_in),
+              ),
           ],
         ),
         // This uses PHYSICAL pages, not extracted text offsets. A scanned
