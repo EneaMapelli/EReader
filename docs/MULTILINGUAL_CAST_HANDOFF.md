@@ -61,3 +61,13 @@ Added `test/audio/cast_voice_handoff_test.dart`, covering:
 Real Windows/Android TTS engines may differ in how they handle switching
 language+voice; test with actual installed multilingual voices and repeated
 Play/Pause/Seek. No GitHub Actions or native builds were invoked.
+
+## Follow-up: atomic per-segment voice/language resolution
+
+The verified cast voice and its spoken language now come from the
+**same single callback evaluation**, avoiding contradictory locale/voice
+pairs if the cast editor state changes between two separate lookups.
+Lookahead similarly snapshots the next chunk together (but live
+playback revalidates it at the real turn boundary). The cloud billing,
+consent and preload policies remain unchanged.
+[Details](LONG_DIALOGUE_HANDOFF_OPTIMIZATION.md).

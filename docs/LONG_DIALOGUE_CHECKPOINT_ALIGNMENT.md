@@ -83,3 +83,14 @@ cannot commit unheard text, and that actor→narrator restores the
 original voice exactly once. Compare `system` interpreted-punctuation
 mode with the `system-native` A/B mode, and repeat with Android
 system TTS if relevant.
+
+## Follow-up: overlap the native speaker switch with its silent breath
+
+The earlier sequential flow (**wait for silence**, then **choose native
+voice**) is optimized: both start after the previous spoken segment has
+finished, and the next `onSegmentStarted` checkpoint is made only
+after **both** operations have succeeded. This limits transition
+latency to the slower operation rather than their sum, without
+compromising interruption safety. A Stop/Seek invalidates the
+playback token; the old choice is still serialized with subsequent
+voice changes. [Details](LONG_DIALOGUE_HANDOFF_OPTIMIZATION.md).

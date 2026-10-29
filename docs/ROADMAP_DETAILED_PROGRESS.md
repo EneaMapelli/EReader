@@ -373,3 +373,24 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   still requires real Windows/Android native voices, user listening, focus,
   pronunciation and timing checks. No milestone percentage increase claimed.
 - See [MULTILINGUAL_CAST_HANDOFF.md](MULTILINGUAL_CAST_HANDOFF.md).
+
+### M2/M4 — Overlap native handoff and atomic multilingual cast (2026-10-29)
+
+- A completed source segment now allows the *silent* native
+  `chooseVoice` operation and the cancellable Windows punctuation /
+  narrator-to-character breath to run concurrently. The next source
+  checkpoint and visual highlight still wait for **both** to finish.
+  This removes sequential platform-switch overhead but makes no
+  gapless, sample-accurate timing claim.
+- Per-segment character voice and spoken language are now resolved
+  from **one** installed-voice snapshot, instead of invoking the
+  mutable cast resolver once for timbre and again for locale. The next
+  offline/cloud lookahead receives the same internal snapshot policy.
+  Missing installed voices still fall back to the narrator/book locale;
+  `multi` provider voices keep the configured book language.
+- Added gated concurrency/cancellation cases and mock multilingual
+  voice/language snapshot cases. **Tests authored but not executed**;
+  native Windows/Android acceptance remains pending, without platform
+  builds or GitHub Actions. Milestone percentages unchanged.
+- See [LONG_DIALOGUE_HANDOFF_OPTIMIZATION.md](LONG_DIALOGUE_HANDOFF_OPTIMIZATION.md).
+
