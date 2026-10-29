@@ -1056,3 +1056,22 @@ Android Activity recreation remains a manual device gate.
   or GitHub Actions, no milestone percentage change without native QA.
 - [LIBRARY_FAVORITES.md](LIBRARY_FAVORITES.md).
 
+
+### M1/M6 — Explicit reading shelves and portable v21 state (2026-10-29)
+
+- Every book can be manually marked **To read**, **Reading**, or
+  **Finished**, with a dedicated library filter that combines with
+  Favorites, format, text query and opened-history filters.
+  Added Reading-shelf sort and compact book-row actions for Android.
+- SQLite **v21** migrates v20 books to To read without rewriting
+  favorites, bookmarks, progress, native PDF pages or TTS/cloud state.
+  These statuses do **not** auto-infer that a book was finished.
+- Export writes the shelf to both manifest and standalone SQLite
+  snapshot. Restore accepts **v17–v21** archives, validates v21
+  metadata, defaults absent legacy shelf values to To read, and
+  never overwrites existing books' local shelf preferences.
+- Authored store/domain, Flutter UI, backup round-trip and tampering
+  regression cases. **Not executed**, no Windows/Android build or
+  GitHub Actions. Native acceptance remains outstanding.
+- [LIBRARY_READING_SHELVES.md](LIBRARY_READING_SHELVES.md).
+

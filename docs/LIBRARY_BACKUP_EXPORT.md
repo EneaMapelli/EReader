@@ -114,3 +114,12 @@ in the standalone snapshot. Restore verifies both for v20 and accepts
 v17–v19 snapshots with false default; the destination's existing book
 stars are always authoritative. See
 [LIBRARY_FAVORITES.md](LIBRARY_FAVORITES.md).
+
+## 2026-10-29 — Manual reading shelves in SQLite v21 exports
+
+The current source writes **v21** standalone SQLite backups. The
+`readingStatus` manifest value and `books.reading_status` database
+value must match for every book. The values are `toRead`, `reading`
+and `finished` and come only from explicit user selection. Older
+v17–v20 backups do not carry the field and remain readable. See
+[LIBRARY_READING_SHELVES.md](LIBRARY_READING_SHELVES.md).

@@ -144,3 +144,15 @@ l'ispettore confronta `favorite` nel manifest e `is_favorite` nel
 database, rifiutando incongruenze prima del ripristino. L'importazione
 dei preferiti avviene solo per libri nuovi; nessun libro già presente
 viene modificato. Vedi [LIBRARY_FAVORITES.md](LIBRARY_FAVORITES.md).
+
+## 29 ottobre 2026 — Ripristino stati manuali di lettura (v21)
+
+Gli archivi SQLite **v21** includono lo stato esplicito della libreria:
+`toRead`, `reading` o `finished`. L'ispettore controlla che il
+manifest e il database concordino su questo campo e rifiuta
+incongruenze. Il ripristino continua a leggere i backup **v17–v20**
+(con valore di default `toRead`), e importa lo stato solo per i libri
+non ancora presenti sul dispositivo. Segnalibri, posizioni, stelle e
+autorizzazioni cloud dei libri già presenti rimangono intatti.
+I test sono stati scritti, **non eseguiti**; nessuna compilazione/Action.
+Vedi [LIBRARY_READING_SHELVES.md](LIBRARY_READING_SHELVES.md).

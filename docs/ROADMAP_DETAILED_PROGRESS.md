@@ -16,7 +16,7 @@ dispositivi resta **parziale**.
 
 | Milestone | Copertura stimata | Concretamente presente | Non completo / condizione di uscita mancante |
 |---|---:|---|---|
-| **M0 — Fondazione e POC** | **60%** | Flutter/Dart modulari, SQLite con migrazioni fino a v20, parser e adattatori, bootstrap Windows/Android, runner e CI manuale | Progetti nativi generati fuori da Git; POC realmente passati su Windows e Android, ABI/minSDK/licenze, corpus EPUB/PDF e voci sherpa-onnx native |
+| **M0 — Fondazione e POC** | **60%** | Flutter/Dart modulari, SQLite con migrazioni fino a v21, parser e adattatori, bootstrap Windows/Android, runner e CI manuale | Progetti nativi generati fuori da Git; POC realmente passati su Windows e Android, ABI/minSDK/licenze, corpus EPUB/PDF e voci sherpa-onnx native |
 | **M1 — Reader MVP** | **83%** | Import EPUB/PDF/TXT e dedup, lettura, TOC, source anchors, progressi, segnalibri e ricerca, anteprime note, temi/layout, biblioteca con ricerca/ordinamento e editor di titolo/autore/serie/lingua | Test su 20 libri reali e due piattaforme, copertine, estrazione metadati automatica, CSS/CFI complessi, PDF multicolonna, drag&drop Windows e condivisione Android da verificare |
 | **M2 — TTS gratuito e read-along** | **70%** | Sistema TTS, voci e rate/pitch per capacità, segmentazione, seek, posizione sorgente, sleep timer, media handler e policy Stop/recovery | Capitolo continuativo provato su dispositivi, audio focus/interruzioni/cuffie/lock screen e chiavi multimediali Windows reali; timing parola non promesso |
 | **M3 — Offline neurale + cloud** | **35%** | Cloud Speech transitorio con consenso/quote per libro, chiavi protette, cache/prefetch; prototipo sherpa VITS con job cancellabili, gestore modelli, import locale e benchmark opt-in | VITS non abilitato/qualificato con voce reale, catalogo firme/licenze, SAF cartella Android, OpenAI Realtime, secondo provider cloud, cost ceiling monetario per sessione/mese e fallback esplicito |
@@ -542,4 +542,23 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   round-trip/tamper tests. **Not executed**; no Windows/Android builds
   or GitHub Actions, no milestone percentage change without native QA.
 - [LIBRARY_FAVORITES.md](LIBRARY_FAVORITES.md).
+
+
+### M1/M6 — Explicit reading shelves and portable v21 state (2026-10-29)
+
+- Every book can be manually marked **To read**, **Reading**, or
+  **Finished**, with a dedicated library filter that combines with
+  Favorites, format, text query and opened-history filters.
+  Added Reading-shelf sort and compact book-row actions for Android.
+- SQLite **v21** migrates v20 books to To read without rewriting
+  favorites, bookmarks, progress, native PDF pages or TTS/cloud state.
+  These statuses do **not** auto-infer that a book was finished.
+- Export writes the shelf to both manifest and standalone SQLite
+  snapshot. Restore accepts **v17–v21** archives, validates v21
+  metadata, defaults absent legacy shelf values to To read, and
+  never overwrites existing books' local shelf preferences.
+- Authored store/domain, Flutter UI, backup round-trip and tampering
+  regression cases. **Not executed**, no Windows/Android build or
+  GitHub Actions. Native acceptance remains outstanding.
+- [LIBRARY_READING_SHELVES.md](LIBRARY_READING_SHELVES.md).
 
