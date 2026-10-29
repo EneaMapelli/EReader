@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 const narrator = SpeechVoice(name: 'Narrator IT', locale: 'it-IT');
 const englishActor = SpeechVoice(name: 'Actor EN', locale: 'en-US');
+const spanishActor = SpeechVoice(name: 'Actor ES', locale: 'es-ES');
 const wrongActor = SpeechVoice(name: 'Not installed', locale: 'en-US');
 
 class _CastHandoffEngine
@@ -25,7 +26,7 @@ class _CastHandoffEngine
 
   @override
   Future<List<SpeechVoice>> listVoices() async =>
-      const [narrator, englishActor];
+      const [narrator, englishActor, spanishActor];
 
   @override
   Future<void> chooseVoice(SpeechVoice voice) async {
@@ -130,6 +131,31 @@ void main() {
     player.dispose();
   });
 
+  test('two character locales alternate without rewriting narrator settings',
+      () async {
+    final engine = _CastHandoffEngine();
+    final player = _player(engine, const [
+      SpeechSegment(0, 5, 'Ciao!'),
+      SpeechSegment(6, 12, 'Hello!'),
+      SpeechSegment(13, 18, 'Hola!'),
+      SpeechSegment(19, 26, 'Ancora.'),
+    ]);
+    await _selectItalianNarrator(player);
+    player.castVoiceForSegment = (segment) => switch (segment.start) {
+      6 => englishActor,
+      13 => spanishActor,
+      _ => null,
+    };
+    await player.play();
+    expect(engine.speechLanguages, ['it-IT', 'en-US', 'es-ES', 'it-IT']);
+    expect(engine.voicesUsed, [
+      'Narrator IT', 'Actor EN', 'Actor ES', 'Narrator IT',
+    ]);
+    expect(engine.peakConcurrentChoices, 1);
+    expect(player.currentPreferences.language, 'it-IT');
+    player.dispose();
+  });
+
   test('stale character voice uses installed narrator and book language',
       () async {
     final engine = _CastHandoffEngine();
@@ -197,6 +223,7 @@ void main() {
     expect(engine.chosen, [
       'Narrator IT', 'Actor EN', 'Narrator IT',
     ]);
+    await _until(() => player.currentIndex == 2);
     expect(player.currentIndex, 2);
     player.dispose();
   });
