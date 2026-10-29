@@ -98,6 +98,8 @@ void main() {
     final starred = await addBook('fav.txt', 'A favorite story');
     final plain = await addBook('plain.txt', 'An ordinary book');
     store.setBookFavorite(starred.id, true);
+    store.setBookReadingStatus(starred.id, BookReadingStatus.reading);
+    store.setBookReadingStatus(plain.id, BookReadingStatus.finished);
     final exported = await store.exportLibraryBackup(backups);
     final manifest = jsonDecode(await File(p.join(
         exported.directory.path, 'manifest.json')).readAsString()) as Map;
@@ -108,10 +110,20 @@ void main() {
     };
     expect(saved[starred.id], isTrue);
     expect(saved[plain.id], isFalse);
+    final states = {
+      for (final entry in entries)
+        (entry as Map)['sha256'] as String: entry['readingStatus'] as String,
+    };
+    expect(states[starred.id], 'reading');
+    expect(states[plain.id], 'finished');
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
     try {
       expect(db.select('PRAGMA user_version').first['user_version'], 21);
+      expect(db.select('SELECT reading_status FROM books WHERE id = ?',
+          [starred.id]).single['reading_status'], 'reading');
+      expect(db.select('SELECT reading_status FROM books WHERE id = ?',
+          [plain.id]).single['reading_status'], 'finished');
       expect(db.select('SELECT is_favorite FROM books WHERE id = ?',
           [starred.id]).single['is_favorite'], 1);
       expect(db.select('SELECT is_favorite FROM books WHERE id = ?',
