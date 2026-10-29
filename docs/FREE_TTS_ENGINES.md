@@ -153,3 +153,16 @@ Any Stop/Seek during the breath prevents a new unheard checkpoint and
 synthesis. The rhythm still requires manual validation on actual hardware.
 See [DIALOGUE_PROSODY_WINDOWS.md](DIALOGUE_PROSODY_WINDOWS.md).
 
+
+## Configurable free voice-transition pauses (29 October 2026)
+
+The reader offers **Dialogue pause** for free system voices. You can turn
+the additional narrator/character change breath Off (0 ms) or adjust it
+between 0 and 2000 ms. The prior 110 ms setting remains the default for
+existing books. Changes affect future voice transitions and are saved
+per book; the existing speech menu can also save the value globally or
+restore global settings for one book. There is no extra pause between
+ordinary narrator sentences or speakers sharing one installed voice.
+Cloud and neural voices do not use this setting. See
+[CONFIGURABLE_DIALOGUE_PAUSE.md](CONFIGURABLE_DIALOGUE_PAUSE.md).
+

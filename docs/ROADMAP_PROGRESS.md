@@ -834,3 +834,20 @@ Android Activity recreation remains a manual device gate.
   No milestone percentages are increased without native listening tests.
 - [DIALOGUE_PROSODY_WINDOWS.md](DIALOGUE_PROSODY_WINDOWS.md).
 
+
+### M2/M4 — User-configurable system dialogue pause (2026-10-29)
+
+- The previous fixed 110 ms narrator/character transition breath is now
+  adjustable from the reader controls (0/off to 2000 ms) without restarting
+  the currently speaking sentence. It remains restricted to truly different
+  installed `system`/`system-native` cast voices; cloud/VITS are unaffected.
+- Added `dialogueTurnPauseMs` to v1 JSON speech preferences without a
+  database migration; old saved profiles default to 110 ms. Values can be
+  saved for the current book or as the global default; clearing the book
+  override now synchronizes the live reader's pause with the global setting.
+- Authored domain/engine/store regressions for invalid durations, legacy
+  profiles, live Off changes, global override, and reopen persistence.
+  Flutter/Dart tooling was unavailable here, so **not executed**; no builds
+  or GitHub Actions were launched. No new milestone percentage claimed.
+- See [CONFIGURABLE_DIALOGUE_PAUSE.md](CONFIGURABLE_DIALOGUE_PAUSE.md).
+
