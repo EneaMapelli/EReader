@@ -25,11 +25,13 @@ List<BookRecord> filterAndSortLibraryBooks(
   LibrarySortOrder sort = LibrarySortOrder.recentlyImported,
   bool favoritesOnly = false,
   BookReadingStatus? readingStatus,
+  Set<String>? collectionBookIds,
 }) {
   final needle = query.trim().toLowerCase();
   final matching = <BookRecord>[
     for (final book in books)
-      if ((readingStatus == null || book.readingStatus == readingStatus) &&
+      if ((collectionBookIds == null || collectionBookIds.contains(book.id)) &&
+          (readingStatus == null || book.readingStatus == readingStatus) &&
           (!favoritesOnly || book.isFavorite) &&
           (format == null || book.format == format) &&
           (activity == LibraryActivityFilter.all ||
