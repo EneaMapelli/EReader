@@ -57,9 +57,10 @@ reading anchors and progress remain unchanged.
 - `test/audio/windows_speech_punctuation_test.dart`: four new source
   examples, including unpunctuated quotes, closing punctuation and
   dialogue dashes.
-- `test/audio/dialogue_turn_breath_test.dart`: five cases with injected
-  fake TTS: narrator → character → narrator, mid-breath Stop, identical
-  voice across two speaker IDs, non-system provider gating, skipped notes.
+- `test/audio/dialogue_turn_breath_test.dart`: seven cases with injected
+  fake TTS: narrator → character → narrator, mid-breath Stop, Seek and
+  Dispose, identical voice across two speaker IDs, non-system provider
+  gating, skipped notes.
 
 The source and test files have been committed; **Flutter/Dart test execution
 and real-platform audio listening were not performed in this session**.
