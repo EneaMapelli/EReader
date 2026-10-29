@@ -103,6 +103,63 @@ void main() {
     expect(leafTextSpans(text.text).last.style?.backgroundColor, isNotNull);
   });
 
+  testWidgets('column width and left alignment change only presentation',
+      (tester) async {
+    final tapped = <int>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: spokenParagraph,
+        activeSegmentIndex: 1,
+        fontSize: 20,
+        contentWidth: 520,
+        textAlignment: 'start',
+        palette: EpubReadingPalette.highContrast,
+        onSelectSegment: tapped.add,
+      )),
+    ));
+    final target = find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    );
+    final rich = tester.widget<RichText>(target);
+    expect(rich.textAlign, TextAlign.start);
+    expect(rich.text.toPlainText(), 'Hello world');
+    expect(tester.widgetList<ConstrainedBox>(
+      find.descendant(
+        of: find.byType(EpubParagraphTile),
+        matching: find.byType(ConstrainedBox),
+      ),
+    ).any((element) => element.constraints.maxWidth == 520), isTrue);
+    final spans = leafTextSpans(rich.text);
+    (spans.first.recognizer! as TapGestureRecognizer).onTap!();
+    expect(tapped, [0]);
+    final context = tester.element(find.byType(EpubParagraphTile));
+    expect(rich.text.style?.color,
+        EpubReadingPalette.highContrast.foreground(context));
+    expect(spans.last.style?.backgroundColor,
+        EpubReadingPalette.highContrast.highlight(context));
+  });
+
+  testWidgets('explicit justification retains original EPUB style',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: spokenParagraph,
+        activeSegmentIndex: 0,
+        fontSize: 19,
+        contentWidth: 1000,
+        textAlignment: 'justify',
+        onSelectSegment: (_) {},
+      )),
+    ));
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    expect(rich.textAlign, TextAlign.justify);
+    expect(rich.text.toPlainText(), 'Hello world');
+  });
+
   testWidgets('standalone chapter heading retains accessible heading semantics',
       (tester) async {
     const heading = EpubVisualBlock(
@@ -136,6 +193,7 @@ void main() {
     for (final palette in [
       EpubReadingPalette.sepia,
       EpubReadingPalette.night,
+      EpubReadingPalette.highContrast,
     ]) {
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(body: EpubParagraphTile(
