@@ -111,7 +111,7 @@ void main() {
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
     try {
-      expect(db.select('PRAGMA user_version').first['user_version'], 20);
+      expect(db.select('PRAGMA user_version').first['user_version'], 21);
       expect(db.select('SELECT is_favorite FROM books WHERE id = ?',
           [starred.id]).single['is_favorite'], 1);
       expect(db.select('SELECT is_favorite FROM books WHERE id = ?',

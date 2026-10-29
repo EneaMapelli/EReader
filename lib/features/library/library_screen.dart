@@ -1229,7 +1229,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             PopupMenuButton<BookReadingStatus>(
                               key: ValueKey('library-shelf-${book.id}'),
                               tooltip: 'Reading shelf: ${book.readingStatus.label}',
-                              icon: const Icon(Icons.shelves),
+                              icon: const Icon(Icons.library_books_outlined),
                               enabled: !_busy,
                               initialValue: book.readingStatus,
                               onSelected: (status) =>

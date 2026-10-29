@@ -182,7 +182,7 @@ void main() {
     expect(target.getPdfVisualPage(saved.id), 7);
   });
 
-  test('v20 export/restore preserves scanned PDF visual bookmarks',
+  test('v21 export/restore preserves scanned PDF visual bookmarks',
       () async {
     final pdf = File(p.join(root.path, 'scanned.pdf'));
     await pdf.writeAsBytes('%PDF-1.4\\nimage-only fixture'.codeUnits);
@@ -229,6 +229,7 @@ void main() {
       final exported = await source.exportLibraryBackup(exports);
       final db = sqlite3.open(
           p.join(exported.directory.path, 'library.sqlite'));
+      db.execute('ALTER TABLE books DROP COLUMN reading_status');
       db.execute('ALTER TABLE books DROP COLUMN is_favorite');
       db.execute('DROP TABLE pdf_visual_bookmarks');
       if (version == 17) {
@@ -250,7 +251,7 @@ void main() {
     expect(target.getBook(id), isNotNull);
   });
 
-  test('v20 backup preserves starred books but never overwrites local stars',
+  test('v21 backup preserves starred books but never overwrites local stars',
       () async {
     final a = await add(source, 'liked.txt', 'A favorite manuscript.');
     final b = await add(source, 'other.txt', 'Another manuscript.');
@@ -314,7 +315,7 @@ void main() {
     expect(target.getBook(id)!.isFavorite, isFalse);
   });
 
-  test('malformed PDF page bookmark in v20 backup fails closed', () async {
+  test('malformed PDF page bookmark in v21 backup fails closed', () async {
     final pdf = File(p.join(root.path, 'guard.pdf'));
     await pdf.writeAsBytes('%PDF-1.4\\ntamper test'.codeUnits);
     final id = (await source.importFile(pdf.path)).id;
