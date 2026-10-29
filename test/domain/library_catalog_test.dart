@@ -112,6 +112,51 @@ void main() {
     expect(entries, hasLength(3));
   });
 
+  test('favorites-only composes with search, file format and activity',
+      () {
+    final entries = <BookRecord>[
+      BookRecord(id: 'star', title: 'Atlas One', localPath: '/a',
+          format: BookFormat.epub, importedAt: DateTime.utc(2026, 10, 1),
+          lastOpenedAt: DateTime.utc(2026, 10, 2), isFavorite: true),
+      BookRecord(id: 'other', title: 'Atlas Two', localPath: '/b',
+          format: BookFormat.epub, importedAt: DateTime.utc(2026, 10, 2)),
+      BookRecord(id: 'pdf', title: 'Atlas Manual', localPath: '/p',
+          format: BookFormat.pdf, importedAt: DateTime.utc(2026, 10, 3),
+          isFavorite: true),
+    ];
+    expect(filterAndSortLibraryBooks(entries,
+        favoritesOnly: true).map((b) => b.id), ['pdf', 'star']);
+    expect(filterAndSortLibraryBooks(entries, query: 'atlas',
+        format: BookFormat.epub, favoritesOnly: true,
+        activity: LibraryActivityFilter.opened).map((b) => b.id), ['star']);
+    expect(filterAndSortLibraryBooks(entries,
+        favoritesOnly: true,
+        activity: LibraryActivityFilter.neverOpened).map((b) => b.id),
+        ['pdf']);
+    expect(entries, hasLength(3));
+  });
+
+  test('favorites-first ordering is deterministic without modifying books',
+      () {
+    final entries = <BookRecord>[
+      BookRecord(id: 'one', title: 'Zulu', localPath: '/one',
+          format: BookFormat.txt, importedAt: DateTime.utc(2026, 10, 1)),
+      BookRecord(id: 'two', title: 'Beta', localPath: '/two',
+          format: BookFormat.epub, importedAt: DateTime.utc(2026, 10, 2),
+          isFavorite: true),
+      BookRecord(id: 'three', title: 'Alpha', localPath: '/three',
+          format: BookFormat.pdf, importedAt: DateTime.utc(2026, 10, 3),
+          isFavorite: true),
+      BookRecord(id: 'four', title: 'Aardvark', localPath: '/four',
+          format: BookFormat.txt, importedAt: DateTime.utc(2026, 10, 4)),
+    ];
+    expect(filterAndSortLibraryBooks(entries,
+        sort: LibrarySortOrder.favoritesFirst).map((b) => b.id),
+        ['three', 'two', 'four', 'one']);
+    expect(entries.first.id, 'one');
+    expect(entries.last.id, 'four');
+  });
+
   test('equal open dates and never opened fallback are stable', () {
     final date = DateTime.utc(2026, 10, 27);
     final entries = <BookRecord>[
