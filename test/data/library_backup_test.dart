@@ -93,6 +93,34 @@ void main() {
     expect(store.books, hasLength(2));
   });
 
+  test('portable manifest and SQLite snapshot both contain favorite state',
+      () async {
+    final starred = await addBook('fav.txt', 'A favorite story');
+    final plain = await addBook('plain.txt', 'An ordinary book');
+    store.setBookFavorite(starred.id, true);
+    final exported = await store.exportLibraryBackup(backups);
+    final manifest = jsonDecode(await File(p.join(
+        exported.directory.path, 'manifest.json')).readAsString()) as Map;
+    final entries = manifest['books'] as List;
+    final saved = {
+      for (final entry in entries)
+        (entry as Map)['sha256'] as String: entry['favorite'] as bool,
+    };
+    expect(saved[starred.id], isTrue);
+    expect(saved[plain.id], isFalse);
+    final db = sqlite3.open(
+        p.join(exported.directory.path, 'library.sqlite'));
+    try {
+      expect(db.select('PRAGMA user_version').first['user_version'], 20);
+      expect(db.select('SELECT is_favorite FROM books WHERE id = ?',
+          [starred.id]).single['is_favorite'], 1);
+      expect(db.select('SELECT is_favorite FROM books WHERE id = ?',
+          [plain.id]).single['is_favorite'], 0);
+    } finally {
+      db.dispose();
+    }
+  });
+
   test('corrupted content fails closed and leaves no complete backup',
       () async {
     final book = await addBook('original.txt', 'Untouched text');
