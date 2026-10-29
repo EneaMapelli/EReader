@@ -27,6 +27,7 @@ class VerifiedBackupBook {
     this.series,
     this.language,
     this.pdfVisualPage,
+    this.isFavorite = false,
   });
   final String id;
   final BookFormat format;
@@ -39,6 +40,7 @@ class VerifiedBackupBook {
   final String? series;
   final String? language;
   final int? pdfVisualPage;
+  final bool isFavorite;
   final List<BookBookmark> bookmarks;
   final List<PdfVisualBookmark> pdfVisualBookmarks;
 }
@@ -148,15 +150,16 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
         .first['integrity_check'];
     final schemaVersion =
         database.select('PRAGMA user_version').first['user_version'];
-    // Export produces the currently installed v19 schema. Portable restore
-    // must also accept the v17 and v18 snapshots made by older EReader.
+    // New exports use v20; prior v17-v19 snapshots remain restorable.
+    // Existing favorites default off without this explicit column.
     if (integrity != 'ok' || schemaVersion is! int ||
-        schemaVersion < 17 || schemaVersion > 19) {
+        schemaVersion < 17 || schemaVersion > 20) {
       throw const FormatException('Unsupported or damaged backup database');
     }
     final source = database.select(
       'SELECT id, title, format, imported_at, progress_offset, progress_anchor, '
-      'author, series, language, pdf_visual_page FROM books',
+      'author, series, language, pdf_visual_page'
+      '${schemaVersion >= 20 ? ', is_favorite' : ''} FROM books',
     );
     if (source.length != count) {
       throw const FormatException('Backup SQLite book count mismatch');
@@ -269,6 +272,14 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
           throw const FormatException('Backup metadata mismatch');
         }
       }
+      // A v20 manifest must agree with its independently snapshotted
+      // SQLite favorite flag; do not silently trust tampered metadata.
+      final favorite = schemaVersion >= 20
+          ? row['is_favorite'] : 0;
+      if (favorite is! int || (favorite != 0 && favorite != 1) ||
+          (schemaVersion >= 20 && raw['favorite'] != (favorite == 1))) {
+        throw const FormatException('Backup favorite metadata mismatch');
+      }
       if (raw['progressOffset'] != row['progress_offset']) {
         throw const FormatException('Backup source progress mismatch');
       }
@@ -299,6 +310,7 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
         progressOffset: progress,
         anchor: savedAnchor,
         pdfVisualPage: page is int ? page : null,
+        isFavorite: favorite == 1,
         bookmarks: List<BookBookmark>.unmodifiable(
             savedBookmarks[id] ?? const []),
         pdfVisualBookmarks: List<PdfVisualBookmark>.unmodifiable(
