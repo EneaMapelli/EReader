@@ -58,3 +58,13 @@ These are authored regression cases, **not verified Flutter test passes**.
 The connected environment does not have Dart/Flutter installed. Native
 Windows/Android speaker switching and perceptual timing remain acceptance
 gates; no GitHub Actions or platform builds were launched.
+
+## 2026-10-29 — safe profile application
+
+Loading a per-book or global speech profile now uses the same serialized
+native voice-selection barrier as character switches and explicit voice
+changes. A late superseded profile cannot overwrite the winning voice.
+The configurable dialogue pause still comes from the book's constructor
+setting (or the existing explicit global-reset control); the source
+remains unchanged. See
+[PERSISTED_VOICE_PREFERENCE_RACES.md](PERSISTED_VOICE_PREFERENCE_RACES.md).

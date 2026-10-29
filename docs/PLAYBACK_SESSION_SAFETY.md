@@ -54,3 +54,13 @@ clip, never after cancelling it. EPUB note skip ranges are respected.
 Authored but **not executed** tests for interruption floods and persistent
 SQLite checkpoints. See
 [AUDIO_INTERRUPTION_CHECKPOINTS.md](AUDIO_INTERRUPTION_CHECKPOINTS.md).
+
+## 2026-10-29 — serialized persisted preferences
+
+The previous direct `applyPreferences()` call bypassed the native
+`_pendingVoiceChange` queue. It now serializes with `selectVoice()` and
+automatic character voice changes using the same navigation supersession
+epoch. Preference commits occur only after a successful winning native
+selection, and applying a saved profile never implicitly resumes
+a pending Seek. See
+[PERSISTED_VOICE_PREFERENCE_RACES.md](PERSISTED_VOICE_PREFERENCE_RACES.md).

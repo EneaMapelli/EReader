@@ -907,3 +907,23 @@ Android Activity recreation remains a manual device gate.
   builds or GitHub Actions. Milestone percentages unchanged.
 - See [LONG_DIALOGUE_HANDOFF_OPTIMIZATION.md](LONG_DIALOGUE_HANDOFF_OPTIMIZATION.md).
 
+
+### M2/M4 — Serialized persisted voice selection and preference-race safety (2026-10-29)
+
+- `ReaderPlayer.applyPreferences()` now enters the same native voice
+  selection queue used by per-character playback and explicit voice changes.
+  Pending auto-resuming Seek and superseded profile updates cannot later
+  select the wrong voice or restart a paused book.
+- Profile settings commit only when the winning native selection has
+  finished. If that selection fails, the previous saved playback settings
+  remain usable and the next explicit retry may succeed. An unsafe native
+  Stop still blocks reconfiguration.
+- Corrected a source-level Dart constructor issue: the dialogue pause is a
+  normal argument initializing a private backing field, not an
+  initializing-formal targeting a getter.
+- Authored six regression cases covering overlapping profiles, stale manual
+  voice selection, active playback pause, Seek/Stop racing, rejected native
+  selection/retry and provider mismatch. **Tests not executed**; no native
+  builds or Actions. No change to milestone acceptance percentages.
+- [PERSISTED_VOICE_PREFERENCE_RACES.md](PERSISTED_VOICE_PREFERENCE_RACES.md).
+
