@@ -52,6 +52,45 @@ void main() {
     expect(store.getReadingPreferences().toJson(), profile.toJson());
   });
 
+  test('legacy v1 persisted appearance remains readable after upgrade', () {
+    final db = sqlite3.open(p.join(home.path, 'library.sqlite'));
+    db.execute('''
+      INSERT INTO reading_preferences (scope_id, value_json)
+      VALUES (?, ?)
+    ''', [
+      'global',
+      '{"version":1,"fontSize":24,"lineHeight":1.9,'
+          '"fontFamily":"serif","palette":"night"}',
+    ]);
+    db.dispose();
+    final restored = store.getReadingPreferences();
+    expect(restored.fontSize, 24);
+    expect(restored.contentWidth, 760);
+    expect(restored.textAlignment, 'auto');
+    store.saveReadingPreferences(
+        restored.copyWith(contentWidth: 560, textAlignment: 'start'));
+    expect(store.getReadingPreferences().contentWidth, 560);
+    expect(store.getReadingPreferences().textAlignment, 'start');
+  });
+
+  test('new column and high contrast settings persist per-book after restart',
+      () async {
+    final id = await importBook('accessible.txt');
+    store.saveReadingPreferences(const ReadingPreferences(
+      contentWidth: 520,
+      textAlignment: 'start',
+      palette: 'highContrast',
+    ), bookId: id);
+    store.dispose();
+    store = LibraryStore(homeDirectory: home);
+    await store.initialize();
+    final restored = store.getReadingPreferences(bookId: id);
+    expect(restored.contentWidth, 520);
+    expect(restored.textAlignment, 'start');
+    expect(restored.palette, 'highContrast');
+    expect(store.getSpeechPreferences(bookId: id).providerId, 'system');
+  });
+
   test('book overrides global without mutating another book', () async {
     final a = await importBook('a.txt');
     final b = await importBook('b.txt');
