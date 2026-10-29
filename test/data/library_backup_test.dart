@@ -133,6 +133,35 @@ void main() {
     }
   });
 
+  test('v22 backup snapshots book collection memberships and manifest',
+      () async {
+    final a = await addBook('assigned.txt', 'Grouped source content');
+    final b = await addBook('other.txt', 'Ungrouped source content');
+    final group = store.createCollection('Travel');
+    store.createCollection('Unused group');
+    store.setBookCollection(a.id, group.id, true);
+    final exported = await store.exportLibraryBackup(backups);
+    final manifest = jsonDecode(await File(
+        p.join(exported.directory.path, 'manifest.json')).readAsString())
+        as Map;
+    final entries = manifest['books'] as List;
+    final memberships = {
+      for (final entry in entries)
+        (entry as Map)['sha256'] as String: entry['collections'] as List,
+    };
+    expect(memberships[a.id], ['Travel']);
+    expect(memberships[b.id], isEmpty);
+    final db = sqlite3.open(
+        p.join(exported.directory.path, 'library.sqlite'));
+    try {
+      expect(db.select('PRAGMA user_version').first['user_version'], 22);
+      expect(db.select('SELECT * FROM book_collections'), hasLength(2));
+      expect(db.select('SELECT * FROM book_collection_members'), hasLength(1));
+    } finally {
+      db.dispose();
+    }
+  });
+
   test('corrupted content fails closed and leaves no complete backup',
       () async {
     final book = await addBook('original.txt', 'Untouched text');
