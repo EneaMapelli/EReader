@@ -65,6 +65,44 @@ void main() {
         reason: 'A tap must select the exact corresponding speech segment');
   });
 
+  testWidgets('reader typography changes layout without mutating source runs',
+      (tester) async {
+    final tapped = <int>[];
+    Future<void> draw({required double height, required String family}) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(body: EpubParagraphTile(
+          block: spokenParagraph,
+          activeSegmentIndex: 1,
+          fontSize: 23,
+          lineHeight: height,
+          fontFamily: family,
+          palette: EpubReadingPalette.night,
+          onSelectSegment: tapped.add,
+        )),
+      ));
+    }
+
+    await draw(height: 1.4, family: 'sans-serif');
+    final target = find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    );
+    var text = tester.widget<RichText>(target);
+    expect(text.text.toPlainText(), 'Hello world');
+    expect(text.text.style?.height, 1.4);
+    expect(text.text.style?.fontFamily, 'sans-serif');
+    final first = leafTextSpans(text.text).first;
+    (first.recognizer! as TapGestureRecognizer).onTap!();
+    expect(tapped, [0]);
+
+    await draw(height: 2.2, family: 'monospace');
+    text = tester.widget<RichText>(target);
+    expect(text.text.toPlainText(), 'Hello world');
+    expect(text.text.style?.height, 2.2);
+    expect(text.text.style?.fontFamily, 'monospace');
+    expect(leafTextSpans(text.text).last.style?.backgroundColor, isNotNull);
+  });
+
   testWidgets('standalone chapter heading retains accessible heading semantics',
       (tester) async {
     const heading = EpubVisualBlock(
