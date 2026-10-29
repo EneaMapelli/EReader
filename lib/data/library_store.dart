@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
@@ -8,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/book.dart';
+import '../domain/book_collection.dart';
 import 'epub_catalog_metadata.dart';
 import 'library_backup.dart';
 import 'library_backup_restore.dart';
@@ -173,7 +175,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 21) {
+      if (version > 22) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -587,6 +589,33 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           db.execute('PRAGMA user_version = 21');
         });
       }
+      // A collection is a local user-defined category, not a folder on
+      // disk. The many-to-many table has FK cascade from both sides.
+      if (version < 22) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS book_collections (
+              id TEXT PRIMARY KEY NOT NULL,
+              name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+              created_at TEXT NOT NULL
+            )
+          ''');
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS book_collection_members (
+              collection_id TEXT NOT NULL
+                REFERENCES book_collections(id) ON DELETE CASCADE,
+              book_id TEXT NOT NULL
+                REFERENCES books(id) ON DELETE CASCADE,
+              PRIMARY KEY (collection_id, book_id)
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_collection_members_book
+            ON book_collection_members(book_id, collection_id)
+          ''');
+          db.execute('PRAGMA user_version = 22');
+        });
+      }
       await _migrateLegacyJson(db, support);
       // A marker is stale only on a new process startup. Consume exactly
       // once; reopening a book must NEVER cause the app to auto-synthesize.
@@ -857,6 +886,96 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       .select('SELECT * FROM books ORDER BY imported_at DESC, title COLLATE NOCASE')
       .map(_fromRow)
       .toList();
+
+  /// Collections are book classifications, never book directories.
+  List<BookCollection> get collections => _database.select('''
+    SELECT id, name, created_at FROM book_collections
+    ORDER BY name COLLATE NOCASE, id
+  ''').map((row) => BookCollection(
+    id: row['id'] as String,
+    name: row['name'] as String,
+    createdAt: DateTime.parse(row['created_at'] as String),
+  )).toList();
+
+  BookCollection createCollection(String name) {
+    final clean = BookCollection.cleanName(name);
+    if ((_database.select('SELECT COUNT(*) AS n FROM book_collections')
+            .first['n'] as int) >= 1000) {
+      throw StateError('Too many collections');
+    }
+    final id = '${DateTime.now().microsecondsSinceEpoch}_'
+        '${Random.secure().nextInt(1 << 32)}';
+    final created = DateTime.now().toUtc();
+    _database.execute('''
+      INSERT INTO book_collections (id, name, created_at) VALUES (?, ?, ?)
+    ''', [id, clean, created.toIso8601String()]);
+    return BookCollection(id: id, name: clean, createdAt: created);
+  }
+
+  BookCollection renameCollection(String id, String name) {
+    final clean = BookCollection.cleanName(name);
+    _database.execute(
+      'UPDATE book_collections SET name = ? WHERE id = ?', [clean, id],
+    );
+    if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
+      throw StateError('Cannot rename an unknown collection');
+    }
+    return collections.firstWhere((item) => item.id == id);
+  }
+
+  void deleteCollection(String id) {
+    _database.execute('DELETE FROM book_collections WHERE id = ?', [id]);
+    if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
+      throw StateError('Cannot delete an unknown collection');
+    }
+    // The foreign key cascades membership only, never books themselves.
+  }
+
+  List<BookCollection> listBookCollections(String bookId) {
+    if (getBook(bookId) == null) throw StateError('Unknown book');
+    return _database.select('''
+      SELECT c.id, c.name, c.created_at
+      FROM book_collections c
+      INNER JOIN book_collection_members m ON c.id = m.collection_id
+      WHERE m.book_id = ?
+      ORDER BY c.name COLLATE NOCASE, c.id
+    ''', [bookId]).map((row) => BookCollection(
+      id: row['id'] as String,
+      name: row['name'] as String,
+      createdAt: DateTime.parse(row['created_at'] as String),
+    )).toList();
+  }
+
+  Set<String> collectionBookIds(String collectionId) {
+    if (!_database.select('SELECT id FROM book_collections WHERE id = ?',
+        [collectionId]).isNotEmpty) {
+      throw StateError('Unknown collection');
+    }
+    return _database.select(
+      'SELECT book_id FROM book_collection_members WHERE collection_id = ?',
+      [collectionId],
+    ).map((row) => row['book_id'] as String).toSet();
+  }
+
+  void setBookCollection(
+      String bookId, String collectionId, bool included) {
+    if (getBook(bookId) == null) throw StateError('Unknown book');
+    if (_database.select('SELECT id FROM book_collections WHERE id = ?',
+        [collectionId]).isEmpty) {
+      throw StateError('Unknown collection');
+    }
+    if (included) {
+      _database.execute('''
+        INSERT OR IGNORE INTO book_collection_members
+          (collection_id, book_id) VALUES (?, ?)
+      ''', [collectionId, bookId]);
+    } else {
+      _database.execute('''
+        DELETE FROM book_collection_members
+        WHERE collection_id = ? AND book_id = ?
+      ''', [collectionId, bookId]);
+    }
+  }
 
   /// Star/unstar a known book. Catalog-only; neither a reading event nor
   /// a TTS operation. The change is visible on the next library query.
