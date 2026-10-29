@@ -198,20 +198,36 @@ class ReaderPlayer extends ChangeNotifier {
     _notify();
   }
 
-  SpeechVoice? _voiceFor(SpeechSegment segment) {
-    final chosen = castVoiceForSegment?.call(segment);
+  /// Resolve one immutable voice/language pair per source chunk. An
+  /// attribution callback may access mutable editor state, so evaluating it
+  /// a second time for the language or lookahead can contradict the
+  /// actually chosen installed voice. An unavailable cast voice must not
+  /// silently switch the narrator's configured book language.
+  ({SpeechVoice? voice, String spokenLanguage}) _resolveVoiceAndLanguage(
+    SpeechSegment segment, {
+    bool forPlayback = false,
+  }) {
+    final resolver = castVoiceForSegment;
+    // Preserve the historical native selection when no cast resolver is
+    // installed. Preview/lookahead still uses the available first/marin
+    // fallback, exactly as earlier _voiceFor did.
+    if (forPlayback && resolver == null) {
+      return (voice: selectedVoice, spokenLanguage: language);
+    }
+    final requestedCast = resolver?.call(segment);
     SpeechVoice? fallback = selectedVoice;
     if (fallback == null && availableVoices.isNotEmpty) {
       fallback = availableVoices.first;
       if (engineProviderId == 'openai-speech') {
         for (final voice in availableVoices) {
-          if (voice.name == 'marin') { fallback = voice; break; }
+          if (voice.name == 'marin') {
+            fallback = voice;
+            break;
+          }
         }
       }
     }
-    // An invalid or no-longer-installed character voice must NOT silence
-    // narrator selection. Match only the provider's current voice catalog
-    // and fall back to its configured/default narrator if cast is stale.
+
     SpeechVoice? installedVoice(SpeechVoice? requested) {
       if (requested == null) return null;
       for (final voice in availableVoices) {
@@ -219,20 +235,14 @@ class ReaderPlayer extends ChangeNotifier {
       }
       return null;
     }
-    return installedVoice(chosen) ?? installedVoice(fallback);
-  }
 
-
-  /// Only a verified *character* voice may override the book's language.
-  /// A provider-wide voice (for example OpenAI's "multi") keeps the
-  /// reader's requested language. A missing cast voice also keeps the
-  /// narrator's language; do not infer language from an unavailable label.
-  String _languageForSegment(SpeechSegment segment, SpeechVoice? voice) {
-    if (voice == null || voice.locale == 'multi') return language;
-    final cast = castVoiceForSegment?.call(segment);
-    return cast != null && cast.key == voice.key
-        ? voice.locale
-        : language;
+    final cast = installedVoice(requestedCast);
+    final resolved = cast ?? installedVoice(fallback);
+    return (
+      voice: resolved,
+      spokenLanguage: cast != null && cast.locale != 'multi'
+          ? cast.locale : language,
+    );
   }
 
   /// Serialize automatically applied character/narrator voices with the
@@ -470,8 +480,9 @@ class ReaderPlayer extends ChangeNotifier {
         // Preview the resolved voice BEFORE checkpointing the new segment:
         // when Stop/Seek arrives during this small breath, the next
         // unheard segment must not be persisted as already started.
-        final installed = castVoiceForSegment != null
-            ? _voiceFor(segment) : selectedVoice;
+        final resolved = _resolveVoiceAndLanguage(
+            segment, forPlayback: true);
+        final installed = resolved.voice;
         final speaker = castSpeakerForSegment?.call(segment);
         final isNewAudibleVoiceTurn = hadAudibleSegment &&
             (speaker != previousAudibleSpeaker) &&
@@ -508,7 +519,7 @@ class ReaderPlayer extends ChangeNotifier {
         if (token != _session) return;
         await onSegmentStarted(segment);
         if (token != _session) return;
-        final spokenLanguage = _languageForSegment(segment, installed);
+        final spokenLanguage = resolved.spokenLanguage;
         activeSpeakerId = speaker;
         _notify();
         final spokenText =
@@ -536,8 +547,9 @@ class ReaderPlayer extends ChangeNotifier {
             final next = _segments[nextIndex];
             final nextText =
                 speechTextTransform?.call(next.text) ?? next.text;
-            final nextVoice = _voiceFor(next);
-            final nextLanguage = _languageForSegment(next, nextVoice);
+            final nextResolved = _resolveVoiceAndLanguage(next);
+            final nextVoice = nextResolved.voice;
+            final nextLanguage = nextResolved.spokenLanguage;
             if (canOfflineWarm) {
               final offline = _engine as OfflineAheadSpeechEngine;
               unawaited(offline.prepareOfflineSpeech(
