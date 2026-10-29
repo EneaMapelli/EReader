@@ -10,6 +10,7 @@ enum LibrarySortOrder {
   seriesAscending,
   format,
   favoritesFirst,
+  readingStatus,
 }
 
 /// Opening a reader is different from advancing narration or finishing a book.
@@ -23,11 +24,13 @@ List<BookRecord> filterAndSortLibraryBooks(
   LibraryActivityFilter activity = LibraryActivityFilter.all,
   LibrarySortOrder sort = LibrarySortOrder.recentlyImported,
   bool favoritesOnly = false,
+  BookReadingStatus? readingStatus,
 }) {
   final needle = query.trim().toLowerCase();
   final matching = <BookRecord>[
     for (final book in books)
-      if ((!favoritesOnly || book.isFavorite) &&
+      if ((readingStatus == null || book.readingStatus == readingStatus) &&
+          (!favoritesOnly || book.isFavorite) &&
           (format == null || book.format == format) &&
           (activity == LibraryActivityFilter.all ||
               (activity == LibraryActivityFilter.opened &&
@@ -78,6 +81,17 @@ List<BookRecord> filterAndSortLibraryBooks(
         final series = (a.series ?? '').toLowerCase().compareTo(
           (b.series ?? '').toLowerCase());
         if (series != 0) return series;
+        if (title != 0) return title;
+        break;
+      case LibrarySortOrder.readingStatus:
+        // Actively reading first, then queued books, then completed shelf.
+        int rank(BookReadingStatus status) => switch (status) {
+          BookReadingStatus.reading => 0,
+          BookReadingStatus.toRead => 1,
+          BookReadingStatus.finished => 2,
+        };
+        final byShelf = rank(a.readingStatus).compareTo(rank(b.readingStatus));
+        if (byShelf != 0) return byShelf;
         if (title != 0) return title;
         break;
       case LibrarySortOrder.favoritesFirst:

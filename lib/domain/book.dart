@@ -14,6 +14,17 @@ extension BookFormatPath on BookFormat {
   }
 }
 
+/// Manual library shelf selection. Never inferred from progress or TTS.
+enum BookReadingStatus { toRead, reading, finished }
+
+extension BookReadingStatusLabel on BookReadingStatus {
+  String get label => switch (this) {
+    BookReadingStatus.toRead => 'To read',
+    BookReadingStatus.reading => 'Reading',
+    BookReadingStatus.finished => 'Finished',
+  };
+}
+
 class BookRecord {
   const BookRecord({
     required this.id,
@@ -28,6 +39,7 @@ class BookRecord {
     this.progressAnchor,
     this.lastOpenedAt,
     this.isFavorite = false,
+    this.readingStatus = BookReadingStatus.toRead,
   });
 
   final String id;
@@ -47,6 +59,8 @@ class BookRecord {
   final DateTime? lastOpenedAt;
   /// Explicit user star in the library; unrelated to reading completion.
   final bool isFavorite;
+  /// Explicit shelf, not an inference about audio or text completion.
+  final BookReadingStatus readingStatus;
 
   BookRecord atOffset(int offset, {ReadingAnchor? anchor}) => BookRecord(
         id: id,
@@ -61,6 +75,7 @@ class BookRecord {
         progressAnchor: anchor,
         lastOpenedAt: lastOpenedAt,
         isFavorite: isFavorite,
+        readingStatus: readingStatus,
       );
 
   Map<String, Object> toJson() => {
@@ -74,6 +89,7 @@ class BookRecord {
         if (language != null) 'language': language!,
         'progressOffset': progressOffset,
         'favorite': isFavorite,
+        'readingStatus': readingStatus.name,
         if (progressAnchor != null) 'progressAnchor': progressAnchor!.toJson(),
       };
 
@@ -89,6 +105,9 @@ class BookRecord {
       language: json['language'] as String?,
       progressOffset: json['progressOffset'] as int? ?? 0,
       isFavorite: json['favorite'] as bool? ?? false,
+      readingStatus: json['readingStatus'] == null
+          ? BookReadingStatus.toRead
+          : BookReadingStatus.values.byName(json['readingStatus'] as String),
       progressAnchor: json['progressAnchor'] is Map
           ? ReadingAnchor.fromJson(
               Map<String, dynamic>.from(json['progressAnchor'] as Map))

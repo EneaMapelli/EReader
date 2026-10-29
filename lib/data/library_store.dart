@@ -173,7 +173,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 20) {
+      if (version > 21) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -573,6 +573,20 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           db.execute('PRAGMA user_version = 20');
         });
       }
+      // Explicit reading shelf; a 'Finished' label never means TTS/audio
+      // completed and must not change the persisted source checkpoint.
+      if (version < 21) {
+        _transaction(db, () {
+          if (!_hasSqliteColumn(db, 'books', 'reading_status')) {
+            db.execute(
+              "ALTER TABLE books ADD COLUMN reading_status TEXT NOT NULL "
+              "DEFAULT 'toRead' CHECK(reading_status IN "
+              "('toRead', 'reading', 'finished'))",
+            );
+          }
+          db.execute('PRAGMA user_version = 21');
+        });
+      }
       await _migrateLegacyJson(db, support);
       // A marker is stale only on a new process startup. Consume exactly
       // once; reopening a book must NEVER cause the app to auto-synthesize.
@@ -766,6 +780,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
             progressOffset: entry.progressOffset,
             progressAnchor: entry.anchor,
             isFavorite: entry.isFavorite,
+            readingStatus: entry.readingStatus,
           ));
           if (entry.format == BookFormat.pdf &&
               entry.pdfVisualPage != null) {
@@ -852,6 +867,18 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     );
     if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
       throw StateError('Cannot favorite an unknown book');
+    }
+    return getBook(bookId)!;
+  }
+
+  /// User-selected shelf; does not read or modify any narration state.
+  BookRecord setBookReadingStatus(String bookId, BookReadingStatus status) {
+    _database.execute(
+      'UPDATE books SET reading_status = ? WHERE id = ?',
+      [status.name, bookId],
+    );
+    if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
+      throw StateError('Cannot set reading status of an unknown book');
     }
     return getBook(bookId)!;
   }
@@ -2614,6 +2641,8 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         language: row['language'] as String?,
         progressOffset: row['progress_offset'] as int,
         isFavorite: (row['is_favorite'] as int) == 1,
+        readingStatus: BookReadingStatus.values.byName(
+            row['reading_status'] as String),
         progressAnchor: row['progress_anchor'] is String
             ? ReadingAnchor.fromJson(
                 Map<String, dynamic>.from(
@@ -2627,8 +2656,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     db.execute('''
       $verb INTO books (
         id, title, local_path, format, imported_at, progress_offset,
-        progress_anchor, author, series, language, is_favorite
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        progress_anchor, author, series, language, is_favorite,
+        reading_status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       record.id,
       record.title,
@@ -2643,6 +2673,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       record.series,
       record.language,
       record.isFavorite ? 1 : 0,
+      record.readingStatus.name,
     ]);
   }
 
