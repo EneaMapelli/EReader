@@ -173,7 +173,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 19) {
+      if (version > 20) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -560,6 +560,19 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           db.execute('PRAGMA user_version = 19');
         });
       }
+      // User-starred books are catalog metadata, not a text/TTS checkpoint.
+      // All existing books default to not starred after v19 -> v20.
+      if (version < 20) {
+        _transaction(db, () {
+          if (!_hasSqliteColumn(db, 'books', 'is_favorite')) {
+            db.execute(
+              'ALTER TABLE books ADD COLUMN is_favorite INTEGER NOT NULL '
+              'DEFAULT 0 CHECK(is_favorite IN (0, 1))',
+            );
+          }
+          db.execute('PRAGMA user_version = 20');
+        });
+      }
       await _migrateLegacyJson(db, support);
       // A marker is stale only on a new process startup. Consume exactly
       // once; reopening a book must NEVER cause the app to auto-synthesize.
@@ -828,6 +841,19 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       .select('SELECT * FROM books ORDER BY imported_at DESC, title COLLATE NOCASE')
       .map(_fromRow)
       .toList();
+
+  /// Star/unstar a known book. Catalog-only; neither a reading event nor
+  /// a TTS operation. The change is visible on the next library query.
+  BookRecord setBookFavorite(String bookId, bool favorite) {
+    _database.execute(
+      'UPDATE books SET is_favorite = ? WHERE id = ?',
+      [favorite ? 1 : 0, bookId],
+    );
+    if ((_database.select('SELECT changes() AS n').first['n'] as int) != 1) {
+      throw StateError('Cannot favorite an unknown book');
+    }
+    return getBook(bookId)!;
+  }
 
   /// User catalog edits do not rewrite a book's identity, source, progress,
   /// bookmarks, speaker cast or narration consent.
@@ -2586,6 +2612,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         series: row['series'] as String?,
         language: row['language'] as String?,
         progressOffset: row['progress_offset'] as int,
+        isFavorite: (row['is_favorite'] as int) == 1,
         progressAnchor: row['progress_anchor'] is String
             ? ReadingAnchor.fromJson(
                 Map<String, dynamic>.from(
@@ -2599,8 +2626,8 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     db.execute('''
       $verb INTO books (
         id, title, local_path, format, imported_at, progress_offset,
-        progress_anchor, author, series, language
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        progress_anchor, author, series, language, is_favorite
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       record.id,
       record.title,
@@ -2614,6 +2641,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       record.author,
       record.series,
       record.language,
+      record.isFavorite ? 1 : 0,
     ]);
   }
 
