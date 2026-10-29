@@ -1908,12 +1908,17 @@ class _ReaderScreenState extends State<ReaderScreen>
                       player.isPlaying ? Icons.pause : Icons.play_arrow,
                     ),
                     label: Text(player.isPlaying ? 'Pause' : 'Play'),
-                    tooltip: 'Play or pause narration (Space)',
                   ),
                   IconButton(
                     tooltip: 'Next segment (Right arrow)',
                     icon: const Icon(Icons.skip_next),
                     onPressed: () => _move(1),
+                  ),
+                  IconButton(
+                    tooltip: 'Keyboard shortcuts (F1)',
+                    icon: const Icon(Icons.keyboard_outlined),
+                    onPressed: () => unawaited(
+                        showReaderKeyboardHelp(context)),
                   ),
                   PopupMenuButton<int>(
                     tooltip: 'Sleep timer',
