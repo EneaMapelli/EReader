@@ -818,6 +818,38 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
               [entry.pdfVisualPage, entry.id],
             );
           }
+          // Existing destination collections win by name. New collection
+          // rows and memberships participate in this book's transaction;
+          // existing books and their memberships are never touched.
+          for (final name in entry.collectionNames) {
+            final existing = _database.select(
+              'SELECT id FROM book_collections WHERE name = ? COLLATE NOCASE',
+              [name],
+            );
+            String collectionId;
+            if (existing.isNotEmpty) {
+              collectionId = existing.single['id'] as String;
+            } else {
+              final count = _database.select(
+                'SELECT COUNT(*) AS n FROM book_collections',
+              ).single['n'] as int;
+              if (count >= 1000) {
+                throw const FormatException('Too many restored collections');
+              }
+              collectionId = 'restore_'
+                  '${sha256.convert(utf8.encode(name.toLowerCase()))}';
+              _database.execute('''
+                INSERT INTO book_collections (id, name, created_at)
+                VALUES (?, ?, ?)
+              ''', [
+                collectionId, name, DateTime.now().toUtc().toIso8601String(),
+              ]);
+            }
+            _database.execute('''
+              INSERT INTO book_collection_members (collection_id, book_id)
+              VALUES (?, ?)
+            ''', [collectionId, entry.id]);
+          }
           for (final mark in entry.pdfVisualBookmarks) {
             // Imported IDs use the same deterministic collision-safe
             // namespace as text bookmarks but a distinct table and type.
