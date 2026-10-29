@@ -1252,15 +1252,38 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               onPressed: _busy
                                   ? null : () => _toggleFavorite(book),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined),
-                              tooltip: 'Edit book details',
-                              onPressed: _busy ? null : () => _editMetadata(book),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              tooltip: 'Remove book',
-                              onPressed: _busy ? null : () => _remove(book),
+                            // Keep three accessible touch targets even on
+                            // narrow Android screens: shelf, star, and More.
+                            PopupMenuButton<String>(
+                              key: ValueKey('library-more-${book.id}'),
+                              tooltip: 'More book actions',
+                              enabled: !_busy,
+                              icon: const Icon(Icons.more_vert),
+                              onSelected: (action) {
+                                if (action == 'edit') {
+                                  unawaited(_editMetadata(book));
+                                } else if (action == 'remove') {
+                                  unawaited(_remove(book));
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: ListTile(
+                                    leading: Icon(Icons.edit_outlined),
+                                    title: Text('Edit book details'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'remove',
+                                  child: ListTile(
+                                    leading: Icon(Icons.delete_outline),
+                                    title: Text('Remove book'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
