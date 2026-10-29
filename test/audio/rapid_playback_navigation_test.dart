@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:ereader/audio/reader_player.dart';
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/domain/speech_segment.dart';
+import 'package:ereader/domain/speech_preferences.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _SlowVoiceEngine implements SpeechEngine {
@@ -275,6 +276,107 @@ void main() {
     expect(engine.activeVoice, 'Second');
     expect(engine.spoken, isEmpty);
     expect(player.isPlaying, isFalse);
+  });
+
+  test('latest saved voice preference overrides an unfinished manual choice',
+      () async {
+    const narrator = SpeechVoice(name: 'Narrator', locale: 'en-US');
+    const first = SpeechVoice(name: 'First', locale: 'en-US');
+    await player.selectVoice(narrator);
+    engine.voiceGate = Completer<void>();
+    final stale = player.selectVoice(first);
+    await _until(() => engine.chosen.contains('First'));
+
+    final restored = player.applyPreferences(const SpeechPreferences(
+      language: 'en-US', rate: 0.7, pitch: 1.2,
+      voiceName: 'Second', voiceLocale: 'en-US',
+    ));
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.chosen, ['Narrator', 'First'],
+        reason: 'Native choice from the saved profile waits for old choice');
+    engine.voiceGate!.complete();
+    await Future.wait([stale, restored]);
+
+    expect(engine.chosen, ['Narrator', 'First', 'Second']);
+    expect(engine.activeVoice, 'Second');
+    expect(player.selectedVoice?.name, 'Second');
+    expect(player.currentPreferences.rate, 0.7);
+    expect(player.currentPreferences.pitch, 1.2);
+    expect(engine.spoken, isEmpty,
+        reason: 'Applying preferences while idle must never auto-play');
+  });
+
+  test('two overlapping book profiles retain only the newest settings',
+      () async {
+    engine.voiceGate = Completer<void>();
+    final stale = player.applyPreferences(const SpeechPreferences(
+      language: 'en-US', rate: 0.8, voiceName: 'First',
+      voiceLocale: 'en-US',
+    ));
+    await _until(() => engine.chosen.contains('First'));
+    final latest = player.applyPreferences(const SpeechPreferences(
+      language: 'en-US', rate: 0.3, voiceName: 'Second',
+      voiceLocale: 'en-US',
+    ));
+    engine.voiceGate!.complete();
+    await Future.wait([stale, latest]);
+
+    expect(engine.chosen, ['First', 'Second']);
+    expect(player.selectedVoice?.name, 'Second');
+    expect(engine.activeVoice, 'Second');
+    expect(player.currentPreferences.rate, 0.3);
+    expect(engine.spoken, isEmpty);
+  });
+
+  test('restoring preferences during speech stops without auto-resume',
+      () async {
+    final initial = player.play();
+    await _until(() => engine.spoken.length == 1);
+    await player.applyPreferences(const SpeechPreferences(
+      language: 'en-US', voiceName: 'Second',
+      voiceLocale: 'en-US', rate: 0.9,
+    ));
+    await initial;
+    expect(player.isPlaying, isFalse);
+    expect(player.currentIndex, 0,
+        reason: 'An interrupted utterance remains the resume position');
+    expect(player.selectedVoice?.name, 'Second');
+    expect(player.currentPreferences.rate, 0.9);
+    expect(engine.spoken, ['One']);
+  });
+
+  test('restoring preferences supersedes delayed auto-resuming Seek',
+      () async {
+    final initial = player.play();
+    await _until(() => engine.spoken.length == 1);
+    engine.stopGate = Completer<void>();
+    final staleSeek = player.seekTo(2);
+    final restore = player.applyPreferences(const SpeechPreferences(
+      language: 'en-US', voiceName: 'Second', voiceLocale: 'en-US',
+    ));
+    expect(player.isPlaying, isFalse);
+    engine.stopGate!.complete();
+    await Future.wait([staleSeek, restore, initial]);
+
+    expect(player.currentIndex, 0,
+        reason: 'An obsolete Seek cannot move the active reading cursor');
+    expect(player.selectedVoice?.name, 'Second');
+    expect(engine.spoken, ['One'],
+        reason: 'Restoring a saved voice does not resume abandoned Seek');
+  });
+
+  test('invalid provider cannot change in-flight navigation or voice',
+      () async {
+    await player.selectVoice(
+        const SpeechVoice(name: 'First', locale: 'en-US'));
+    await expectLater(
+      player.applyPreferences(const SpeechPreferences(
+          providerId: 'openai-speech')),
+      throwsUnsupportedError,
+    );
+    expect(player.selectedVoice?.name, 'First');
+    expect(engine.activeVoice, 'First');
+    expect(engine.spoken, isEmpty);
   });
 
   test('direct Play is denied after disposal', () async {
