@@ -650,7 +650,8 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       availableToImport: newBooks.length,
       alreadyPresent: validated.books.length - newBooks.length,
       bookmarksToImport: newBooks.fold<int>(
-          0, (count, book) => count + book.bookmarks.length),
+          0, (count, book) => count + book.bookmarks.length +
+              book.pdfVisualBookmarks.length),
       verifiedBytes: validated.totalBookBytes,
     );
   }
@@ -759,6 +760,21 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
               [entry.pdfVisualPage, entry.id],
             );
           }
+          for (final mark in entry.pdfVisualBookmarks) {
+            // Imported IDs use the same deterministic collision-safe
+            // namespace as text bookmarks but a distinct table and type.
+            final suffix = sha256.convert(utf8.encode(mark.id))
+                .toString().substring(0, 56);
+            final bookmarkId = '${entry.id}:pdf:$suffix';
+            _database.execute('''
+              INSERT INTO pdf_visual_bookmarks
+                (id, book_id, title, page_number, created_at)
+              VALUES (?, ?, ?, ?, ?)
+            ''', [
+              bookmarkId, entry.id, mark.title, mark.pageNumber,
+              mark.createdAt.toUtc().toIso8601String(),
+            ]);
+          }
           for (final mark in entry.bookmarks) {
             // The backup bookmark ID is not trusted as a global key.
             // Remapping by immutable book ID prevents collision with
@@ -780,7 +796,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           }
         });
         added++;
-        bookmarks += entry.bookmarks.length;
+        bookmarks += entry.bookmarks.length + entry.pdfVisualBookmarks.length;
       } catch (_) {
         // File staging never becomes a valid book. A target created by
         // this restore may be removed ONLY when no committed DB row
