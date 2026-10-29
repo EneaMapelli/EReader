@@ -793,3 +793,24 @@ Android Activity recreation remains a manual device gate.
   **not executed**; no Windows/Android build, Github Actions or native
   listening test was launched. Roadmap estimates are unchanged pending
   acceptance. See [OFFLINE_VOICE_PREVIEW.md](OFFLINE_VOICE_PREVIEW.md).
+
+### M4/M2 — Multilingual character speech handoff (2026-10-29)
+
+- Narrator → character → narrator playback now passes the **resolved installed
+  character voice's locale** into synthesis for explicitly assigned turns.
+  Narration, missing/removed character voices and provider-wide `multi`
+  voices keep the book's configured language.
+- Cloud and offline lookahead receive the same per-turn resolved language and
+  voice snapshot as actual speech; paid speculative prefetch remains OFF by
+  default, with no new cloud/consent/billing behavior.
+- Asynchronous native voice choices for cast turns are serialized with
+  explicit narrator switches. A late selection superseded by Pause/Seek
+  cannot be accepted as the next session's voice; the next segment waits for
+  the native selection gate before speaking.
+- New fake-engine tests cover English/Spanish dialogues in an Italian book,
+  narrator recovery, stale voice fallback, multilingual provider profiles,
+  prefetched locale, and rapid Seek during delayed voice selection.
+  **Tests not executed, no platform build/Actions launched**. Acceptance
+  still requires real Windows/Android native voices, user listening, focus,
+  pronunciation and timing checks. No milestone percentage increase claimed.
+- See [MULTILINGUAL_CAST_HANDOFF.md](MULTILINGUAL_CAST_HANDOFF.md).
