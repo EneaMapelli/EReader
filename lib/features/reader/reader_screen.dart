@@ -1417,6 +1417,36 @@ class _ReaderScreenState extends State<ReaderScreen>
                       onChanged: (value) =>
                           change(draft.copyWith(lineHeight: value)),
                     ),
+                    Text('Reading column: ${draft.contentWidth.round()} px'),
+                    Slider(
+                      key: const ValueKey('reading-column-width'),
+                      value: draft.contentWidth,
+                      min: 480,
+                      max: 1000,
+                      divisions: 13,
+                      label: '${draft.contentWidth.round()} px',
+                      onChanged: (value) =>
+                          change(draft.copyWith(contentWidth: value)),
+                    ),
+                    const Text('Paragraph alignment'),
+                    DropdownButton<String>(
+                      key: const ValueKey('reading-text-alignment'),
+                      value: draft.textAlignment,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(value: 'auto',
+                            child: Text('Original reader layout')),
+                        DropdownMenuItem(value: 'start',
+                            child: Text('Left aligned (ragged right)')),
+                        DropdownMenuItem(value: 'justify',
+                            child: Text('Justified')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          change(draft.copyWith(textAlignment: value));
+                        }
+                      },
+                    ),
                     const Text('Font family'),
                     DropdownButton<String>(
                       value: draft.fontFamily,
@@ -1447,6 +1477,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                               child: Text('Warm paper')),
                           DropdownMenuItem(value: 'night',
                               child: Text('Night reading')),
+                          DropdownMenuItem(value: 'highContrast',
+                              child: Text('High contrast (white/black)')),
                         ],
                         onChanged: (value) {
                           if (value != null) {
@@ -1568,6 +1600,10 @@ class _ReaderScreenState extends State<ReaderScreen>
                 PopupMenuItem(
                   value: EpubReadingPalette.night,
                   child: Text('Night reading'),
+                ),
+                PopupMenuItem(
+                  value: EpubReadingPalette.highContrast,
+                  child: Text('High contrast'),
                 ),
               ],
             ),
@@ -1786,6 +1822,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                                         fontSize: _fontSize,
                                         fontFamily: _readingPrefs.fontFamily,
                                         lineHeight: _readingPrefs.lineHeight,
+                                        contentWidth: _readingPrefs.contentWidth,
+                                        textAlignment: _readingPrefs.textAlignment,
                                         palette: _epubPalette,
                                         onSelectSegment: _selectFromVisualTap,
                                         onOpenLink: _openEpubLink,
@@ -1801,7 +1839,11 @@ class _ReaderScreenState extends State<ReaderScreen>
                                     );
                                     final selected =
                                         index == player.currentIndex;
-                                    return InkWell(
+                                    return Center(
+                                      child: ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                            maxWidth: _readingPrefs.contentWidth),
+                                        child: InkWell(
                                       onTap: () => _selectFromVisualTap(index),
                                       child: Container(
                                         padding: const EdgeInsets.all(10),
@@ -1828,8 +1870,14 @@ class _ReaderScreenState extends State<ReaderScreen>
                                               height: heading ? 1.3
                                                   : _readingPrefs.lineHeight,
                                             ),
+                                            textAlign: _readingPrefs.textAlignment ==
+                                                    'justify'
+                                                ? TextAlign.justify
+                                                : TextAlign.start,
                                           ),
                                         ),
+                                      ),
+                                    ),
                                       ),
                                     );
                                   },
