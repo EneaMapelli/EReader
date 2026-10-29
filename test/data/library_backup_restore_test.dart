@@ -182,7 +182,7 @@ void main() {
     expect(target.getPdfVisualPage(saved.id), 7);
   });
 
-  test('v19 export/restore preserves scanned PDF visual bookmarks',
+  test('v20 export/restore preserves scanned PDF visual bookmarks',
       () async {
     final pdf = File(p.join(root.path, 'scanned.pdf'));
     await pdf.writeAsBytes('%PDF-1.4\\nimage-only fixture'.codeUnits);
@@ -229,6 +229,7 @@ void main() {
       final exported = await source.exportLibraryBackup(exports);
       final db = sqlite3.open(
           p.join(exported.directory.path, 'library.sqlite'));
+      db.execute('ALTER TABLE books DROP COLUMN is_favorite');
       db.execute('DROP TABLE pdf_visual_bookmarks');
       if (version == 17) {
         db.execute('DROP TABLE reading_preferences');
@@ -249,7 +250,71 @@ void main() {
     expect(target.getBook(id), isNotNull);
   });
 
-  test('malformed PDF page bookmark in v19 backup fails closed', () async {
+  test('v20 backup preserves starred books but never overwrites local stars',
+      () async {
+    final a = await add(source, 'liked.txt', 'A favorite manuscript.');
+    final b = await add(source, 'other.txt', 'Another manuscript.');
+    source.setBookFavorite(a, true);
+    expect(source.getBook(b)!.isFavorite, isFalse);
+    final exported = await source.exportLibraryBackup(exports);
+
+    final preview = await target.previewLibraryRestore(exported.directory);
+    expect(preview.availableToImport, 2);
+    final restored = await target.restoreLibraryBackup(exported.directory);
+    expect(restored.added, 2);
+    expect(target.getBook(a)!.isFavorite, isTrue);
+    expect(target.getBook(b)!.isFavorite, isFalse);
+
+    target.setBookFavorite(a, false);
+    target.setBookFavorite(b, true);
+    final repeat = await target.restoreLibraryBackup(exported.directory);
+    expect(repeat.added, 0);
+    expect(repeat.skipped, 2);
+    expect(target.getBook(a)!.isFavorite, isFalse);
+    expect(target.getBook(b)!.isFavorite, isTrue);
+  });
+
+  test('mismatched manifest star and SQLite star fail before import',
+      () async {
+    final id = await add(source, 'tampered.txt', 'Source file unchanged.');
+    source.setBookFavorite(id, true);
+    final exported = await source.exportLibraryBackup(exports);
+    final manifestFile =
+        File(p.join(exported.directory.path, 'manifest.json'));
+    final manifest = jsonDecode(await manifestFile.readAsString()) as Map;
+    final entry = (manifest['books'] as List).single as Map;
+    expect(entry['favorite'], isTrue);
+    entry['favorite'] = false;
+    await manifestFile.writeAsString(jsonEncode(manifest));
+    await expectLater(target.previewLibraryRestore(exported.directory),
+        throwsFormatException);
+    await expectLater(target.restoreLibraryBackup(exported.directory),
+        throwsFormatException);
+    expect(target.books, isEmpty);
+  });
+
+  test('v19 backup without favorite field restores books as unstarred',
+      () async {
+    final id = await add(source, 'old.txt', 'Source text from old snapshot.');
+    final exported = await source.exportLibraryBackup(exports);
+    final db = sqlite3.open(
+        p.join(exported.directory.path, 'library.sqlite'));
+    db.execute('ALTER TABLE books DROP COLUMN is_favorite');
+    db.execute('PRAGMA user_version = 19');
+    db.dispose();
+    final manifestFile =
+        File(p.join(exported.directory.path, 'manifest.json'));
+    final manifest = jsonDecode(await manifestFile.readAsString()) as Map;
+    final entry = (manifest['books'] as List).single as Map;
+    entry.remove('favorite');
+    await manifestFile.writeAsString(jsonEncode(manifest));
+    final inspected = await inspectLibraryBackup(exported.directory);
+    expect(inspected.books.single.isFavorite, isFalse);
+    await target.restoreLibraryBackup(exported.directory);
+    expect(target.getBook(id)!.isFavorite, isFalse);
+  });
+
+  test('malformed PDF page bookmark in v20 backup fails closed', () async {
     final pdf = File(p.join(root.path, 'guard.pdf'));
     await pdf.writeAsBytes('%PDF-1.4\\ntamper test'.codeUnits);
     final id = (await source.importFile(pdf.path)).id;
