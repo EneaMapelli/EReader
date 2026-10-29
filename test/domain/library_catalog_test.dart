@@ -157,6 +157,51 @@ void main() {
     expect(entries.last.id, 'four');
   });
 
+  test('manual reading shelf filters combine with favorites, format and search',
+      () {
+    final entries = [
+      BookRecord(id: 'read', title: 'Atlas', localPath: '/a',
+        format: BookFormat.epub, importedAt: DateTime.utc(2026, 10, 20),
+        isFavorite: true, readingStatus: BookReadingStatus.reading),
+      BookRecord(id: 'done', title: 'Atlas Two', localPath: '/b',
+        format: BookFormat.epub, importedAt: DateTime.utc(2026, 10, 21),
+        isFavorite: true, readingStatus: BookReadingStatus.finished),
+      BookRecord(id: 'queue', title: 'Manual', localPath: '/c',
+        format: BookFormat.pdf, importedAt: DateTime.utc(2026, 10, 22)),
+    ];
+    expect(filterAndSortLibraryBooks(entries,
+      readingStatus: BookReadingStatus.reading,
+      favoritesOnly: true, query: 'ATLAS', format: BookFormat.epub)
+      .map((b) => b.id), ['read']);
+    expect(filterAndSortLibraryBooks(entries,
+      readingStatus: BookReadingStatus.finished,
+      favoritesOnly: true).map((b) => b.id), ['done']);
+    expect(filterAndSortLibraryBooks(entries,
+      readingStatus: BookReadingStatus.toRead).map((b) => b.id), ['queue']);
+    expect(entries.length, 3);
+  });
+
+  test('manual shelf sorting is reading, queued, finished then title', () {
+    final day = DateTime.utc(2026, 10, 29);
+    final entries = [
+      BookRecord(id: 'a', title: 'A finished', localPath: '/a',
+        format: BookFormat.txt, importedAt: day,
+        readingStatus: BookReadingStatus.finished),
+      BookRecord(id: 'q', title: 'Queued', localPath: '/q',
+        format: BookFormat.txt, importedAt: day),
+      BookRecord(id: 'r2', title: 'Zulu active', localPath: '/r2',
+        format: BookFormat.txt, importedAt: day,
+        readingStatus: BookReadingStatus.reading),
+      BookRecord(id: 'r1', title: 'Alpha active', localPath: '/r1',
+        format: BookFormat.txt, importedAt: day,
+        readingStatus: BookReadingStatus.reading),
+    ];
+    expect(filterAndSortLibraryBooks(entries,
+      sort: LibrarySortOrder.readingStatus).map((b) => b.id),
+      ['r1', 'r2', 'q', 'a']);
+    expect(entries.first.id, 'a');
+  });
+
   test('equal open dates and never opened fallback are stable', () {
     final date = DateTime.utc(2026, 10, 27);
     final entries = <BookRecord>[
