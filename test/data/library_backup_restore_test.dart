@@ -301,6 +301,7 @@ void main() {
     final exported = await source.exportLibraryBackup(exports);
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
+    db.execute('ALTER TABLE books DROP COLUMN reading_status');
     db.execute('ALTER TABLE books DROP COLUMN is_favorite');
     db.execute('PRAGMA user_version = 19');
     db.dispose();
@@ -309,9 +310,11 @@ void main() {
     final manifest = jsonDecode(await manifestFile.readAsString()) as Map;
     final entry = (manifest['books'] as List).single as Map;
     entry.remove('favorite');
+    entry.remove('readingStatus');
     await manifestFile.writeAsString(jsonEncode(manifest));
     final inspected = await inspectLibraryBackup(exported.directory);
     expect(inspected.books.single.isFavorite, isFalse);
+    expect(inspected.books.single.readingStatus, BookReadingStatus.toRead);
     await target.restoreLibraryBackup(exported.directory);
     expect(target.getBook(id)!.isFavorite, isFalse);
   });
