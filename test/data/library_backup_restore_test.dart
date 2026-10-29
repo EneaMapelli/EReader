@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:ereader/data/library_store.dart';
 import 'package:ereader/data/library_backup_restore.dart';
 import 'package:ereader/domain/book_bookmark.dart';
+import 'package:ereader/domain/pdf_visual_bookmark.dart';
+import 'package:sqlite3/sqlite3.dart';
 import 'package:ereader/domain/reading_anchor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -178,6 +180,92 @@ void main() {
     expect(restored.added, 1);
     expect(target.getBook(saved.id)!.progressOffset, 5);
     expect(target.getPdfVisualPage(saved.id), 7);
+  });
+
+  test('v19 export/restore preserves scanned PDF visual bookmarks',
+      () async {
+    final pdf = File(p.join(root.path, 'scanned.pdf'));
+    await pdf.writeAsBytes('%PDF-1.4\\nimage-only fixture'.codeUnits);
+    final saved = await source.importFile(pdf.path);
+    source.savePdfVisualPage(saved.id, 18);
+    source.addPdfVisualBookmark(PdfVisualBookmark(
+      id: 'original-page-mark',
+      bookId: saved.id, title: 'Illustrated appendix',
+      pageNumber: 18, createdAt: DateTime.utc(2026, 10, 29),
+    ));
+    source.addPdfVisualBookmark(PdfVisualBookmark(
+      id: 'cover-page',
+      bookId: saved.id, title: 'Cover',
+      pageNumber: 1, createdAt: DateTime.utc(2026, 10, 29),
+    ));
+    final exported = await source.exportLibraryBackup(exports);
+    final preview = await target.previewLibraryRestore(exported.directory);
+    expect(preview.bookmarksToImport, 2);
+    expect(target.books, isEmpty);
+    final result = await target.restoreLibraryBackup(exported.directory);
+    expect(result.added, 1);
+    expect(result.bookmarksImported, 2);
+    expect(target.getPdfVisualPage(saved.id), 18);
+    final marks = target.listPdfVisualBookmarks(saved.id);
+    expect(marks.map((m) => m.pageNumber), [1, 18]);
+    expect(marks.map((m) => m.title),
+        ['Cover', 'Illustrated appendix']);
+    expect(marks.every((m) => m.id != 'original-page-mark'), isTrue);
+    expect(target.listBookmarks(saved.id), isEmpty);
+    expect(target.getBook(saved.id)!.progressAnchor, isNull);
+    expect(target.getBook(saved.id)!.progressOffset, 0);
+
+    final duplicate = await target.restoreLibraryBackup(exported.directory);
+    expect(duplicate.added, 0);
+    expect(duplicate.skipped, 1);
+    expect(target.listPdfVisualBookmarks(saved.id), hasLength(2));
+  });
+
+  test('portable restore also accepts legacy v17 and v18 database backups',
+      () async {
+    final id = await add(source, 'older.txt',
+        'Portable source bytes survive a schema upgrade');
+    for (final version in [17, 18]) {
+      final exported = await source.exportLibraryBackup(exports);
+      final db = sqlite3.open(
+          p.join(exported.directory.path, 'library.sqlite'));
+      db.execute('DROP TABLE pdf_visual_bookmarks');
+      if (version == 17) {
+        db.execute('DROP TABLE reading_preferences');
+      }
+      db.execute('PRAGMA user_version = $version');
+      db.dispose();
+      final inspected = await inspectLibraryBackup(exported.directory);
+      expect(inspected.books.single.id, id);
+      final preview = await target.previewLibraryRestore(exported.directory);
+      expect(preview.total, 1);
+      final result = await target.restoreLibraryBackup(exported.directory);
+      if (version == 17) {
+        expect(result.added, 1);
+      } else {
+        expect(result.skipped, 1);
+      }
+    }
+    expect(target.getBook(id), isNotNull);
+  });
+
+  test('malformed PDF page bookmark in v19 backup fails closed', () async {
+    final pdf = File(p.join(root.path, 'guard.pdf'));
+    await pdf.writeAsBytes('%PDF-1.4\\ntamper test'.codeUnits);
+    final id = (await source.importFile(pdf.path)).id;
+    source.addPdfVisualBookmark(PdfVisualBookmark(
+      id: 'good-mark', bookId: id,
+      title: 'Sample', pageNumber: 3,
+      createdAt: DateTime.utc(2026, 10, 29),
+    ));
+    final exported = await source.exportLibraryBackup(exports);
+    final db = sqlite3.open(
+        p.join(exported.directory.path, 'library.sqlite'));
+    db.execute('UPDATE pdf_visual_bookmarks SET title = ?', ['\\n']);
+    db.dispose();
+    await expectLater(inspectLibraryBackup(exported.directory),
+        throwsFormatException);
+    expect(target.books, isEmpty);
   });
 
   test('corrupted SQLite backup fails closed before copying books',
