@@ -1038,3 +1038,21 @@ Android Activity recreation remains a manual device gate.
 - [PDF_VISUAL_RESUME.md](PDF_VISUAL_RESUME.md) and
   [LIBRARY_BACKUP_RESTORE.md](LIBRARY_BACKUP_RESTORE.md).
 
+
+### M1/ER-034 — Library favorite stars, search filter and portable backup (2026-10-29)
+
+- Books can be starred/unstared with one tap. Added a Favorites filter
+  combining with existing search/format/activity criteria and a
+  Favorites-first sort. Existing book order remains the default.
+- SQLite **v20** persists a bounded boolean catalog flag, migrating
+  older libraries with all titles unstarred. TTS, progress, last-opened
+  history, source anchors and consents do not change when starring.
+- Export includes favorite state in manifest plus standalone SQLite
+  snapshot. Restore accepts SQLite **v17–v20**, validates v20 manifest
+  against stored favorite values and restores stars **only** when adding
+  a new book. Existing titles retain local choices.
+- Authored domain, store/migration, Flutter widget and backup
+  round-trip/tamper tests. **Not executed**; no Windows/Android builds
+  or GitHub Actions, no milestone percentage change without native QA.
+- [LIBRARY_FAVORITES.md](LIBRARY_FAVORITES.md).
+

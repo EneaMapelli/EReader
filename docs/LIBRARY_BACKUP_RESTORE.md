@@ -134,3 +134,13 @@ include sia quelli testuali sia quelli di pagina.
 Aggiunti test per importazione v17/v18, per PDF scannerizzati con
 segnalibri nel backup v19 e per rifiuto di dati alterati. Test non
 eseguiti nell'ambiente GitHub; nessuna compilazione o Action avviata.
+
+## 29 ottobre 2026 — Preferiti e compatibilità v20
+
+La biblioteca salva ora i **Preferiti** in SQLite v20. La verifica del
+backup accetta **v17, v18, v19 e v20**: i backup precedenti non contengono
+tale campo e i loro libri vengono importati come non preferiti. Su v20
+l'ispettore confronta `favorite` nel manifest e `is_favorite` nel
+database, rifiutando incongruenze prima del ripristino. L'importazione
+dei preferiti avviene solo per libri nuovi; nessun libro già presente
+viene modificato. Vedi [LIBRARY_FAVORITES.md](LIBRARY_FAVORITES.md).

@@ -105,3 +105,12 @@ v19, validates each physical bookmark before import, and restores
 only missing books. Existing book data, speech consent, passwords and
 TTS configuration are never replaced. This remains a local,
 unencrypted backup: keep it in a private location.
+
+## 2026-10-29 — Library favorites in v20 snapshots
+
+Current exports use SQLite **v20**. Each manifest book entry includes
+an explicit `favorite` boolean, matching the `books.is_favorite` flag
+in the standalone snapshot. Restore verifies both for v20 and accepts
+v17–v19 snapshots with false default; the destination's existing book
+stars are always authoritative. See
+[LIBRARY_FAVORITES.md](LIBRARY_FAVORITES.md).
