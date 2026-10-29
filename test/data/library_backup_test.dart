@@ -119,7 +119,7 @@ void main() {
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
     try {
-      expect(db.select('PRAGMA user_version').first['user_version'], 21);
+      expect(db.select('PRAGMA user_version').first['user_version'], 22);
       expect(db.select('SELECT reading_status FROM books WHERE id = ?',
           [starred.id]).single['reading_status'], 'reading');
       expect(db.select('SELECT reading_status FROM books WHERE id = ?',

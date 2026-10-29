@@ -183,7 +183,7 @@ void main() {
     expect(target.getPdfVisualPage(saved.id), 7);
   });
 
-  test('v21 export/restore preserves scanned PDF visual bookmarks',
+  test('v22 export/restore preserves scanned PDF visual bookmarks',
       () async {
     final pdf = File(p.join(root.path, 'scanned.pdf'));
     await pdf.writeAsBytes('%PDF-1.4\\nimage-only fixture'.codeUnits);
@@ -230,6 +230,8 @@ void main() {
       final exported = await source.exportLibraryBackup(exports);
       final db = sqlite3.open(
           p.join(exported.directory.path, 'library.sqlite'));
+      db.execute('DROP TABLE book_collection_members');
+      db.execute('DROP TABLE book_collections');
       db.execute('ALTER TABLE books DROP COLUMN reading_status');
       db.execute('ALTER TABLE books DROP COLUMN is_favorite');
       db.execute('DROP TABLE pdf_visual_bookmarks');
@@ -252,7 +254,7 @@ void main() {
     expect(target.getBook(id), isNotNull);
   });
 
-  test('v21 backup preserves starred books but never overwrites local stars',
+  test('v22 backup preserves starred books but never overwrites local stars',
       () async {
     final a = await add(source, 'liked.txt', 'A favorite manuscript.');
     final b = await add(source, 'other.txt', 'Another manuscript.');
@@ -301,6 +303,8 @@ void main() {
     final exported = await source.exportLibraryBackup(exports);
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
+    db.execute('DROP TABLE book_collection_members');
+    db.execute('DROP TABLE book_collections');
     db.execute('ALTER TABLE books DROP COLUMN reading_status');
     db.execute('ALTER TABLE books DROP COLUMN is_favorite');
     db.execute('PRAGMA user_version = 19');
@@ -311,6 +315,7 @@ void main() {
     final entry = (manifest['books'] as List).single as Map;
     entry.remove('favorite');
     entry.remove('readingStatus');
+    entry.remove('collections');
     await manifestFile.writeAsString(jsonEncode(manifest));
     final inspected = await inspectLibraryBackup(exported.directory);
     expect(inspected.books.single.isFavorite, isFalse);
@@ -319,7 +324,7 @@ void main() {
     expect(target.getBook(id)!.isFavorite, isFalse);
   });
 
-  test('portable v21 backup restores explicit shelves but preserves local choices',
+  test('portable v22 backup restores explicit shelves but preserves local choices',
       () async {
     final reading = await add(source, 'current.txt', 'Reading shelf source.');
     final finished = await add(source, 'done.txt', 'Finished shelf source.');
@@ -345,7 +350,7 @@ void main() {
         reason: 'Existing book shelf selection must not be overwritten');
   });
 
-  test('tampered v21 reading shelf manifest is rejected before import',
+  test('tampered v22 reading shelf manifest is rejected before import',
       () async {
     final id = await add(source, 'protected.txt', 'Immutable source.');
     source.setBookReadingStatus(id, BookReadingStatus.finished);
@@ -368,6 +373,8 @@ void main() {
     final exported = await source.exportLibraryBackup(exports);
     final snapshot = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
+    snapshot.execute('DROP TABLE book_collection_members');
+    snapshot.execute('DROP TABLE book_collections');
     snapshot.execute('ALTER TABLE books DROP COLUMN reading_status');
     snapshot.execute('PRAGMA user_version = 20');
     snapshot.dispose();
@@ -376,6 +383,7 @@ void main() {
     final manifest = jsonDecode(await manifestFile.readAsString()) as Map;
     final entry = (manifest['books'] as List).single as Map;
     entry.remove('readingStatus');
+    entry.remove('collections');
     await manifestFile.writeAsString(jsonEncode(manifest));
     final verified = await inspectLibraryBackup(exported.directory);
     expect(verified.books.single.readingStatus, BookReadingStatus.toRead);
@@ -384,7 +392,7 @@ void main() {
     expect(target.getBook(id)!.readingStatus, BookReadingStatus.toRead);
   });
 
-  test('malformed PDF page bookmark in v21 backup fails closed', () async {
+  test('malformed PDF page bookmark in v22 backup fails closed', () async {
     final pdf = File(p.join(root.path, 'guard.pdf'));
     await pdf.writeAsBytes('%PDF-1.4\\ntamper test'.codeUnits);
     final id = (await source.importFile(pdf.path)).id;
