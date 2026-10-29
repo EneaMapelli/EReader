@@ -15,6 +15,7 @@ import '../../audio/reader_media_handler.dart';
 import '../../domain/book.dart';
 import '../../domain/library_catalog.dart';
 import '../reader/reader_screen.dart';
+import 'library_collections_sheet.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({
@@ -57,6 +58,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   BookFormat? _formatFilter;
   bool _favoritesOnly = false;
   BookReadingStatus? _readingStatusFilter;
+  String? _collectionFilterId;
   LibraryActivityFilter _activityFilter = LibraryActivityFilter.all;
   LibrarySortOrder _sortOrder = LibrarySortOrder.recentlyImported;
 
@@ -67,6 +69,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       _formatFilter = null;
       _favoritesOnly = false;
       _readingStatusFilter = null;
+      _collectionFilterId = null;
       _activityFilter = LibraryActivityFilter.all;
       _sortOrder = LibrarySortOrder.recentlyImported;
     });
@@ -831,6 +834,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
+  Future<void> _manageCollections() async {
+    await showManageBookCollections(
+      context: context, store: widget.store,
+    );
+    if (!mounted) return;
+    final exists = widget.store.collections.any(
+        (item) => item.id == _collectionFilterId);
+    setState(() {
+      if (!exists) _collectionFilterId = null;
+    });
+  }
+
+  Future<void> _assignCollections(BookRecord book) async {
+    await showBookCollectionMembership(
+      context: context, store: widget.store, bookId: book.id,
+    );
+    if (mounted) setState(() {});
+  }
+
   void _toggleFavorite(BookRecord book) {
     try {
       widget.store.setBookFavorite(book.id, !book.isFavorite);
@@ -883,11 +905,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final allBooks = widget.store.books;
+    final collections = widget.store.collections;
+    final selectedCollection = collections.where(
+        (item) => item.id == _collectionFilterId).toList();
+    final filteredBookIds = selectedCollection.isEmpty
+        ? null : widget.store.collectionBookIds(selectedCollection.single.id);
     final books = filterAndSortLibraryBooks(
       allBooks, query: _query, format: _formatFilter,
       activity: _activityFilter, sort: _sortOrder,
       favoritesOnly: _favoritesOnly,
       readingStatus: _readingStatusFilter,
+      collectionBookIds: filteredBookIds,
     );
     final lastOpened = widget.store.lastOpenedBook;
     final interrupted = widget.store.interruptedNarrationBook;
@@ -895,6 +923,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
       appBar: AppBar(
         title: const Text('EReader'),
         actions: [
+          IconButton(
+            tooltip: 'Manage collections',
+            icon: const Icon(Icons.folder_open_outlined),
+            onPressed: _busy ? null : () => unawaited(_manageCollections()),
+          ),
           IconButton(
             tooltip: 'Restore books from library backup',
             onPressed: _busy ? null : _restoreBackup,
@@ -1134,6 +1167,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     ],
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Row(
+                    children: [
+                      const Text('Collection'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButton<String?>(
+                          key: const ValueKey('library-collection-filter'),
+                          isExpanded: true,
+                          value: selectedCollection.isEmpty
+                              ? null : selectedCollection.single.id,
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null, child: Text('All collections')),
+                            for (final collection in collections)
+                              DropdownMenuItem<String?>(
+                                value: collection.id,
+                                child: Text(collection.name),
+                              ),
+                          ],
+                          onChanged: (value) => setState(
+                              () => _collectionFilterId = value),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
@@ -1265,9 +1326,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   unawaited(_editMetadata(book));
                                 } else if (action == 'remove') {
                                   unawaited(_remove(book));
+                                } else if (action == 'collections') {
+                                  unawaited(_assignCollections(book));
                                 }
                               },
                               itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'collections',
+                                  child: ListTile(
+                                    leading: Icon(Icons.folder_outlined),
+                                    title: Text('Book collections'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
                                 PopupMenuItem(
                                   value: 'edit',
                                   child: ListTile(
