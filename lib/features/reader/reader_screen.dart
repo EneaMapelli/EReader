@@ -28,6 +28,7 @@ import '../../data/epub_reader_preflight.dart';
 import '../../data/epub_speech_note_filter.dart';
 import '../../data/epub_progress_recovery.dart';
 import '../../data/library_store.dart';
+import '../../domain/reading_preferences.dart';
 import '../../domain/book.dart';
 import '../../domain/book_search.dart';
 import '../../domain/reading_anchor.dart';
@@ -86,8 +87,10 @@ class _ReaderScreenState extends State<ReaderScreen>
   EpubFrameSampler? _activeFrameSampler;
   EpubFrameProfile? _frameProfile;
   Timer? _frameCaptureTimer;
-  double _fontSize = 19;
-  EpubReadingPalette _epubPalette = EpubReadingPalette.system;
+  ReadingPreferences _readingPrefs = const ReadingPreferences();
+  double get _fontSize => _readingPrefs.fontSize;
+  EpubReadingPalette get _epubPalette =>
+      EpubReadingPalette.values.byName(_readingPrefs.palette);
   bool _pdfTextMode = false;
   bool _autoFollow = true;
   bool _skipEpubNotes = false;
@@ -135,6 +138,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _itemPositionsListener.itemPositions.addListener(_onVisiblePositions);
+    _readingPrefs = widget.store.getReadingPreferences(bookId: widget.book.id);
     _displayPdfPage = widget.book.format == BookFormat.pdf
         ? widget.store.getPdfVisualPage(widget.book.id)
         : 1;
@@ -1356,6 +1360,141 @@ class _ReaderScreenState extends State<ReaderScreen>
     super.dispose();
   }
 
+  void _setReadingPreferences(ReadingPreferences preferences) {
+    preferences.validate();
+    // Synchronous SQLite write first: failed persistence must not leave the
+    // live visual state claiming settings that cannot survive a restart.
+    widget.store.saveReadingPreferences(
+        preferences, bookId: widget.book.id);
+    if (mounted) setState(() => _readingPrefs = preferences);
+  }
+
+  Future<void> _openReadingAppearance() async {
+    var draft = _readingPrefs;
+    final result = await showDialog<
+        ({ReadingPreferences preferences, String action})>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, redraw) {
+          void change(ReadingPreferences preferences) =>
+              redraw(() => draft = preferences);
+          return AlertDialog(
+            title: const Text('Reading appearance'),
+            content: SizedBox(
+              width: (MediaQuery.sizeOf(dialogContext).width - 96)
+                  .clamp(200.0, 420.0).toDouble(),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Text size: ${draft.fontSize.round()}'),
+                    Slider(
+                      value: draft.fontSize,
+                      min: 14,
+                      max: 32,
+                      divisions: 18,
+                      label: '${draft.fontSize.round()}',
+                      onChanged: (value) =>
+                          change(draft.copyWith(fontSize: value)),
+                    ),
+                    Text('Line spacing: ${draft.lineHeight.toStringAsFixed(2)}'),
+                    Slider(
+                      value: draft.lineHeight,
+                      min: 1.2,
+                      max: 2.4,
+                      divisions: 24,
+                      label: draft.lineHeight.toStringAsFixed(2),
+                      onChanged: (value) =>
+                          change(draft.copyWith(lineHeight: value)),
+                    ),
+                    const Text('Font family'),
+                    DropdownButton<String>(
+                      value: draft.fontFamily,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(value: 'serif',
+                            child: Text('Serif (book style)')),
+                        DropdownMenuItem(value: 'sans-serif',
+                            child: Text('Sans serif')),
+                        DropdownMenuItem(value: 'monospace',
+                            child: Text('Monospace')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          change(draft.copyWith(fontFamily: value));
+                        }
+                      },
+                    ),
+                    if (widget.book.format == BookFormat.epub) ...[
+                      const Text('Page colors'),
+                      DropdownButton<String>(
+                        value: draft.palette,
+                        isExpanded: true,
+                        items: const [
+                          DropdownMenuItem(value: 'system',
+                              child: Text('Follow device theme')),
+                          DropdownMenuItem(value: 'sepia',
+                              child: Text('Warm paper')),
+                          DropdownMenuItem(value: 'night',
+                              child: Text('Night reading')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            change(draft.copyWith(palette: value));
+                          }
+                        },
+                      ),
+                    ],
+                    const Text(
+                      'Appearance affects only display, not audio, '
+                      'bookmarks, cloud usage or saved reading position.',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext,
+                    (preferences: draft, action: 'reset')),
+                child: const Text('Use global defaults'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext,
+                    (preferences: draft, action: 'global')),
+                child: const Text('Set global default'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext,
+                    (preferences: draft, action: 'book')),
+                child: const Text('Save for book'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (!mounted || result == null) return;
+    if (result.action == 'reset') {
+      widget.store.clearBookReadingPreferences(widget.book.id);
+      setState(() => _readingPrefs =
+          widget.store.getReadingPreferences(bookId: widget.book.id));
+    } else if (result.action == 'global') {
+      // Global should affect this open book too; other books with
+      // explicit overrides retain their own reading appearance.
+      widget.store.saveReadingPreferences(result.preferences);
+      widget.store.clearBookReadingPreferences(widget.book.id);
+      setState(() => _readingPrefs = result.preferences);
+    } else {
+      _setReadingPreferences(result.preferences);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = _player;
@@ -1396,7 +1535,8 @@ class _ReaderScreenState extends State<ReaderScreen>
               icon: const Icon(Icons.palette_outlined),
               initialValue: _epubPalette,
               onSelected: (palette) =>
-                  setState(() => _epubPalette = palette),
+                  _setReadingPreferences(
+                      _readingPrefs.copyWith(palette: palette.name)),
               itemBuilder: (_) => const [
                 PopupMenuItem(
                   value: EpubReadingPalette.system,
@@ -1495,17 +1635,25 @@ class _ReaderScreenState extends State<ReaderScreen>
             ),
           if (widget.book.format != BookFormat.pdf || _pdfTextMode)
             IconButton(
+              icon: const Icon(Icons.format_line_spacing),
+              tooltip: 'Reading appearance: fonts, line spacing and colors',
+              onPressed: _openReadingAppearance,
+            ),
+          if (widget.book.format != BookFormat.pdf || _pdfTextMode)
+            IconButton(
               icon: const Icon(Icons.text_increase),
               tooltip: 'Increase font size',
-              onPressed: () => setState(() =>
-                  _fontSize = (_fontSize + 2).clamp(14.0, 32.0).toDouble()),
+              onPressed: () => _setReadingPreferences(
+                  _readingPrefs.copyWith(fontSize:
+                      (_fontSize + 2).clamp(14.0, 32.0).toDouble())),
             ),
           if (widget.book.format != BookFormat.pdf || _pdfTextMode)
             IconButton(
               icon: const Icon(Icons.text_decrease),
               tooltip: 'Decrease font size',
-              onPressed: () => setState(() =>
-                  _fontSize = (_fontSize - 2).clamp(14.0, 32.0).toDouble()),
+              onPressed: () => _setReadingPreferences(
+                  _readingPrefs.copyWith(fontSize:
+                      (_fontSize - 2).clamp(14.0, 32.0).toDouble())),
             ),
         ],
       ),
@@ -1617,6 +1765,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                                         activeSegmentIndex: player.currentIndex,
                                         searchMatch: _selectedSourceSearchHit,
                                         fontSize: _fontSize,
+                                        fontFamily: _readingPrefs.fontFamily,
+                                        lineHeight: _readingPrefs.lineHeight,
                                         palette: _epubPalette,
                                         onSelectSegment: _selectFromVisualTap,
                                         onOpenLink: _openEpubLink,
@@ -1655,7 +1805,9 @@ class _ReaderScreenState extends State<ReaderScreen>
                                                   ? _fontSize + 5 : _fontSize,
                                               fontWeight: heading
                                                   ? FontWeight.w600 : null,
-                                              height: heading ? 1.3 : 1.6,
+                                              fontFamily: _readingPrefs.fontFamily,
+                                              height: heading ? 1.3
+                                                  : _readingPrefs.lineHeight,
                                             ),
                                           ),
                                         ),
