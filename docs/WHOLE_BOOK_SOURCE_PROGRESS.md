@@ -17,9 +17,10 @@ The two measures deliberately answer different questions:
 When audio is active, the source position tracks the start of the
 currently active audible segment. When paused, the EPUB visual source
 offset (including a verified text-only note destination) takes priority;
-ordinary TXT/PDF text uses the currently visible segment. A natural
-speech EOF is displayed as 100%, even if the last chapter had text
-that could not be synthesized.
+ordinary TXT/PDF text uses the currently visible segment. At natural
+speech EOF, 100% is shown when no more precise visual location is
+available. Manual scrolling and verified source bookmarks still take
+precedence even after the audio queue has finished.
 
 The slider only commits its selection on **drag release**. While the
 thumb moves it updates the percentage preview but never touches
