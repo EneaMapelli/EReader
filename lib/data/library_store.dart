@@ -709,6 +709,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           0, (count, book) => count + book.bookmarks.length +
               book.pdfVisualBookmarks.length),
       verifiedBytes: validated.totalBookBytes,
+      collectionsToImport: validated.collectionCatalog.where((name) =>
+          !collections.any((existing) =>
+              existing.name.toLowerCase() == name.toLowerCase())).length,
     );
   }
 
@@ -745,6 +748,22 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     var added = 0;
     var skipped = 0;
     var bookmarks = 0;
+    // Recover the entire catalog, even empty folders and when every book
+    // already exists. No existing name or membership is overwritten.
+    final importedCollections = _transaction(_database, () {
+      var created = 0;
+      for (final name in inspected.collectionCatalog) {
+        final present = _database.select(
+          'SELECT id FROM book_collections WHERE name = ? COLLATE NOCASE',
+          [name],
+        );
+        if (present.isEmpty) {
+          _ensureRestoredCollection(name);
+          created++;
+        }
+      }
+      return created;
+    });
     for (final entry in inspected.books) {
       if (getBook(entry.id) != null) {
         skipped++;
@@ -822,29 +841,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           // rows and memberships participate in this book's transaction;
           // existing books and their memberships are never touched.
           for (final name in entry.collectionNames) {
-            final existing = _database.select(
-              'SELECT id FROM book_collections WHERE name = ? COLLATE NOCASE',
-              [name],
-            );
-            String collectionId;
-            if (existing.isNotEmpty) {
-              collectionId = existing.single['id'] as String;
-            } else {
-              final count = _database.select(
-                'SELECT COUNT(*) AS n FROM book_collections',
-              ).single['n'] as int;
-              if (count >= 1000) {
-                throw const FormatException('Too many restored collections');
-              }
-              collectionId = 'restore_'
-                  '${sha256.convert(utf8.encode(name.toLowerCase()))}';
-              _database.execute('''
-                INSERT INTO book_collections (id, name, created_at)
-                VALUES (?, ?, ?)
-              ''', [
-                collectionId, name, DateTime.now().toUtc().toIso8601String(),
-              ]);
-            }
+            final collectionId = _ensureRestoredCollection(name);
             _database.execute('''
               INSERT INTO book_collection_members (collection_id, book_id)
               VALUES (?, ?)
@@ -911,6 +908,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     }
     return LibraryRestoreResult(
       added: added, skipped: skipped, bookmarksImported: bookmarks,
+      collectionsImported: importedCollections,
     );
   }
 
@@ -1007,6 +1005,33 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         WHERE collection_id = ? AND book_id = ?
       ''', [collectionId, bookId]);
     }
+  }
+
+  /// Reuse local collection identities; imported names are untrusted
+  /// until validated by the independent backup inspector.
+  String _ensureRestoredCollection(String name) {
+    final clean = BookCollection.cleanName(name);
+    if (clean != name) {
+      throw const FormatException('Noncanonical collection name');
+    }
+    final existing = _database.select(
+      'SELECT id FROM book_collections WHERE name = ? COLLATE NOCASE',
+      [name],
+    );
+    if (existing.isNotEmpty) return existing.single['id'] as String;
+    final count = _database.select(
+      'SELECT COUNT(*) AS n FROM book_collections',
+    ).single['n'] as int;
+    if (count >= 1000) {
+      throw const FormatException('Too many restored collections');
+    }
+    final id = 'restore_'
+        '${sha256.convert(utf8.encode(name.toLowerCase()))}';
+    _database.execute('''
+      INSERT INTO book_collections (id, name, created_at)
+      VALUES (?, ?, ?)
+    ''', [id, clean, DateTime.now().toUtc().toIso8601String()]);
+    return id;
   }
 
   /// Star/unstar a known book. Catalog-only; neither a reading event nor
