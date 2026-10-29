@@ -620,8 +620,6 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (visible.isEmpty) return;
     visible.sort();
     final firstItem = visible.first;
-    final previousChapter = _currentChapterIndex;
-    final previousDirectory = _currentDirectoryIndex;
     final int index;
     final int sourceOffset;
     if (widget.book.format == BookFormat.epub) {
@@ -648,13 +646,10 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (index == _visiblePositionIndex) return;
     }
     _visiblePositionIndex = index;
-    if (_currentChapterIndex != previousChapter ||
-        _currentDirectoryIndex != previousDirectory ||
-        widget.book.format == BookFormat.epub) {
-      // Update the text-progress percentage even when the user scrolls
-      // inside one EPUB chapter, not just when the chapter title changes.
-      setState(() {});
-    }
+    // Each new visible source location updates the progress display.
+    // The early guards above suppress duplicate viewport notifications.
+    // The chapter label also reflects any real TOC/spine change.
+    setState(() {});
     _cancelPendingVisualSave();
     final revision = _visualSaveRevision;
     final document = _document;
