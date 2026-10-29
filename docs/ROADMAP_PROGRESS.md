@@ -997,3 +997,21 @@ Android Activity recreation remains a manual device gate.
   GitHub Actions. Real-device contrast/focus acceptance remains open.
 - See [PERSISTENT_READING_APPEARANCE.md](PERSISTENT_READING_APPEARANCE.md).
 
+
+### M1 — Physical PDF page scrubber and SQLite fixture correction (2026-10-29)
+
+- In the **faithful visual PDF viewer**, added an accessible physical-page
+  percentage and fast scrubber. Dragging previews a page; releasing
+  requests a single native page transition through the existing callback.
+  The exact Go-to-page number dialog remains available for long manuals.
+- The slider is hidden until a multi-page PDF is ready, uses a bounded
+  number of ticks for large files and does **not** mutate text-layer
+  anchors, cloud consent or any TTS session.
+- Corrected the existing legacy PDF migration regression to expect
+  SQLite v18 after the previous appearance migration. Added four
+  unexecuted widget regression cases for release-only seeking, labels,
+  large PDFs and unavailable/single-page PDFs.
+- [PDF_VISUAL_RESUME.md](PDF_VISUAL_RESUME.md).
+- **Tests not run**, no Windows/Android builds or GitHub Actions;
+  M1/M6 release acceptance remains pending native testing.
+

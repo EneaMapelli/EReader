@@ -61,3 +61,37 @@ reliability.
 API references:
 - https://pub.dev/packages/pdfrx
 - https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageChangedCallback.html
+
+## 2026-10-29 — Quick page scrubbing for faithful PDF view
+
+The native PDF viewer now has a **physical-page scrubber** below its
+existing Previous / page-number jump / Next / Zoom toolbar.
+
+- Dragging the slider previews a page number and physical page
+  percentage, **without** loading each intermediate page.
+- Releasing the slider requests **one** page jump through the existing
+  `_goToPdfPage` callback. Native PDF page rendering and the usual
+  debounced visual-page persistence remain owned by ReaderScreen.
+- A one-page PDF has no scrubber; an uninitialized page count also has
+  none. The exact numeric Go-to-page dialog remains available.
+- For PDFs with 201 pages or fewer the slider has one step per page.
+  Long PDFs have at most 200 slider divisions. Entering a specific page
+  number is still exact.
+- The percentage represents physical page position (first page 0%,
+  last page 100%), **not** EPUB/TXT offsets, text coverage, elapsed
+  playback or PDF OCR. Scanned PDFs use the same visual navigation
+  without synthesizing speech.
+- Slider semantics announce the page number and count. It does not
+  request cloud audio, alter book text or update TTS checkpoints.
+
+Regression cases were authored in
+`test/features/pdf_page_navigation_widget_test.dart` for the one-shot
+release event, physical page percentage and semantic label, coarse
+long-document stepping with exact numeric fallback, and absent slider
+when no multi-page PDF is loaded. The legacy PDF migration fixture
+also now expects the current SQLite user_version **18**, not 17.
+
+**No tests or platform builds were run** in this editing environment;
+no GitHub Actions were dispatched. Device verification is still
+required for PDF decoder responsiveness, accessible controls and
+visual-page checkpoint persistence.

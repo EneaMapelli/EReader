@@ -66,3 +66,12 @@ GitHub editing toolchain. In particular, seek fidelity under native
 Stop races and large EPUB visual-scroll frame performance remain
 device acceptance tasks. No Windows/Android builds or GitHub Actions
 were launched.
+
+## 2026-10-29 — Complementary visual PDF-page progress
+
+A faithful PDF viewer is page-based; it now exposes a separate physical
+page slider below Previous/Next/Zoom. Its percentage counts pages from
+1 to N and only commits a page jump on release. This does not reuse
+canonical text offsets, touch audio checkpoints or imply OCR is
+available on scanned PDFs. See
+[PDF_VISUAL_RESUME.md](PDF_VISUAL_RESUME.md).
