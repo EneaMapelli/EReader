@@ -56,6 +56,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   String _query = '';
   BookFormat? _formatFilter;
   bool _favoritesOnly = false;
+  BookReadingStatus? _readingStatusFilter;
   LibraryActivityFilter _activityFilter = LibraryActivityFilter.all;
   LibrarySortOrder _sortOrder = LibrarySortOrder.recentlyImported;
 
@@ -65,6 +66,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       _query = '';
       _formatFilter = null;
       _favoritesOnly = false;
+      _readingStatusFilter = null;
       _activityFilter = LibraryActivityFilter.all;
       _sortOrder = LibrarySortOrder.recentlyImported;
     });
@@ -842,6 +844,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
+  void _setReadingStatus(BookRecord book, BookReadingStatus status) {
+    try {
+      widget.store.setBookReadingStatus(book.id, status);
+      if (mounted) setState(() {});
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Cannot change reading shelf: $error'),
+        ));
+      }
+    }
+  }
+
   Future<void> _remove(BookRecord book) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -872,6 +887,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       allBooks, query: _query, format: _formatFilter,
       activity: _activityFilter, sort: _sortOrder,
       favoritesOnly: _favoritesOnly,
+      readingStatus: _readingStatusFilter,
     );
     final lastOpened = widget.store.lastOpenedBook;
     final interrupted = widget.store.interruptedNarrationBook;
@@ -1078,10 +1094,40 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             DropdownMenuItem(
                               value: LibrarySortOrder.favoritesFirst,
                               child: Text('Favorites first')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.readingStatus,
+                              child: Text('Reading shelf')),
                           ],
                           onChanged: (value) {
                             if (value != null) setState(() => _sortOrder = value);
                           },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Row(
+                    children: [
+                      const Text('Shelf'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButton<BookReadingStatus?>(
+                          key: const ValueKey('library-reading-shelf-filter'),
+                          isExpanded: true,
+                          value: _readingStatusFilter,
+                          items: [
+                            const DropdownMenuItem<BookReadingStatus?>(
+                              value: null, child: Text('All shelves')),
+                            for (final status in BookReadingStatus.values)
+                              DropdownMenuItem<BookReadingStatus?>(
+                                value: status,
+                                child: Text(status.label),
+                              ),
+                          ],
+                          onChanged: (value) => setState(
+                              () => _readingStatusFilter = value),
                         ),
                       ),
                     ],
@@ -1170,6 +1216,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             if (book.series != null) book.series!,
                             if (book.language != null) book.language!,
                             book.format.name.toUpperCase(),
+                            book.readingStatus.label,
                             'saved at character ${book.progressOffset}',
                           ].join(' · '),
                           maxLines: 2,
@@ -1179,6 +1226,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            PopupMenuButton<BookReadingStatus>(
+                              key: ValueKey('library-shelf-${book.id}'),
+                              tooltip: 'Reading shelf: ${book.readingStatus.label}',
+                              icon: const Icon(Icons.shelves),
+                              enabled: !_busy,
+                              initialValue: book.readingStatus,
+                              onSelected: (status) =>
+                                  _setReadingStatus(book, status),
+                              itemBuilder: (_) => [
+                                for (final status in BookReadingStatus.values)
+                                  PopupMenuItem(
+                                    value: status,
+                                    child: Text(status.label),
+                                  ),
+                              ],
+                            ),
                             IconButton(
                               key: ValueKey('library-favorite-${book.id}'),
                               icon: Icon(book.isFavorite

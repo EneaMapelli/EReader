@@ -145,6 +145,7 @@ Future<LibraryBackupResult> exportPortableLibraryBackup({
         if (book.language != null) 'language': book.language,
         'progressOffset': book.progressOffset,
         'favorite': book.isFavorite,
+        'readingStatus': book.readingStatus.name,
         if (book.progressAnchor != null)
           'progressAnchor': book.progressAnchor!.toJson(),
       });

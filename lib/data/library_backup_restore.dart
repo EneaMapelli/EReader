@@ -28,6 +28,7 @@ class VerifiedBackupBook {
     this.language,
     this.pdfVisualPage,
     this.isFavorite = false,
+    this.readingStatus = BookReadingStatus.toRead,
   });
   final String id;
   final BookFormat format;
@@ -41,6 +42,7 @@ class VerifiedBackupBook {
   final String? language;
   final int? pdfVisualPage;
   final bool isFavorite;
+  final BookReadingStatus readingStatus;
   final List<BookBookmark> bookmarks;
   final List<PdfVisualBookmark> pdfVisualBookmarks;
 }
@@ -150,16 +152,17 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
         .first['integrity_check'];
     final schemaVersion =
         database.select('PRAGMA user_version').first['user_version'];
-    // New exports use v20; prior v17-v19 snapshots remain restorable.
-    // Existing favorites default off without this explicit column.
+    // New exports use v21. Older v17-v20 snapshots remain readable;
+    // the manual shelf defaults to To read if absent.
     if (integrity != 'ok' || schemaVersion is! int ||
-        schemaVersion < 17 || schemaVersion > 20) {
+        schemaVersion < 17 || schemaVersion > 21) {
       throw const FormatException('Unsupported or damaged backup database');
     }
     final source = database.select(
       'SELECT id, title, format, imported_at, progress_offset, progress_anchor, '
       'author, series, language, pdf_visual_page'
-      '${schemaVersion >= 20 ? ', is_favorite' : ''} FROM books',
+      '${schemaVersion >= 20 ? ', is_favorite' : ''}'
+      '${schemaVersion >= 21 ? ', reading_status' : ''} FROM books',
     );
     if (source.length != count) {
       throw const FormatException('Backup SQLite book count mismatch');
@@ -280,6 +283,15 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
           (schemaVersion >= 20 && raw['favorite'] != (favorite == 1))) {
         throw const FormatException('Backup favorite metadata mismatch');
       }
+      // A manually selected shelf is verified independently in the
+      // manifest and SQLite. Legacy snapshots default to 'toRead'.
+      final shelf = schemaVersion >= 21
+          ? row['reading_status'] : BookReadingStatus.toRead.name;
+      if (shelf is! String ||
+          !BookReadingStatus.values.any((value) => value.name == shelf) ||
+          (schemaVersion >= 21 && raw['readingStatus'] != shelf)) {
+        throw const FormatException('Backup reading shelf mismatch');
+      }
       if (raw['progressOffset'] != row['progress_offset']) {
         throw const FormatException('Backup source progress mismatch');
       }
@@ -311,6 +323,7 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
         anchor: savedAnchor,
         pdfVisualPage: page is int ? page : null,
         isFavorite: favorite == 1,
+        readingStatus: BookReadingStatus.values.byName(shelf),
         bookmarks: List<BookBookmark>.unmodifiable(
             savedBookmarks[id] ?? const []),
         pdfVisualBookmarks: List<PdfVisualBookmark>.unmodifiable(
