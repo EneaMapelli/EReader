@@ -229,6 +229,86 @@ void main() {
     player.dispose();
   });
 
+  test('choosing Off while narrating suppresses the next voice breath',
+      () async {
+    final engine = _FastCastSpeechEngine();
+    late ReaderPlayer player;
+    player = await _setUpPlayer(
+      engine,
+      segments: const [
+        SpeechSegment(0, 4, 'Uno.'),
+        SpeechSegment(5, 9, 'Due.'),
+      ],
+      pause: const Duration(seconds: 2),
+      completed: (segment, next) async {
+        if (segment.start == 0) {
+          player.setDialogueTurnPause(Duration.zero);
+        }
+      },
+    );
+    player.castVoiceForSegment = (segment) =>
+        segment.start == 5 ? _actor : null;
+    player.castSpeakerForSegment = (segment) =>
+        segment.start == 5 ? 'actor' : null;
+    await player.play().timeout(const Duration(milliseconds: 500));
+    expect(player.dialogueTurnPause, Duration.zero);
+    expect(player.currentPreferences.dialogueTurnPauseMs, 0);
+    expect(engine.passages, ['Uno.', 'Due.']);
+    player.dispose();
+  });
+
+  test('new pause duration changes subsequent turns, not spoken text',
+      () async {
+    final engine = _FastCastSpeechEngine();
+    late ReaderPlayer player;
+    player = await _setUpPlayer(
+      engine,
+      segments: const [
+        SpeechSegment(0, 4, 'Uno.'),
+        SpeechSegment(5, 9, 'Due.'),
+      ],
+      pause: Duration.zero,
+      completed: (segment, next) async {
+        if (segment.start == 0) {
+          player.setDialogueTurnPause(
+              const Duration(milliseconds: 20));
+        }
+      },
+    );
+    player.castVoiceForSegment = (segment) =>
+        segment.start == 5 ? _actor : null;
+    player.castSpeakerForSegment = (segment) =>
+        segment.start == 5 ? 'actor' : null;
+    await player.play();
+    expect(player.dialogueTurnPause,
+        const Duration(milliseconds: 20));
+    expect(player.currentPreferences.dialogueTurnPauseMs, 20);
+    expect(engine.passages, ['Uno.', 'Due.']);
+    player.dispose();
+  });
+
+  test('rejects negative and out-of-range pause settings', () async {
+    final player = await _setUpPlayer(
+      _FastCastSpeechEngine(),
+      segments: const [SpeechSegment(0, 4, 'Uno.')],
+      pause: const Duration(milliseconds: 110),
+    );
+    expect(
+      () => player.setDialogueTurnPause(const Duration(milliseconds: -1)),
+      throwsArgumentError,
+    );
+    expect(
+      () => player.setDialogueTurnPause(const Duration(milliseconds: 2001)),
+      throwsArgumentError,
+    );
+    expect(
+      () => player.setDialogueTurnPause(const Duration(microseconds: 1)),
+      throwsArgumentError,
+    );
+    expect(player.dialogueTurnPause.inMilliseconds, 110);
+    player.dispose();
+  });
+
   test('skipped note does not erase a real narrator to actor turn',
       () async {
     final engine = _FastCastSpeechEngine();
