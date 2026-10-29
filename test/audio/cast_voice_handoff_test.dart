@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 const narrator = SpeechVoice(name: 'Narrator IT', locale: 'it-IT');
 const englishActor = SpeechVoice(name: 'Actor EN', locale: 'en-US');
 const spanishActor = SpeechVoice(name: 'Actor ES', locale: 'es-ES');
+const cloudActor = SpeechVoice(name: 'Cloud multi', locale: 'multi');
 const wrongActor = SpeechVoice(name: 'Not installed', locale: 'en-US');
 
 class _CastHandoffEngine
@@ -26,7 +27,7 @@ class _CastHandoffEngine
 
   @override
   Future<List<SpeechVoice>> listVoices() async =>
-      const [narrator, englishActor, spanishActor];
+      const [narrator, englishActor, spanishActor, cloudActor];
 
   @override
   Future<void> chooseVoice(SpeechVoice voice) async {
@@ -169,6 +170,22 @@ void main() {
     expect(engine.voicesUsed, ['Narrator IT']);
     expect(engine.speechLanguages, ['it-IT']);
     expect(engine.chosen, ['Narrator IT']);
+    player.dispose();
+  });
+
+  test('provider-wide multi voice keeps the book language', () async {
+    final engine = _CastHandoffEngine();
+    final player = _player(engine, const [
+      SpeechSegment(0, 5, 'Ciao!'),
+      SpeechSegment(6, 12, 'Salve!'),
+    ]);
+    await _selectItalianNarrator(player);
+    player.castVoiceForSegment = (segment) =>
+        segment.start == 6 ? cloudActor : null;
+    await player.play();
+    expect(engine.voicesUsed, ['Narrator IT', 'Cloud multi']);
+    expect(engine.speechLanguages, ['it-IT', 'it-IT']);
+    expect(player.currentPreferences.language, 'it-IT');
     player.dispose();
   });
 
