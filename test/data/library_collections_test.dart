@@ -47,7 +47,7 @@ void main() {
     expect(() => store.createCollection('space opera'),
         throwsA(isA<SqliteException>()));
     expect(() => store.createCollection('  '), throwsFormatException);
-    expect(() => store.createCollection('a' * 81), throwsFormatException);
+    expect(() => store.createCollection(List.filled(81, 'a').join()), throwsFormatException);
     expect(() => store.createCollection('Line\nBreak'), throwsFormatException);
     final other = store.createCollection('Classics');
     expect(() => store.renameCollection(other.id, 'SPACE OPERA'),
