@@ -202,6 +202,32 @@ void main() {
     expect(entries.first.id, 'a');
   });
 
+  test('collection membership combines with stars, shelf and title search',
+      () {
+    final list = <BookRecord>[
+      BookRecord(id: 'a', title: 'Aurora', localPath: '/a',
+        format: BookFormat.epub, importedAt: DateTime.utc(2026, 10, 10),
+        isFavorite: true, readingStatus: BookReadingStatus.reading),
+      BookRecord(id: 'b', title: 'Aurora B', localPath: '/b',
+        format: BookFormat.epub, importedAt: DateTime.utc(2026, 10, 11),
+        readingStatus: BookReadingStatus.finished),
+      BookRecord(id: 'c', title: 'C', localPath: '/c',
+        format: BookFormat.txt, importedAt: DateTime.utc(2026, 10, 12)),
+    ];
+    expect(filterAndSortLibraryBooks(list, collectionBookIds: {'a', 'b'})
+        .map((e) => e.id), ['b', 'a']);
+    expect(filterAndSortLibraryBooks(list, collectionBookIds: {'a', 'b'},
+      favoritesOnly: true, query: 'aurora',
+      format: BookFormat.epub, readingStatus: BookReadingStatus.reading)
+        .map((e) => e.id), ['a']);
+    expect(filterAndSortLibraryBooks(list, collectionBookIds: <String>{}),
+        isEmpty);
+    expect(filterAndSortLibraryBooks(list, collectionBookIds: null),
+        hasLength(3));
+    expect(list, hasLength(3),
+        reason: 'Collection filtering does not mutate book records');
+  });
+
   test('equal open dates and never opened fallback are stable', () {
     final date = DateTime.utc(2026, 10, 27);
     final entries = <BookRecord>[
