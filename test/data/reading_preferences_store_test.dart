@@ -27,9 +27,9 @@ void main() {
     return (await store.importFile(input.path)).id;
   }
 
-  test('fresh v19 library retains the visual preferences table and defaults', () {
+  test('fresh v20 library retains the visual preferences table and defaults', () {
     final db = sqlite3.open(p.join(home.path, 'library.sqlite'));
-    expect(db.select('PRAGMA user_version').single['user_version'], 19);
+    expect(db.select('PRAGMA user_version').single['user_version'], 20);
     expect(db.select(
       "SELECT name FROM sqlite_master WHERE type='table' "
       "AND name='reading_preferences'",
