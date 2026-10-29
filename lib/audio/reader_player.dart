@@ -172,6 +172,47 @@ class ReaderPlayer extends ChangeNotifier {
   }
 
 
+  /// Only a verified *character* voice may override the book's language.
+  /// A provider-wide voice (for example OpenAI's "multi") keeps the
+  /// reader's requested language. A missing cast voice also keeps the
+  /// narrator's language; do not infer language from an unavailable label.
+  String _languageForSegment(SpeechSegment segment, SpeechVoice? voice) {
+    if (voice == null || voice.locale == 'multi') return language;
+    final cast = castVoiceForSegment?.call(segment);
+    return cast != null && cast.key == voice.key
+        ? voice.locale
+        : language;
+  }
+
+  /// Serialize automatically applied character/narrator voices with the
+  /// user's explicit voice changes. A stale native chooseVoice() may finish
+  /// after Pause/Seek, but must NEVER be mistaken for the next session's
+  /// confirmed narrator choice or overlap a newer voice selection.
+  Future<void> _choosePlaybackVoice(SpeechVoice voice, int token) {
+    final preceding = _pendingVoiceChange;
+    final changing = () async {
+      try {
+        await preceding;
+      } catch (_) {
+        // A prior failed/stale selection cannot suppress a new one.
+      }
+      if (_disposed || token != _session) return;
+      try {
+        await _engine.chooseVoice(voice);
+      } catch (_) {
+        _engineVoiceKey = null;
+        rethrow;
+      }
+      if (_disposed || token != _session) {
+        _engineVoiceKey = null;
+        return;
+      }
+      _engineVoiceKey = voice.key;
+    }();
+    _pendingVoiceChange = changing;
+    return changing;
+  }
+
   Future<void> loadVoices() async {
     try {
       availableVoices = await _engine.listVoices();
@@ -373,16 +414,16 @@ class ReaderPlayer extends ChangeNotifier {
         final installed = castVoiceForSegment != null
             ? _voiceFor(segment) : selectedVoice;
         if (installed != null && installed.key != _engineVoiceKey) {
-          await _engine.chooseVoice(installed);
-          _engineVoiceKey = installed.key;
+          await _choosePlaybackVoice(installed, token);
         }
         if (token != _session) return;
+        final spokenLanguage = _languageForSegment(segment, installed);
         activeSpeakerId = castSpeakerForSegment?.call(segment);
         _notify();
         final spokenText =
             speechTextTransform?.call(segment.text) ?? segment.text;
         final playing = _engine.speak(spokenText,
-            language: language, rate: rate, pitch: pitch);
+            language: spokenLanguage, rate: rate, pitch: pitch);
         // Only the NEXT actually audible chunk is eligible. Skippable
         // EPUB footnotes may contain several silent segments in a row;
         // neither private cache warming nor paid prefetch should preload
@@ -405,11 +446,12 @@ class ReaderPlayer extends ChangeNotifier {
             final nextText =
                 speechTextTransform?.call(next.text) ?? next.text;
             final nextVoice = _voiceFor(next);
+            final nextLanguage = _languageForSegment(next, nextVoice);
             if (canOfflineWarm) {
               final offline = _engine as OfflineAheadSpeechEngine;
               unawaited(offline.prepareOfflineSpeech(
                 nextText, voice: nextVoice,
-                language: language, rate: rate, pitch: pitch,
+                language: nextLanguage, rate: rate, pitch: pitch,
               ).catchError((Object _) {
                 // Local warming is optional, and cannot mask playback errors.
               }));
@@ -418,7 +460,7 @@ class ReaderPlayer extends ChangeNotifier {
               final cloud = _engine as AheadOfTimeSpeechEngine;
               unawaited(cloud.prepareSpeech(
                 nextText, voice: nextVoice,
-                language: language, rate: rate, pitch: pitch,
+                language: nextLanguage, rate: rate, pitch: pitch,
               ).catchError((Object _) {
                 // Paid prefetch errors surface when that clip is played.
               }));
@@ -427,7 +469,7 @@ class ReaderPlayer extends ChangeNotifier {
               final cloud = _engine as CachedAheadSpeechEngine;
               unawaited(cloud.prepareCachedSpeech(
                 nextText, voice: nextVoice,
-                language: language, rate: rate, pitch: pitch,
+                language: nextLanguage, rate: rate, pitch: pitch,
               ).catchError((Object _) {
                 // Cache warming never synthesizes on a miss.
               }));
