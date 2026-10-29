@@ -83,7 +83,7 @@ class PdfPageNavigation extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-        IconButton(
+            IconButton(
           tooltip: 'Previous PDF page',
           onPressed: ready && current > 1
               ? () => onPageRequested(current - 1)
