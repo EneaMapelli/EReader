@@ -273,10 +273,8 @@ class _ReaderScreenState extends State<ReaderScreen>
         // A small cancellable breath is useful ONLY at actual
         // narrator/character voice changes. Leave cloud and VITS timing
         // untouched; no pause at plain narrator sentence boundaries.
-        dialogueTurnPause: prefs.providerId == 'system' ||
-                prefs.providerId == 'system-native'
-            ? const Duration(milliseconds: 110)
-            : Duration.zero,
+        dialogueTurnPause:
+            Duration(milliseconds: prefs.dialogueTurnPauseMs),
         engine: SpeechEngineFactory(
             vault: _vault, offlineVoicePack: selectedLocalVoice).create(
           preferences: prefs,
@@ -1977,11 +1975,12 @@ class _ReaderScreenState extends State<ReaderScreen>
                           await widget.store.clearBookSpeechPreferences(
                             widget.book.id,
                           );
-                          await player.applyPreferences(
-                            widget.store.getSpeechPreferences(
-                              bookId: widget.book.id,
-                            ),
+                          final globalPrefs = widget.store.getSpeechPreferences(
+                            bookId: widget.book.id,
                           );
+                          await player.applyPreferences(globalPrefs);
+                          player.setDialogueTurnPause(Duration(
+                              milliseconds: globalPrefs.dialogueTurnPauseMs));
                         }
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -2032,6 +2031,50 @@ class _ReaderScreenState extends State<ReaderScreen>
                   Text(player.pitch.toStringAsFixed(1)),
                 ],
               ),
+              if (player.engineProviderId == 'system' ||
+                  player.engineProviderId == 'system-native')
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text('Dialogue pause'),
+                          Expanded(
+                            child: Slider(
+                              key: const ValueKey('dialogue-turn-pause'),
+                              min: 0,
+                              max: 2000,
+                              divisions: 80,
+                              value: player.dialogueTurnPause.inMilliseconds
+                                  .toDouble(),
+                              onChanged: (value) => player.setDialogueTurnPause(
+                                Duration(milliseconds: value.round()),
+                              ),
+                              onChangeEnd: (_) =>
+                                  unawaited(_saveVoiceSettings()),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 70,
+                            child: Text(
+                              player.dialogueTurnPause == Duration.zero
+                                  ? 'Off'
+                                  : '${player.dialogueTurnPause.inMilliseconds} ms',
+                              textAlign: TextAlign.end,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Text(
+                        'Extra breath only between different installed '
+                        'narrator/character voices. The current sentence '
+                        'continues unchanged. Does not affect cloud TTS.',
+                      ),
+                    ],
+                  ),
+                ),
               Row(
                 children: [
                   const Text('Speed'),
