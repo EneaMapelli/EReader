@@ -50,6 +50,7 @@ import 'epub_diagnostics_sheet.dart';
 import 'epub_opening_performance_sheet.dart';
 import 'epub_frame_sampler.dart';
 import 'reader_keyboard_shortcuts.dart';
+import 'reading_progress_bar.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -648,7 +649,10 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
     _visiblePositionIndex = index;
     if (_currentChapterIndex != previousChapter ||
-        _currentDirectoryIndex != previousDirectory) {
+        _currentDirectoryIndex != previousDirectory ||
+        widget.book.format == BookFormat.epub) {
+      // Update the text-progress percentage even when the user scrolls
+      // inside one EPUB chapter, not just when the chapter title changes.
       setState(() {});
     }
     _cancelPendingVisualSave();
@@ -1835,6 +1839,68 @@ class _ReaderScreenState extends State<ReaderScreen>
     );
   }
 
+  /// The visible source offset is not necessarily the current spoken
+  /// utterance: manual EPUB scrolling, silent OPF items and exact note
+  /// destinations are represented independently of the audio cursor.
+  int _visibleProgressOffset(ReaderPlayer player, int totalLength) {
+    if (player.currentIndex >= player.segments.length) {
+      return totalLength;
+    }
+    if (widget.book.format == BookFormat.epub && !player.isPlaying) {
+      final precise = _visualCheckpoint.offset ??
+          _currentEpubVisualSourceOffset;
+      if (precise != null) return precise.clamp(0, totalLength).toInt();
+    }
+    final index = player.isPlaying
+        ? player.currentIndex
+        : (_visiblePositionIndex ?? player.currentIndex);
+    final safeIndex = index.clamp(0, player.segments.length - 1).toInt();
+    return player.segments[safeIndex].start.clamp(0, totalLength).toInt();
+  }
+
+  /// Explicit whole-book navigation, not speculative synthesis. Reuse the
+  /// exact-source EPUB pipeline for silent content and the serialized
+  /// stop/seek barrier for TXT/PDF text. Never auto-resume when scrubbing.
+  void _jumpToSourceProgress(int requestedOffset) {
+    final player = _player;
+    final document = _document;
+    if (!mounted || player == null || player.segments.isEmpty ||
+        document == null || document.text.isEmpty) return;
+    final target = requestedOffset.clamp(0, document.text.length).toInt();
+    if (widget.book.format == BookFormat.epub) {
+      _navigateToSourceOffset(target, remember: false);
+      return;
+    }
+    Future<void> jump() async {
+      if (!player.isSettledIdle) await player.pause();
+      if (!mounted || _player != player || _document != document) return;
+      if (target == document.text.length) {
+        _cancelPendingVisualSave();
+        await player.seekToSourceEnd();
+        if (!mounted || _player != player || _document != document) return;
+        await widget.store.savePosition(
+          widget.book.id, target,
+          anchor: document.anchorAt(widget.book.format, target),
+        );
+        _visiblePositionIndex = player.segments.length - 1;
+        if (_itemScrollController.isAttached) {
+          _itemScrollController.jumpTo(
+              index: _visiblePositionIndex!, alignment: 0.12);
+        }
+        setState(() {});
+      } else {
+        final index = speechSegmentIndexForOffset(player.segments, target);
+        if (index >= 0) await _select(index);
+      }
+    }
+    unawaited(jump().catchError((Object error, StackTrace stack) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot move to this position: $error')),
+      );
+    }));
+  }
+
   Widget _controls(ReaderPlayer player) {
     final count = player.segments.length;
     return SafeArea(
@@ -1884,6 +1950,13 @@ class _ReaderScreenState extends State<ReaderScreen>
                   );
                 }),
               ],
+              if ((_document?.text.isNotEmpty ?? false))
+                ReadingProgressBar(
+                  sourceOffset: _visibleProgressOffset(
+                      player, _document!.text.length),
+                  sourceLength: _document!.text.length,
+                  onSeekToOffset: _jumpToSourceProgress,
+                ),
               Text(
                 player.currentIndex >= count
                     ? 'Reading complete — Play to restart'
