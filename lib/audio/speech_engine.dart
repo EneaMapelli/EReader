@@ -84,6 +84,8 @@ class SystemSpeechEngine implements SpeechEngine {
   final bool _interpretWindowsPunctuation;
   static const WindowsSpeechPunctuation _punctuation =
       WindowsSpeechPunctuation();
+  final WindowsSpeechPauseCarry _punctuationTail =
+      WindowsSpeechPauseCarry();
   SpeechVoice? _selectedVoice;
   bool _completionConfigured = false;
   int _speechEpoch = 0;
@@ -180,12 +182,24 @@ class SystemSpeechEngine implements SpeechEngine {
     // and model punctuation by short, cancellable pauses instead.
     // This remains ONE ReaderPlayer segment and ONE recovery checkpoint.
     final phrases = _punctuation.plan(text);
+    // The final punctuation pause of a previous segment was not applied
+    // inside that previous speak() call: carry it to the next ACTUAL clip.
+    // This also preserves dialogue-tag phrasing when the quote and its
+    // narrator incise were split into separate source-accurate chunks.
+    final priorPause = _punctuationTail.take();
+    if (phrases.isNotEmpty && priorPause > Duration.zero) {
+      await _waitForPause(priorPause);
+      if (epoch != _speechEpoch) return;
+    }
     for (var i = 0; i < phrases.length && epoch == _speechEpoch; i++) {
       await _tts.speak(phrases[i].text);
       if (epoch != _speechEpoch) return;
       if (i + 1 < phrases.length) {
         await _waitForPause(phrases[i].pauseAfter);
       }
+    }
+    if (epoch == _speechEpoch) {
+      _punctuationTail.recordCompleted(phrases);
     }
   }
 
@@ -194,6 +208,7 @@ class SystemSpeechEngine implements SpeechEngine {
     // Cancel a pause IMMEDIATELY so no late clause can begin speaking
     // after Stop, voice change, document seek or application shutdown.
     _speechEpoch++;
+    _punctuationTail.clear();
     _cancelPendingPause();
     await _tts.stop();
   }

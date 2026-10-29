@@ -17,6 +17,29 @@ class WindowsSpeechPhrase {
   final Duration pauseAfter;
 }
 
+/// Session-local tail of a *completed* Windows phrase plan. A final full
+/// stop/question mark belongs to the next TTS call, not to a fake empty
+/// utterance at the end of the book. Stop/Seek must clear this state.
+class WindowsSpeechPauseCarry {
+  Duration _pending = Duration.zero;
+
+  /// Consume the completed preceding utterance's terminal punctuation pause.
+  /// Calling this before starting the next utterance never invents audio.
+  Duration take() {
+    final pause = _pending;
+    _pending = Duration.zero;
+    return pause;
+  }
+
+  /// Commit a terminal pause only AFTER all native speech for this segment
+  /// finishes, so interrupted clips never make later narration wait.
+  void recordCompleted(List<WindowsSpeechPhrase> phrases) {
+    _pending = phrases.isEmpty ? Duration.zero : phrases.last.pauseAfter;
+  }
+
+  void clear() => _pending = Duration.zero;
+}
+
 class WindowsSpeechPunctuation {
   const WindowsSpeechPunctuation();
 
@@ -93,6 +116,13 @@ class WindowsSpeechPunctuation {
         case 0x201d: // ”
         case 0x201e: // „
         case 0x201f: // ‟
+        case 0x2018: // ‘
+        case 0x201a: // ‚
+        case 0x201b: // ‛
+        case 0x2039: // ‹
+        case 0x203a: // ›
+          // Single curly/guillemet quotes around words are distinct from
+          // apostrophes inside words; none should be pronounced literally.
           // Distinguish quoted speech from a following dialogue tag:
           // «Vieni» disse Elena must not become "Vieni disse Elena".
           // A short breath also separates a narrator's introductory tag
@@ -109,12 +139,14 @@ class WindowsSpeechPunctuation {
           // Parentheses are not necessarily a speaker change. Preserve
           // word separation but avoid an artificial pause inside notes.
           current.write(' ');
-        case 0x27: // straight apostrophe
-        case 0x2019: // curly apostrophe in the middle of a word
+        case 0x27: // straight apostrophe, or opening/closing single quote
+        case 0x2019: // curly apostrophe, or closing single quote
           if (_withinWord(source, i)) {
             current.writeCharCode(code);
           } else {
-            current.write(' ');
+            // 'Vieni' disse; l'amico and don't remain intact.
+            // Apostrophe-as-quotation receives a small spoken breath.
+            flush(shortPause);
           }
         case 0x2d: // hyphen; leave internal compounds and negative numbers
           if (_withinWord(source, i) ||

@@ -79,6 +79,9 @@ List<QuotedSpeechChunk> splitQuotedSegmentsWithRegions(
         expectedClose = close;
         openGroup = nextGroup++;
       } else if (ch == expectedClose) {
+        // Curly right apostrophes within contractions such as I’m or
+        // l’acqua must not terminate an outer single-quoted turn.
+        if (ch == 0x2019 && _lexicalApostrophe(text, i)) continue;
         add(start, i + 1, openGroup);
         start = i + 1;
         expectedClose = null;
@@ -195,10 +198,24 @@ int? _closerFor(int unit) {
   switch (unit) {
     case 0x00ab: return 0x00bb; // « »
     case 0x201c: return 0x201d; // “ ”
+    case 0x2018: return 0x2019; // ‘ ’
+    case 0x2039: return 0x203a; // ‹ ›
+    case 0x201e: return 0x201c; // „ “ (German opening/closing pair)
     case 0x0022: return 0x0022; // " "
     default: return null;
   }
 }
+
+// Look only at neighboring *letters/numbers*, not a stand-alone right
+// apostrophe. ASCII single quotes deliberately remain unsupported for cast
+// segmentation because distinguishing them from apostrophes is ambiguous.
+final RegExp _lexicalUnit =
+    RegExp(r'[\\p{L}\\p{N}]', unicode: true);
+
+bool _lexicalApostrophe(String text, int index) =>
+    index > 0 && index + 1 < text.length &&
+    _lexicalUnit.hasMatch(text.substring(index - 1, index)) &&
+    _lexicalUnit.hasMatch(text.substring(index + 1, index + 2));
 
 bool _isWhitespace(int ch) =>
     ch == 32 || ch == 9 || ch == 10 || ch == 13 || ch == 0xa0;

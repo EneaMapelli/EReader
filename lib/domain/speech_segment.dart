@@ -165,6 +165,8 @@ bool _isPunctuation(int c) => c == 46 || c == 33 ||
 bool _isSentenceClosingDelimiter(int c) =>
     c == 0x00BB || // »
     c == 0x201D || // ”
+    c == 0x201C || // “ (closing German „…“ quote)
+    c == 0x203A || // › (single guillemet close)
     c == 0x2019 || // ’
     c == 0x0022 || // "
     c == 0x0027 || // '
