@@ -15,6 +15,7 @@ import 'pdf_cover_thumbnail.dart';
 import '../domain/reading_anchor.dart';
 import '../domain/pronunciation_rule.dart';
 import '../domain/speech_preferences.dart';
+import '../domain/reading_preferences.dart';
 import '../domain/book_bookmark.dart';
 import '../domain/cloud_speech_consent.dart';
 import '../domain/voice_cast.dart';
@@ -171,7 +172,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 17) {
+      if (version > 18) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -521,6 +522,20 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
             }
           }
           db.execute('PRAGMA user_version = 17');
+        });
+      }
+      // Visual reading preferences are separate from speech engine settings.
+      // Scope keys have no foreign key, so deletion explicitly clears
+      // any per-book override in removeBook().
+      if (version < 18) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS reading_preferences (
+              scope_id TEXT PRIMARY KEY NOT NULL,
+              value_json TEXT NOT NULL
+            )
+          ''');
+          db.execute('PRAGMA user_version = 18');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -1145,6 +1160,53 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   static SpeechPreferences _decodeSpeechPrefs(Row row) =>
       SpeechPreferences.fromJson(
         Map<String, dynamic>.from(jsonDecode(row['value_json'] as String) as Map),
+      );
+
+  /// A book's appearance overrides the global palette/typography.
+  /// Visual settings are never mixed with TTS, model or cloud consent.
+  ReadingPreferences getReadingPreferences({String? bookId}) {
+    if (bookId != null) {
+      final book = _database.select(
+        'SELECT value_json FROM reading_preferences WHERE scope_id = ?',
+        ['book:$bookId'],
+      );
+      if (book.isNotEmpty) {
+        return _decodeReadingPrefs(book.first);
+      }
+    }
+    final global = _database.select(
+      "SELECT value_json FROM reading_preferences WHERE scope_id = 'global'",
+    );
+    return global.isEmpty
+        ? const ReadingPreferences()
+        : _decodeReadingPrefs(global.first);
+  }
+
+  void saveReadingPreferences(ReadingPreferences preferences,
+      {String? bookId}) {
+    preferences.validate();
+    if (bookId != null && getBook(bookId) == null) {
+      throw StateError('Unknown book for reading appearance');
+    }
+    final scope = bookId == null ? 'global' : 'book:$bookId';
+    _database.execute('''
+      INSERT INTO reading_preferences (scope_id, value_json)
+      VALUES (?, ?)
+      ON CONFLICT(scope_id) DO UPDATE SET value_json = excluded.value_json
+    ''', [scope, jsonEncode(preferences.toJson())]);
+  }
+
+  void clearBookReadingPreferences(String bookId) {
+    _database.execute(
+      'DELETE FROM reading_preferences WHERE scope_id = ?',
+      ['book:$bookId'],
+    );
+  }
+
+  static ReadingPreferences _decodeReadingPrefs(Row row) =>
+      ReadingPreferences.fromJson(
+        Map<String, dynamic>.from(
+            jsonDecode(row['value_json'] as String) as Map),
       );
 
   List<BookBookmark> listBookmarks(String bookId) {
@@ -2382,6 +2444,8 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       _database.execute('DELETE FROM pronunciation_rules WHERE book_id = ?',
           [bookId]);
       _database.execute('DELETE FROM speech_preferences WHERE scope_id = ?',
+          ['book:$bookId']);
+      _database.execute('DELETE FROM reading_preferences WHERE scope_id = ?',
           ['book:$bookId']);
       _database.execute('DELETE FROM books WHERE id = ?', [bookId]);
     });
