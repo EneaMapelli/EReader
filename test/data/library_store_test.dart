@@ -472,7 +472,7 @@ void main() {
 
     final upgraded = sqlite3.open(file);
     expect(upgraded.select('PRAGMA user_version').single['user_version'],
-        18);
+        19);
     expect(upgraded.select('PRAGMA table_info(books)')
         .where((row) => row['name'] == 'last_opened_at').length, 1);
     expect(upgraded.select('PRAGMA table_info(cast_spans)')
