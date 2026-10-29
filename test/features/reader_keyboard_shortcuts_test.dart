@@ -161,6 +161,47 @@ void main() {
     expect(searches, 0);
   });
 
+  testWidgets('modal dialogs take keyboard focus away from the reader',
+      (tester) async {
+    var played = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(builder: (screenContext) => ReaderKeyboardShortcuts(
+        enabled: true,
+        onPlayPause: () => played++,
+        onPreviousSegment: () {},
+        onNextSegment: () {},
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        child: Scaffold(body: Center(
+          child: ElevatedButton(
+            onPressed: () => showDialog<void>(
+              context: screenContext,
+              builder: (dialogContext) => AlertDialog(
+                content: const Text('Edit book details'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Done'),
+                  ),
+                ],
+              ),
+            ),
+            child: const Text('Open dialog'),
+          ),
+        )),
+      )),
+    ));
+    await tester.tap(find.text('Open dialog'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit book details'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    expect(played, 0);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit book details'), findsNothing);
+  });
+
   testWidgets('reader disabled during initial load does not dispatch keys',
       (tester) async {
     var played = 0;
