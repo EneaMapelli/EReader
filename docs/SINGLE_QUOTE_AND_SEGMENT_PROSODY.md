@@ -76,3 +76,15 @@ All files were committed, but **Flutter/Dart tests were not executed**
 in the connected environment. The final Windows audio rhythm still
 requires manual user testing with installed voices. No native build or
 GitHub Actions were invoked.
+
+
+## Follow-up: source-start alignment and non-additive speaker breath
+
+The cross-segment punctuation carry described above is now consumed
+**before the next segment's visual/recovery checkpoint**, using
+`PreSegmentSpeechPause` on the system TTS adapter. A simultaneous
+installed voice change uses `max(punctuation, voice-turn pause)`
+rather than two serial waits. Stop/Seek/Dispose still cancel the
+pending wait. Native voice selection also finishes before the new
+highlight/checkpoint. See
+[LONG_DIALOGUE_CHECKPOINT_ALIGNMENT.md](LONG_DIALOGUE_CHECKPOINT_ALIGNMENT.md).

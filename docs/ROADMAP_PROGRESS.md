@@ -869,3 +869,20 @@ Android Activity recreation remains a manual device gate.
   No builds/Actions and no percentage increase.
 - [SINGLE_QUOTE_AND_SEGMENT_PROSODY.md](SINGLE_QUOTE_AND_SEGMENT_PROSODY.md).
 
+
+### M2/M4 — Audio/visual alignment for long cast dialogues (2026-10-29)
+
+- Introduced the optional system-engine `PreSegmentSpeechPause` hook:
+  completed Windows punctuation and actual narrator/actor voice breaths
+  are now merged by their **maximum** rather than serialized as two waits.
+- The native inter-segment wait and character/narrator `chooseVoice`
+  must now finish **before** the next segment's visual/recovery start
+  callback; interrupted sessions cannot advance into unheard dialogue.
+- Existing source-aligned ≤400-character cast chunks, completed-segment
+  recovery, footnote skips and cloud/VITS behavior remain unchanged.
+- Authored gated fake-engine interruption/ordering and full long-quote
+  highlight/checkpoint regressions, plus carry-policy tests.
+  **Not executed** (Flutter/Dart unavailable), no Windows/Android builds
+  or GitHub Actions. Native timing acceptance remains outstanding.
+- See [LONG_DIALOGUE_CHECKPOINT_ALIGNMENT.md](LONG_DIALOGUE_CHECKPOINT_ALIGNMENT.md).
+

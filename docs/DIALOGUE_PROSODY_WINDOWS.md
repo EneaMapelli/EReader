@@ -73,3 +73,15 @@ contractions/apostrophes, pause rhythm, Stop/Seek under load and whether
 110 ms feels too short or long. Some third-party voices may still vocalize
 symbols despite phrase filtering. Cloud and neural engines have their own
 prosody and should not reuse these punctuation transformations blindly.
+
+
+## Follow-up: merged punctuation/voice gap before source checkpoint
+
+A later integration fix moves the previous segment's completed punctuation
+breath into an optional pre-segment wait, **before** the next highlight or
+recovery checkpoint. A simultaneously requested speaker-change breath now
+uses the greater duration instead of adding two sequential waits.
+Native `chooseVoice()` is also awaited before checkpointing the new text.
+The earlier description of punctuation remaining inside its own segment
+and not crossing a TTS boundary was superseded by this fix. See
+[LONG_DIALOGUE_CHECKPOINT_ALIGNMENT.md](LONG_DIALOGUE_CHECKPOINT_ALIGNMENT.md).
