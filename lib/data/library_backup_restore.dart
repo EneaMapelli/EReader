@@ -7,6 +7,7 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/book.dart';
 import '../domain/book_bookmark.dart';
+import '../domain/pdf_visual_bookmark.dart';
 import '../domain/reading_anchor.dart';
 
 /// Source file paths in backup SQLite are untrusted and NEVER used for
@@ -20,6 +21,7 @@ class VerifiedBackupBook {
     required this.importedAt,
     required this.progressOffset,
     required this.bookmarks,
+    this.pdfVisualBookmarks = const [],
     this.anchor,
     this.author,
     this.series,
@@ -38,6 +40,7 @@ class VerifiedBackupBook {
   final String? language;
   final int? pdfVisualPage;
   final List<BookBookmark> bookmarks;
+  final List<PdfVisualBookmark> pdfVisualBookmarks;
 }
 
 class VerifiedLibraryBackup {
@@ -143,8 +146,12 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
   try {
     final integrity = database.select('PRAGMA integrity_check')
         .first['integrity_check'];
-    if (integrity != 'ok' ||
-        database.select('PRAGMA user_version').first['user_version'] != 17) {
+    final schemaVersion =
+        database.select('PRAGMA user_version').first['user_version'];
+    // Export produces the currently installed v19 schema. Portable restore
+    // must also accept the v17 and v18 snapshots made by older EReader.
+    if (integrity != 'ok' || schemaVersion is! int ||
+        schemaVersion < 17 || schemaVersion > 19) {
       throw const FormatException('Unsupported or damaged backup database');
     }
     final source = database.select(
@@ -181,6 +188,37 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
       );
       bookmark.validate();
       savedBookmarks.putIfAbsent(bookId, () => []).add(bookmark);
+    }
+
+    // Version 19 adds source-independent physical PDF bookmarks.
+    // Older v17/v18 snapshots do not have this table; they are still
+    // perfectly valid portable backups. Always validate ALL rows before
+    // publishing the restore preview.
+    final savedVisualBookmarks = <String, List<PdfVisualBookmark>>{};
+    if (schemaVersion >= 19) {
+      final visualRows = database.select(
+        'SELECT id, book_id, title, page_number, created_at '
+        'FROM pdf_visual_bookmarks',
+      );
+      if (visualRows.length > 1000000) {
+        throw const FormatException('Too many PDF page bookmarks');
+      }
+      for (final row in visualRows) {
+        final bookId = row['book_id'] as String;
+        final parent = rows[bookId];
+        if (parent == null || parent['format'] != 'pdf') {
+          throw const FormatException('Orphan/non-PDF visual bookmark');
+        }
+        final bookmark = PdfVisualBookmark(
+          id: row['id'] as String,
+          bookId: bookId,
+          title: row['title'] as String,
+          pageNumber: row['page_number'] as int,
+          createdAt: DateTime.parse(row['created_at'] as String),
+        );
+        bookmark.validate();
+        savedVisualBookmarks.putIfAbsent(bookId, () => []).add(bookmark);
+      }
     }
 
     final seen = <String>{};
@@ -263,6 +301,8 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
         pdfVisualPage: page is int ? page : null,
         bookmarks: List<BookBookmark>.unmodifiable(
             savedBookmarks[id] ?? const []),
+        pdfVisualBookmarks: List<PdfVisualBookmark>.unmodifiable(
+            savedVisualBookmarks[id] ?? const []),
       ));
       onProgress?.call(result.length, count);
     }
