@@ -109,6 +109,7 @@ Future<LibraryBackupResult> exportPortableLibraryBackup({
     // Confirm it opens and includes exactly the expected book identities.
     final check = sqlite3.open(databaseSnapshot.path);
     final snapshotCollections = <String, List<String>>{};
+    final snapshotCollectionCatalog = <String>[];
     try {
       final status = check.select('PRAGMA integrity_check').first['integrity_check'];
       if (status != 'ok') {
@@ -120,6 +121,21 @@ Future<LibraryBackupResult> exportPortableLibraryBackup({
         throw const FormatException('SQLite snapshot book list differs');
       }
       if (check.select('PRAGMA user_version').single['user_version'] >= 22) {
+        final all = check.select(
+          'SELECT id, name, created_at FROM book_collections',
+        );
+        if (all.length > 1000) {
+          throw const FormatException('Too many collections in backup');
+        }
+        for (final row in all) {
+          final item = BookCollection(
+            id: row['id'] as String,
+            name: row['name'] as String,
+            createdAt: DateTime.parse(row['created_at'] as String),
+          );
+          item.validate();
+          snapshotCollectionCatalog.add(item.name);
+        }
         final entries = check.select('''
           SELECT m.book_id, c.name
           FROM book_collection_members m
@@ -183,6 +199,7 @@ Future<LibraryBackupResult> exportPortableLibraryBackup({
         'bookCount': books.length,
         'totalBookBytes': bytes,
         'books': catalog,
+        'collectionCatalog': snapshotCollectionCatalog,
         'containsLibraryPreferencesAndAnnotations': true,
         'containsNativeCredentialVaultSecrets': false,
         'restoreRequiresPathRelinking': true,
