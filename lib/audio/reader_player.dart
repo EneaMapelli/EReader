@@ -45,7 +45,7 @@ class ReaderPlayer extends ChangeNotifier {
     this.engineProviderId = 'system',
     SleepTimerScheduler? timerScheduler,
     this.nativeStopTimeout = const Duration(seconds: 8),
-    this.dialogueTurnPause = Duration.zero,
+    Duration dialogueTurnPause = Duration.zero,
   }) : assert(nativeStopTimeout > Duration.zero),
        assert(dialogueTurnPause >= Duration.zero),
        _dialogueTurnPause = dialogueTurnPause,
