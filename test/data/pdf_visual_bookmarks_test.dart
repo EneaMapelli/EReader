@@ -38,10 +38,10 @@ void main() {
         createdAt: DateTime.utc(2026, 10, 29),
       );
 
-  test('fresh libraries have transactional v19 visual page bookmark table',
+  test('fresh v20 libraries retain the v19 PDF visual page bookmark table',
       () {
     final db = sqlite3.open(p.join(home.path, 'library.sqlite'));
-    expect(db.select('PRAGMA user_version').first['user_version'], 19);
+    expect(db.select('PRAGMA user_version').first['user_version'], 20);
     expect(db.select(
       "SELECT name FROM sqlite_master "
       "WHERE type = 'table' AND name = 'pdf_visual_bookmarks'",
