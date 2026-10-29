@@ -23,7 +23,7 @@ void main() {
 
   Future<String> importBook(String name) async {
     final input = File(p.join(home.path, name));
-    await input.writeAsString('A sample private text for this book.');
+    await input.writeAsString('A sample private text for $name.');
     return (await store.importFile(input.path)).id;
   }
 
