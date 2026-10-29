@@ -333,6 +333,7 @@ class ReaderPlayer extends ChangeNotifier {
   }
 
   Future<void> applyPreferences(SpeechPreferences preferences) async {
+    if (_disposed) return;
     preferences.validate();
     if (preferences.providerId != engineProviderId) {
       throw UnsupportedError(
@@ -340,26 +341,69 @@ class ReaderPlayer extends ChangeNotifier {
             + preferences.providerId,
       );
     }
-    if (isPlaying) await pause();
-    _providerId = preferences.providerId;
-    _modelId = preferences.modelId;
-    language = preferences.language;
-    rate = preferences.rate;
-    pitch = preferences.pitch;
-    selectedVoice = null;
-    _engineVoiceKey = null;
+
+    // Applying a persisted book/global profile is an explicit user
+    // configuration, never a request to resume playback. Supersede older
+    // auto-resuming Seek and native voice changes before their awaits.
+    final epoch = ++_navigationEpoch;
+    _resumeAfterNavigation = false;
+    if (isPlaying) await _stopCurrent();
+    if (_disposed || epoch != _navigationEpoch) return;
+    await _pendingStop;
+    if (_disposed || epoch != _navigationEpoch) return;
+    if (nativeStopUnconfirmed) {
+      throw StateError('Cannot change voice before native Stop is confirmed');
+    }
+
+    SpeechVoice? restoredVoice;
     if (preferences.voiceName != null && preferences.voiceLocale != null) {
       for (final voice in availableVoices) {
         if (voice.name == preferences.voiceName &&
             voice.locale == preferences.voiceLocale) {
-          await _engine.chooseVoice(voice);
-          _engineVoiceKey = voice.key;
-          selectedVoice = voice;
+          restoredVoice = voice;
           break;
         }
       }
     }
-    _notify();
+
+    // Serialize with _choosePlaybackVoice and selectVoice. Neither the
+    // previous nor a superseded book profile may apply native voice state
+    // after the last selection. Commit the preferences only when the
+    // winning platform choice has completed successfully.
+    final previous = _pendingVoiceChange;
+    final changing = () async {
+      try {
+        await previous;
+      } catch (_) {
+        // A rejected or abandoned earlier native choice cannot override
+        // the latest saved preference.
+      }
+      if (_disposed || epoch != _navigationEpoch) return;
+      if (restoredVoice != null) {
+        try {
+          await _engine.chooseVoice(restoredVoice);
+        } catch (_) {
+          _engineVoiceKey = null;
+          rethrow;
+        }
+      }
+      if (_disposed || epoch != _navigationEpoch) {
+        // The old native callback may already have mutated the device.
+        // Ensure the next session reasserts the winning installed voice.
+        _engineVoiceKey = null;
+        return;
+      }
+      _providerId = preferences.providerId;
+      _modelId = preferences.modelId;
+      language = preferences.language;
+      rate = preferences.rate;
+      pitch = preferences.pitch;
+      selectedVoice = restoredVoice;
+      _engineVoiceKey = restoredVoice?.key;
+      _notify();
+    }();
+    _pendingVoiceChange = changing;
+    await changing;
   }
 
   SpeechPreferences get currentPreferences => SpeechPreferences(
