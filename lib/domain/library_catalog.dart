@@ -9,6 +9,7 @@ enum LibrarySortOrder {
   authorAscending,
   seriesAscending,
   format,
+  favoritesFirst,
 }
 
 /// Opening a reader is different from advancing narration or finishing a book.
@@ -21,11 +22,13 @@ List<BookRecord> filterAndSortLibraryBooks(
   BookFormat? format,
   LibraryActivityFilter activity = LibraryActivityFilter.all,
   LibrarySortOrder sort = LibrarySortOrder.recentlyImported,
+  bool favoritesOnly = false,
 }) {
   final needle = query.trim().toLowerCase();
   final matching = <BookRecord>[
     for (final book in books)
-      if ((format == null || book.format == format) &&
+      if ((!favoritesOnly || book.isFavorite) &&
+          (format == null || book.format == format) &&
           (activity == LibraryActivityFilter.all ||
               (activity == LibraryActivityFilter.opened &&
                   book.lastOpenedAt != null) ||
@@ -75,6 +78,12 @@ List<BookRecord> filterAndSortLibraryBooks(
         final series = (a.series ?? '').toLowerCase().compareTo(
           (b.series ?? '').toLowerCase());
         if (series != 0) return series;
+        if (title != 0) return title;
+        break;
+      case LibrarySortOrder.favoritesFirst:
+        if (a.isFavorite != b.isFavorite) {
+          return a.isFavorite ? -1 : 1;
+        }
         if (title != 0) return title;
         break;
       case LibrarySortOrder.format:
