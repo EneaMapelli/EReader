@@ -55,6 +55,59 @@ void main() {
     expect(pauses(source), [140, 360, 360, 420]);
   });
 
+  test('single curly and guillemet dialogue separates incises', () {
+    const source = '‘Vieni’ disse Anna. ‹Sì› rispose.';
+    expect(words(source), ['Vieni', 'disse Anna', 'Sì', 'rispose']);
+    expect(pauses(source), [140, 360, 140, 360]);
+  });
+
+  test('curly single quotes preserve apostrophes inside a word', () {
+    const source = '‘L’amico d’Èlia’ disse. It’s true.';
+    expect(words(source), ['L’amico d’Èlia', 'disse', 'It’s true']);
+    expect(pauses(source), [140, 360, 360]);
+  });
+
+  test('nested quotes keep one audible outer turn without symbol names', () {
+    const source = '«Disse ‘non posso’ adesso» ribatté.';
+    expect(words(source),
+        ['Disse', 'non posso', 'adesso', 'ribatté']);
+    expect(pauses(source), [140, 140, 140, 360]);
+  });
+
+  test('single ASCII quotations do not affect word apostrophes', () {
+    const source = "'Vieni' disse. L'amico resta.";
+    expect(words(source), ['Vieni', 'disse', "L'amico resta"]);
+    expect(pauses(source), [140, 360, 360]);
+  });
+
+  test('a completed last phrase carries its pause to next TTS segment',
+      () {
+    final carry = WindowsSpeechPauseCarry();
+    expect(carry.take(), Duration.zero);
+    carry.recordCompleted(interpreter.plan('“Vieni!”'));
+    expect(carry.take(), const Duration(milliseconds: 420));
+    expect(carry.take(), Duration.zero,
+        reason: 'The terminal pause is consumed exactly once');
+
+    carry.recordCompleted(interpreter.plan('‹Sì›'));
+    expect(carry.take(), const Duration(milliseconds: 140));
+    carry.recordCompleted(interpreter.plan('no trailing punctuation'));
+    expect(carry.take(), Duration.zero);
+  });
+
+  test('Stop clears carried punctuation and empty plans cannot extend it',
+      () {
+    final carry = WindowsSpeechPauseCarry();
+    carry.recordCompleted(interpreter.plan('Davvero?'));
+    carry.clear();
+    expect(carry.take(), Duration.zero,
+        reason: 'A resumed or sought-to segment has no stale pause');
+    carry.recordCompleted(interpreter.plan('Fine.'));
+    carry.recordCompleted(interpreter.plan('«»!?'));
+    expect(carry.take(), Duration.zero,
+        reason: 'Only actually completed nonempty speech can leave a tail');
+  });
+
   test('decimal punctuation, times and signed numerals remain meaningful',
       () {
     expect(words('3,14 e 1.000 alle 12:30. Debito -5,20 €.'),

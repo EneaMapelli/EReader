@@ -46,6 +46,62 @@ void main() {
     }
   });
 
+  test('curly single dialogue treats lexical apostrophes as contractions',
+      () {
+    const source = "Anna disse: ‘I’m pronta.’ Poi smise.";
+    final parts = splitQuotedSegmentsWithRegions([
+      const SpeechSegment(0, source.length, source),
+    ]);
+    expect(parts.map((part) => part.segment.text), [
+      'Anna disse:', '‘I’m pronta.’', 'Poi smise.',
+    ]);
+    expect(parts.map((part) => part.quoteGroup), [null, 0, null]);
+    for (final part in parts) {
+      expect(source.substring(part.segment.start, part.segment.end),
+          part.segment.text);
+    }
+  });
+
+  test('single guillemets retain separate turns through sentence chunks',
+      () {
+    const source = 'Poi disse: ‹Vieni!› e sorrise. ‹Torna.›';
+    final base = segmentSpeech(source, maxChars: 100);
+    expect(base.first.text, 'Poi disse: ‹Vieni!›');
+    final parts = splitQuotedSegmentsWithRegions(base);
+    expect(parts.where((part) => part.quoteGroup != null)
+        .map((part) => part.segment.text),
+        ['‹Vieni!›', '‹Torna.›']);
+    expect(parts.where((part) => part.quoteGroup != null)
+        .map((part) => part.quoteGroup), [0, 1]);
+    for (final part in parts) {
+      expect(source.substring(part.segment.start, part.segment.end),
+          part.segment.text);
+    }
+  });
+
+  test('nested quote stays in the outer speaker turn without guessing',
+      () {
+    const source = '«Marco disse ‘no’ e uscì» Poi tacque.';
+    final parts = splitQuotedSegmentsWithRegions([
+      const SpeechSegment(0, source.length, source),
+    ]);
+    expect(parts.map((part) => part.segment.text),
+        ['«Marco disse ‘no’ e uscì»', 'Poi tacque.']);
+    expect(parts.first.quoteGroup, 0);
+    expect(parts.last.quoteGroup, isNull);
+  });
+
+  test('German low opening double quotation retains its close delimiter',
+      () {
+    const source = 'Er sagte „Hallo“ leise.';
+    final parts = splitQuotedSegmentsWithRegions([
+      const SpeechSegment(0, source.length, source),
+    ]);
+    expect(parts.map((part) => part.segment.text),
+        ['Er sagte', '„Hallo“', 'leise.']);
+    expect(parts.map((part) => part.quoteGroup), [null, 0, null]);
+  });
+
   test('supports ASCII double quotes without rewriting Unicode text', () {
     const source = 'A: "Hello 😀" then "bye".';
     final pieces = splitQuotedSegments([
