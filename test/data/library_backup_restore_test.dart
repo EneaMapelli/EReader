@@ -428,10 +428,14 @@ void main() {
     final exported = await source.exportLibraryBackup(exports);
     final preview = await target.previewLibraryRestore(exported.directory);
     expect(preview.availableToImport, 2);
+    expect(preview.collectionsToImport, 2);
     expect(target.listBookCollections(sourceId), throwsStateError);
 
     final imported = await target.restoreLibraryBackup(exported.directory);
     expect(imported.added, 2);
+    expect(imported.collectionsImported, 2);
+    expect(target.collections.map((e) => e.name),
+        ['Research', 'study', 'Unused empty group']);
     expect(target.listBookCollections(sourceId).map((e) => e.name),
         ['Research', 'study']);
     expect(target.listBookCollections(noteId).map((e) => e.name),
@@ -441,6 +445,35 @@ void main() {
     final repeated = await target.restoreLibraryBackup(exported.directory);
     expect(repeated.added, 0);
     expect(target.listBookCollections(sourceId), hasLength(2));
+  });
+
+  test('empty collection catalog can be restored without new books',
+      () async {
+    source.createCollection('Only an empty category');
+    final exported = await source.exportLibraryBackup(exports);
+    final preview = await target.previewLibraryRestore(exported.directory);
+    expect(preview.availableToImport, 0);
+    expect(preview.collectionsToImport, 1);
+    final restored = await target.restoreLibraryBackup(exported.directory);
+    expect(restored.added, 0);
+    expect(restored.collectionsImported, 1);
+    expect(target.collections.single.name, 'Only an empty category');
+    final again = await target.restoreLibraryBackup(exported.directory);
+    expect(again.collectionsImported, 0);
+    expect(target.collections, hasLength(1));
+  });
+
+  test('v22 empty collection catalog manifest tampering is rejected', () async {
+    source.createCollection('Present in SQLite');
+    final exported = await source.exportLibraryBackup(exports);
+    final manifestFile = File(p.join(exported.directory.path, 'manifest.json'));
+    final manifest = jsonDecode(await manifestFile.readAsString()) as Map;
+    expect(manifest['collectionCatalog'], ['Present in SQLite']);
+    manifest['collectionCatalog'] = ['Different name'];
+    await manifestFile.writeAsString(jsonEncode(manifest));
+    await expectLater(target.previewLibraryRestore(exported.directory),
+        throwsFormatException);
+    expect(target.collections, isEmpty);
   });
 
   test('v22 manifest membership tampering is rejected before any import',
