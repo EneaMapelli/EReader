@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:ereader/audio/reader_player.dart';
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/domain/speech_preferences.dart';
@@ -137,6 +135,59 @@ void main() {
     expect(player.currentIndex, 1);
     expect(player.isPlaying, isFalse);
     player.dispose();
+  });
+
+  test('Seek during turn breath resumes only the requested destination',
+      () async {
+    final engine = _FastCastSpeechEngine();
+    final checkpointStarts = <int>[];
+    final player = await _setUpPlayer(
+      engine,
+      segments: const [
+        SpeechSegment(0, 4, 'Uno.'),
+        SpeechSegment(5, 9, 'Due.'),
+        SpeechSegment(10, 14, 'Tre.'),
+      ],
+      pause: const Duration(seconds: 2),
+      started: (seg) async => checkpointStarts.add(seg.start),
+    );
+    player.castVoiceForSegment = (seg) =>
+        seg.start == 5 ? _actor : null;
+    player.castSpeakerForSegment = (seg) =>
+        seg.start == 5 ? 'actor' : null;
+    final obsolete = player.play();
+    await _until(() => player.currentIndex == 1);
+    await Future<void>.delayed(Duration.zero);
+    await player.seekTo(2);
+    await obsolete.timeout(const Duration(milliseconds: 500));
+    await _until(() => player.currentIndex == 3);
+    expect(engine.passages, ['Uno.', 'Tre.']);
+    expect(checkpointStarts, [0, 10]);
+    expect(player.isPlaying, isFalse);
+    player.dispose();
+  });
+
+  test('Dispose during turn breath cannot launch a late character clip',
+      () async {
+    final engine = _FastCastSpeechEngine();
+    final player = await _setUpPlayer(
+      engine,
+      segments: const [
+        SpeechSegment(0, 4, 'Uno.'),
+        SpeechSegment(5, 9, 'Due.'),
+      ],
+      pause: const Duration(seconds: 2),
+    );
+    player.castVoiceForSegment = (seg) =>
+        seg.start == 5 ? _actor : null;
+    player.castSpeakerForSegment = (seg) =>
+        seg.start == 5 ? 'actor' : null;
+    final obsolete = player.play();
+    await _until(() => player.currentIndex == 1);
+    await Future<void>.delayed(Duration.zero);
+    player.dispose();
+    await obsolete.timeout(const Duration(milliseconds: 500));
+    expect(engine.passages, ['Uno.']);
   });
 
   test('two tagged speakers sharing one voice do not incur turn delay',
