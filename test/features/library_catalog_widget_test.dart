@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:ereader/data/library_store.dart';
+import 'package:ereader/domain/book.dart';
 import 'package:ereader/features/library/library_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -113,6 +114,76 @@ void main() {
     await tester.tap(find.byKey(ValueKey('library-favorite-${ids['Zulu']}')));
     await tester.pump();
     expect(store.getBook(ids['Zulu']!)!.isFavorite, isFalse);
+    expect(store.books, hasLength(3));
+  });
+
+  testWidgets('shelf menu sets reading status and filter is reversible',
+      (tester) async {
+    final ids = {for (final book in store.books) book.title: book.id};
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    final alphaShelf = find.byKey(ValueKey('library-shelf-${ids['Alpha']}'));
+    await tester.tap(alphaShelf);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reading').last);
+    await tester.pumpAndSettle();
+    expect(store.getBook(ids['Alpha']!)!.readingStatus,
+        BookReadingStatus.reading);
+    expect(store.getBook(ids['Alpha']!)!.progressOffset, 0);
+
+    await tester.tap(
+        find.byKey(const ValueKey('library-reading-shelf-filter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reading').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Alpha'), findsOneWidget);
+    expect(find.text('Beta'), findsNothing);
+    expect(find.text('Zulu'), findsNothing);
+
+    await tester.enterText(
+        find.byKey(const ValueKey('library-search')), 'no match');
+    await tester.pump();
+    await tester.tap(find.text('Clear filters'));
+    await tester.pump();
+    expect(find.text('Alpha'), findsOneWidget);
+    expect(find.text('Beta'), findsOneWidget);
+    expect(find.text('Zulu'), findsOneWidget);
+    expect(store.getBook(ids['Alpha']!)!.readingStatus,
+        BookReadingStatus.reading,
+        reason: 'Clear filters cannot reset saved shelf status');
+  });
+
+  testWidgets('manual finished status does not start player or change progress',
+      (tester) async {
+    final ids = {for (final book in store.books) book.title: book.id};
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.tap(
+        find.byKey(ValueKey('library-shelf-${ids['Beta']}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Finished').last);
+    await tester.pumpAndSettle();
+    final book = store.getBook(ids['Beta']!)!;
+    expect(book.readingStatus, BookReadingStatus.finished);
+    expect(book.progressOffset, 0);
+    expect(book.progressAnchor, isNull);
+    expect(book.lastOpenedAt, isNull);
+    expect(store.books, hasLength(3));
+    expect(find.byKey(ValueKey('library-more-${ids['Beta']}')),
+        findsOneWidget);
+  });
+
+  testWidgets('compact More menu retains edit and remove commands',
+      (tester) async {
+    final id = store.books.first.id;
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.tap(find.byKey(ValueKey('library-more-$id')));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit book details'), findsOneWidget);
+    expect(find.text('Remove book'), findsOneWidget);
+    await tester.tap(find.text('Edit book details'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit book details'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
     expect(store.books, hasLength(3));
   });
 
