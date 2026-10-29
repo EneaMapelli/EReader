@@ -31,6 +31,17 @@ class WindowsSpeechPauseCarry {
     return pause;
   }
 
+  /// Apply the larger of a finished phrase's punctuation breath and the
+  /// next *real voice change* breath. Never add the two durations.
+  Duration takeForTurn(Duration voiceTurnPause) {
+    if (voiceTurnPause < Duration.zero) {
+      throw ArgumentError.value(voiceTurnPause, 'voiceTurnPause');
+    }
+    final punctuation = take();
+    return punctuation > voiceTurnPause
+        ? punctuation : voiceTurnPause;
+  }
+
   /// Commit a terminal pause only AFTER all native speech for this segment
   /// finishes, so interrupted clips never make later narration wait.
   void recordCompleted(List<WindowsSpeechPhrase> phrases) {

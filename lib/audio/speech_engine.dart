@@ -29,6 +29,14 @@ abstract interface class SpeechEngine {
   Future<void> dispose();
 }
 
+/// Optional system-only, cancellation-aware gap before the next speech
+/// segment starts. Called BEFORE ReaderPlayer creates a recovery checkpoint
+/// or highlights the next segment. Merge voice changes with trailing
+/// punctuation instead of adding two separate pauses.
+abstract interface class PreSegmentSpeechPause {
+  Future<void> waitBeforeSegment({required Duration voiceTurnPause});
+}
+
 /// Reset temporary prosody only when the book restarts after *natural EOF*.
 /// Ordinary Pause/Seek already call Stop and must not need this hook.
 /// The engine must not initiate synthesis, native Stop, or network access.
@@ -82,7 +90,9 @@ abstract interface class OfflineVoiceDiagnosticsProvider {
   OfflineVoiceStatistics get offlineVoiceStatistics;
 }
 
-class SystemSpeechEngine implements SpeechEngine, SpeechSessionRestartAware {
+class SystemSpeechEngine
+    implements SpeechEngine, SpeechSessionRestartAware,
+        PreSegmentSpeechPause {
   SystemSpeechEngine({bool? interpretWindowsPunctuation})
       : _interpretWindowsPunctuation =
             interpretWindowsPunctuation ?? Platform.isWindows;
@@ -96,6 +106,7 @@ class SystemSpeechEngine implements SpeechEngine, SpeechSessionRestartAware {
   SpeechVoice? _selectedVoice;
   bool _completionConfigured = false;
   int _speechEpoch = 0;
+  bool _pausePreparedForNextSpeak = false;
   Timer? _pendingPauseTimer;
   Completer<void>? _pendingPause;
 
@@ -122,10 +133,26 @@ class SystemSpeechEngine implements SpeechEngine, SpeechSessionRestartAware {
   }
 
   @override
+  Future<void> waitBeforeSegment({required Duration voiceTurnPause}) async {
+    // Only the Windows interpreted-punctuation adapter has a carried
+    // terminal punctuation breath. Native punctuation/Android only need
+    // the user-configured speaker-change breath.
+    final duration = _interpretWindowsPunctuation
+        ? _punctuationTail.takeForTurn(voiceTurnPause)
+        : voiceTurnPause;
+    final epoch = _speechEpoch;
+    await _waitForPause(duration);
+    if (epoch == _speechEpoch) {
+      _pausePreparedForNextSpeak = true;
+    }
+  }
+
+  @override
   void onNarrationRestart() {
     // An explicitly repeated book must not inherit the last punctuation
     // breath from its *previous* complete narration session.
     _punctuationTail.clear();
+    _pausePreparedForNextSpeak = false;
   }
 
   Future<void> _prepare() async {
@@ -166,6 +193,11 @@ class SystemSpeechEngine implements SpeechEngine, SpeechSessionRestartAware {
     required double rate,
     required double pitch,
   }) async {
+    // ReaderPlayer has already waited for the merged punctuation/speaker
+    // breath BEFORE announcing a source checkpoint. Direct engine callers
+    // still receive the legacy inter-segment punctuation wait below.
+    final pausePrepared = _pausePreparedForNextSpeak;
+    _pausePreparedForNextSpeak = false;
     final epoch = ++_speechEpoch;
     _cancelPendingPause();
     await _prepare();
@@ -200,7 +232,8 @@ class SystemSpeechEngine implements SpeechEngine, SpeechSessionRestartAware {
     // inside that previous speak() call: carry it to the next ACTUAL clip.
     // This also preserves dialogue-tag phrasing when the quote and its
     // narrator incise were split into separate source-accurate chunks.
-    final priorPause = _punctuationTail.take();
+    final priorPause = pausePrepared
+        ? Duration.zero : _punctuationTail.take();
     if (phrases.isNotEmpty && priorPause > Duration.zero) {
       await _waitForPause(priorPause);
       if (epoch != _speechEpoch) return;
@@ -223,6 +256,7 @@ class SystemSpeechEngine implements SpeechEngine, SpeechSessionRestartAware {
     // after Stop, voice change, document seek or application shutdown.
     _speechEpoch++;
     _punctuationTail.clear();
+    _pausePreparedForNextSpeak = false;
     _cancelPendingPause();
     await _tts.stop();
   }

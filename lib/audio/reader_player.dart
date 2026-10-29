@@ -479,20 +479,32 @@ class ReaderPlayer extends ChangeNotifier {
             (installed?.key != previousAudibleVoiceKey) &&
             (engineProviderId == 'system' ||
                 engineProviderId == 'system-native');
-        if (isNewAudibleVoiceTurn && _dialogueTurnPause > Duration.zero) {
+        final requestedBreath = isNewAudibleVoiceTurn
+            ? _dialogueTurnPause : Duration.zero;
+        final freeSystemVoice = engineProviderId == 'system' ||
+            engineProviderId == 'system-native';
+        if (freeSystemVoice && _engine is PreSegmentSpeechPause) {
+          // System TTS merges the previous completed punctuation pause
+          // with the configured voice-turn breath (maximum, not sum).
+          // Do not highlight or checkpoint the new text until this
+          // cancellable wait is finished.
+          await (_engine as PreSegmentSpeechPause).waitBeforeSegment(
+            voiceTurnPause: requestedBreath,
+          );
+        } else if (requestedBreath > Duration.zero) {
+          // Compatibility with external/mock system engines which have
+          // no punctuation-tail coordination hook.
           await _waitForTurnBreath();
-          if (token != _session) return;
         }
-        await onSegmentStarted(segment);
         if (token != _session) return;
-        // Cast affects only synthesis voice, never text, offsets or order.
-        // A narrator voice MUST be restored after a character's turn.
-        // A previous asynchronous native voice selection can complete
-        // after an interrupted session. Reapply the chosen narrator voice
-        // even when no multi-character casting callback is installed.
+        // Native voice selection may also take time: it MUST complete
+        // before a source checkpoint or visual highlight claims the
+        // next, not-yet-spoken segment has started.
         if (installed != null && installed.key != _engineVoiceKey) {
           await _choosePlaybackVoice(installed, token);
         }
+        if (token != _session) return;
+        await onSegmentStarted(segment);
         if (token != _session) return;
         final spokenLanguage = _languageForSegment(segment, installed);
         activeSpeakerId = speaker;
