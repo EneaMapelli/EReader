@@ -50,7 +50,7 @@ void main() {
       () {
     const source = "Anna disse: ‘I’m pronta.’ Poi smise.";
     final parts = splitQuotedSegmentsWithRegions([
-      const SpeechSegment(0, source.length, source),
+      SpeechSegment(0, source.length, source),
     ]);
     expect(parts.map((part) => part.segment.text), [
       'Anna disse:', '‘I’m pronta.’', 'Poi smise.',
@@ -83,7 +83,7 @@ void main() {
       () {
     const source = '«Marco disse ‘no’ e uscì» Poi tacque.';
     final parts = splitQuotedSegmentsWithRegions([
-      const SpeechSegment(0, source.length, source),
+      SpeechSegment(0, source.length, source),
     ]);
     expect(parts.map((part) => part.segment.text),
         ['«Marco disse ‘no’ e uscì»', 'Poi tacque.']);
@@ -95,7 +95,7 @@ void main() {
       () {
     const source = 'Er sagte „Hallo“ leise.';
     final parts = splitQuotedSegmentsWithRegions([
-      const SpeechSegment(0, source.length, source),
+      SpeechSegment(0, source.length, source),
     ]);
     expect(parts.map((part) => part.segment.text),
         ['Er sagte', '„Hallo“', 'leise.']);
