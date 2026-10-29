@@ -8,7 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 class _PunctuationContinuationEngine
     implements SpeechEngine, SpeechSessionRestartAware {
   final WindowsSpeechPauseCarry _carry = WindowsSpeechPauseCarry();
-  const _planner = WindowsSpeechPunctuation();
+  static const WindowsSpeechPunctuation _planner =
+      WindowsSpeechPunctuation();
   final gaps = <Duration>[];
   final spoken = <String>[];
   int restarts = 0;
