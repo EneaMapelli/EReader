@@ -1116,6 +1116,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         child: DropdownButton<BookReadingStatus?>(
                           key: const ValueKey('library-reading-shelf-filter'),
                           isExpanded: true,
+                          hint: const Text('All shelves'),
                           value: _readingStatusFilter,
                           items: [
                             const DropdownMenuItem<BookReadingStatus?>(
