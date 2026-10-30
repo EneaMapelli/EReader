@@ -76,6 +76,7 @@ class VitsPersistentSession {
   SendPort? _commands;
   List<Object>? _queued;
   Completer<void>? _active;
+  Completer<void>? _preparing;
   int _activeId = 0;
   int _nextId = 0;
   bool _closed = false;
@@ -97,6 +98,16 @@ class VitsPersistentSession {
   /// True after Stop, a native failure, timeout or idle retirement.
   /// Callers must construct a fresh session before synthesizing again.
   bool get isClosed => _closed;
+
+  /// Explicit model-only warmup. No text, WAV filename or audio is sent;
+  /// the worker idle timer starts immediately after native readiness.
+  /// Future callers share the same pending handshake. Stop and the existing
+  /// 60s startup watchdog fail it without waiting for native FFI to finish.
+  Future<void> prepare() {
+    if (_closed) return Future<void>.error(const VitsWaveCancelled());
+    if (_commands != null) return Future<void>.value();
+    return (_preparing ??= Completer<void>()).future;
+  }
 
   void _beginIdleTimer() {
     _idleTimer?.cancel();
@@ -139,6 +150,9 @@ class VitsPersistentSession {
     _workerReadyMs = _startupClock.elapsedMilliseconds;
     _nativeModelInitializationMs = nativeInitializationMs;
     _commands = port;
+    final preparing = _preparing;
+    _preparing = null;
+    if (preparing != null && !preparing.isCompleted) preparing.complete();
     _startupTimer?.cancel();
     _startupTimer = null;
     final queued = _queued;
@@ -232,6 +246,8 @@ class VitsPersistentSession {
     _idleTimer?.cancel();
     _idleTimer = null;
     final active = _active;
+    final preparing = _preparing;
+    _preparing = null;
     _active = null;
     _queued = null;
     _commands = null;
@@ -240,6 +256,9 @@ class VitsPersistentSession {
     unawaited(_subscription.cancel());
     _events.close();
     if (active != null && !active.isCompleted) active.completeError(reason);
+    if (preparing != null && !preparing.isCompleted) {
+      preparing.completeError(reason);
+    }
   }
 
   /// Invalidate queued/in-flight work even if native FFI does not preempt
