@@ -162,14 +162,76 @@ class _LibraryFullTextSearchSheetState
     setState(() => _message = 'Index cleared. You can index again.');
   }
 
-  void _openHit(LibraryFullTextHit hit) {
+  void _openHit(LibraryFullTextHit hit, {
+    LibraryFullTextJump? chosenJump,
+  }) {
     final book = widget.store.getBook(hit.bookId);
     if (book == null) return;
     // Resolve while this sheet and its query are still mounted. Decode is
     // intentionally deferred to reader load, never performed by the list.
-    final jump = widget.store.fullTextJumpForHit(hit.bookId, _query);
+    final jump = chosenJump ??
+        widget.store.fullTextJumpForHit(hit.bookId, _query);
     Navigator.of(context).pop();
     widget.onOpenBook?.call(book, jump);
+  }
+
+  Future<void> _showPassages(LibraryFullTextHit hit) async {
+    if (_running || !widget.store.isFullTextIndexEnabled) return;
+    setState(() => _message = 'Finding matching passages in this book...');
+    List<LibraryFullTextPassage> passages;
+    try {
+      passages = await widget.store.fullTextPassagesForHit(
+          hit.bookId, _query);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _message =
+            'Could not inspect this book\'s indexed passages.');
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _message = null);
+    if (passages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No source-exact passage is available for this book.'),
+      ));
+      return;
+    }
+    final chosen = await showDialog<LibraryFullTextJump>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text('Passages · ${hit.title}', maxLines: 2,
+            overflow: TextOverflow.ellipsis),
+        content: SizedBox(
+          width: 480,
+          height: 350,
+          child: ListView.builder(
+            key: const ValueKey('fts-passage-list'),
+            itemCount: passages.length,
+            itemBuilder: (context, index) {
+              final passage = passages[index];
+              return ListTile(
+                key: ValueKey('fts-passage-${hit.bookId}-$index'),
+                title: Text(passage.allTermsNearby
+                    ? 'Passage ${index + 1} · all terms nearby'
+                    : 'Words far apart · first term'),
+                subtitle: Text(passage.excerpt,
+                    maxLines: 4, overflow: TextOverflow.ellipsis),
+                onTap: () => Navigator.of(dialog).pop(passage.jump),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || chosen == null) return;
+    _openHit(hit, chosenJump: chosen);
   }
 
   @override
@@ -287,6 +349,15 @@ class _LibraryFullTextSearchSheetState
                                         overflow: TextOverflow.ellipsis),
                                     onTap: widget.onOpenBook == null
                                         ? null : () => _openHit(hit),
+                                    trailing: IconButton(
+                                      key: ValueKey(
+                                          'fts-passages-${hit.bookId}'),
+                                      tooltip: 'Show matching passages',
+                                      icon: const Icon(
+                                          Icons.format_list_bulleted),
+                                      onPressed: _running
+                                          ? null : () => _showPassages(hit),
+                                    ),
                                   );
                                 },
                               ),
