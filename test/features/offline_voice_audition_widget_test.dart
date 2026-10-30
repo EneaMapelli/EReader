@@ -95,6 +95,74 @@ void main() {
     expect(find.byTooltip('Preview voice preview-it'), findsNothing);
   });
 
+  testWidgets('cold/warm mode requires explicit two-play consent',
+      (tester) async {
+    final phonemes = [11, 22, 33];
+    await Directory(p.join(source.path, 'espeak-ng-data')).create();
+    await File(p.join(source.path, 'espeak-ng-data', 'phonemes'))
+        .writeAsBytes(phonemes);
+    manifest = OfflineVoicePackManifest(
+      id: manifest.id,
+      displayName: manifest.displayName,
+      locale: manifest.locale,
+      licenseId: manifest.licenseId,
+      modelSha256: manifest.modelSha256,
+      tokensSha256: manifest.tokensSha256,
+      phonemizerResources: [
+        OfflineVoiceResource(
+          relativePath: 'espeak-ng-data/phonemes',
+          sha256: sha256.convert(phonemes).toString(),
+        ),
+      ],
+    );
+    await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: source,
+      modelsDirectory: models,
+    );
+    final fake = _AuditionFakeEngine();
+    fake.finish.complete();
+    final audition = OfflineVoiceAudition(
+      loadPack: (id) => loadInstalledOfflineVoicePack(
+        packId: id, modelsDirectory: models),
+      createEngine: (_) => fake,
+    );
+    await tester.pumpWidget(MaterialApp(home: OfflineVoiceManagerScreen(
+      modelsDirectory: () async => models, audition: audition,
+    )));
+    await settle(tester);
+
+    final button = find.byKey(
+        const ValueKey('offline-voice-compare-preview-it'));
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.text('Compare cold and warm offline voice?'),
+        findsOneWidget);
+    expect(find.textContaining('TWICE'), findsOneWidget);
+    expect(fake.starts, 0);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(fake.starts, 0);
+
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Play twice and compare'));
+    await settle(tester);
+    expect(fake.starts, 2);
+    expect(fake.disposals, 1);
+    expect(find.textContaining('comparison finished'), findsOneWidget);
+    expect(find.textContaining('Cold/warm demo (same phrase twice)'),
+        findsOneWidget);
+    expect(find.textContaining('First incl. playback:'),
+        findsOneWidget);
+    expect(find.textContaining('Second incl. playback:'),
+        findsOneWidget);
+    expect(find.textContaining('One native model reused'), findsNothing,
+        reason: 'Generic fake TTS cannot claim verified ONNX model reuse');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('preview requires consent, then native Stop cancels sample',
       (tester) async {
     final phonemes = [11, 22, 33];
