@@ -36,6 +36,10 @@ indexer, embeddings, model/API calls, telemetry or cloud sync is involved.
 - Source files must be ordinary files, not symlinks, and at most **12 MiB**.
   Extracted content must be nonempty and at most **2 Mi UTF-16 code units**
   per book. Large or unreadable books are marked skipped for this pass.
+- Total indexed source text is capped at **64 MiB of UTF-8 data** across
+  the library. Once the budget is reached, additional books are marked
+  skipped; reset and re-index to refresh. This is a source-text budget,
+  not an exact upper bound for SQLite/FTS5 index or WAL disk usage.
 - Each batch processes **at most 20 books** at the persistence API; the
   interface uses 10. A cancellation is cooperative **between** books; a
   long PDF decode already in progress cannot currently be interrupted.
