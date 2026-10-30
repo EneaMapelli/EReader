@@ -14,6 +14,8 @@ import '../../data/android_shared_book_inbox.dart';
 import '../../audio/reader_media_handler.dart';
 import '../../domain/book.dart';
 import '../../domain/library_catalog.dart';
+import '../../domain/library_reading_statistics.dart';
+import 'library_reading_statistics_sheet.dart';
 import '../reader/reader_screen.dart';
 import 'library_collections_sheet.dart';
 
@@ -908,6 +910,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _showReadingStatistics() async {
+    // Use every stored book, never the current filter selection.
+    final stats = LibraryReadingStatistics.fromBooks(widget.store.books);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => LibraryReadingStatisticsSheet(statistics: stats),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final allBooks = widget.store.books;
@@ -1076,6 +1089,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       onTap: _busy ? null : () => _open(lastOpened),
                     ),
                   ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: TextButton.icon(
+                      key: const ValueKey('library-stats-open'),
+                      onPressed: _busy ? null : _showReadingStatistics,
+                      icon: const Icon(Icons.insights_outlined),
+                      label: const Text('Reading stats'),
+                    ),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
                   child: TextField(
