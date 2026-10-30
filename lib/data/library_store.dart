@@ -1506,16 +1506,16 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   /// FTS syntax is never forwarded untrusted: only bounded literal Unicode
   /// words become quoted FTS tokens, combined with AND. No remote requests.
   List<LibraryFullTextHit> searchIndexedBookContents(
-      String query, {int limit = 30}) {
+      String query, {
+      int limit = 30,
+      LibraryFullTextMatchMode mode = LibraryFullTextMatchMode.allWords,
+  }) {
     if (limit < 1 || limit > 100) {
       throw RangeError.range(limit, 1, 100, 'limit');
     }
     if (!isFullTextIndexEnabled) return const [];
-    if (query.trim().isEmpty || query.length > 120) return const [];
-    final tokens = RegExp(r'[\p{L}\p{N}]+', unicode: true)
-        .allMatches(query).map((match) => match.group(0)!).toList();
-    if (tokens.isEmpty || tokens.length > 8) return const [];
-    final matchQuery = tokens.map((token) => '"$token"').join(' AND ');
+    final matchQuery = libraryFullTextMatchExpression(query, mode: mode);
+    if (matchQuery == null) return const [];
     return List.unmodifiable(_database.select('''
       SELECT f.book_id, b.title,
         snippet(library_fulltext_fts, 1, '', '', ' … ', 16) AS excerpt
@@ -1534,12 +1534,13 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   /// Load and scan the full indexed source for ONE selected result only.
   /// Never do this in a search TextField rebuild: that would allocate and
   /// traverse many multi-megabyte texts on every keystroke.
-  LibraryFullTextJump? fullTextJumpForHit(String bookId, String query) {
+  LibraryFullTextJump? fullTextJumpForHit(String bookId, String query, {
+    LibraryFullTextMatchMode mode = LibraryFullTextMatchMode.allWords,
+  }) {
     if (!isFullTextIndexEnabled || query.length > 120 ||
         getBook(bookId) == null) return null;
-    final tokens = RegExp(r'[\p{L}\p{N}]+', unicode: true)
-        .allMatches(query).map((match) => match.group(0)!).toList();
-    if (tokens.isEmpty || tokens.length > 8) return null;
+    final tokens = libraryFullTextTokens(query);
+    if (tokens.isEmpty) return null;
     final rows = _database.select('''
       SELECT f.body FROM library_fulltext_fts f
       INNER JOIN library_fulltext_jobs j
@@ -1547,7 +1548,12 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       WHERE f.book_id = ? LIMIT 1
     ''', [bookId]);
     if (rows.isEmpty) return null;
-    return bestIndexedPassage(rows.single['body'] as String, tokens);
+    final source = rows.single['body'] as String;
+    if (mode == LibraryFullTextMatchMode.exactPhrase) {
+      final passages = findIndexedExactPhrases(source, tokens, limit: 1);
+      return passages.isEmpty ? null : passages.first.jump;
+    }
+    return bestIndexedPassage(source, tokens);
   }
 
   /// Inspect a bounded number of alternative passages in ONE book,
@@ -1557,6 +1563,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     String bookId,
     String query, {
     int limit = 6,
+    LibraryFullTextMatchMode mode = LibraryFullTextMatchMode.allWords,
   }) async {
     if (limit < 1 || limit > 10) {
       throw RangeError.range(limit, 1, 10, 'limit');
@@ -1565,9 +1572,8 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         query.length > 120 || getBook(bookId) == null) {
       return const [];
     }
-    final tokens = RegExp(r'[\p{L}\p{N}]+', unicode: true)
-        .allMatches(query).map((match) => match.group(0)!).toList();
-    if (tokens.isEmpty || tokens.length > 8) return const [];
+    final tokens = libraryFullTextTokens(query);
+    if (tokens.isEmpty) return const [];
     final rows = _database.select('''
       SELECT f.body FROM library_fulltext_fts f
       INNER JOIN library_fulltext_jobs j
@@ -1578,9 +1584,11 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     final indexedText = rows.single['body'] as String;
     // Parse the potentially large local text on a worker isolate instead
     // of blocking the Flutter UI during an explicit passage inspection.
-    return Isolate.run(() => findIndexedPassages(
-      indexedText, tokens, limit: limit,
-    ));
+    return Isolate.run(() =>
+      mode == LibraryFullTextMatchMode.exactPhrase
+          ? findIndexedExactPhrases(indexedText, tokens, limit: limit)
+          : findIndexedPassages(indexedText, tokens, limit: limit),
+    );
   }
 
   /// Collections are book classifications, never book directories.
