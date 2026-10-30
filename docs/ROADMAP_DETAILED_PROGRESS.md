@@ -867,3 +867,12 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Stop/Dispose and missing voices. Flutter/Dart tests **not executed**,
   native voice quality unverified. No Actions, builds or releases run.
 
+### M2 — Persist chosen system voice across app restart
+
+- Added SQLite integration test: selecting one installed OS voice in
+  per-book SpeechPreferences survives LibraryStore close/reopen and
+  retains voice identity across both free system punctuation modes.
+  Switching to cloud preferences explicitly clears the stale OS voice.
+- Manual native playback acceptance remains open; no TTS SDK was available
+  in this environment, so the tests are source-only and not executed.
+
