@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:ereader/data/library_store.dart';
 import 'package:ereader/domain/book.dart';
+import 'package:ereader/domain/reading_activity.dart';
 import 'package:ereader/features/library/library_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -78,6 +79,36 @@ void main() {
     expect(store.dailyReadingGoalMinutes, 30);
     expect(find.byKey(const ValueKey('stats-goal-summary')), findsOneWidget);
     expect(store.books, hasLength(2));
+  });
+
+  testWidgets('weekly ranking opens per-book details without mixing activity',
+      (tester) async {
+    final ids = {for (final b in store.books) b.title: b.id};
+    final now = DateTime.now();
+    store.recordReadingActivity(ids['Alpha']!,
+        ReadingActivityMode.visual, 25, at: now);
+    store.recordReadingActivity(ids['Beta']!,
+        ReadingActivityMode.tts, 10, at: now);
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.tap(find.byKey(const ValueKey('library-stats-open')));
+    await tester.pumpAndSettle();
+
+    final alphaRow = find.byKey(ValueKey('stats-book-${ids['Alpha']}'));
+    await tester.scrollUntilVisible(
+        alphaRow, 210, scrollable: find.byType(Scrollable).last);
+    expect(alphaRow, findsOneWidget);
+    await tester.tap(alphaRow);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('stats-book-detail')), findsOneWidget);
+    final lifetime = tester.widget<Text>(
+        find.byKey(const ValueKey('stats-book-lifetime')));
+    expect(lifetime.data, contains('25s'));
+    expect(lifetime.data, contains('0s'));
+
+    await tester.tap(find.byTooltip('Close book reading details'));
+    await tester.pumpAndSettle();
+    expect(store.books, hasLength(2));
+    expect(store.bookReadingLifetimeTotals(ids['Beta']!).ttsSeconds, 10);
   });
 
 }
