@@ -78,3 +78,42 @@ stable tie ordering, size limits, historical totals, rename persistence,
 reopen, cascade deletion, second-level duration formatting and a widget
 navigation drilldown. Tests, analyzer and native builds remain **unexecuted**
 in this session per owner instruction; do not mark them passing.
+
+## Delete local activity and inactivity accuracy (2026-10-30)
+
+The statistics sheet now contains **Clear all timed activity**, and a
+book's detailed sheet has **Clear timed activity for this book**. Both
+actions present a confirmation dialog with Cancel as the safe path.
+Deleting history affects only daily activity aggregates: not books,
+bookmarks, source offsets, manual shelves, voice choices, subscriptions,
+consents, collections or the separately stored daily goal.
+
+- Per-book deletion uses a parameterized SQLite DELETE scoped to the
+  selected immutable book ID. History for other books is untouched.
+- Global deletion removes every daily aggregate row, even for books
+  hidden by filters and days older than the weekly display.
+- Each deletion is idempotent and returns the number of affected aggregate
+  **rows**, not the number of individual reading sessions.
+- The global leaderboard refreshes when a book detail sheet closes.
+- Deletion affects the **active database**. Older exported private backups
+  containing a SQLite snapshot are **not** overwritten or deleted. The
+  OS/SQLite filesystem may retain recoverable deleted bytes; this action
+  is not a cryptographic secure erase.
+- **Activity measurement continues for new reading/TTS time** after
+  deletion. It does not disable tracking; there is currently no persisted
+  tracking opt-out control.
+
+The recorder now snapshots the remaining visual-reading idle budget at
+the **start** of each monotonic timer interval. The accumulator clips
+elapsed visual time to both the normal 30-second sample limit and that
+remaining budget, so a timer callback delayed past the three-minute idle
+deadline cannot credit the entire trailing sample. TTS samples remain
+separately bounded by 30 seconds and do not use the visual idle deadline.
+A suspended process can still cause *undercounting*, and the visual
+gesture-based heuristic is not proof that the user actually read.
+
+Regression tests were authored for per-book/global deletion, unrelated
+book isolation, preservation of progress/goal, idempotence, cancel/
+confirm UI paths, history refresh and mid-sample idle deadline. These
+tests were **not executed** in this iteration, and no Windows/Android
+build or GitHub Actions was started.
