@@ -675,47 +675,47 @@ class ReaderPlayer extends ChangeNotifier {
           // reports an error. A failed preview is retried as normal speech
           // only when its actual turn arrives.
           try {
-          // Only the next actually audible passage may be prepared.
-          var nextIndex = currentIndex + 1;
-          while (nextIndex < _segments.length &&
-              (shouldSkipSegment?.call(_segments[nextIndex]) ?? false)) {
-            nextIndex++;
-          }
-          if (nextIndex < _segments.length) {
-            final next = _segments[nextIndex];
-            final nextText =
-                speechTextTransform?.call(next.text) ?? next.text;
-            final nextResolved = _resolveVoiceAndLanguage(next);
-            final nextVoice = nextResolved.voice;
-            final nextLanguage = nextResolved.spokenLanguage;
-            if (canOfflineWarm) {
-              final offline = _engine as OfflineAheadSpeechEngine;
-              unawaited(offline.prepareOfflineSpeech(
-                nextText, voice: nextVoice,
-                language: nextLanguage, rate: rate, pitch: pitch,
-              ).catchError((Object _) {
-                // Local warming is optional, and cannot mask playback errors.
-              }));
-            } else if (prefetchNextCloudChunk &&
-                _engine is AheadOfTimeSpeechEngine) {
-              final cloud = _engine as AheadOfTimeSpeechEngine;
-              unawaited(cloud.prepareSpeech(
-                nextText, voice: nextVoice,
-                language: nextLanguage, rate: rate, pitch: pitch,
-              ).catchError((Object _) {
-                // Paid prefetch errors surface when that clip is played.
-              }));
-            } else if (warmCachedCloudChunk &&
-                _engine is CachedAheadSpeechEngine) {
-              final cloud = _engine as CachedAheadSpeechEngine;
-              unawaited(cloud.prepareCachedSpeech(
-                nextText, voice: nextVoice,
-                language: nextLanguage, rate: rate, pitch: pitch,
-              ).catchError((Object _) {
-                // Cache warming never synthesizes on a miss.
-              }));
+            // Only the next actually audible passage may be prepared.
+            var nextIndex = currentIndex + 1;
+            while (nextIndex < _segments.length &&
+                (shouldSkipSegment?.call(_segments[nextIndex]) ?? false)) {
+              nextIndex++;
             }
-          }
+            if (nextIndex < _segments.length) {
+              final next = _segments[nextIndex];
+              final nextText =
+                  speechTextTransform?.call(next.text) ?? next.text;
+              final nextResolved = _resolveVoiceAndLanguage(next);
+              final nextVoice = nextResolved.voice;
+              final nextLanguage = nextResolved.spokenLanguage;
+              if (canOfflineWarm) {
+                final offline = _engine as OfflineAheadSpeechEngine;
+                unawaited(offline.prepareOfflineSpeech(
+                  nextText, voice: nextVoice,
+                  language: nextLanguage, rate: rate, pitch: pitch,
+                ).catchError((Object _) {
+                  // Local warming is optional, and cannot mask playback errors.
+                }));
+              } else if (prefetchNextCloudChunk &&
+                  _engine is AheadOfTimeSpeechEngine) {
+                final cloud = _engine as AheadOfTimeSpeechEngine;
+                unawaited(cloud.prepareSpeech(
+                  nextText, voice: nextVoice,
+                  language: nextLanguage, rate: rate, pitch: pitch,
+                ).catchError((Object _) {
+                  // Paid prefetch errors surface when that clip is played.
+                }));
+              } else if (warmCachedCloudChunk &&
+                  _engine is CachedAheadSpeechEngine) {
+                final cloud = _engine as CachedAheadSpeechEngine;
+                unawaited(cloud.prepareCachedSpeech(
+                  nextText, voice: nextVoice,
+                  language: nextLanguage, rate: rate, pitch: pitch,
+                ).catchError((Object _) {
+                  // Cache warming never synthesizes on a miss.
+                }));
+              }
+            }
           } catch (_) {
             // Optional lookahead cannot change the audible source cursor,
             // crash checkpoint, current speaker or already-started clip.
