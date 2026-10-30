@@ -993,3 +993,11 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Test code added; Dart/Flutter and native Windows lock behavior not
   executable here. No builds or GitHub Actions initiated.
 
+### M3 — Bounded repeated cleanup acceptance
+
+- Added a deterministic 19-session fixture confirming that a single
+  manual recovery invocation deletes at most the configured 16
+  candidates; a second invocation handles the remaining 3. No unmarked
+  files or installed voice assets are involved. This test is source-only
+  and not yet executed under Dart/Flutter or Windows filesystem locks.
+

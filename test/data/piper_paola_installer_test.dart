@@ -78,6 +78,28 @@ void main() {
       expect(await fresh.exists(), isTrue);
     });
 
+    test('a large staging parent is cleaned in bounded batches',
+        () async {
+      const sessions = CuratedVoiceStaging.maxCandidatesPerSweep + 3;
+      final owned = <Directory>[];
+      for (var i = 0; i < sessions; i++) {
+        owned.add(await candidate());
+      }
+      // A cleanup action must not unboundedly scan every marked download
+      // in one turn, even when all of them are known abandoned sessions.
+      final first = await CuratedVoiceStaging.recoverAbandoned(
+          staging, minimumAge: Duration.zero);
+      expect(first, CuratedVoiceStaging.maxCandidatesPerSweep);
+      expect((await Future.wait(owned.map((d) => d.exists())))
+          .where((exists) => exists).length, 3);
+      final second = await CuratedVoiceStaging.recoverAbandoned(
+          staging, minimumAge: Duration.zero);
+      expect(second, 3);
+      expect((await Future.wait(owned.map((d) => d.exists())))
+          .any((exists) => exists), isFalse);
+      expect(await CuratedVoiceStaging.recoverAbandoned(staging), 0);
+    });
+
     test('wrong marker and unexpected nested files fail closed',
         () async {
       final malformed = await candidate();
