@@ -6,7 +6,7 @@ startup, after an import, or when the user opens a book.
 
 ## User workflow
 
-From the library toolbar choose **Search inside books offline**. The sheet
+In the library, choose the **Search inside books offline** button next to **Reading stats**. The sheet
 contains a **Keep a searchable copy on this device** switch. Turning it On
 creates a local FTS5 virtual table, but does not yet copy any book text.
 
