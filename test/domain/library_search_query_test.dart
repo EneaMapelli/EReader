@@ -67,7 +67,7 @@ void main() {
 
   test('unrecognized field name is searched literally, not treated as SQL', () {
     expect(ids('publisher:ada'), isEmpty);
-    expect(ids('title:atlas\\\' OR 1=1'), isEmpty);
+    expect(ids("title:atlas' OR 1=1"), isEmpty);
     expect(ids('title:atlas'), ['two', 'one']);
     expect(books, hasLength(3));
   });
