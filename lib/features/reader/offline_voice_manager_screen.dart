@@ -120,7 +120,8 @@ class _OfflineVoiceManagerScreenState
     }
   }
 
-  Future<void> _previewVoice(OfflineVoicePackInspection entry) async {
+  Future<void> _previewVoice(OfflineVoicePackInspection entry,
+      {bool compareColdWarm = false}) async {
     if (!mounted || _loading || _busyId != null || !entry.ready ||
         entry.installed?.phonemizerDataDir == null ||
         offlineVoiceSampleText(entry.installed!.manifest.locale) == null) {
@@ -129,14 +130,21 @@ class _OfflineVoiceManagerScreenState
     final approved = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
-        title: const Text('Play experimental offline voice sample?'),
-        content: const Text(
-          'This will speak a short, built-in demonstration phrase using '
-          'your installed local model. It does not use your books, make '
-          'cloud requests or spend API credits. Pause any current book '
-          'narration first. Native Windows audio and Stop are still '
-          'experimental; the model can use substantial CPU and RAM.',
-        ),
+        title: Text(compareColdWarm
+            ? 'Compare cold and warm offline voice?'
+            : 'Play experimental offline voice sample?'),
+        content: Text(compareColdWarm
+            ? 'This plays the same built-in demonstration phrase TWICE '
+              'with one local model: first after a cold start, then with '
+              'the worker still resident. Audio is audible both times. '
+              'Stop cancels any remaining work. No book content, network '
+              'calls, API credits or background warming are involved. '
+              'Native Windows audio and memory use are experimental.'
+            : 'This will speak a short, built-in demonstration phrase using '
+              'your installed local model. It does not use your books, make '
+              'cloud requests or spend API credits. Pause any current book '
+              'narration first. Native Windows audio and Stop are still '
+              'experimental; the model can use substantial CPU and RAM.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialog, false),
@@ -144,7 +152,8 @@ class _OfflineVoiceManagerScreenState
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('Play sample'),
+            child: Text(compareColdWarm ? 'Play twice and compare'
+                : 'Play sample'),
           ),
         ],
       ),
@@ -154,13 +163,18 @@ class _OfflineVoiceManagerScreenState
       _busyId = entry.id;
       _sampleId = entry.id;
       _sampleCancelled = false;
-      _message = 'Preparing a short local voice sample...';
+      _message = compareColdWarm
+          ? 'Preparing cold/warm local voice comparison...'
+          : 'Preparing a short local voice sample...';
     });
     try {
-      await _audition.play(entry.id);
+      await _audition.play(entry.id, compareColdWarm: compareColdWarm);
       if (mounted && !_sampleCancelled) {
-        setState(() => _message = 'Local voice sample finished. '
-            'This does not change the voice selected for any book.');
+        setState(() => _message = compareColdWarm
+            ? 'Cold/warm comparison finished. Same short phrase was '
+              'spoken twice; results are session-only.'
+            : 'Local voice sample finished. '
+              'This does not change the voice selected for any book.');
       }
     } catch (_) {
       // A native exception may include OS paths or model details.
@@ -833,6 +847,19 @@ class _OfflineVoiceManagerScreenState
                           : (_loading || _busyId != null
                               ? null : () => _previewVoice(entry)),
                     ),
+                  if ((Platform.isWindows || widget.audition != null) &&
+                      entry.ready &&
+                      entry.installed?.phonemizerDataDir != null &&
+                      offlineVoiceSampleText(
+                          entry.installed!.manifest.locale) != null)
+                    IconButton(
+                      key: ValueKey('offline-voice-compare-${entry.id}'),
+                      tooltip: 'Compare cold/warm ${entry.id} (plays twice)',
+                      icon: const Icon(Icons.speed_outlined),
+                      onPressed: _loading || _busyId != null
+                          ? null : () => _previewVoice(
+                              entry, compareColdWarm: true),
+                    ),
                   IconButton(
                     tooltip: 'Remove voice ${entry.id}',
                     icon: const Icon(Icons.delete_outline),
@@ -850,7 +877,10 @@ class _OfflineVoiceManagerScreenState
           'native synthesis excludes playback. Speech wall time '
           'includes synthesis, audio playback and cleanup. Decoder handoff '
           'is not acoustic onset. RAM is the whole app process, not the '
-          'model alone. Stop includes native disposal.',
+          'model alone. Stop includes native disposal. Cold/warm '
+          'comparison plays the same public phrase twice on user consent; '
+          'first/second wall times include playback and cannot be '
+          'interpreted as native synthesis latency.',
         ),
         const SizedBox(height: 8),
         const Text(
