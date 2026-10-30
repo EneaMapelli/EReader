@@ -1517,23 +1517,38 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     if (tokens.isEmpty || tokens.length > 8) return const [];
     final matchQuery = tokens.map((token) => '"$token"').join(' AND ');
     return List.unmodifiable(_database.select('''
-      SELECT f.book_id, b.title, f.body,
+      SELECT f.book_id, b.title,
         snippet(library_fulltext_fts, 1, '', '', ' … ', 16) AS excerpt
       FROM library_fulltext_fts f
       INNER JOIN books b ON b.id = f.book_id
       WHERE library_fulltext_fts MATCH ?
       ORDER BY rank
       LIMIT ?
-    ''', [matchQuery, limit]).map((row) {
-      final original = row['body'] as String;
-      final jump = firstExactIndexedWord(original, tokens.first);
-      return LibraryFullTextHit(
-        bookId: row['book_id'] as String,
-        title: row['title'] as String,
-        excerpt: row['excerpt'] as String,
-        jump: jump,
-      );
-    }));
+    ''', [matchQuery, limit]).map((row) => LibraryFullTextHit(
+      bookId: row['book_id'] as String,
+      title: row['title'] as String,
+      excerpt: row['excerpt'] as String,
+    )));
+  }
+
+  /// Load and scan the full indexed source for ONE selected result only.
+  /// Never do this in a search TextField rebuild: that would allocate and
+  /// traverse many multi-megabyte texts on every keystroke.
+  LibraryFullTextJump? fullTextJumpForHit(String bookId, String query) {
+    if (!isFullTextIndexEnabled || query.length > 120 ||
+        getBook(bookId) == null) return null;
+    final tokens = RegExp(r'[\\p{L}\\p{N}]+', unicode: true)
+        .allMatches(query).map((match) => match.group(0)!).toList();
+    if (tokens.isEmpty || tokens.length > 8) return null;
+    final rows = _database.select('''
+      SELECT f.body FROM library_fulltext_fts f
+      INNER JOIN library_fulltext_jobs j
+        ON j.book_id = f.book_id AND j.indexed = 1
+      WHERE f.book_id = ? LIMIT 1
+    ''', [bookId]);
+    if (rows.isEmpty) return null;
+    return firstExactIndexedWord(rows.single['body'] as String, tokens.first);
+  }
   }
 
   /// Collections are book classifications, never book directories.
