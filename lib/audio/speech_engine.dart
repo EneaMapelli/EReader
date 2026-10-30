@@ -201,8 +201,10 @@ class SystemSpeechEngine
 
   @override
   Future<void> chooseVoice(SpeechVoice voice) async {
-    _selectedVoice = voice;
+    // Do not commit an unconfirmed voice. Failed native selections must
+    // not replace the last known narrator used on subsequent retries.
     await _tts.setVoice({'name': voice.name, 'locale': voice.locale});
+    _selectedVoice = voice;
   }
 
   @override

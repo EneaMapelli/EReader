@@ -16,12 +16,15 @@ class _SlowVoiceEngine implements SpeechEngine {
   String? activeVoice;
   int stops = 0;
   bool failNextVoice = false;
+  bool failAfterNativeVoiceChange = false;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => const [
     SpeechVoice(name: 'Narrator', locale: 'en-US'),
     SpeechVoice(name: 'First', locale: 'en-US'),
     SpeechVoice(name: 'Second', locale: 'en-US'),
+    SpeechVoice(name: 'French', locale: 'fr-FR'),
+    SpeechVoice(name: 'British', locale: 'en-GB'),
   ];
 
   @override
@@ -34,6 +37,10 @@ class _SlowVoiceEngine implements SpeechEngine {
       throw StateError('Native voice selection rejected');
     }
     activeVoice = voice.name;
+    if (failAfterNativeVoiceChange) {
+      failAfterNativeVoiceChange = false;
+      throw StateError('Native changed voice but failed confirmation');
+    }
   }
 
   @override
@@ -411,6 +418,95 @@ void main() {
     expect(player.selectedVoice?.name, 'First');
     expect(engine.activeVoice, 'First');
     expect(engine.spoken, isEmpty);
+  });
+
+  test('unsaved narrator prefers the exact spoken book locale',
+      () async {
+    await player.applyPreferences(
+        const SpeechPreferences(language: 'fr-FR'));
+    final reading = player.play();
+    await _until(() => engine.spoken.length == 1);
+    expect(engine.activeVoice, 'French');
+    expect(player.selectedVoice, isNull,
+        reason: 'An automatic voice must not be persisted as a manual pick');
+    expect(player.currentPreferences.language, 'fr-FR');
+    await player.pause();
+    await reading;
+  });
+
+  test('unsaved narrator uses a matching language before other voices',
+      () async {
+    await player.applyPreferences(
+        const SpeechPreferences(language: 'en-AU'));
+    final reading = player.play();
+    await _until(() => engine.spoken.length == 1);
+    expect(engine.activeVoice, 'Narrator',
+        reason: 'en-US is a closer fallback than French for en-AU');
+    await player.pause();
+    await reading;
+  });
+
+  test('failed manual voice switch allows Play to restore prior narrator',
+      () async {
+    const oldVoice = SpeechVoice(name: 'Narrator', locale: 'en-US');
+    const newVoice = SpeechVoice(name: 'Second', locale: 'en-US');
+    await player.selectVoice(oldVoice);
+    final initial = player.play();
+    await _until(() => engine.spoken.length == 1);
+    engine.failAfterNativeVoiceChange = true;
+    await expectLater(player.selectVoice(newVoice), throwsStateError);
+    await initial;
+    expect(player.currentIndex, 0);
+    expect(player.isPlaying, isFalse);
+    expect(player.selectedVoice?.name, 'Narrator');
+    expect(engine.activeVoice, 'Second',
+        reason: 'Mock reproduces a partial native voice change');
+    final retry = player.play();
+    await _until(() => engine.spoken.length == 2);
+    expect(engine.activeVoice, 'Narrator');
+    expect(engine.spoken, ['One', 'One']);
+    await player.pause();
+    await retry;
+  });
+
+  test('failed saved profile does not poison the next explicit Play',
+      () async {
+    await player.applyPreferences(const SpeechPreferences(
+      language: 'en-US', voiceName: 'First', voiceLocale: 'en-US',
+    ));
+    engine.failAfterNativeVoiceChange = true;
+    await expectLater(player.applyPreferences(const SpeechPreferences(
+      language: 'en-US', voiceName: 'Second', voiceLocale: 'en-US',
+    )), throwsStateError);
+    expect(player.selectedVoice?.name, 'First');
+    expect(engine.activeVoice, 'Second');
+    final retry = player.play();
+    await _until(() => engine.spoken.length == 1);
+    expect(engine.activeVoice, 'First');
+    expect(player.currentIndex, 0);
+    await player.pause();
+    await retry;
+  });
+
+  test('failed cast handoff can be retried from same source segment',
+      () async {
+    await player.applyPreferences(const SpeechPreferences(
+      language: 'en-US', voiceName: 'Narrator', voiceLocale: 'en-US',
+    ));
+    player.castVoiceForSegment = (segment) =>
+        segment.start == 0
+            ? const SpeechVoice(name: 'Second', locale: 'en-US')
+            : null;
+    engine.failAfterNativeVoiceChange = true;
+    await expectLater(player.play(), throwsStateError);
+    expect(player.currentIndex, 0);
+    expect(engine.spoken, isEmpty);
+    final retry = player.play();
+    await _until(() => engine.spoken.length == 1);
+    expect(engine.activeVoice, 'Second');
+    expect(engine.spoken, ['One']);
+    await player.pause();
+    await retry;
   });
 
   test('direct Play is denied after disposal', () async {

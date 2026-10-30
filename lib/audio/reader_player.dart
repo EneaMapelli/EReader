@@ -216,13 +216,39 @@ class ReaderPlayer extends ChangeNotifier {
     // Preserve the historical native selection when no cast resolver is
     // installed. Preview/lookahead still uses the available first/marin
     // fallback, exactly as earlier _voiceFor did.
-    if (forPlayback && resolver == null) {
+    if (forPlayback && resolver == null && selectedVoice != null) {
       return (voice: selectedVoice, spokenLanguage: language);
     }
     final requestedCast = resolver?.call(segment);
     SpeechVoice? fallback = selectedVoice;
     if (fallback == null && availableVoices.isNotEmpty) {
-      fallback = availableVoices.first;
+      // An unsaved system narrator must use the book language when a
+      // compatible native voice is available. Selecting alphabetically
+      // could silently pronounce an English book with another locale.
+      // First prefer an exact match, then the same primary language.
+      if (engineProviderId == 'system' ||
+          engineProviderId == 'system-native') {
+        final desired = language.toLowerCase().replaceAll('_', '-');
+        for (final voice in availableVoices) {
+          if (voice.locale.toLowerCase().replaceAll('_', '-') == desired) {
+            fallback = voice;
+            break;
+          }
+        }
+        if (fallback == null) {
+          final primary = desired.split('-').first;
+          for (final voice in availableVoices) {
+            if (voice.locale.toLowerCase().replaceAll('_', '-')
+                .split('-').first == primary) {
+              fallback = voice;
+              break;
+            }
+          }
+        }
+      }
+      // Preserve the historical default if no matching native voice
+      // exists. Cloud's marin preference is unchanged.
+      fallback ??= availableVoices.first;
       if (engineProviderId == 'openai-speech') {
         for (final voice in availableVoices) {
           if (voice.name == 'marin') {
@@ -276,6 +302,16 @@ class ReaderPlayer extends ChangeNotifier {
       _engineVoiceKey = voice.key;
     }();
     _pendingVoiceChange = changing;
+    // A native voice-selection failure belongs to THIS utterance only.
+    // Keep the original failed Future for the in-flight Play caller, but
+    // clear the barrier for a later explicit retry. That retry reasserts
+    // the narrator because the engine voice key was invalidated above.
+    unawaited(changing.then<void>((_) {}, onError: (
+        Object error, StackTrace stack) {
+      if (identical(_pendingVoiceChange, changing)) {
+        _pendingVoiceChange = Future<void>.value();
+      }
+    }));
     return changing;
   }
 
@@ -305,7 +341,14 @@ class ReaderPlayer extends ChangeNotifier {
         // A failed prior choice cannot block the user's new selection.
       }
       if (_disposed || epoch != _navigationEpoch) return;
-      await _engine.chooseVoice(voice);
+      try {
+        await _engine.chooseVoice(voice);
+      } catch (_) {
+        // The native backend may have switched voices before reporting a
+        // failure. Never trust the previous cached voice identity.
+        _engineVoiceKey = null;
+        rethrow;
+      }
       if (_disposed || epoch != _navigationEpoch) {
         // The native voice may have changed despite cancellation. Force
         // the next live utterance to reapply its intended narrator/cast.
@@ -321,6 +364,10 @@ class ReaderPlayer extends ChangeNotifier {
     try {
       await changing;
     } catch (error) {
+      _engineVoiceKey = null;
+      if (identical(_pendingVoiceChange, changing)) {
+        _pendingVoiceChange = Future<void>.value();
+      }
       if (!_disposed && epoch == _navigationEpoch) {
         _resumeAfterNavigation = false;
         lastError = error;
@@ -412,7 +459,22 @@ class ReaderPlayer extends ChangeNotifier {
       _notify();
     }();
     _pendingVoiceChange = changing;
-    await changing;
+    try {
+      await changing;
+    } catch (error) {
+      // Keep the last committed profile and allow a subsequent explicit
+      // Play to reassert its narrator, even if native selection mutated
+      // the voice before failing.
+      _engineVoiceKey = null;
+      if (identical(_pendingVoiceChange, changing)) {
+        _pendingVoiceChange = Future<void>.value();
+      }
+      if (!_disposed && epoch == _navigationEpoch) {
+        lastError = error;
+        _notify();
+      }
+      rethrow;
+    }
   }
 
   SpeechPreferences get currentPreferences => SpeechPreferences(

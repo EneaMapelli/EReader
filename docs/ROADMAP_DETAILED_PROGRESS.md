@@ -614,3 +614,22 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   **Not run** without Dart/Flutter; no Windows/Android build or GitHub
   Actions triggered. Physical OS volume behavior remains an acceptance gate.
 
+### M2/M4 — Recover native voice failures and language-safe narration (2026-10-30)
+
+- Explicit and automatic voice selection failures no longer leave a
+  permanently rejected Future in the player's serialized voice barrier.
+  The failing request still reports its original error, while a later
+  user-initiated Play can safely retry from the same source segment.
+- An interrupted native voice choice invalidates cached speaker identity;
+  the next Play reasserts the last committed narrator rather than trusting
+  a backend that may have changed the physical voice before failing.
+  Native SystemSpeechEngine records a new voice only after setVoice succeeds.
+- Unsaved system narrator defaults now prefer an installed exact locale
+  match, then a same-language regional voice, before the historic fallback.
+  Existing manual narrator/cast choices still take precedence; automatic
+  choices are never persisted and do not affect cloud/VITS providers.
+- Authored controlled-failure tests for manual, saved and cast changes,
+  plus book-language fallbacks. **Not run**: Dart/Flutter SDK unavailable.
+  No Windows/Android build or GitHub Actions initiated; physical OS
+  behavior and spoken-voice verification are pending manual acceptance.
+
