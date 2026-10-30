@@ -1400,7 +1400,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     if (tokens.isEmpty || tokens.length > 8) return const [];
     final matchQuery = tokens.map((token) => '"$token"').join(' AND ');
     return List.unmodifiable(_database.select('''
-      SELECT f.book_id, b.title,
+      SELECT f.book_id, b.title, f.body,
         snippet(library_fulltext_fts, 1, '', '', ' … ', 16) AS excerpt
       FROM library_fulltext_fts f
       INNER JOIN books b ON b.id = f.book_id
