@@ -653,3 +653,24 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   or Android builds or GitHub Actions initiated. Native sound/focus
   acceptance remains open.
 
+### M2 — Completed-segment acknowledgment barrier (2026-10-30)
+
+- Fixed an audible-completion/async-checkpoint race: Pause or a voice
+  change during an already-heard segment's delayed checkpoint could
+  discard its cursor increment and replay the whole completed clip.
+- ReaderPlayer now counts outstanding completed-segment acknowledgments
+  and keeps the crash marker/audio focus unsettled until they finish.
+  Successful acknowledgments advance the cursor even if Pause arrived;
+  failed persistence preserves the original index for safe replay.
+- Native Stop has its own 8-second safety deadline. A slow SQLite
+  acknowledgment cannot masquerade as a failed native Stop or permanently
+  lock the device; later Play/Seek still wait for both operations.
+- NarrationRecoveryBinding accepts completion of an **already audible**
+  segment during Pause, but only while the player proves an acknowledgment
+  is in flight. Interrupted utterances never enter that state.
+- Added fake-engine regressions for Pause, Seek, rapid Pause/Play and
+  failing acknowledgments, plus SQLite integration across delayed
+  completion, marker clearance and store reopen.
+- Tests **written but not run** (Flutter/Dart SDK unavailable); no
+  Windows/Android build or GitHub Actions started.
+

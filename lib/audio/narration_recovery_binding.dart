@@ -56,7 +56,12 @@ class NarrationRecoveryBinding {
   Future<void> onSegmentCompleted(
       SpeechSegment finished, SpeechSegment? nextAudible) async {
     final player = _player;
-    if (_disposed || player == null || !player.isPlaying) return;
+    // ReaderPlayer calls this only after native playback completed.
+    // A concurrent Pause may set isPlaying=false while an earlier
+    // asynchronous acknowledgment is still pending; that does not
+    // make an already-heard clip partial. Do not discard its checkpoint.
+    if (_disposed || player == null ||
+        !player.isCommittingSpeechSegment) return;
     final offset = nextAudible?.start ?? finished.end;
     // A final source end belongs to an actual EPUB spine/PDF page, not
     // necessarily to the clip START (or to an arbitrary chapter). Keep

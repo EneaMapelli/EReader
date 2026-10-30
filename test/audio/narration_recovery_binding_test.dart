@@ -355,6 +355,52 @@ void main() {
     player.dispose();
   });
 
+  test('paused completed audio retains SQLite progress until delayed '
+      'checkpoint commits', () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final ack = Completer<void>();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 6, 'First.'),
+        SpeechSegment(7, 14, 'Second.'),
+      ],
+      onSegmentStarted: recovery.onSegmentStarted,
+      onSegmentCompleted: (finished, next) async {
+        await ack.future;
+        await recovery.onSegmentCompleted(finished, next);
+      },
+    );
+    recovery.attach(player);
+    final speaking = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(store.getBook(bookId)!.progressOffset, 0);
+    engine.finish();
+    for (var i = 0; i < 100 && !player.isCommittingSpeechSegment; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(player.isCommittingSpeechSegment, isTrue);
+    final pausing = player.pause();
+    await Future<void>.delayed(Duration.zero);
+    expect(activeCheckpoints(), 1);
+    expect(player.isSettledIdle, isFalse);
+    expect(store.getBook(bookId)!.progressOffset, 0);
+    ack.complete();
+    await pausing;
+    await speaking;
+    expect(store.getBook(bookId)!.progressOffset, 7,
+        reason: 'Fully heard audio must not be repeated after Pause');
+    expect(store.getBook(bookId)!.progressAnchor?.localOffset, 7);
+    expect(player.currentIndex, 1);
+    expect(activeCheckpoints(), 0);
+    recovery.dispose();
+    player.dispose();
+    await restartStore();
+    expect(store.getBook(bookId)!.progressOffset, 7);
+    expect(store.interruptedNarrationBook, isNull);
+  });
+
   test('pause preserves marker until native stop completes, then clears',
       () async {
     final engine = _SpeechEngine();

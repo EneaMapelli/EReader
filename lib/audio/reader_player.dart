@@ -515,6 +515,11 @@ class ReaderPlayer extends ChangeNotifier {
   int _navigationEpoch = 0;
   bool _resumeAfterNavigation = false;
   int _pendingNativeStops = 0;
+  int _pendingSegmentCompletions = 0;
+  /// True only while the player is committing an utterance that the engine
+  /// already confirmed as fully audible. A concurrent Pause may change
+  /// isPlaying before that acknowledgment finishes.
+  bool get isCommittingSpeechSegment => _pendingSegmentCompletions > 0;
   bool _stopUnconfirmed = false;
   bool _stopFailed = false;
   bool _disposed = false;
@@ -532,8 +537,9 @@ class ReaderPlayer extends ChangeNotifier {
   bool get isSettledIdle =>
       !_disposed && !isPlaying &&
       !_resumeAfterNavigation && _pendingNativeStops == 0 &&
-      !nativeStopUnconfirmed;
+      _pendingSegmentCompletions == 0 && !nativeStopUnconfirmed;
   Future<void> _pendingStop = Future<void>.value();
+  Future<void> _pendingCompletion = Future<void>.value();
   Future<void> _pendingVoiceChange = Future<void>.value();
   Object? lastError;
 
@@ -734,16 +740,36 @@ class ReaderPlayer extends ChangeNotifier {
               (shouldSkipSegment?.call(_segments[nextIndex]) ?? false)) {
             nextIndex++;
           }
-          await onSegmentCompleted!(
-            segment,
-            nextIndex < _segments.length ? _segments[nextIndex] : null,
-          );
+          final completedIndex = currentIndex;
+          // Audio has FINISHED: this acknowledgment is not cancellable by
+          // Pause. A paused player must resume at the next segment rather
+          // than replaying speech already heard in full. Seek/voice changes
+          // wait for this barrier before changing the cursor or resuming.
+          _pendingSegmentCompletions++;
+          final completion = () async {
+            await onSegmentCompleted!(
+              segment,
+              nextIndex < _segments.length ? _segments[nextIndex] : null,
+            );
+            if (!_disposed && currentIndex == completedIndex) {
+              currentIndex = completedIndex + 1;
+              _notify();
+            }
+          }();
+          _pendingCompletion = completion;
+          try {
+            await completion;
+          } finally {
+            _pendingSegmentCompletions--;
+            _notify();
+          }
           if (token != _session) return;
+        } else {
+          currentIndex++;
         }
         previousAudibleSpeaker = speaker;
         previousAudibleVoiceKey = installed?.key;
         hadAudibleSegment = true;
-        currentIndex++;
         _notify();
       }
     } catch (error) {
@@ -802,7 +828,24 @@ class ReaderPlayer extends ChangeNotifier {
       }
       await _engine.stop();
     }();
-    _pendingStop = stopping;
+    // Native Stop and SQLite acknowledgment are TWO different deadlines.
+    // A slow checkpoint must not be mistaken for an unconfirmed native
+    // Stop (which would permanently lock narration). New Play/Seek waits
+    // for BOTH, but the native safety timeout applies only to Stop.
+    final settled = () async {
+      try {
+        await stopping;
+      } catch (_) {
+        // The native failure is reported by the original Stop future.
+      }
+      try {
+        await _pendingCompletion;
+      } catch (_) {
+        // A rejected checkpoint keeps its old cursor for safe replay.
+        // It must never suppress or replace a native Stop failure.
+      }
+    }();
+    _pendingStop = settled;
 
     // Observe the ORIGINAL future, not only Future.timeout: the real
     // platform callback may complete after the caller has timed out.
@@ -821,6 +864,9 @@ class ReaderPlayer extends ChangeNotifier {
 
     try {
       await stopping.timeout(nativeStopTimeout);
+      // Keep the recovery marker and audio focus owned by this book
+      // until an already-audible segment's checkpoint is fully resolved.
+      await settled;
     } on TimeoutException {
       _stopUnconfirmed = true;
       // A queued Play/Seek/voice change must never restart merely because
