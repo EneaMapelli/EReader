@@ -181,3 +181,30 @@ saved reading positions never change.
 
 See [SINGLE_QUOTE_AND_SEGMENT_PROSODY.md](SINGLE_QUOTE_AND_SEGMENT_PROSODY.md).
 
+## Anteprima delle voci gratuite installate (30 ottobre 2026)
+
+La schermata **Speech engines** elenca le voci realmente restituite da
+Windows o Android e permette di ascoltare una **frase dimostrativa fissa**
+nella lingua installata prima di salvare la voce per il libro. Le frasi
+incorporate sono attualmente disponibili per italiano, inglese, francese,
+spagnolo, tedesco e portoghese; le altre voci possono essere selezionate
+ma l'anteprima non improvvisa un testo nella lingua sbagliata.
+
+- Le due modalità sistema su Windows possono essere confrontate:
+  pause interpretate e punteggiatura gestita dall'OS. Android usa le
+  voci native già presenti sul telefono.
+- La prova usa un motore separato da `ReaderPlayer`, elenca nuovamente
+  le voci prima di riprodurre, rifiuta identità scomparse e si interrompe
+  con Stop, cambio provider e chiusura della schermata. Nessun testo
+  del libro è usato e non vengono invocate API cloud di EReader.
+- La selezione viene salvata in `SpeechPreferences.voiceName` /
+  `voiceLocale` solo premendo **Save engine for this book**; alla
+  riapertura il player usa la voce salvata, se ancora installata.
+- La disponibilità e le esigenze di rete di singole voci di sistema
+  dipendono dal motore e dalle impostazioni di Windows/Android; la
+  dicitura «gratuito» qui significa nessun costo API a carattere di
+  EReader, non garanzia che ogni voce dell'OS sia offline.
+- Test fake-engine per Stop durante catalogo/voce/speech, voci scomparse,
+  isolamento e serializzazione sono stati aggiunti ma **non eseguiti**:
+  manca Flutter/Dart. Nessuna build Windows/Android o GitHub Actions.
+

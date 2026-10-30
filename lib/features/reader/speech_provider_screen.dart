@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,8 @@ import '../../audio/openai_speech_engine.dart';
 import '../../audio/speech_audio_cache.dart';
 import '../../audio/secret_vault.dart';
 import '../../audio/speech_engine_factory.dart';
+import '../../audio/speech_engine.dart';
+import '../../audio/system_voice_audition.dart';
 import '../../audio/sherpa_vits_engine.dart';
 import '../../data/offline_voice_pack.dart';
 import '../../data/library_store.dart';
@@ -51,6 +54,11 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
   bool _checkingLocal = false;
   List<OfflineVoicePackInspection> _offlineChoices = const [];
   String? _selectedOfflineVoiceId;
+  final SystemVoiceAudition _systemAudition = SystemVoiceAudition();
+  List<SpeechVoice> _installedSystemVoices = const [];
+  SpeechVoice? _selectedSystemVoice;
+  bool _checkingSystem = false;
+  bool _systemSamplePlaying = false;
   String? _message;
 
   @override
@@ -71,6 +79,73 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
     }
     _loadKeyStatus();
     _inspectLocalVoices();
+    _inspectSystemVoices();
+  }
+
+  Future<void> _inspectSystemVoices() async {
+    if ((!Platform.isWindows && !Platform.isAndroid) ||
+        _checkingSystem || _systemSamplePlaying) return;
+    setState(() => _checkingSystem = true);
+    try {
+      final voices = await _systemAudition.listVoices();
+      if (!mounted) return;
+      final savedName = _current.voiceName;
+      final savedLocale = _current.voiceLocale;
+      SpeechVoice? preferred;
+      for (final voice in voices) {
+        if (voice.name == savedName && voice.locale == savedLocale) {
+          preferred = voice;
+          break;
+        }
+      }
+      if (preferred == null) {
+        for (final voice in voices) {
+          if (voice.locale.toLowerCase().replaceAll('_', '-') ==
+              _current.language.toLowerCase().replaceAll('_', '-')) {
+            preferred = voice;
+            break;
+          }
+        }
+      }
+      setState(() {
+        _installedSystemVoices = voices;
+        _selectedSystemVoice = preferred ??
+            (voices.isEmpty ? null : voices.first);
+      });
+    } catch (_) {
+      _feedback('Unable to read installed system voices.');
+    } finally {
+      if (mounted) setState(() => _checkingSystem = false);
+    }
+  }
+
+  Future<void> _stopSystemSample() async {
+    try {
+      await _systemAudition.stop();
+    } catch (_) {
+      _feedback('The system voice sample could not be stopped.');
+    } finally {
+      if (mounted) setState(() => _systemSamplePlaying = false);
+    }
+  }
+
+  Future<void> _playSystemSample() async {
+    final voice = _selectedSystemVoice;
+    if (voice == null || _systemSamplePlaying) return;
+    setState(() => _systemSamplePlaying = true);
+    try {
+      await _systemAudition.play(
+        voice,
+        interpretWindowsPunctuation:
+            Platform.isWindows && _providerId == 'system',
+        rate: _current.rate,
+        pitch: _current.pitch,
+      );
+    } catch (error) {
+      _feedback('Could not preview this system voice: $error');
+    } finally {
+      if (mounted) setState(() => _systemSamplePlaying = false);
+    }
   }
 
   Future<void> _inspectLocalVoices() async {
@@ -152,6 +227,7 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
   }
 
   Future<void> _saveProvider() async {
+    if (_systemSamplePlaying) await _stopSystemSample();
     try {
       if (!SpeechEngineFactory.availableProviders.contains(_providerId)) {
         throw const FormatException('Unknown provider');
@@ -201,6 +277,9 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
           ? _offlineChoices.firstWhere(
               (entry) => entry.id == modelForProvider).installed
           : null;
+      final usingSystem =
+          _providerId == 'system' || _providerId == 'system-native';
+      final systemVoice = usingSystem ? _selectedSystemVoice : null;
       final selected = _current.copyWith(
         providerId: _providerId,
         modelId: modelForProvider,
@@ -208,9 +287,12 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
         // post-synthesis pitch support. Enforce these BEFORE persisting.
         language: offlineSelected?.manifest.locale ?? _current.language,
         pitch: offlineSelected == null ? _current.pitch : 1.0,
-        clearVoice: _providerId != _current.providerId ||
-            (_providerId == SherpaVitsSpeechEngine.providerId &&
-                _current.modelId != modelForProvider),
+        voiceName: systemVoice?.name,
+        voiceLocale: systemVoice?.locale,
+        clearVoice: !usingSystem &&
+            (_providerId != _current.providerId ||
+             (_providerId == SherpaVitsSpeechEngine.providerId &&
+              _current.modelId != modelForProvider)),
       );
       selected.validate();
       await widget.store.saveSpeechPreferences(
@@ -357,6 +439,8 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
 
   @override
   void dispose() {
+    unawaited(_systemAudition.dispose().catchError(
+        (Object _, StackTrace __) {}));
     _key.dispose();
     _quota.dispose();
     _usdPerMillion.dispose();
@@ -367,6 +451,8 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
   @override
   Widget build(BuildContext context) {
     final cloud = _providerId == OpenAiSpeechEngine.providerId;
+    final freeSystem =
+        _providerId == 'system' || _providerId == 'system-native';
     return Scaffold(
       appBar: AppBar(title: const Text('Speech engines')),
       body: ListView(
@@ -397,10 +483,77 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
                 value: 'openai-speech',
                 child: Text('OpenAI Audio Speech API (paid)')),
             ],
-            onChanged: _busy ? null : (id) {
-              if (id != null) setState(() => _providerId = id);
+            onChanged: _busy ? null : (id) async {
+              if (id == null) return;
+              if (_systemSamplePlaying) await _stopSystemSample();
+              if (mounted) setState(() => _providerId = id);
             },
           ),
+          if (freeSystem) ...[
+            const SizedBox(height: 16),
+            Text('Preview free installed voices',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 6),
+            const Text('Hear a short built-in sample before saving a voice '
+                'for this book. Samples use only the selected device TTS '
+                'engine, not book passages or the OpenAI API. Some system '
+                'voices may require services managed by your device.'),
+            const SizedBox(height: 10),
+            if (_checkingSystem) const LinearProgressIndicator(),
+            if (_installedSystemVoices.isEmpty)
+              const Text('No installed voices found. Check the speech '
+                  'voices in Windows or Android settings.'),
+            if (_installedSystemVoices.isNotEmpty)
+              DropdownButtonFormField<String>(
+                value: _selectedSystemVoice?.key,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                    labelText: 'Installed voice'),
+                items: [
+                  for (final voice in _installedSystemVoices)
+                    DropdownMenuItem(
+                      value: voice.key,
+                      child: Text(voice.toString(),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: _busy || _systemSamplePlaying ? null : (key) {
+                  if (key == null) return;
+                  setState(() => _selectedSystemVoice =
+                      _installedSystemVoices.firstWhere(
+                          (voice) => voice.key == key));
+                },
+              ),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              OutlinedButton.icon(
+                onPressed: _busy || _systemSamplePlaying ||
+                        _selectedSystemVoice == null ||
+                        systemVoiceSampleText(
+                            _selectedSystemVoice!.locale) == null
+                    ? null : _playSystemSample,
+                icon: const Icon(Icons.volume_up_outlined),
+                label: const Text('Preview voice'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _systemSamplePlaying
+                    ? _stopSystemSample : null,
+                icon: const Icon(Icons.stop_circle_outlined),
+                label: const Text('Stop sample'),
+              ),
+              TextButton.icon(
+                onPressed: _checkingSystem || _systemSamplePlaying
+                    ? null : _inspectSystemVoices,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh voices'),
+              ),
+            ]),
+            if (_selectedSystemVoice != null &&
+                systemVoiceSampleText(
+                    _selectedSystemVoice!.locale) == null)
+              const Text('No fixed sample for this language yet; '
+                  'the installed voice can still be selected and saved.'),
+          ],
           if (_providerId == SherpaVitsSpeechEngine.providerId) ...[
             const SizedBox(height: 16),
             const Text(
@@ -456,7 +609,8 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
           ],
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: _busy ? null : _saveProvider,
+            onPressed: _busy || _systemSamplePlaying
+                ? null : _saveProvider,
             icon: const Icon(Icons.save),
             label: const Text('Save engine for this book'),
           ),

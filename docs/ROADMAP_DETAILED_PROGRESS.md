@@ -850,3 +850,20 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Tests **authored but not executed** without Dart/Flutter SDK.
   No Windows/Android builds, releases or GitHub Actions started.
 
+### M2 — Compare and select installed free system voices (2026-10-30)
+
+- Added explicit Windows/Android `Speech engines` preview for the
+  actual installed OS voice catalog, with fixed local sample text,
+  language-appropriate samples, user-selected voice persistence and
+  interpreted-vs-native Windows punctuation comparison.
+- Native samples are isolated from the active book player; selection is
+  written only when explicitly saving book speech preferences. Stop,
+  provider changes and screen disposal invalidate pending catalog,
+  voice choice and speak requests; a native stop barrier prevents
+  overlapping preview engines. No book text or cloud credentials enter
+  the preview workflow.
+- Fake-engine regressions added for catalog deduplication, installed
+  voice validation, language choice, blocked catalog/voice operations,
+  Stop/Dispose and missing voices. Flutter/Dart tests **not executed**,
+  native voice quality unverified. No Actions, builds or releases run.
+
