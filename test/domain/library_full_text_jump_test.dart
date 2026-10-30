@@ -77,6 +77,31 @@ void main() {
     expect(bestIndexedPassage('dragonfly', ['dragon']), isNull);
   });
 
+  test('captured context detects edits around an unchanged matching word',
+      () {
+    const original = 'The blue dragon sleeps in the castle.';
+    final jump = bestIndexedPassage(original, ['blue', 'dragon']);
+    expect(jump, isNotNull);
+    expect(jump!.validatedOffset(original), original.indexOf('blue'));
+    // The same word remains at the same UTF-16 offset, but another query
+    // word and the surrounding passage changed. Do not jump to stale text.
+    expect(jump.validatedOffset('The blue dracon sleeps in the castle.'),
+        isNull);
+    expect(jump.validatedOffset('The blue dragon sleeps in the cradle.'),
+        isNull);
+    expect(jump.validatedOffset('The Blue dragon sleeps in the castle.'),
+        original.indexOf('blue'));
+    expect(jump.contextAfter, contains('dragon'));
+  });
+
+  test('single-word candidates also verify nearby unchanged source', () {
+    const source = 'A red dragon arrived at the gate.';
+    final jump = firstExactIndexedWord(source, 'dragon')!;
+    expect(jump.validatedOffset(source), source.indexOf('dragon'));
+    expect(jump.validatedOffset('A new dragon arrived at the gate.'), isNull);
+    expect(jump.validatedOffset('A red dragon arrived at the lake.'), isNull);
+  });
+
   test('empty or out of range matches reject stale targets', () {
     expect(const LibraryFullTextJump(
       sourceOffset: -1, expectedText: 'a',
