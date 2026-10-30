@@ -102,6 +102,40 @@ class _LibraryFullTextSearchSheetState
     }
   }
 
+  Future<void> _checkChangedBooks() async {
+    if (_running) return;
+    setState(() {
+      _running = true;
+      _cancelRequested = false;
+      _done = 0;
+      _total = 0;
+      _message = null;
+    });
+    try {
+      final count = await widget.store.refreshChangedFullTextBooks(
+        shouldCancel: () => _cancelRequested || !mounted,
+        onProgress: (checked, total) {
+          if (!mounted) return;
+          setState(() {
+            _done = checked;
+            _total = total;
+          });
+        },
+      );
+      if (mounted) {
+        setState(() => _message = _cancelRequested
+            ? 'Change check cancelled. $count books queued for re-indexing.'
+            : '$count changed books queued. '
+              'Select Index next 10 books to refresh them.');
+      }
+    } catch (_) {
+      if (mounted) setState(() => _message =
+          'Could not check changed books. Existing indexed text is preserved.');
+    } finally {
+      if (mounted) setState(() => _running = false);
+    }
+  }
+
   Future<void> _resetIndex() async {
     final approved = await showDialog<bool>(
       context: context,
@@ -193,6 +227,13 @@ class _LibraryFullTextSearchSheetState
                       ),
                   ],
                 ),
+                OutlinedButton.icon(
+                  key: const ValueKey('fts-check-changes'),
+                  onPressed: _running ? null : _checkChangedBooks,
+                  icon: const Icon(Icons.sync_outlined),
+                  label: const Text('Check changed books'),
+                ),
+                const SizedBox(height: 6),
                 FilledButton.icon(
                   key: const ValueKey('fts-index-next'),
                   onPressed: _running || widget.store.fullTextPendingBooks == 0
