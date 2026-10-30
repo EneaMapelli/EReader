@@ -1333,7 +1333,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // or into a paragraph without any speech. Save that exact source
     // position, rather than saving a coarse TTS start and then rewriting.
     final sourceOffset = visualOnlyEnd
-        ? visualSourceOffset
+        ? visualSourceOffset!
         : widget.book.format == BookFormat.epub &&
                 visualSourceOffset != null
             ? visualSourceOffset : player.segments[index].start;
