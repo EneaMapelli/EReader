@@ -47,6 +47,7 @@ void main() {
     final log = OfflineVoiceDiagnostics();
     expect(log.snapshot.lastWorkerReadyMs, isNull);
     expect(log.snapshot.lastNativeModelInitializationMs, isNull);
+    expect(log.snapshot.lastNativeGenerationMs, isNull);
     log.recordModelLoad();
     log.recordModelStartup(
       workerReadyMs: 120,
@@ -56,6 +57,8 @@ void main() {
     expect(cold.modelLoads, 1);
     expect(cold.lastWorkerReadyMs, 120);
     expect(cold.lastNativeModelInitializationMs, 84);
+    log.recordNativeGeneration(const Duration(milliseconds: 38));
+    expect(log.snapshot.lastNativeGenerationMs, 38);
     log.recordModelStartup(
       workerReadyMs: -1, nativeModelInitializationMs: -10);
     expect(log.snapshot.lastWorkerReadyMs, 120,
@@ -65,6 +68,8 @@ void main() {
     expect(log.snapshot.lastWorkerReadyMs, isNull,
         reason: 'A new model is not yet initialized');
     expect(log.snapshot.lastNativeModelInitializationMs, isNull);
+    expect(log.snapshot.lastNativeGenerationMs, isNull,
+        reason: 'Next model cannot inherit previous WAV generation timing');
     expect(cold.lastNativeModelInitializationMs, 84,
         reason: 'Older numeric snapshot remains immutable');
     log.recordModelStartup(workerReadyMs: 90);
