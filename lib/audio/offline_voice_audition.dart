@@ -168,11 +168,14 @@ class OfflineVoiceAudition {
     required OfflineVoicePackLoader loadPack,
     OfflineVoiceAuditionEngineFactory? createEngine,
     this.onPreparedModelChanged,
+    Timer Function(Duration, void Function())? preparedTimerScheduler,
   }) : _loadPack = loadPack,
-       _createEngine = createEngine ?? _nativeEngine;
+       _createEngine = createEngine ?? _nativeEngine,
+       _preparedTimerScheduler = preparedTimerScheduler ?? Timer.new;
 
   final OfflineVoicePackLoader _loadPack;
   final OfflineVoiceAuditionEngineFactory _createEngine;
+  final Timer Function(Duration, void Function()) _preparedTimerScheduler;
   /// Optional UI refresh hook; the controller never owns Flutter widgets.
   void Function()? onPreparedModelChanged;
   static const preparedLifetime = Duration(minutes: 3);
@@ -183,6 +186,7 @@ class OfflineVoiceAudition {
 
   bool hasPreparedModel(String packId) =>
       !_disposed && _preparedId == packId && _preparedEngine != null;
+  String? get preparedModelId => _disposed ? null : _preparedId;
 
   String _packFingerprint(InstalledOfflineVoicePack pack) =>
       jsonEncode(pack.manifest.toJson()) +
@@ -252,7 +256,7 @@ class OfflineVoiceAudition {
       _preparedId = packId;
       _preparedFingerprint = _packFingerprint(pack);
       owned = null; // Prepared cache now owns its disposal.
-      _preparedExpiry = Timer(preparedLifetime, () {
+      _preparedExpiry = _preparedTimerScheduler(preparedLifetime, () {
         unawaited(_discardPreparedEngine().catchError((Object _) {}));
       });
       onPreparedModelChanged?.call();
