@@ -145,6 +145,9 @@ void main() {
     expect(find.text('Local test voice'), findsOneWidget);
     expect(find.textContaining('Verified files'), findsOneWidget);
     expect(find.textContaining('MIT'), findsOneWidget);
+    expect(find.byKey(
+        const ValueKey('offline-model-storage-summary')), findsOneWidget);
+    expect(find.textContaining('Verified model files:'), findsOneWidget);
     expect(find.text('Enable neural narration'), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -178,6 +181,8 @@ void main() {
     await letIoSettle(tester);
     expect(await File(pack.modelPath).exists(), isFalse);
     expect(find.text('No local neural voices installed.'), findsOneWidget);
+    expect(find.byKey(
+        const ValueKey('offline-model-storage-summary')), findsNothing);
     expect(find.text('Local voice removed.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

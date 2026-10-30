@@ -69,6 +69,39 @@ void main() {
     expect(offlinePackLanguage(entries[1]), isNull);
   });
 
+  test('verified catalog measures only manifest-approved model files',
+      () async {
+    final pack = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input,
+      modelsDirectory: installed,
+    );
+    final broken = await Directory(
+        p.join(installed.path, 'broken-voice')).create();
+    await File(p.join(broken.path, 'unknown.dat'))
+        .writeAsBytes(List.filled(1000, 7));
+
+    final listed = await inspectOfflineVoicePacks(
+        modelsDirectory: installed);
+    final valid = listed.singleWhere((entry) => entry.id == manifest.id);
+    final corrupt = listed.singleWhere(
+        (entry) => entry.id == 'broken-voice');
+    final expected = await File(pack.modelPath).length() +
+        await File(pack.tokensPath).length() +
+        await File(p.join(installed.path, manifest.id, 'voice-pack.json'))
+            .length();
+    expect(valid.ready, isTrue);
+    expect(valid.verifiedDiskBytes, expected);
+    expect(corrupt.ready, isFalse);
+    expect(corrupt.verifiedDiskBytes, isNull,
+        reason: 'Unknown files must not be counted as verified assets');
+    expect(verifiedOfflineVoiceTotalBytes(listed), expected);
+    expect(offlineVoiceSizeLabel(expected), endsWith(' B'));
+    expect(offlineVoiceSizeLabel(1024), '1.0 KiB');
+    expect(offlineVoiceSizeLabel(1024 * 1024), '1.0 MiB');
+    expect(offlineVoiceSizeLabel(1024 * 1024 * 1024), '1.00 GiB');
+    expect(() => offlineVoiceSizeLabel(-1), throwsArgumentError);
+  });
+
   test('verified two-file model installs into a private pack directory',
       () async {
     final pack = await installOfflineVoicePack(

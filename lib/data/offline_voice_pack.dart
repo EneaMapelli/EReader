@@ -426,11 +426,64 @@ class OfflineVoicePackInspection {
     required this.id,
     required this.ready,
     this.installed,
+    this.verifiedDiskBytes,
   });
 
   final String id;
   final bool ready;
   final InstalledOfflineVoicePack? installed;
+  /// Only known pack files counted AFTER the SHA-256 inspection succeeded.
+  /// Null for damaged/unknown packs; never a claim about whole disk usage.
+  final int? verifiedDiskBytes;
+}
+
+/// Human-readable, deterministic size labels for a local-only diagnostic.
+/// This is allocated bytes in known files, not the filesystem's block usage.
+String offlineVoiceSizeLabel(int bytes) {
+  if (bytes < 0) throw ArgumentError.value(bytes, 'bytes');
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) {
+    return '${(bytes / 1024).toStringAsFixed(1)} KiB';
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MiB';
+  }
+  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GiB';
+}
+
+int verifiedOfflineVoiceTotalBytes(
+    Iterable<OfflineVoicePackInspection> packs) {
+  var total = 0;
+  for (final pack in packs) {
+    if (pack.ready && pack.verifiedDiskBytes != null) {
+      total += pack.verifiedDiskBytes!;
+    }
+  }
+  return total;
+}
+
+/// Count only files the manifest permits, and only after the complete
+/// on-disk hash check. Avoid recursive directory-size traversal or scanning
+/// other application files; a removed/swapped asset invalidates inspection.
+Future<int> _verifiedOfflineVoiceFileBytes(
+    InstalledOfflineVoicePack pack) async {
+  final root = p.dirname(pack.modelPath);
+  final files = <File>[
+    File(pack.modelPath),
+    File(pack.tokensPath),
+    File(p.join(root, _voiceManifestFile)),
+    for (final resource in pack.manifest.phonemizerResources)
+      File(p.joinAll([root, ...resource.relativePath.split('/')])),
+  ];
+  var total = 0;
+  for (final file in files) {
+    if (await FileSystemEntity.type(file.path, followLinks: false) !=
+        FileSystemEntityType.file) {
+      throw const FormatException('Offline model asset changed after verification');
+    }
+    total += await file.length();
+  }
+  return total;
 }
 
 /// Return primary language tags from SHA-verified, installed local packs.
@@ -492,8 +545,10 @@ Future<List<OfflineVoicePackInspection>> inspectOfflineVoicePacks({
       final verified = await loadInstalledOfflineVoicePack(
         packId: id, modelsDirectory: modelsDirectory,
       );
+      final diskBytes = await _verifiedOfflineVoiceFileBytes(verified);
       entries.add(OfflineVoicePackInspection(
         id: id, ready: true, installed: verified,
+        verifiedDiskBytes: diskBytes,
       ));
     } catch (_) {
       entries.add(OfflineVoicePackInspection(id: id, ready: false));

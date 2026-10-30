@@ -943,3 +943,23 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   these tests invokes an ONNX runtime, makes network requests or calls
   GitHub Actions. Flutter/Dart tests not executed in this environment.
 
+### M3 — Verified offline model storage diagnostics (2026-10-30)
+
+- Offline voice manager now reports each installed pack's verified
+  model/tokens/manifest/phonemizer file bytes and the total across ready
+  packs. No audio decoding, ONNX model load, network request or file
+  content persistence is needed to display these local metrics.
+- Sizes are collected **after** the existing SHA-256 checks and only
+  for exact manifest-allowlisted files. If a pack changes or cannot be
+  fully inspected, it remains unavailable with unknown size; corrupt
+  directories and interrupted temporary staging are deliberately not
+  counted as verified storage.
+- The total updates after user-requested installation/removal and does
+  not change when a language filter hides other healthy packs.
+  A file-size sum is not promised as exact filesystem allocated blocks
+  or free disk space.
+- Added unit tests with real local files and a deliberately corrupt pack,
+  deterministic byte-label tests, and widget assertions for displaying
+  and clearing the summary after removal. Tests authored but not run
+  (Flutter/Dart SDK unavailable). No builds or GitHub Actions started.
+

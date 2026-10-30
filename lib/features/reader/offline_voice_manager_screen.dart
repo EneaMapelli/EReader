@@ -517,6 +517,14 @@ class _OfflineVoiceManagerScreenState
         ],
         if (_packs.isNotEmpty) ...[
           const SizedBox(height: 12),
+          Text(
+            'Verified model files: '
+            '${offlineVoiceSizeLabel(verifiedOfflineVoiceTotalBytes(_packs))} '
+            'across ${_packs.where((entry) => entry.ready).length} installed '
+            'voice(s). Damaged packs and temporary files are excluded.',
+            key: const ValueKey('offline-model-storage-summary'),
+          ),
+          const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             key: ValueKey('offline-model-language-filter-${_languageFilter ?? 'all'}'),
             value: _languageFilter ?? 'all',
@@ -556,7 +564,9 @@ class _OfflineVoiceManagerScreenState
               title: Text(entry.installed?.manifest.displayName ?? entry.id),
               subtitle: Text(entry.ready
                   ? 'Verified files · ${entry.installed!.manifest.locale} · '
-                      '${entry.installed!.manifest.licenseId}'
+                      '${entry.installed!.manifest.licenseId} · '
+                      '${entry.verifiedDiskBytes == null ? "Size unavailable" :
+                          offlineVoiceSizeLabel(entry.verifiedDiskBytes!)}'
                   : 'Unavailable: missing or damaged voice files'),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
