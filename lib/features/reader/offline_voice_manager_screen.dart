@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../data/offline_voice_pack.dart';
 import '../../data/piper_paola_installer.dart';
+import '../../data/curated_voice_staging.dart';
 import '../../audio/offline_voice_audition.dart';
 
 /// Model management is deliberately separate from provider activation.
@@ -389,6 +390,53 @@ class _OfflineVoiceManagerScreenState
     await _refresh(clearMessage: false);
   }
 
+  /// Explicit, age-limited cleanup. No user document folders, installed
+  /// model packs, active downloads or unmarked legacy files are touched.
+  Future<void> _cleanInterruptedPaolaDownloads() async {
+    if (!Platform.isWindows || _loading || _busyId != null) return;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Clean interrupted voice downloads?'),
+        content: const Text(
+          'Only EReader-marked Paola download sessions older than '
+          '24 hours will be considered. Active downloads, installed '
+          'voice models, unrelated folders and unmarked files are '
+          'excluded. This runs locally without network requests.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Clean old downloads')),
+        ],
+      ),
+    );
+    if (approved != true || !mounted || _busyId != null) return;
+    setState(() {
+      _busyId = 'paola-staging-cleanup';
+      _message = 'Checking for abandoned voice downloads...';
+    });
+    try {
+      final root = await _directory();
+      final cleaned = await CuratedVoiceStaging.recoverAbandoned(
+        Directory(p.join(root.parent.path, 'voice-downloads')),
+      );
+      if (mounted) {
+        setState(() => _message = cleaned == 0
+            ? 'No eligible abandoned Paola downloads were removed.'
+            : 'Removed $cleaned abandoned Paola download session(s).');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _message =
+            'Unable to clean old voice downloads. Other files were left alone.');
+      }
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -429,6 +477,17 @@ class _OfflineVoiceManagerScreenState
           const Text('About 67 MB. Official sherpa-onnx archive; verified '
               'SHA-256; works offline after installation. '
               'Experimental Windows playback only.'),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            key: const ValueKey('clean-paola-downloads'),
+            onPressed: _loading || _busyId != null
+                ? null : _cleanInterruptedPaolaDownloads,
+            icon: const Icon(Icons.cleaning_services_outlined),
+            label: const Text('Clean interrupted voice downloads'),
+          ),
+          const Text('Manual cleanup scans only marked Paola download '
+              'sessions older than 24 hours. It never scans your books, '
+              'installed models, or unmarked directories.'),
           if (_busyId == PiperPaolaCatalog.id) ...[
             const SizedBox(height: 8),
             LinearProgressIndicator(

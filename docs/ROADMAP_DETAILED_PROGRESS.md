@@ -980,3 +980,16 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   are authored but not executed; native Windows locking still needs
   on-device acceptance. No builds or GitHub Actions.
 
+### M3 — Explicit Windows cleanup command and stale-stage tests
+
+- Added **Clean interrupted voice downloads** to the Windows offline
+  voice manager. A confirmation dialog explains its exact private Paola
+  staging scope, 24-hour minimum age and exclusion of installed models,
+  active downloads and unmarked legacy content. The action reports
+  only a count, never filesystem paths or archive data.
+- Verified stale vs recent stage eligibility with real file timestamps,
+  and strictly bounded cleanup of a nested extracted-model fixture.
+  The cleanup is user-initiated, not run on book import or app startup.
+- Test code added; Dart/Flutter and native Windows lock behavior not
+  executable here. No builds or GitHub Actions initiated.
+

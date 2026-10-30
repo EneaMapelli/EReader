@@ -66,6 +66,18 @@ void main() {
       expect(await live.directory.exists(), isFalse);
     });
 
+    test('expired staging is eligible while a recent copy is protected',
+        () async {
+      final old = await candidate();
+      final fresh = await candidate();
+      await File(p.join(old.path, CuratedVoiceStaging.markerName))
+          .setLastModified(DateTime.now().subtract(
+              const Duration(days: 3)));
+      expect(await CuratedVoiceStaging.recoverAbandoned(staging), 1);
+      expect(await old.exists(), isFalse);
+      expect(await fresh.exists(), isTrue);
+    });
+
     test('wrong marker and unexpected nested files fail closed',
         () async {
       final malformed = await candidate();
@@ -79,6 +91,19 @@ void main() {
       expect(removed, 0);
       expect(await malformed.exists(), isTrue);
       expect(await unexpected.exists(), isTrue);
+    });
+
+    test('marked extraction tree is deleted only within the owned stage',
+        () async {
+      final owned = await candidate();
+      final generated = await Directory(p.join(
+          owned.path, 'unpacked', 'vits-piper-it_IT-paola-medium',
+          'espeak-ng-data', 'voices')).create(recursive: true);
+      await File(p.join(generated.path, 'it'))
+          .writeAsString('test phoneme data');
+      expect(await CuratedVoiceStaging.recoverAbandoned(
+          staging, minimumAge: Duration.zero), 1);
+      expect(await owned.exists(), isFalse);
     });
 
     test('symlink in staging cannot trigger recursive deletion', () async {
