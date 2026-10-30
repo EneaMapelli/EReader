@@ -93,7 +93,7 @@ automaticamente consegnate: sono ampliamenti dello scope.
 | ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
 | ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
 | ER-033 Statistiche/obiettivi | Parziale: catalogo, tempi giornalieri e per libro in SQLite v23/v24, obiettivo globale, storico 7 giorni, cancellazione selettiva/globale e opt-out persistente dal tracciamento. Restano campionamento euristico e QA Windows/Android |
-| ER-034 Libreria massiva/collezioni/FTS | Parziale: metadati avanzati, raccolte manuali/smart (v25), indice FTS5 opt-in (v26), apertura al match UTF-16 verificato e refresh incrementale manuale. Mancano OCR, reindicizzazione continua opt-in, miglior allineamento multi-termine e QA nativa/large-library |
+| ER-034 Libreria massiva/collezioni/FTS | Parziale: metadati avanzati, raccolte manuali/smart (v25), indice FTS5 opt-in (v26), apertura al match UTF-16 verificato e refresh incrementale manuale. Mancano OCR, refresh automatico opzionale, ricerca semantica tra termini distanti e QA nativa/large-library |
 
 ## E. Evidenza e priorità
 
@@ -1336,9 +1336,11 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - La navigazione iniziale non salva un nuovo segnalibro e non avvia
   TTS. Per EPUB sono riutilizzati blocchi visivi, evidenziazione e
   checkpoint visivo temporaneo che protegge gli anchor dalle prime
-  notifiche della lista. I filtri multi-termine puntano alla prima
-  occorrenza completa del primo termine; la navigazione a passaggio
-  contestuale più pertinente richiede ricerca ulteriore.
+  notifiche della lista. Le ricerche multi-termine sono ora risolte sul
+  passaggio più ravvicinato (entro 320 caratteri UTF-16): scansione
+  lineare alla selezione del singolo risultato, memoria O(numero termini),
+  senza rileggere ogni libro a ogni carattere digitato. Se i termini
+  risultano troppo distanti si usa la prima parola intera.
 - Nuova azione manuale `Check changed books` dentro la finestra FTS.
   Usa solo dimensione e data di modifica dei file per invalidare l'indice
   di fonti alterate e reinserirle in coda. Le fonti immutate e le relative
@@ -1351,3 +1353,22 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Test dominio/store/UI per validazione dell'offset, rifiuto risultati
   obsoleti, cancellazione, aggiornamento selettivo e riavvio preparati,
   non eseguiti. Nessuna build Windows/Android né GitHub Actions.
+
+### ER-034 — Pertinenza multi-termine e verifica del contesto (2026-10-30)
+
+- Il salto full-text alla selezione identifica la finestra più corta
+  contenente tutte le parole distinte entro 320 unità UTF-16, anche in
+  ordine inverso; in parità vince la prima. Se non vi è una finestra
+  sufficientemente vicina, resta il fallback prudente alla prima parola
+  completa. La scansione usa memoria limitata al numero di parole (max 8).
+- Insieme all'offset viene catturato **solo in memoria** un contesto
+  limitato prima/dopo la parola (per i multi-termine include l'intero
+  passaggio scelto). Il lettore confronta anche questo contesto sul testo
+  nuovamente estratto; una parola invariata allo stesso offset non basta
+  se il testo circostante è stato riscritto.
+- Test di dominio per prossimità, ordine inverso, parità, emoji,
+  duplicati, fallback distante e contesto modificato. Test di integrazione
+  sul catalogo SQLite per selezione del passaggio, indici obsoleti e
+  nessuna alterazione dello stato di lettura.
+- Stato: modifiche committate; test Dart/Flutter e build native **non
+  eseguiti**; nessuna GitHub Actions avviata.
