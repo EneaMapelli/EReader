@@ -1117,3 +1117,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Tests are authored but **not run** (Flutter/Dart SDK not available).
   No Windows/Android packages or GitHub Actions were started.
 
+### M3 — Incremental offline voice catalog reconciliation (2026-10-30)
+
+- User-approved manual installation, curated Paola download and model
+  removal now reconcile **only the affected voice ID** instead of
+  SHA-256 rehashing all ONNX models after every operation. A targeted
+  inspection reopens and verifies the changed model (including its exact
+  manifest, tokens and phonemizer assets) and measures verified bytes.
+  Absent models disappear; incomplete or damaged models remain visible
+  as unavailable, even when the triggering mutation failed.
+- The targeted result is merged into an immutable sorted catalog snapshot,
+  preserving other models, total storage counts and language filtering.
+  If the last voice for the selected language is removed, the filter
+  returns to All; other entries do not undergo another expensive hash.
+- The explicit **Refresh local voices** action continues performing
+  comprehensive verification, including any external filesystem changes
+  to unrelated models. No background scans, network, automatic model
+  downloads, native synth initialization, cloud fallback or builds.
+- Added pure Dart tests for targeted install, removal, damaged-model
+  demotion, stable sorting, immutable snapshots and disk totals, plus
+  Flutter widget verification that a second local voice appears without
+  removing or hiding an existing one. Tests not executed without
+  the Dart/Flutter SDK; no Windows/Android build or GitHub Actions.
+
