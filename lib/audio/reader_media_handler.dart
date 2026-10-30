@@ -48,6 +48,10 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // Discard this intent if direct ReaderScreen controls change revision.
   int? _pendingSkipTarget;
   int? _pendingSkipRevision;
+  // Only EPUB passes real spine-derived narration boundaries. Plain TXT/PDF
+  // preserve their historic single-segment transport behavior.
+  List<int> _chapterSegmentStarts = const [];
+  void Function(int segmentIndex)? _onRemoteNavigation;
   void _clearRemoteSkipIntent() {
     _pendingSkipTarget = null;
     _pendingSkipRevision = null;
@@ -75,11 +79,24 @@ class ReaderMediaHandler extends BaseAudioHandler {
     required String bookId,
     required String title,
     Future<bool> Function()? canStart,
+    List<int> chapterSegmentStarts = const [],
+    void Function(int segmentIndex)? onRemoteNavigation,
   }) {
     if (_closed) throw StateError('Media handler has been closed');
     detach();
     _player = player;
     _canStart = canStart;
+    _onRemoteNavigation = onRemoteNavigation;
+    // The source-backed EPUB spine can contain empty/illustrated chapters.
+    // Only actual spoken boundaries belong in remote audio navigation.
+    // Make a defensive, sorted, deduplicated snapshot for the book session.
+    final starts = chapterSegmentStarts
+        .where((index) => index >= 0 && index < player.segments.length)
+        .toSet()
+        .toList()..sort();
+    _chapterSegmentStarts = starts.isEmpty
+        ? const []
+        : List<int>.unmodifiable({0, ...starts}.toList()..sort());
     player.addListener(_onPlayerChanged);
     final bookItem = MediaItem(id: bookId, title: title, album: 'EReader');
     mediaItem.add(bookItem);
@@ -94,6 +111,8 @@ class ReaderMediaHandler extends BaseAudioHandler {
     _clearRemoteSkipIntent();
     _interruptionPause = null;
     _interruptionControlRevision = null;
+    _chapterSegmentStarts = const [];
+    _onRemoteNavigation = null;
     _player?.removeListener(_onPlayerChanged);
     _player = null;
     _canStart = null;
@@ -265,6 +284,32 @@ class ReaderMediaHandler extends BaseAudioHandler {
   @override
   Future<void> stop() => pause();
 
+  // Binary search to find the next/previous *narratable* chapter.
+  // From inside a chapter, Previous restarts that chapter; at the start
+  // it goes to the preceding chapter. Past the final chapter, Next goes
+  // to silent speech EOF. A source-exact visual chapter jump remains the
+  // responsibility of ReaderScreen, never speculative cloud synthesis.
+  int _skipTarget(int base, int direction, int total) {
+    final starts = _chapterSegmentStarts;
+    if (starts.isEmpty) return (base + direction).clamp(0, total).toInt();
+    var low = 0;
+    var high = starts.length;
+    while (low < high) {
+      final mid = low + (high - low) ~/ 2;
+      if (starts[mid] < base) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    if (direction < 0) {
+      return low == 0 ? 0 : starts[low - 1];
+    }
+    // Exact chapter starts are not a Next destination; seek beyond them.
+    if (low < starts.length && starts[low] == base) low++;
+    return low == starts.length ? total : starts[low];
+  }
+
   /// Treat physical media-button presses as individual source steps even
   /// while Stop/Seek awaits the native platform or a SQLite checkpoint.
   /// ReaderPlayer already enforces latest-navigation-wins; this layer must
@@ -278,7 +323,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
             _pendingSkipRevision == player.narrationControlRevision
         ? previousTarget : player.intendedNavigationIndex;
     final length = player.segments.length;
-    final target = (base + delta).clamp(0, length).toInt();
+    final target = _skipTarget(base, delta, length);
     // Explicit EOF is a silent source position, never a replay of the
     // final spoken segment. Repeated Next at EOF is an idempotent no-op.
     // Media Play from EOF remains an explicit user restart from chapter 1.
@@ -294,8 +339,25 @@ class ReaderMediaHandler extends BaseAudioHandler {
     // Seek increments its revision synchronously before the first await.
     // Capture that revision NOW so another press arriving during native
     // Stop adds a step rather than calculating from the stale cursor.
-    _pendingSkipRevision = player.narrationControlRevision;
-    await moving;
+    final revision = player.narrationControlRevision;
+    _pendingSkipRevision = revision;
+    try {
+      await moving;
+      // An older request or detached book must never drag the visual
+      // cursor back after a newer navigation (or emit a stale bookmark).
+      if (!_closed && identical(_player, player) &&
+          revision == player.narrationControlRevision &&
+          player.currentIndex == target) {
+        _onRemoteNavigation?.call(target);
+      }
+    } finally {
+      // Preserve accumulation only while a remote skip is still pending.
+      // Otherwise a later press after natural speech advancement would
+      // incorrectly step from an obsolete media target.
+      if (identical(_player, player) && _pendingSkipRevision == revision) {
+        _clearRemoteSkipIntent();
+      }
+    }
   }
 
   @override

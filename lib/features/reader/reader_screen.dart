@@ -422,6 +422,62 @@ class _ReaderScreenState extends State<ReaderScreen>
         player,
         bookId: widget.book.id,
         title: widget.book.title,
+        chapterSegmentStarts: [
+          for (final chapter in chapters)
+            if (chapter.hasSpeech) chapter.segmentIndex,
+        ],
+        onRemoteNavigation: (index) {
+          // Media controls operate directly on ReaderPlayer, bypassing
+          // _select and its visual bookmark. Synchronize the viewport
+          // without issuing another native Stop or extra speech request.
+          if (!mounted || _player != player || _document != document ||
+              chunks.isEmpty) return;
+          _cancelPendingVisualSave();
+          final speechEnd = index >= chunks.length;
+          final chapterOffset = widget.book.format == BookFormat.epub &&
+                  !speechEnd
+              ? [
+                  for (final chapter in chapters)
+                    if (chapter.hasSpeech && chapter.segmentIndex == index)
+                      chapter.start,
+                ]
+              : const <int>[];
+          final sourceOffset = speechEnd ? document.text.length
+              : chapterOffset.isNotEmpty
+                  ? chapterOffset.first : chunks[index].start;
+          _visiblePositionIndex = index;
+          if (widget.book.format == BookFormat.epub) {
+            _visualCheckpoint.clear();
+            _selectedVisualSpineIdref = null;
+            _currentEpubVisualSourceOffset = sourceOffset;
+            final block = visualLayout.blockForSourceOffset(sourceOffset);
+            _visualCheckpoint.hold(sourceOffset,
+                awaitTarget: true, targetBlockIndex: block);
+            _lastVisibleEpubBlockIndex = block;
+            _lastFollowedIndex = block;
+            if (_autoFollow && _itemScrollController.isAttached) {
+              _itemScrollController.jumpTo(
+                  index: block, alignment: 0.12);
+            }
+          } else if (_autoFollow && _itemScrollController.isAttached) {
+            _itemScrollController.jumpTo(
+                index: index.clamp(0, chunks.length - 1).toInt(),
+                alignment: 0.12);
+          }
+          _visualProgressTick.value++;
+          setState(() {});
+          if (!player.isPlaying) {
+            // Persist a paused lock-screen jump just like an in-reader
+            // chapter selection; never race an active speech checkpoint.
+            unawaited(widget.store.savePosition(
+              widget.book.id, sourceOffset,
+              anchor: document.anchorAt(widget.book.format, sourceOffset),
+            ).catchError((Object _, StackTrace __) {
+              // Visual navigation must not turn a storage error into
+              // another unsolicited audio or cloud operation.
+            }));
+          }
+        },
         canStart: () async {
           // Check the active adapter on every external Play, not the
           // preferences snapshot captured when the screen was first built.

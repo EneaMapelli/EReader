@@ -267,6 +267,131 @@ void main() {
     player.dispose();
   });
 
+  test('EPUB transport Next jumps real spine chapters, not sentences',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 3, 'A1'),
+        SpeechSegment(4, 7, 'A2'),
+        SpeechSegment(8, 11, 'B1'),
+        SpeechSegment(12, 15, 'B2'),
+        SpeechSegment(16, 19, 'C1'),
+      ],
+      onSegmentStarted: (_) async {},
+    );
+    final visited = <int>[];
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'epub', title: 'EPUB',
+        chapterSegmentStarts: [0, 2, 4],
+        onRemoteNavigation: visited.add);
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['A1']);
+
+    await handler.skipToNext();
+    await Future<void>.delayed(Duration.zero);
+    expect(player.currentIndex, 2);
+    expect(engine.spoken, ['A1', 'B1']);
+    await handler.skipToNext();
+    await Future<void>.delayed(Duration.zero);
+    expect(player.currentIndex, 4);
+    expect(engine.spoken.last, 'C1');
+    await handler.skipToNext();
+    expect(player.currentIndex, player.segments.length);
+    expect(player.isPlaying, isFalse);
+    expect(engine.spoken, ['A1', 'B1', 'C1']);
+    expect(visited, [2, 4, 5]);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('EPUB Previous restarts current chapter before earlier one',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 3, 'A1'),
+        SpeechSegment(4, 7, 'A2'),
+        SpeechSegment(8, 11, 'B1'),
+        SpeechSegment(12, 15, 'B2'),
+        SpeechSegment(16, 19, 'C1'),
+      ],
+      onSegmentStarted: (_) async {},
+    );
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'epub', title: 'EPUB',
+        chapterSegmentStarts: [0, 2, 4]);
+    player.currentIndex = 3; // In the middle of the second chapter.
+    await handler.skipToPrevious();
+    expect(player.currentIndex, 2);
+    await handler.skipToPrevious();
+    expect(player.currentIndex, 0);
+    expect(engine.spoken, isEmpty,
+        reason: 'Remote navigation while paused never starts TTS');
+    await handler.close();
+    player.dispose();
+  });
+
+  test('rapid chapter skips compose and silent spine items are omitted',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 3, 'A1'),
+        SpeechSegment(4, 7, 'A2'),
+        SpeechSegment(8, 11, 'B1'),
+        SpeechSegment(12, 15, 'B2'),
+        SpeechSegment(16, 19, 'C1'),
+      ],
+      onSegmentStarted: (_) async {},
+    );
+    final visited = <int>[];
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    // Duplicates represent silent OPF entries pointing to the next
+    // audible segment; invalid indices are discarded.
+    handler.attach(player, bookId: 'epub', title: 'EPUB',
+        chapterSegmentStarts: [4, 2, 2, -1, 6, 0],
+        onRemoteNavigation: visited.add);
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.stopGate = Completer<void>();
+    final first = handler.skipToNext();
+    final next = handler.skipToNext();
+    final previous = handler.skipToPrevious();
+    engine.stopGate!.complete();
+    await Future.wait([first, next, previous]);
+    await Future<void>.delayed(Duration.zero);
+    expect(player.currentIndex, 2);
+    expect(engine.spoken, ['A1', 'B1']);
+    expect(visited, [2],
+        reason: 'Only the winning remote chapter position is published');
+    await handler.pause();
+    await handler.close();
+    player.dispose();
+  });
+
+  test('reopening a TXT book clears previous EPUB chapter navigation',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'epub', title: 'EPUB',
+        chapterSegmentStarts: [0, 1]);
+    handler.detach(player);
+    handler.attach(player, bookId: 'txt', title: 'Plain text');
+    await handler.skipToNext();
+    expect(player.currentIndex, 1);
+    await handler.skipToPrevious();
+    expect(player.currentIndex, 0);
+    expect(engine.spoken, isEmpty);
+    await handler.close();
+    player.dispose();
+  });
+
   test('lock-screen Play cannot bypass book cloud consent', () async {
     final engine = _FakeSpeechEngine();
     final player = _reader(engine);

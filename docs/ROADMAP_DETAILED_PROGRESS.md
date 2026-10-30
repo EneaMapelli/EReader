@@ -750,3 +750,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Tests authored but **not executed** without Dart/Flutter.
   No build, release or GitHub Actions initiated.
 
+### M2/Android — Real EPUB chapter transport navigation (2026-10-30)
+
+- Wired the ReaderScreen's existing verified OPF spine chapter boundaries
+  into ReaderMediaHandler at book attach. When EPUB chapters exist, remote
+  Next/Previous now move between *narratable chapter starts*, not individual
+  TTS chunks; PDF/TXT retain segment navigation. Previous from inside a
+  chapter restarts its beginning, from the beginning selects the previous.
+- Silent/illustrated spine items do not synthesize audio or create duplicate
+  remote steps. The final chapter's Next reaches explicit silent speech EOF;
+  no extra Play, cloud request or synthetic chapter timing is inferred.
+- Binary-search target resolution, sorted deduplicated immutable boundaries
+  and the existing native Stop/SQLite barriers protect rapid button presses.
+  Remote intents clear after settlement, preventing old targets from being
+  reused after natural speech advances. Direct reader navigation still wins.
+- Remote chapter moves notify ReaderScreen after the winning Seek so the
+  visual/source cursor, optional scrolling and a paused SQLite bookmark
+  remain consistent; no second native seek or unsolicited synthesis.
+- Authored Android media-handler regressions for real chapters, Previous
+  semantics, rapid mixed chapter commands, silent duplicate starts and
+  TXT book reattachment fallback. **Not run** without Dart/Flutter SDK.
+  No Windows/Android build or GitHub Actions started; real device controls
+  and visual EPUB behavior remain to be accepted manually.
+
