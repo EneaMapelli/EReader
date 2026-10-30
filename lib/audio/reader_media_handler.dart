@@ -346,8 +346,12 @@ class ReaderMediaHandler extends BaseAudioHandler {
       // An older request or detached book must never drag the visual
       // cursor back after a newer navigation (or emit a stale bookmark).
       if (!_closed && identical(_player, player) &&
-          revision == player.narrationControlRevision &&
-          player.currentIndex == target) {
+          _pendingSkipRevision == revision &&
+          player.currentIndex == target &&
+          player.intendedNavigationIndex == target) {
+        // A successful Seek may have already auto-resumed Play. Play
+        // increments the control revision again, but that must NOT
+        // suppress visual synchronization for the winning chapter.
         _onRemoteNavigation?.call(target);
       }
     } finally {
