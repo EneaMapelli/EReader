@@ -994,7 +994,13 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
 
   /// Rolling seven LOCAL calendar dates. Uses aggregated row counts, never
   /// claims a last-opened timestamp is a timed reading session.
-  WeeklyReadingActivity weeklyReadingActivity({DateTime? now}) {
+  WeeklyReadingActivity weeklyReadingActivity({
+    DateTime? now,
+    String? bookId,
+  }) {
+    if (bookId != null && getBook(bookId) == null) {
+      throw StateError('Cannot summarize an unknown book');
+    }
     final local = (now ?? DateTime.now()).toLocal();
     final days = [
       for (var i = 6; i >= 0; i--)
@@ -1012,8 +1018,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       SELECT local_day, mode, SUM(seconds) AS total_seconds
       FROM reading_activity_daily
       WHERE local_day BETWEEN ? AND ?
+      ${bookId == null ? '' : 'AND book_id = ?'}
       GROUP BY local_day, mode
-    ''', [days.first, days.last])) {
+    ''', [days.first, days.last, if (bookId != null) bookId])) {
       final day = row['local_day'] as String;
       final mode = ReadingActivityMode.values.byName(row['mode'] as String);
       totals[day]?[mode] = row['total_seconds'] as int;
@@ -1028,6 +1035,71 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
             ttsSeconds: totals[day]![ReadingActivityMode.tts]!,
           ),
       ]),
+    );
+  }
+
+  /// The most active books in seven local calendar days (max 50).
+  /// One bounded SQL query, without per-book scans or text extraction.
+  List<BookReadingActivityTotals> mostActiveReadingBooks({
+    DateTime? now,
+    int limit = 10,
+  }) {
+    if (limit < 1 || limit > 50) {
+      throw RangeError.range(limit, 1, 50, 'limit');
+    }
+    final local = (now ?? DateTime.now()).toLocal();
+    final first = readingLocalDate(
+        DateTime(local.year, local.month, local.day - 6));
+    final last = readingLocalDate(local);
+    final rows = _database.select('''
+      SELECT b.id AS book_id, b.title AS title,
+        SUM(CASE WHEN a.mode = 'visual' THEN a.seconds ELSE 0 END)
+          AS visual_seconds,
+        SUM(CASE WHEN a.mode = 'tts' THEN a.seconds ELSE 0 END)
+          AS tts_seconds
+      FROM reading_activity_daily a
+      JOIN books b ON b.id = a.book_id
+      WHERE a.local_day BETWEEN ? AND ?
+      GROUP BY b.id, b.title
+      HAVING SUM(a.seconds) > 0
+      ORDER BY SUM(a.seconds) DESC, b.title COLLATE NOCASE ASC, b.id ASC
+      LIMIT ?
+    ''', [first, last, limit]);
+    return List.unmodifiable(rows.map((row) => BookReadingActivityTotals(
+      bookId: row['book_id'] as String,
+      title: row['title'] as String,
+      visualSeconds: row['visual_seconds'] as int,
+      ttsSeconds: row['tts_seconds'] as int,
+    )));
+  }
+
+  /// All recorded time for one existing book, including previous weeks.
+  BookReadingActivityTotals bookReadingLifetimeTotals(String bookId) {
+    final book = getBook(bookId);
+    if (book == null) {
+      throw StateError('Cannot summarize an unknown book');
+    }
+    final rows = _database.select('''
+      SELECT mode, SUM(seconds) AS total_seconds
+      FROM reading_activity_daily
+      WHERE book_id = ?
+      GROUP BY mode
+    ''', [bookId]);
+    var visual = 0;
+    var tts = 0;
+    for (final row in rows) {
+      switch (row['mode'] as String) {
+        case 'visual':
+          visual = row['total_seconds'] as int;
+        case 'tts':
+          tts = row['total_seconds'] as int;
+      }
+    }
+    return BookReadingActivityTotals(
+      bookId: bookId,
+      title: book.title,
+      visualSeconds: visual,
+      ttsSeconds: tts,
     );
   }
 
