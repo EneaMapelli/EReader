@@ -352,6 +352,33 @@ void main() {
     expect((await store.indexNextFullTextBatch()).indexed, 2);
   });
 
+  test('reset invalidates an in-flight background passage preview',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    final preview = store.fullTextPassagesForHit(alpha, 'blue dragon');
+    // Call reset in the same event-loop turn as the preview request.
+    // The worker cannot return stale private content after a reset.
+    store.resetFullTextIndex();
+    expect(await preview, isEmpty);
+    expect(store.fullTextPendingBooks, 2);
+    expect(store.fullTextIndexedBooks, 0);
+    expect(store.getBook(alpha)!.progressOffset, 0);
+  });
+
+  test('rapid opt-out and opt-in invalidates an in-flight passage preview',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    final preview = store.fullTextPassagesForHit(alpha, 'dragon');
+    store.setFullTextIndexEnabled(false);
+    store.setFullTextIndexEnabled(true);
+    expect(await preview, isEmpty);
+    expect(store.fullTextIndexedBooks, 0);
+    expect(store.searchIndexedBookContents('dragon'), isEmpty);
+    expect(store.fullTextPendingBooks, 2);
+  });
+
   test('cancel between books leaves a resumable batch, no duplicate text',
       () async {
     store.setFullTextIndexEnabled(true);
