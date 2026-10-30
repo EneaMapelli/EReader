@@ -1441,7 +1441,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         // If the file changed during the parser's read, mark the book
         // skipped rather than caching text under the wrong source stamp.
         if (text != null &&
-            await _fullTextSourceStamp(book.localPath) != sourceStamp) {
+            (await _fullTextSourceStamp(book.localPath)) != sourceStamp) {
           text = null;
         }
         if (text != null) {
