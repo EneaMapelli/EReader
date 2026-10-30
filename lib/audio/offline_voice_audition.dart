@@ -34,6 +34,7 @@ class OfflineVoicePreviewReport {
     this.voiceSetupMs,
     this.speechWallMs,
     this.nativeSynthesisMs,
+    this.nativeGenerationMs,
     this.workerReadyMs,
     this.nativeModelInitializationMs,
     this.decoderHandoffMs,
@@ -47,7 +48,11 @@ class OfflineVoicePreviewReport {
   final int? verificationMs;
   final int? voiceSetupMs;
   final int? speechWallMs;
+  /// Caller-side synthesis path; first clip includes worker startup
+  /// and model initialization. Do NOT add it to native model load time.
   final int? nativeSynthesisMs;
+  /// Worker-local generate + WAV writing, excluding model setup/playback.
+  final int? nativeGenerationMs;
   /// From worker creation through ready handshake, including isolate spawn.
   final int? workerReadyMs;
   /// Worker-local time to initialize sherpa bindings and the ONNX model.
@@ -66,6 +71,7 @@ class OfflineVoicePreviewReport {
         voiceSetupMs: voiceSetupMs,
         speechWallMs: speechWallMs,
         nativeSynthesisMs: nativeSynthesisMs,
+        nativeGenerationMs: nativeGenerationMs,
         workerReadyMs: workerReadyMs,
         nativeModelInitializationMs: nativeModelInitializationMs,
         decoderHandoffMs: decoderHandoffMs,
@@ -92,8 +98,10 @@ String formatOfflineVoicePreviewReport(OfflineVoicePreviewReport report) {
       'Worker ready: ${report.workerReadyMs} ms',
     if (report.nativeModelInitializationMs != null)
       'Native model init: ${report.nativeModelInitializationMs} ms',
+    if (report.nativeGenerationMs != null)
+      'Worker WAV generation: ${report.nativeGenerationMs} ms',
     if (report.nativeSynthesisMs != null)
-      'Native synthesis: ${report.nativeSynthesisMs} ms',
+      'Synthesis path incl. startup: ${report.nativeSynthesisMs} ms',
     if (report.decoderHandoffMs != null)
       'WAV decoder handoff: ${report.decoderHandoffMs} ms',
     if (report.speechWallMs != null)
@@ -241,6 +249,9 @@ class OfflineVoiceAudition {
             nativeSynthesisMs: nativeStats == null ||
                     nativeStats.syntheses == 0
                 ? null : nativeStats.lastSynthesisMs,
+            nativeGenerationMs: nativeStats == null ||
+                    nativeStats.syntheses == 0
+                ? null : nativeStats.lastNativeGenerationMs,
             workerReadyMs: nativeStats == null ||
                     nativeStats.syntheses == 0
                 ? null : nativeStats.lastWorkerReadyMs,
