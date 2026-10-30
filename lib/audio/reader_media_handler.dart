@@ -43,6 +43,15 @@ class ReaderMediaHandler extends BaseAudioHandler {
   Future<bool> Function()? _canStart;
   int _bindingEpoch = 0;
   int _commandEpoch = 0;
+  // Remote headset buttons can arrive twice before a native Stop settles.
+  // Keep their cumulative *requested* source target, not the old cursor.
+  // Discard this intent if direct ReaderScreen controls change revision.
+  int? _pendingSkipTarget;
+  int? _pendingSkipRevision;
+  void _clearRemoteSkipIntent() {
+    _pendingSkipTarget = null;
+    _pendingSkipRevision = null;
+  }
   bool _closed = false;
   // All focus gains and releases are queued on one native operation chain.
   // A delayed gain must never override a newer Pause/release.
@@ -82,6 +91,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (expected != null && !identical(expected, _player)) return;
     _bindingEpoch++;
     _commandEpoch++;
+    _clearRemoteSkipIntent();
     _interruptionPause = null;
     _interruptionControlRevision = null;
     _player?.removeListener(_onPlayerChanged);
@@ -186,6 +196,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     final player = _player;
     if (_closed || player == null || player.isPlaying ||
         player.segments.isEmpty) return;
+    _clearRemoteSkipIntent();
     // Never acquire focus or dispatch billable/cloud narration while an
     // older native utterance might still be playing after Stop timed out.
     if (player.nativeStopUnconfirmed) {
@@ -229,6 +240,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     // Invalidate pending remote Play even when focus acquisition is still
     // awaiting Android and ReaderPlayer itself never started speaking.
     _commandEpoch++;
+    _clearRemoteSkipIntent();
     final player = _player;
     if (player == null) return;
     if (player.isSettledIdle) {
@@ -253,21 +265,44 @@ class ReaderMediaHandler extends BaseAudioHandler {
   @override
   Future<void> stop() => pause();
 
-  @override
-  Future<void> skipToNext() async {
+  /// Treat physical media-button presses as individual source steps even
+  /// while Stop/Seek awaits the native platform or a SQLite checkpoint.
+  /// ReaderPlayer already enforces latest-navigation-wins; this layer must
+  /// keep the *requested* cursor for successive remote commands.
+  Future<void> _skipRemote(int delta) async {
     _commandEpoch++;
     final player = _player;
-    if (player == null || player.segments.isEmpty) return;
-    await player.seekTo(player.currentIndex + 1);
+    if (_closed || player == null || player.segments.isEmpty) return;
+    final previousTarget = _pendingSkipTarget;
+    final base = previousTarget != null &&
+            _pendingSkipRevision == player.narrationControlRevision
+        ? previousTarget : player.currentIndex;
+    final length = player.segments.length;
+    final target = (base + delta).clamp(0, length).toInt();
+    // Explicit EOF is a silent source position, never a replay of the
+    // final spoken segment. Repeated Next at EOF is an idempotent no-op.
+    // Media Play from EOF remains an explicit user restart from chapter 1.
+    if (target == length && player.currentIndex == length &&
+        player.isSettledIdle) {
+      _clearRemoteSkipIntent();
+      return;
+    }
+    _pendingSkipTarget = target;
+    final moving = target == length
+        ? player.seekToSourceEnd()
+        : player.seekTo(target);
+    // Seek increments its revision synchronously before the first await.
+    // Capture that revision NOW so another press arriving during native
+    // Stop adds a step rather than calculating from the stale cursor.
+    _pendingSkipRevision = player.narrationControlRevision;
+    await moving;
   }
 
   @override
-  Future<void> skipToPrevious() async {
-    _commandEpoch++;
-    final player = _player;
-    if (player == null || player.segments.isEmpty) return;
-    await player.seekTo(player.currentIndex - 1);
-  }
+  Future<void> skipToNext() => _skipRemote(1);
+
+  @override
+  Future<void> skipToPrevious() => _skipRemote(-1);
 
   /// Conservative policy for calls, competing audio and unplugged
   /// headphones: pause; NEVER auto-resume on a focus-gain event.

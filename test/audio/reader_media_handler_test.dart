@@ -115,6 +115,150 @@ void main() {
     player.dispose();
   });
 
+  test('Next on final audible segment reaches silent source EOF',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    var focusReleased = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { focusReleased++; },
+    );
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    await handler.skipToNext();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First', 'Second']);
+    expect(player.currentIndex, 1);
+
+    await handler.skipToNext();
+    expect(player.currentIndex, 2);
+    expect(player.isPlaying, isFalse);
+    expect(player.isSettledIdle, isTrue);
+    expect(handler.playbackState.value.processingState,
+        AudioProcessingState.completed);
+    expect(engine.spoken, ['First', 'Second'],
+        reason: 'Last segment must not be replayed when pressing Next');
+    expect(focusReleased, 1);
+    final stopCount = engine.stopCalls;
+    await handler.skipToNext();
+    expect(player.currentIndex, 2);
+    expect(engine.stopCalls, stopCount,
+        reason: 'Next at exact EOF requires no additional native Stop');
+    await handler.close();
+    player.dispose();
+  });
+
+  test('Previous at source EOF selects last audible segment', () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    await handler.skipToNext();
+    await handler.skipToNext();
+    expect(player.currentIndex, 2);
+    await handler.skipToPrevious();
+    expect(player.currentIndex, 1);
+    expect(player.isPlaying, isFalse);
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First', 'Second', 'Second']);
+    await handler.pause();
+    await handler.close();
+    player.dispose();
+  });
+
+  test('rapid Next commands accumulate while native Stop is pending',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 3, 'One'),
+        SpeechSegment(4, 7, 'Two'),
+        SpeechSegment(8, 13, 'Three'),
+        SpeechSegment(14, 18, 'Four'),
+      ],
+      onSegmentStarted: (_) async {},
+    );
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['One']);
+    engine.stopGate = Completer<void>();
+    final first = handler.skipToNext();
+    final second = handler.skipToNext();
+    final third = handler.skipToNext();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['One'],
+        reason: 'No new speech before native Stop confirmation');
+    engine.stopGate!.complete();
+    await Future.wait([first, second, third]);
+    await Future<void>.delayed(Duration.zero);
+    expect(player.currentIndex, 3);
+    expect(engine.spoken, ['One', 'Four']);
+    await handler.pause();
+    await handler.close();
+    player.dispose();
+  });
+
+  test('rapid opposing media steps leave only their final target',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.stopGate = Completer<void>();
+    final next = handler.skipToNext();
+    final previous = handler.skipToPrevious();
+    engine.stopGate!.complete();
+    await Future.wait([next, previous]);
+    await Future<void>.delayed(Duration.zero);
+    expect(player.currentIndex, 0);
+    expect(engine.spoken, ['First', 'First']);
+    await handler.pause();
+    await handler.close();
+    player.dispose();
+  });
+
+  test('direct reader navigation supersedes pending remote skip target',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 3, 'One'),
+        SpeechSegment(4, 7, 'Two'),
+        SpeechSegment(8, 13, 'Three'),
+        SpeechSegment(14, 18, 'Four'),
+      ],
+      onSegmentStarted: (_) async {},
+    );
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.stopGate = Completer<void>();
+    final firstRemote = handler.skipToNext();
+    final directSeek = player.seekTo(3);
+    final secondRemote = handler.skipToPrevious();
+    engine.stopGate!.complete();
+    await Future.wait([firstRemote, directSeek, secondRemote]);
+    await Future<void>.delayed(Duration.zero);
+    expect(player.currentIndex, 2);
+    expect(engine.spoken, ['One', 'Three'],
+        reason: 'A remote press after direct Seek uses direct target intent');
+    await handler.pause();
+    await handler.close();
+    player.dispose();
+  });
+
   test('lock-screen Play cannot bypass book cloud consent', () async {
     final engine = _FakeSpeechEngine();
     final player = _reader(engine);

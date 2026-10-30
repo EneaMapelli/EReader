@@ -714,3 +714,24 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Windows/Android build or GitHub Actions started; real device audio-focus
   and incoming-call verification remains an acceptance requirement.
 
+### M2/Android — Media skip cursor and silent EOF (2026-10-30)
+
+- Corrected Android Next on the last spoken source segment: it now
+  advances to ReaderPlayer's explicit *silent* EOF instead of clamping
+  back to and replaying the final utterance. A further Next at settled
+  EOF is idempotent and does not invoke the native Stop again. Previous
+  at EOF returns to the last audible segment; Play at EOF still represents
+  an explicit user-directed restart.
+- Remote Next/Previous presses that arrive while native Stop/checkpoint
+  barriers are pending now accumulate relative to their last requested
+  source position. ReaderPlayer's existing navigation epoch makes only
+  the newest target effective. A newer direct in-reader navigation uses
+  its own revision and supersedes that remote accumulation.
+- Authored fake-engine regressions for last-segment EOF, Previous after
+  EOF, three rapid Next operations, opposite rapid controls and direct
+  Seek interleaving. No synthetic playback times, speculative synthesis,
+  new cloud permissions or duplicate media streams introduced.
+- Tests authored but **not run** (Flutter/Dart SDK unavailable).
+  No Windows/Android builds or GitHub Actions started; verify lock-screen
+  labels, focus and chapter-boundary behavior on an actual device.
+
