@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:ereader/audio/sherpa_vits_engine.dart';
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/audio/offline_wav_cleanup.dart';
+import 'package:ereader/audio/offline_wav_session.dart';
 import 'package:ereader/data/offline_voice_pack.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -202,6 +203,38 @@ void main() {
     expect(await root.list(followLinks: false).toList(), hasLength(1),
         reason: 'Current private WAV session remains OS-leased and owned');
     release.complete();
+    await synth.dispose();
+    expect(await root.list(followLinks: false).toList(), isEmpty);
+  });
+
+  test('background recovery reclaims old WAV, never the new live session',
+      () async {
+    final abandoned = await OfflineWavSession.create(root);
+    final staleFolder = await abandoned.directory.createTemp(
+        'ereader-local-tts-');
+    final staleWav = File(p.join(staleFolder.path, 'speech.wav'));
+    await staleWav.writeAsBytes([82, 73, 70, 70]);
+    await abandoned.close();
+    expect(await abandoned.directory.exists(), isTrue);
+
+    final synth = engine();
+    await synth.speak('Current private WAV',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    expect(texts, ['Current private WAV']);
+    for (var attempt = 0;
+        attempt < 100 && await abandoned.directory.exists();
+        attempt++) {
+      await Future<void>.delayed(
+          const Duration(milliseconds: 10));
+    }
+    expect(await abandoned.directory.exists(), isFalse,
+        reason: 'Lease-checked orphan recovery still takes place');
+    final current = await root.list(followLinks: false).toList();
+    expect(current, hasLength(1));
+    expect(current.single, isA<Directory>());
+    expect(await File(p.join(current.single.path,
+        OfflineWavSession.markerName)).exists(), isTrue,
+        reason: 'The new session must remain owned and protected');
     await synth.dispose();
     expect(await root.list(followLinks: false).toList(), isEmpty);
   });
