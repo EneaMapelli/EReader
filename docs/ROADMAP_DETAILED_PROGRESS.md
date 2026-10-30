@@ -1096,3 +1096,24 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   mentre il ripristino add-only non lo importa né modifica i consensi.
 - Test di upgrade v23→v24, marker ripristinato, UI, restart e copia di
   backup predisposti ma non eseguiti. Nessuna compilazione o Actions.
+
+### M3 — Diagnostica degli errori TTS offline (2026-10-30)
+
+- Introduced `offline_voice_install_diagnostics.dart`, a pure, bounded
+  error-to-guidance translator for local VITS/Piper model inspection,
+  user-approved import, curated Paola download and model removal.
+  Diagnoses include SHA-256/metadata mismatch, incomplete or unsafe
+  packages, resource limits, tar extraction failures, download/network
+  issues, disk-full, access-denied, and locked native model files.
+- The voice manager now displays stable, actionable, localized-to-operation
+  error advice instead of one overly generic failure string. Raw exception
+  messages, OS paths, model URLs, source book data and stack traces are
+  never concatenated into the user-facing message; unknown failures receive
+  a conservative generic fallback. No automatic retry or cloud fallback.
+- Added pure regressions for failure categories, Windows/Unix OS error
+  codes and redaction of user/private paths, plus Flutter widget coverage
+  for a tokens.txt checksum modified AFTER the import preview. The latter
+  verifies that the source file remains intact and no model is installed.
+- Tests are authored but **not run** (Flutter/Dart SDK not available).
+  No Windows/Android packages or GitHub Actions were started.
+
