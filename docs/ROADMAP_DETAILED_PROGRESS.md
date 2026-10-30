@@ -911,3 +911,21 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   to automatic mode, and unavailable cast voice, plus six sample tests.
   Flutter/Dart tests **authored but not run**; no build or GitHub Actions.
 
+### M3 — Comparable system/neural offline preview and native Stop barrier (2026-10-30)
+
+- Free sherpa/VITS previews now use the exact same short, fixed
+  locale-specific public phrase as the free system-voice audition.
+  Expanded offline sample coverage to the supported language scripts
+  without sending book passages or initiating any cloud operation.
+- Fixed a native ownership race: Stop during asynchronous ONNX
+  `chooseVoice` cancels pending speech immediately, but now waits for
+  that Play call to unwind before disposing the native engine. A later
+  preview waits on the serialized Stop/disposal barrier.
+- Added regressions for Stop during a blocked native choice, absence
+  of late synthesis, exactly-once model disposal, and consistency
+  of sample text across twelve languages.
+- All samples still require manual opt-in and verified local models.
+  Experimental neural runtime remains **Windows only**; no Android
+  model activation, automatic downloading, build or GitHub Actions.
+  Tests authored but not run (Flutter/Dart SDK unavailable).
+

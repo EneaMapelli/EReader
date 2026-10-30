@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:ereader/audio/offline_voice_audition.dart';
+import 'package:ereader/audio/system_voice_audition.dart';
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/data/offline_voice_pack.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,10 @@ class FakeOfflineEngine implements SpeechEngine {
   double? rate;
   double? pitch;
   Completer<void>? pending;
+  Completer<void>? choiceGate;
+  int choices = 0;
+  bool choosing = false;
+  bool disposedWhileChoosing = false;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => const [
@@ -23,7 +28,15 @@ class FakeOfflineEngine implements SpeechEngine {
 
   @override
   Future<void> chooseVoice(SpeechVoice selection) async {
-    voice = selection;
+    choices++;
+    choosing = true;
+    try {
+      final gate = choiceGate;
+      if (gate != null) await gate.future;
+      voice = selection;
+    } finally {
+      choosing = false;
+    }
   }
 
   @override
@@ -46,6 +59,7 @@ class FakeOfflineEngine implements SpeechEngine {
 
   @override
   Future<void> dispose() async {
+    if (choosing) disposedWhileChoosing = true;
     disposals++;
   }
 }
@@ -70,6 +84,14 @@ InstalledOfflineVoicePack samplePack({String id = 'italian',
       tokensPath: '/private/models/$id/tokens.txt',
     );
 
+Future<void> until(bool Function() ready) async {
+  for (var i = 0; i < 100; i++) {
+    if (ready()) return;
+    await Future<void>.delayed(Duration.zero);
+  }
+  fail('Offline preview operation did not reach expected state');
+}
+
 void main() {
   test('sample is a fixed local phrase, never sourced from an ebook', () async {
     final fake = FakeOfflineEngine();
@@ -82,7 +104,7 @@ void main() {
     expect(loads, 1);
     expect(fake.speaks, 1);
     expect(fake.spoken, offlineVoiceSampleText('it-IT'));
-    expect(fake.spoken, contains('senza inviare'));
+    expect(fake.spoken, contains('voce italiana'));
     expect(fake.voice!.name, 'italian');
     expect(fake.language, 'it-IT');
     expect(fake.rate, 0.5);
@@ -127,6 +149,42 @@ void main() {
     expect(fake.disposals, 1);
   });
 
+  test('Stop during native voice choice waits to dispose the ONNX engine',
+      () async {
+    final fake = FakeOfflineEngine()..choiceGate = Completer<void>();
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => fake,
+    );
+    final running = audition.play('italian');
+    await until(() => fake.choices == 1);
+    final stopping = audition.stop();
+    await until(() => fake.stops == 1);
+    expect(fake.disposals, 0,
+        reason: 'Native voice choice still owns the model');
+    expect(fake.disposedWhileChoosing, isFalse);
+    fake.choiceGate!.complete();
+    await Future.wait([running, stopping]);
+    expect(fake.speaks, 0,
+        reason: 'A cancelled preview cannot start synthesis');
+    expect(fake.disposals, 1);
+    expect(fake.disposedWhileChoosing, isFalse);
+    expect(audition.isPlaying, isFalse);
+    await audition.dispose();
+  });
+
+  test('system and local neural preview use identical public text',
+      () {
+    for (final locale in ['it-IT', 'en-GB', 'fr-FR', 'es-ES',
+        'de-DE', 'pt-BR', 'nl-NL', 'pl-PL', 'sv-SE', 'ru-RU',
+        'ja-JP', 'zh-CN']) {
+      expect(offlineVoiceSampleText(locale),
+          systemVoiceSampleText(locale));
+      expect(offlineVoiceSampleText(locale), isNotNull);
+    }
+    expect(offlineVoiceSampleText('xx-XX'), isNull);
+  });
+
   test('wrong model identity or missing phonemizer cannot reach native FFI',
       () async {
     var creations = 0;
@@ -149,10 +207,10 @@ void main() {
   test('unsupported language never synthesizes a mismatched sample',
       () async {
     var creations = 0;
-    expect(offlineVoiceSampleText('fr-FR'), isNull);
+    expect(offlineVoiceSampleText('xx-XX'), isNull);
     expect(offlineVoiceSampleText('en-GB'), isNotNull);
     final audition = OfflineVoiceAudition(
-      loadPack: (_) async => samplePack(locale: 'fr-FR'),
+      loadPack: (_) async => samplePack(locale: 'xx-XX'),
       createEngine: (_) { creations++; return FakeOfflineEngine(); },
     );
     await expectLater(audition.play('italian'), throwsFormatException);

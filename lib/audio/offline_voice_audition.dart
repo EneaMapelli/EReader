@@ -1,26 +1,21 @@
+import 'dart:async';
+
 import '../data/offline_voice_pack.dart';
 import 'speech_engine.dart';
 import 'sherpa_vits_engine.dart';
+import 'system_voice_audition.dart';
 
 typedef OfflineVoicePackLoader =
     Future<InstalledOfflineVoicePack> Function(String packId);
 typedef OfflineVoiceAuditionEngineFactory =
     SpeechEngine Function(InstalledOfflineVoicePack pack);
 
-/// Short PUBLIC examples only. Never use book text or uploaded data here.
-/// Unsupported language tags are explicitly refused, not approximated.
-String? offlineVoiceSampleText(String locale) {
-  switch (locale.toLowerCase().replaceAll('_', '-').split('-').first) {
-    case 'it':
-      return 'Buongiorno! Questa voce funziona senza inviare il testo '
-          'a servizi online. Come suonano le pause e le domande?';
-    case 'en':
-      return 'Hello! This voice reads locally without sending book text '
-          'to an online service. Can you hear the pauses and questions?';
-    default:
-      return null;
-  }
-}
+/// Use the SAME public, fixed, locale-appropriate phrase as the system
+/// voice audition so a listener can compare timbre and punctuation instead
+/// of comparing different scripts. No book text or user content enters it.
+/// Unknown locales are refused before model load, never translated blindly.
+String? offlineVoiceSampleText(String locale) =>
+    systemVoiceSampleText(locale);
 
 /// Isolated, opt-in offline audition. No book ID, cloud keys, cached paid
 /// speech, preferences or user text can enter this API. A pack is re-verified
@@ -47,6 +42,11 @@ class OfflineVoiceAudition {
   int _epoch = 0;
   bool _running = false;
   bool _disposed = false;
+  // Native chooseVoice and speak can remain in flight after Stop starts.
+  // Stop exclusively disposes a detached engine only when Play has
+  // unwound from those operations; otherwise native FFI may be torn down
+  // while an earlier voice selection still holds its model.
+  Completer<void>? _activeSettled;
 
   bool get isPlaying => _running;
 
@@ -55,6 +55,8 @@ class OfflineVoiceAudition {
     if (_running) throw StateError('A voice preview is already running');
     _running = true;
     final token = ++_epoch;
+    final settled = Completer<void>();
+    _activeSettled = settled;
     SpeechEngine? owned;
     try {
       await _stopping;
@@ -94,6 +96,10 @@ class OfflineVoiceAudition {
         // Even native cleanup failure must not leave a permanently busy UI.
         // Failure is reported rather than silently retrying model execution.
         _running = false;
+        if (identical(_activeSettled, settled)) {
+          _activeSettled = null;
+        }
+        if (!settled.isCompleted) settled.complete();
       }
     }
   }
@@ -101,7 +107,10 @@ class OfflineVoiceAudition {
   Future<void> stop() {
     ++_epoch;
     final engine = _active;
+    final settled = _activeSettled?.future;
     _active = null;
+    // A cancelled SHA verification has no native model to stop. Do not
+    // block the Stop button on disk IO; the epoch prevents model loading.
     if (engine == null) return _stopping;
     final prior = _stopping;
     return _stopping = () async {
@@ -109,7 +118,13 @@ class OfflineVoiceAudition {
       try {
         await engine.stop();
       } finally {
-        await engine.dispose();
+        try {
+          // If chooseVoice returns only after Stop, wait for the cancelled
+          // Play callback before releasing the engine's native handles.
+          if (settled != null) await settled;
+        } finally {
+          await engine.dispose();
+        }
       }
     }();
   }
