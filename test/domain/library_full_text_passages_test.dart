@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('ranks two separated multiword passages and validates source jumps', () {
-    final source = 'blue ${'valley ' * 18}dragon. '
-        + ('unrelated ' * 48)
+    final source = 'blue ${List.filled(18, 'valley ').join()}dragon. '
+        + List.filled(48, 'unrelated ').join()
         + 'A blue dragon flies at sunrise.';
     final passages = findIndexedPassages(source, ['blue', 'dragon']);
     expect(passages.length, 2);
@@ -22,7 +22,7 @@ void main() {
   test('adjacent repeated windows collapse without identical paragraphs',
       () {
     final source = 'blue dragon blue dragon blue dragon. '
-        + ('filler ' * 75)
+        + List.filled(75, 'filler ').join()
         + 'blue dragon.';
     final passages = findIndexedPassages(source, ['blue', 'dragon']);
     expect(passages, hasLength(2));
@@ -31,7 +31,7 @@ void main() {
   });
 
   test('single-term hits produce capped alternative source locations', () {
-    final source = ('dragon and birds. ' * 15);
+    final source = List.filled(15, 'dragon and birds. ').join();
     final passages = findIndexedPassages(source, ['dragon'], limit: 3);
     expect(passages, hasLength(3));
     expect(passages.map((p) => p.jump.sourceOffset).toList(),
@@ -41,7 +41,7 @@ void main() {
   });
 
   test('distant terms are explicitly labelled as a fallback', () {
-    final source = 'dragon ' + ('filler ' * 120) + 'blue';
+    final source = 'dragon ' + List.filled(120, 'filler ').join() + 'blue';
     final passages = findIndexedPassages(source, ['dragon', 'blue']);
     expect(passages, hasLength(1));
     expect(passages.single.allTermsNearby, isFalse);
