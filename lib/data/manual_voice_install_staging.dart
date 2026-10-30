@@ -301,7 +301,10 @@ class ManualVoiceInstallStaging {
           recent++;
           continue;
         }
-        lease = await _leaseFile(stage).open(mode: FileMode.append);
+        // Diagnostic opens an EXISTING lease read-only. Append mode could
+        // recreate the lease after a concurrent removal, violating the
+        // promise that inspection never writes anything to disk.
+        lease = await _leaseFile(stage).open(mode: FileMode.read);
         try {
           await lease.lock(FileLock.exclusive);
           locked = true;
