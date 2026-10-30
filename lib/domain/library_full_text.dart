@@ -9,10 +9,17 @@ class LibraryFullTextJump {
   const LibraryFullTextJump({
     required this.sourceOffset,
     required this.expectedText,
+    this.contextBefore = '',
+    this.contextAfter = '',
   });
 
   final int sourceOffset;
   final String expectedText;
+  /// Limited surrounding source captured at selection time, not persisted.
+  /// Checking context avoids pointing to an unrelated same-named word after
+  /// edits in another chapter or extractor normalization.
+  final String contextBefore;
+  final String contextAfter;
 
   int? validatedOffset(String source) {
     if (expectedText.isEmpty || expectedText.length > 120 ||
@@ -25,9 +32,45 @@ class LibraryFullTextJump {
     // an unrelated paragraph after EPUB/PDF extractor changes.
     final actual = source.substring(
         sourceOffset, sourceOffset + expectedText.length);
-    return actual.toLowerCase() == expectedText.toLowerCase()
-        ? sourceOffset : null;
+    if (actual.toLowerCase() != expectedText.toLowerCase()) return null;
+    if (contextBefore.length > 64 || contextAfter.length > 400 ||
+        sourceOffset < contextBefore.length ||
+        sourceOffset + expectedText.length + contextAfter.length >
+            source.length) {
+      return null;
+    }
+    if (contextBefore.isNotEmpty &&
+        source.substring(sourceOffset - contextBefore.length,
+            sourceOffset) != contextBefore) {
+      return null;
+    }
+    final afterStart = sourceOffset + expectedText.length;
+    if (contextAfter.isNotEmpty &&
+        source.substring(afterStart, afterStart + contextAfter.length) !=
+            contextAfter) {
+      return null;
+    }
+    return sourceOffset;
   }
+}
+
+/// Capture a bounded context around one selected occurrence. For
+/// proximity-matched multiword searches, include the entire selected window
+/// in the suffix so changing another query term rejects the old location.
+LibraryFullTextJump _captureIndexedWord(
+  String source,
+  RegExpMatch word, {
+  int? passageEnd,
+}) {
+  final before = (word.start - 32).clamp(0, source.length).toInt();
+  final desiredEnd = ((passageEnd ?? word.end) + 32)
+      .clamp(word.end, source.length).toInt();
+  return LibraryFullTextJump(
+    sourceOffset: word.start,
+    expectedText: word.group(0)!,
+    contextBefore: source.substring(before, word.start),
+    contextAfter: source.substring(word.end, desiredEnd),
+  );
 }
 
 /// Find the first COMPLETE Unicode word matching an FTS token.
@@ -43,10 +86,7 @@ LibraryFullTextJump? firstExactIndexedWord(
   for (final match in words.allMatches(indexedSource)) {
     final word = match.group(0)!;
     if (word.toLowerCase() == target) {
-      return LibraryFullTextJump(
-        sourceOffset: match.start,
-        expectedText: word,
-      );
+      return _captureIndexedWord(indexedSource, match);
     }
   }
   return null;
@@ -81,6 +121,7 @@ LibraryFullTextJump? bestIndexedPassage(
   // the smallest candidate interval ending at that occurrence.
   final recent = <String, RegExpMatch>{};
   RegExpMatch? bestStart;
+  int? bestEnd;
   var bestWidth = maxSpanChars + 1;
   final words = RegExp(r'[\p{L}\p{N}\p{M}]+', unicode: true);
   for (final match in words.allMatches(indexedSource)) {
@@ -96,16 +137,15 @@ LibraryFullTextJump? bestIndexedPassage(
     if (width <= maxSpanChars && width < bestWidth) {
       bestWidth = width;
       bestStart = earliest;
+      bestEnd = match.end;
       // Can't beat the total number of distinct nonempty words.
       // Do not stop early: the next phrase may have the same span but
       // is only accepted if it is strictly shorter (earliest wins).
     }
   }
   if (bestStart != null) {
-    return LibraryFullTextJump(
-      sourceOffset: bestStart.start,
-      expectedText: bestStart.group(0)!,
-    );
+    return _captureIndexedWord(
+      indexedSource, bestStart, passageEnd: bestEnd);
   }
   return firstExactIndexedWord(indexedSource, queryTokens.first);
 }
