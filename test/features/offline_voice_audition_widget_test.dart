@@ -10,7 +10,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-class _AuditionFakeEngine implements SpeechEngine {
+class _AuditionFakeEngine
+    implements SpeechEngine, OfflineVoiceModelPrewarmer {
+  int warmups = 0;
+  @override
+  Future<void> prewarmModel() async { warmups++; }
   int starts = 0;
   int stops = 0;
   int disposals = 0;
@@ -93,6 +97,130 @@ void main() {
     await settle(tester);
     expect(find.text('Italian preview'), findsOneWidget);
     expect(find.byTooltip('Preview voice preview-it'), findsNothing);
+  });
+
+  testWidgets('silent prewarm requires consent and reuses one engine on Play',
+      (tester) async {
+    final phonemes = [11, 22, 33];
+    await Directory(p.join(source.path, 'espeak-ng-data')).create();
+    await File(p.join(source.path, 'espeak-ng-data', 'phonemes'))
+        .writeAsBytes(phonemes);
+    manifest = OfflineVoicePackManifest(
+      id: manifest.id, displayName: manifest.displayName,
+      locale: manifest.locale, licenseId: manifest.licenseId,
+      modelSha256: manifest.modelSha256,
+      tokensSha256: manifest.tokensSha256,
+      phonemizerResources: [
+        OfflineVoiceResource(
+          relativePath: 'espeak-ng-data/phonemes',
+          sha256: sha256.convert(phonemes).toString(),
+        ),
+      ],
+    );
+    await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: source,
+      modelsDirectory: models,
+    );
+    final fake = _AuditionFakeEngine();
+    fake.finish.complete();
+    var constructions = 0;
+    final audition = OfflineVoiceAudition(
+      loadPack: (id) => loadInstalledOfflineVoicePack(
+        packId: id, modelsDirectory: models),
+      createEngine: (_) { constructions++; return fake; },
+    );
+    await tester.pumpWidget(MaterialApp(home: OfflineVoiceManagerScreen(
+      modelsDirectory: () async => models, audition: audition,
+    )));
+    await settle(tester);
+    final prewarm = find.byKey(
+        const ValueKey('offline-voice-prewarm-preview-it'));
+    await tester.ensureVisible(prewarm);
+    await tester.pumpAndSettle();
+    await tester.tap(prewarm);
+    await tester.pumpAndSettle();
+    expect(find.text('Prepare offline voice model silently?'),
+        findsOneWidget);
+    expect(fake.warmups, 0);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(constructions, 0);
+
+    await tester.tap(prewarm);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Prepare model'));
+    await settle(tester);
+    expect(fake.warmups, 1);
+    expect(fake.starts, 0);
+    expect(constructions, 1);
+    expect(find.byTooltip('Release prepared model preview-it'),
+        findsOneWidget);
+
+    final preview = find.byTooltip('Preview voice preview-it');
+    await tester.ensureVisible(preview);
+    await tester.tap(preview);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Play sample'));
+    await settle(tester);
+    expect(fake.starts, 1);
+    expect(constructions, 1,
+        reason: 'Audible preview must consume the prepared native worker');
+    expect(fake.disposals, 1);
+    expect(find.byTooltip('Prepare model silently preview-it'),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('silent prepared model can be released without playback',
+      (tester) async {
+    final phonemes = [11, 22, 33];
+    await Directory(p.join(source.path, 'espeak-ng-data')).create();
+    await File(p.join(source.path, 'espeak-ng-data', 'phonemes'))
+        .writeAsBytes(phonemes);
+    manifest = OfflineVoicePackManifest(
+      id: manifest.id, displayName: manifest.displayName,
+      locale: manifest.locale, licenseId: manifest.licenseId,
+      modelSha256: manifest.modelSha256,
+      tokensSha256: manifest.tokensSha256,
+      phonemizerResources: [
+        OfflineVoiceResource(
+          relativePath: 'espeak-ng-data/phonemes',
+          sha256: sha256.convert(phonemes).toString(),
+        ),
+      ],
+    );
+    await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: source,
+      modelsDirectory: models,
+    );
+    final fake = _AuditionFakeEngine();
+    final audition = OfflineVoiceAudition(
+      loadPack: (id) => loadInstalledOfflineVoicePack(
+        packId: id, modelsDirectory: models),
+      createEngine: (_) => fake,
+    );
+    await tester.pumpWidget(MaterialApp(home: OfflineVoiceManagerScreen(
+      modelsDirectory: () async => models, audition: audition,
+    )));
+    await settle(tester);
+    final prewarm = find.byKey(
+        const ValueKey('offline-voice-prewarm-preview-it'));
+    await tester.ensureVisible(prewarm);
+    await tester.tap(prewarm);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Prepare model'));
+    await settle(tester);
+    expect(fake.warmups, 1);
+    expect(fake.starts, 0);
+    await tester.tap(find.byTooltip(
+        'Release prepared model preview-it'));
+    await settle(tester);
+    expect(fake.stops, 1);
+    expect(fake.disposals, 1);
+    expect(fake.starts, 0);
+    expect(find.byTooltip('Prepare model silently preview-it'),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('cold/warm mode requires explicit two-play consent',
