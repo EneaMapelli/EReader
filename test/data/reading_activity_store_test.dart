@@ -42,6 +42,23 @@ void main() {
     expect(() => formatReadingActivityDuration(-1), throwsRangeError);
   });
 
+  test('visual inactivity deadline clips the final pulse precisely', () {
+    final acc = ReadingActivityAccumulator();
+    expect(acc.record(const Duration(seconds: 15),
+        ReadingActivityMode.visual,
+        remainingVisual: const Duration(seconds: 3)), 3);
+    expect(acc.record(const Duration(seconds: 15),
+        ReadingActivityMode.visual,
+        remainingVisual: Duration.zero), 0);
+    expect(acc.record(const Duration(seconds: 15),
+        ReadingActivityMode.tts,
+        remainingVisual: Duration.zero), 15);
+    expect(acc.record(const Duration(hours: 1),
+        ReadingActivityMode.visual,
+        remainingVisual: const Duration(seconds: 2)), 2);
+    acc.dispose();
+  });
+
   group('SQLite aggregate and goal', () {
     late Directory home;
     late LibraryStore store;
@@ -213,6 +230,51 @@ void main() {
       expect(() => store.bookReadingLifetimeTotals(bookId),
           throwsStateError);
     });
+
+    test('book-specific activity clear preserves other book and local progress',
+        () async {
+      final otherFile = File(p.join(home.path, 'private.txt'));
+      await otherFile.writeAsString('Another independent source.');
+      final otherId = (await store.importFile(otherFile.path)).id;
+      final day = DateTime(2026, 10, 30, 12);
+      await store.savePosition(bookId, 6);
+      store.saveDailyReadingGoalMinutes(45);
+      store.recordReadingActivity(bookId, ReadingActivityMode.visual, 18,
+          at: day);
+      store.recordReadingActivity(bookId, ReadingActivityMode.tts, 9,
+          at: day);
+      store.recordReadingActivity(otherId, ReadingActivityMode.tts, 12,
+          at: day);
+
+      expect(() => store.clearReadingActivity(bookId: 'unknown'),
+          throwsStateError);
+      expect(store.clearReadingActivity(bookId: bookId), 2);
+      expect(store.clearReadingActivity(bookId: bookId), 0);
+      expect(store.bookReadingLifetimeTotals(bookId).totalSeconds, 0);
+      expect(store.bookReadingLifetimeTotals(otherId).ttsSeconds, 12);
+      expect(store.getBook(bookId)!.progressOffset, 6);
+      expect(store.dailyReadingGoalMinutes, 45);
+      expect(store.books, hasLength(2));
+    });
+
+    test('global activity clear covers all dates and retains daily goal',
+        () async {
+      store.saveDailyReadingGoalMinutes(90);
+      store.recordReadingActivity(bookId, ReadingActivityMode.visual, 10,
+          at: DateTime(2026, 5, 1));
+      store.recordReadingActivity(bookId, ReadingActivityMode.tts, 20,
+          at: DateTime(2026, 10, 30));
+      expect(store.clearReadingActivity(), 2);
+      expect(store.clearReadingActivity(), 0);
+      expect(store.bookReadingLifetimeTotals(bookId).totalSeconds, 0);
+      expect(store.dailyReadingGoalMinutes, 90);
+      store.dispose();
+      store = LibraryStore(homeDirectory: home);
+      await store.initialize();
+      expect(store.bookReadingLifetimeTotals(bookId).totalSeconds, 0);
+      expect(store.dailyReadingGoalMinutes, 90);
+    });
+
 
   });
 }
