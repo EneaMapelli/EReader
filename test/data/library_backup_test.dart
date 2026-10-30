@@ -48,7 +48,7 @@ void main() {
     final snapshot = sqlite3.open(
         p.join(backup.directory.path, 'library.sqlite'));
     try {
-      expect(snapshot.select('PRAGMA user_version').single['user_version'], 25);
+      expect(snapshot.select('PRAGMA user_version').single['user_version'], 26);
       final settings = snapshot.select(
           'SELECT tracking_enabled, goal_minutes '
           'FROM reading_activity_settings WHERE slot = 1').single;
@@ -67,7 +67,7 @@ void main() {
     expect(store.bookReadingLifetimeTotals(book.id).totalSeconds, 13);
   });
 
-  test('v25 snapshot preserves local smart definitions, add-only restore does not',
+  test('v26 snapshot preserves local smart definitions, add-only restore does not',
       () async {
     await addBook('story.txt', 'Local archive story');
     final smart = store.createSmartCollection('Smart Stars',
@@ -76,7 +76,7 @@ void main() {
     final sqlite = sqlite3.open(
         p.join(backup.directory.path, 'library.sqlite'));
     try {
-      expect(sqlite.select('PRAGMA user_version').single['user_version'], 25);
+      expect(sqlite.select('PRAGMA user_version').single['user_version'], 26);
       final rules = sqlite.select('''
         SELECT id, name, rule_json FROM smart_book_collections
         WHERE id = ?
@@ -189,7 +189,7 @@ void main() {
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
     try {
-      expect(db.select('PRAGMA user_version').first['user_version'], 25);
+      expect(db.select('PRAGMA user_version').first['user_version'], 26);
       expect(db.select('SELECT reading_status FROM books WHERE id = ?',
           [starred.id]).single['reading_status'], 'reading');
       expect(db.select('SELECT reading_status FROM books WHERE id = ?',
@@ -203,7 +203,7 @@ void main() {
     }
   });
 
-  test('v25 backup snapshots book collection memberships and manifest',
+  test('v26 backup snapshots book collection memberships and manifest',
       () async {
     final a = await addBook('assigned.txt', 'Grouped source content');
     final b = await addBook('other.txt', 'Ungrouped source content');
@@ -224,7 +224,7 @@ void main() {
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
     try {
-      expect(db.select('PRAGMA user_version').first['user_version'], 25);
+      expect(db.select('PRAGMA user_version').first['user_version'], 26);
       expect(db.select('SELECT * FROM book_collections'), hasLength(2));
       expect(db.select('SELECT * FROM book_collection_members'), hasLength(1));
     } finally {
