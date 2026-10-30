@@ -79,11 +79,17 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
     }
     _loadKeyStatus();
     _inspectLocalVoices();
-    _inspectSystemVoices();
+    // Inspect the OS voice catalog only when the user is considering
+    // system TTS. Cloud/VITS settings must not initialize a native
+    // audition engine or interrupt any unrelated platform audio.
+    if (_providerId == 'system' || _providerId == 'system-native') {
+      _inspectSystemVoices();
+    }
   }
 
   Future<void> _inspectSystemVoices() async {
     if ((!Platform.isWindows && !Platform.isAndroid) ||
+        (_providerId != 'system' && _providerId != 'system-native') ||
         _checkingSystem || _systemSamplePlaying) return;
     setState(() => _checkingSystem = true);
     try {
@@ -487,7 +493,12 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
             onChanged: _busy ? null : (id) async {
               if (id == null) return;
               if (_systemSamplePlaying) await _stopSystemSample();
-              if (mounted) setState(() => _providerId = id);
+              if (!mounted) return;
+              setState(() => _providerId = id);
+              if ((id == 'system' || id == 'system-native') &&
+                  _installedSystemVoices.isEmpty) {
+                await _inspectSystemVoices();
+              }
             },
           ),
           if (freeSystem) ...[
