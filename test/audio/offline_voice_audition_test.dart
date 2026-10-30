@@ -91,6 +91,15 @@ class PreparedVoiceFakeEngine extends FakeOfflineEngine
   }
 }
 
+class DelayedReleasePreparedEngine extends PreparedVoiceFakeEngine {
+  final Completer<void> releaseGate = Completer<void>();
+  @override
+  Future<void> dispose() async {
+    await releaseGate.future;
+    await super.dispose();
+  }
+}
+
 class _FakePreparedExpiry implements Timer {
   _FakePreparedExpiry(this.delay, this.action);
   final Duration delay;
@@ -288,6 +297,67 @@ void main() {
     expect(engine.speaks, 0);
     expect(changes, 2, reason: 'UI observes warm and expired transitions');
     await audition.dispose();
+  });
+
+  test('expired worker must dispose before a new model can load',
+      () async {
+    final timers = <_FakePreparedExpiry>[];
+    final old = DelayedReleasePreparedEngine();
+    final fresh = PreparedVoiceFakeEngine();
+    var constructions = 0;
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) {
+        constructions++;
+        return constructions == 1 ? old : fresh;
+      },
+      preparedTimerScheduler: (delay, action) {
+        final timer = _FakePreparedExpiry(delay, action);
+        timers.add(timer);
+        return timer;
+      },
+    );
+    await audition.prewarm('italian');
+    timers.single.fire();
+    final running = audition.play('italian');
+    await Future<void>.delayed(Duration.zero);
+    expect(constructions, 1,
+        reason: 'Never allocate another model while native release stalls');
+    expect(fresh.speaks, 0);
+    old.releaseGate.complete();
+    await running;
+    expect(old.disposals, 1);
+    expect(constructions, 2);
+    expect(fresh.speaks, 1);
+    await audition.dispose();
+  });
+
+  test('failed native retirement prevents loading a second ONNX model',
+      () async {
+    final timers = <_FakePreparedExpiry>[];
+    final old = PreparedVoiceFakeEngine()..failDispose = true;
+    var constructions = 0;
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) {
+        constructions++;
+        return old;
+      },
+      preparedTimerScheduler: (delay, action) {
+        final timer = _FakePreparedExpiry(delay, action);
+        timers.add(timer);
+        return timer;
+      },
+    );
+    await audition.prewarm('italian');
+    timers.single.fire();
+    await until(() => old.disposals == 1);
+    await expectLater(audition.play('italian'), throwsStateError);
+    expect(constructions, 1,
+        reason: 'Do not load fresh ONNX after failed native Dispose');
+    expect(old.speaks, 0);
+    // Disposal may likewise surface the previously failed native release.
+    await expectLater(audition.dispose(), throwsStateError);
   });
 
   test('Stop cancels ONNX warmup still loading', () async {
