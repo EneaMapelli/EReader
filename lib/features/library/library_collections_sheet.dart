@@ -72,8 +72,9 @@ Future<void> showManageBookCollections({
                         style: TextStyle(
                             fontSize: 20, fontWeight: FontWeight.w600),
                       )),
-                      FilledButton.tonalIcon(
+                      IconButton(
                         key: const ValueKey('collection-smart-create'),
+                        tooltip: 'New smart collection',
                         onPressed: () async {
                           final input = await showSmartCollectionEditor(sheet);
                           if (input == null || !sheet.mounted) return;
@@ -85,7 +86,6 @@ Future<void> showManageBookCollections({
                           }
                         },
                         icon: const Icon(Icons.auto_awesome_outlined),
-                        label: const Text('Smart'),
                       ),
                       const SizedBox(width: 8),
                       FilledButton.icon(
