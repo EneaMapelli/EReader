@@ -127,5 +127,84 @@ void main() {
       store.recordReadingActivity(bookId, ReadingActivityMode.tts, 10);
       expect(store.weeklyReadingActivity().ttsSeconds, 10);
     });
+    test('weekly scope isolates each book from other books and validates IDs',
+        () async {
+      final otherFile = File(p.join(home.path, 'another.txt'));
+      await otherFile.writeAsString('Distinct sample for another book.');
+      final otherId = (await store.importFile(otherFile.path)).id;
+      final today = DateTime(2026, 10, 30, 12);
+      store.recordReadingActivity(bookId, ReadingActivityMode.visual, 12,
+          at: today);
+      store.recordReadingActivity(bookId, ReadingActivityMode.tts, 9,
+          at: today);
+      store.recordReadingActivity(otherId, ReadingActivityMode.tts, 27,
+          at: today);
+      expect(store.weeklyReadingActivity(now: today).totalSeconds, 48);
+      final one = store.weeklyReadingActivity(now: today, bookId: bookId);
+      expect(one.visualSeconds, 12);
+      expect(one.ttsSeconds, 9);
+      final other = store.weeklyReadingActivity(now: today, bookId: otherId);
+      expect(other.visualSeconds, 0);
+      expect(other.ttsSeconds, 27);
+      expect(() => store.weeklyReadingActivity(bookId: 'invalid'),
+          throwsStateError);
+    });
+
+    test('weekly ranking excludes inactive books and ties sort by title',
+        () async {
+      final now = DateTime(2026, 10, 30, 12);
+      final fileA = File(p.join(home.path, 'a.txt'));
+      final fileB = File(p.join(home.path, 'b.txt'));
+      await fileA.writeAsString('Unique alpha contents.');
+      await fileB.writeAsString('Unique beta contents.');
+      final alpha = (await store.importFile(fileA.path)).id;
+      final beta = (await store.importFile(fileB.path)).id;
+      store.updateBookMetadata(alpha, title: 'Alpha');
+      store.updateBookMetadata(beta, title: 'Beta');
+      store.recordReadingActivity(alpha, ReadingActivityMode.tts, 21,
+          at: now);
+      store.recordReadingActivity(beta, ReadingActivityMode.visual, 21,
+          at: now);
+      store.recordReadingActivity(bookId, ReadingActivityMode.tts, 29,
+          at: DateTime(2026, 10, 20));
+
+      final results = store.mostActiveReadingBooks(now: now);
+      expect(results.map((e) => e.title), ['Alpha', 'Beta']);
+      expect(results.map((e) => e.totalSeconds), [21, 21]);
+      expect(store.mostActiveReadingBooks(now: now, limit: 1),
+          hasLength(1));
+      expect(() => results.clear(), throwsUnsupportedError);
+      expect(() => store.mostActiveReadingBooks(limit: 0),
+          throwsRangeError);
+      expect(() => store.mostActiveReadingBooks(limit: 51),
+          throwsRangeError);
+    });
+
+    test('per-book all-time sums survive restart/rename; delete cascades',
+        () async {
+      final old = DateTime(2026, 9, 5, 14);
+      final now = DateTime(2026, 10, 30, 12);
+      store.recordReadingActivity(bookId, ReadingActivityMode.visual, 23,
+          at: old);
+      store.recordReadingActivity(bookId, ReadingActivityMode.tts, 15,
+          at: now);
+      store.updateBookMetadata(bookId, title: 'Updated title');
+      var total = store.bookReadingLifetimeTotals(bookId);
+      expect(total.title, 'Updated title');
+      expect(total.visualSeconds, 23);
+      expect(total.ttsSeconds, 15);
+      expect(total.totalSeconds, 38);
+      expect(store.weeklyReadingActivity(now: now, bookId: bookId)
+          .totalSeconds, 15);
+      store.dispose();
+      store = LibraryStore(homeDirectory: home);
+      await store.initialize();
+      total = store.bookReadingLifetimeTotals(bookId);
+      expect(total.totalSeconds, 38);
+      await store.removeBook(bookId);
+      expect(() => store.bookReadingLifetimeTotals(bookId),
+          throwsStateError);
+    });
+
   });
 }
