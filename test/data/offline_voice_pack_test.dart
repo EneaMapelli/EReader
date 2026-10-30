@@ -2,10 +2,65 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:ereader/data/offline_voice_pack.dart';
+import 'package:ereader/data/offline_voice_install_diagnostics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
+  test('offline install diagnostics distinguish integrity and recoverable IO',
+      () {
+    OfflineVoiceFailure report(Object error,
+        [OfflineVoiceOperation operation =
+            OfflineVoiceOperation.installFolder]) =>
+        diagnoseOfflineVoiceFailure(error, operation: operation);
+
+    expect(report(const FormatException('Offline voice SHA-256 mismatch'))
+        .kind, OfflineVoiceFailureKind.integrity);
+    expect(report(const FormatException('Piper archive checksum mismatch'),
+        OfflineVoiceOperation.installPaola).kind,
+        OfflineVoiceFailureKind.integrity);
+    expect(report(const FormatException('Windows tar could not unpack Piper voice'),
+        OfflineVoiceOperation.installPaola).kind,
+        OfflineVoiceFailureKind.extraction);
+    expect(report(const FormatException('Piper archive is missing model assets'))
+        .kind, OfflineVoiceFailureKind.incomplete);
+    expect(report(const FormatException('Unexpected file in offline voice pack'))
+        .kind, OfflineVoiceFailureKind.unsafeFiles);
+    expect(report(const FormatException('Offline voice file exceeds size budget'))
+        .kind, OfflineVoiceFailureKind.sizeLimit);
+    expect(report(FileSystemException('disk full', '/private/user/token',
+        const OSError('private', 28))).kind, OfflineVoiceFailureKind.noSpace);
+    expect(report(FileSystemException('access', '/private/user/token',
+        const OSError('private', 13))).kind, OfflineVoiceFailureKind.accessDenied);
+    expect(report(FileSystemException('busy', '/private/user/token',
+        const OSError('private', 32))).kind, OfflineVoiceFailureKind.lockedFiles);
+  });
+
+  test('offline voice failure messages cannot reveal OS paths or source text',
+      () {
+    const secret = '/private/user/secret-wallet.txt';
+    for (final error in <Object>[
+      FileSystemException('private model path', secret,
+          const OSError('SECRET', 28)),
+      const FormatException('Failed import from $secret'),
+      StateError('The private source is $secret'),
+      Exception('User book contents $secret'),
+    ]) {
+      for (final operation in OfflineVoiceOperation.values) {
+        final diagnosis = diagnoseOfflineVoiceFailure(
+            error, operation: operation);
+        expect(diagnosis.message, isNot(contains(secret)));
+        expect(diagnosis.message, isNot(contains('secret-wallet')));
+        expect(diagnosis.nextStep, isNotEmpty);
+      }
+    }
+    expect(diagnoseOfflineVoiceFailure(
+      const FormatException('Unknown invalid voice'),
+      operation: OfflineVoiceOperation.inspectFolder,
+    ).message, startsWith('Cannot inspect this voice folder.'));
+  });
+
+
   late Directory root;
   late Directory input;
   late Directory installed;
