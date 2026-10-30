@@ -140,12 +140,20 @@ void main() {
         AudioProcessingState.completed);
     expect(engine.spoken, ['First', 'Second'],
         reason: 'Last segment must not be replayed when pressing Next');
+    await Future<void>.delayed(Duration.zero);
     expect(focusReleased, 1);
     final stopCount = engine.stopCalls;
     await handler.skipToNext();
     expect(player.currentIndex, 2);
     expect(engine.stopCalls, stopCount,
         reason: 'Next at exact EOF requires no additional native Stop');
+
+    // Only an explicit Play restarts the whole book from silent EOF.
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First', 'Second', 'First']);
+    expect(player.currentIndex, 0);
+    await handler.pause();
     await handler.close();
     player.dispose();
   });
