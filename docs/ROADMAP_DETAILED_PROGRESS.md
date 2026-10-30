@@ -93,7 +93,7 @@ automaticamente consegnate: sono ampliamenti dello scope.
 | ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
 | ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
 | ER-033 Statistiche/obiettivi | Parziale: catalogo, tempi giornalieri e per libro in SQLite v23/v24, obiettivo globale, storico 7 giorni, cancellazione selettiva/globale e opt-out persistente dal tracciamento. Restano campionamento euristico e QA Windows/Android |
-| ER-034 Libreria massiva/collezioni/FTS | Parziale: metadati avanzati, raccolte manuali/smart (v25), FTS5 opt-in (v26), salti UTF-16 validati, refresh manuale e scelta tra passaggi alternativi per libro. Mancano OCR, ricerca semantica/sinonimi, refresh automatico opzionale e QA nativa/large-library |
+| ER-034 Libreria massiva/collezioni/FTS | Parziale: metadati avanzati, raccolte manuali/smart (v25), FTS5 opt-in (v26), salti UTF-16 validati, refresh manuale, passaggi alternativi e ricerca esatta per sequenza di parole. Mancano OCR, ricerca semantica/sinonimi, refresh automatico opzionale e QA nativa/large-library |
 
 ## E. Evidenza e priorità
 
@@ -1422,3 +1422,21 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Test dominio, database e UI ampliati; sistemata inoltre la sintassi
   di alcuni fixture di test che usavano una moltiplicazione di String non
   supportata da Dart. Test non eseguiti; nessuna build né Actions.
+
+### ER-034 — Modalità frase esatta offline (2026-10-30)
+
+- Introduzione di `LibraryFullTextMatchMode.exactPhrase` oltre alla
+  modalità storica `allWords`. La query è costruita sempre con parole
+  Unicode letterali e parametri SQLite, mai con operatori FTS5 immessi
+  dall'utente. Limite invariato a 8 parole / 120 caratteri.
+- `Exact phrase` richiede token consecutivi nell'ordine richiesto;
+  punteggiatura e interruzioni di frase non impediscono la contiguità
+  secondo `unicode61`. Navigazione iniziale e scelta dei passaggi
+  alternativi usano un locator coerente, con ancore UTF-16 validate
+  nuovamente dal lettore.
+- Interfaccia: selezione `All words` / `Exact phrase`; i passaggi
+  alternativi indicano il tipo di ricerca. Nessun nuovo modello,
+  provider cloud, permesso o indice dedicato.
+- Nuovi test di dominio, SQLite e widget; corretto un `const` non
+  valido nell'input search a testo d'aiuto dinamico. Le prove Flutter
+  e native non sono state eseguite, e non sono state avviate Actions.
