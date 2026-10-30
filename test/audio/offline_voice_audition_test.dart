@@ -85,6 +85,8 @@ class DiagnosticFakeOfflineEngine extends FakeOfflineEngine
       workerReadyMs: 94,
       nativeModelInitializationMs: 63,
     );
+    diagnostics.recordNativeGeneration(
+        const Duration(milliseconds: 21));
     diagnostics.recordSynthesis(const Duration(milliseconds: 47),
         ahead: false, wholeProcessRssBytes: 84 * 1024 * 1024);
     diagnostics.recordHandoff(const Duration(milliseconds: 8));
@@ -138,6 +140,7 @@ void main() {
     expect(report.speechWallMs, greaterThanOrEqualTo(0));
     expect(report.totalMs, greaterThanOrEqualTo(report.speechWallMs!));
     expect(report.nativeSynthesisMs, 47);
+    expect(report.nativeGenerationMs, 21);
     expect(report.workerReadyMs, 94);
     expect(report.nativeModelInitializationMs, 63);
     expect(report.decoderHandoffMs, 8);
@@ -146,7 +149,8 @@ void main() {
     final text = formatOfflineVoicePreviewReport(report);
     expect(text, contains('Worker ready: 94 ms'));
     expect(text, contains('Native model init: 63 ms'));
-    expect(text, contains('Native synthesis: 47 ms'));
+    expect(text, contains('Worker WAV generation: 21 ms'));
+    expect(text, contains('Synthesis path incl. startup: 47 ms'));
     expect(text, contains('WAV decoder handoff: 8 ms'));
     expect(text, contains('Whole-app RAM snapshot: 84 MiB'));
     expect(text, isNot(contains('model.onnx')));
@@ -195,6 +199,7 @@ void main() {
     expect(report.verificationMs, greaterThanOrEqualTo(0));
     expect(report.voiceSetupMs, isNull);
     expect(report.nativeSynthesisMs, isNull);
+    expect(report.nativeGenerationMs, isNull);
     expect(report.nativeModelInitializationMs, isNull);
     expect(report.workerReadyMs, isNull);
     expect(report.speechWallMs, isNull);
