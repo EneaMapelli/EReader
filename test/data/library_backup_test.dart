@@ -35,7 +35,7 @@ void main() {
     return store.importFile(source.path);
   }
 
-  test('v24 private SQLite export includes opted-out state and old totals',
+  test('v25 private SQLite export includes opted-out state and old totals',
       () async {
     final book = await addBook('tracking.txt', 'Original private story.');
     store.recordReadingActivity(book.id, ReadingActivityMode.visual, 13);
@@ -47,7 +47,7 @@ void main() {
     final snapshot = sqlite3.open(
         p.join(backup.directory.path, 'library.sqlite'));
     try {
-      expect(snapshot.select('PRAGMA user_version').single['user_version'], 24);
+      expect(snapshot.select('PRAGMA user_version').single['user_version'], 25);
       final settings = snapshot.select(
           'SELECT tracking_enabled, goal_minutes '
           'FROM reading_activity_settings WHERE slot = 1').single;
@@ -151,7 +151,7 @@ void main() {
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
     try {
-      expect(db.select('PRAGMA user_version').first['user_version'], 24);
+      expect(db.select('PRAGMA user_version').first['user_version'], 25);
       expect(db.select('SELECT reading_status FROM books WHERE id = ?',
           [starred.id]).single['reading_status'], 'reading');
       expect(db.select('SELECT reading_status FROM books WHERE id = ?',
@@ -165,7 +165,7 @@ void main() {
     }
   });
 
-  test('v24 backup snapshots book collection memberships and manifest',
+  test('v25 backup snapshots book collection memberships and manifest',
       () async {
     final a = await addBook('assigned.txt', 'Grouped source content');
     final b = await addBook('other.txt', 'Ungrouped source content');
@@ -186,7 +186,7 @@ void main() {
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
     try {
-      expect(db.select('PRAGMA user_version').first['user_version'], 24);
+      expect(db.select('PRAGMA user_version').first['user_version'], 25);
       expect(db.select('SELECT * FROM book_collections'), hasLength(2));
       expect(db.select('SELECT * FROM book_collection_members'), hasLength(1));
     } finally {
