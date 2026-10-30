@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import '../data/offline_voice_pack.dart';
 import 'offline_voice_diagnostics.dart';
@@ -166,11 +167,109 @@ class OfflineVoiceAudition {
   OfflineVoiceAudition({
     required OfflineVoicePackLoader loadPack,
     OfflineVoiceAuditionEngineFactory? createEngine,
+    this.onPreparedModelChanged,
   }) : _loadPack = loadPack,
        _createEngine = createEngine ?? _nativeEngine;
 
   final OfflineVoicePackLoader _loadPack;
   final OfflineVoiceAuditionEngineFactory _createEngine;
+  /// Optional UI refresh hook; the controller never owns Flutter widgets.
+  void Function()? onPreparedModelChanged;
+  static const preparedLifetime = Duration(minutes: 3);
+  SpeechEngine? _preparedEngine;
+  String? _preparedId;
+  String? _preparedFingerprint;
+  Timer? _preparedExpiry;
+
+  bool hasPreparedModel(String packId) =>
+      !_disposed && _preparedId == packId && _preparedEngine != null;
+
+  String _packFingerprint(InstalledOfflineVoicePack pack) =>
+      jsonEncode(pack.manifest.toJson()) +
+      '|'+ pack.modelPath + '|' + pack.tokensPath +
+      '|' + (pack.phonemizerDataDir ?? '');
+
+  SpeechEngine? _takePreparedEngine(String packId, String fingerprint) {
+    final old = _preparedEngine;
+    _preparedEngine = null;
+    final matching = _preparedId == packId &&
+        _preparedFingerprint == fingerprint;
+    _preparedId = null;
+    _preparedFingerprint = null;
+    _preparedExpiry?.cancel();
+    _preparedExpiry = null;
+    if (old != null) onPreparedModelChanged?.call();
+    return matching ? old : null;
+  }
+
+  Future<void> _discardPreparedEngine() async {
+    final old = _preparedEngine;
+    _preparedEngine = null;
+    _preparedId = null;
+    _preparedFingerprint = null;
+    _preparedExpiry?.cancel();
+    _preparedExpiry = null;
+    if (old != null) {
+      onPreparedModelChanged?.call();
+      await old.dispose();
+    }
+  }
+
+  /// Explicit-only silent preparation. Rehash before starting a native
+  /// worker. A single owned engine is kept for at most three minutes,
+  /// never synthesizes a phrase, and is consumed by the next Play.
+  Future<void> prewarm(String packId) async {
+    if (_disposed) throw StateError('Voice preview is closed');
+    if (_running) throw StateError('A voice preview is already running');
+    _running = true;
+    final token = ++_epoch;
+    final settled = Completer<void>();
+    _activeSettled = settled;
+    SpeechEngine? owned;
+    try {
+      await _stopping;
+      if (_disposed || token != _epoch) return;
+      await _discardPreparedEngine();
+      if (_disposed || token != _epoch) return;
+      final pack = await _loadPack(packId);
+      if (_disposed || token != _epoch) return;
+      if (pack.manifest.id != packId || pack.phonemizerDataDir == null) {
+        throw const FormatException('Offline voice model is not verified');
+      }
+      owned = _createEngine(pack);
+      _active = owned;
+      if (owned is! OfflineVoiceModelPrewarmer) {
+        throw UnsupportedError('Native silent model warmup is not supported');
+      }
+      await owned.chooseVoice(SpeechVoice(
+          name: pack.manifest.id, locale: pack.manifest.locale));
+      if (_disposed || token != _epoch) return;
+      await (owned as OfflineVoiceModelPrewarmer).prewarmModel();
+      if (_disposed || token != _epoch) return;
+
+      _active = null;
+      _preparedEngine = owned;
+      _preparedId = packId;
+      _preparedFingerprint = _packFingerprint(pack);
+      owned = null; // Prepared cache now owns its disposal.
+      _preparedExpiry = Timer(preparedLifetime, () {
+        unawaited(_discardPreparedEngine().catchError((Object _) {}));
+      });
+      onPreparedModelChanged?.call();
+    } finally {
+      try {
+        if (owned != null && identical(_active, owned)) {
+          _active = null;
+          await owned.dispose();
+        }
+      } finally {
+        _running = false;
+        if (identical(_activeSettled, settled)) _activeSettled = null;
+        if (!settled.isCompleted) settled.complete();
+      }
+    }
+  }
+
   static SpeechEngine _nativeEngine(InstalledOfflineVoicePack pack) =>
       SherpaVitsSpeechEngine(
         pack: pack, dataDir: pack.phonemizerDataDir!,
@@ -234,16 +333,29 @@ class OfflineVoiceAudition {
           'No verified demonstration text for this language',
         );
       }
-      owned = _createEngine(pack);
+      // SHA verification is ALWAYS repeated before using resident ONNX.
+      // Never reuse a worker whose manifest, hashes or verified paths changed.
+      final prepared = _preparedEngine;
+      final retained = _takePreparedEngine(
+          packId, _packFingerprint(pack));
+      if (prepared != null && retained == null) {
+        await prepared.dispose();
+        if (_disposed || token != _epoch) return;
+      }
+      owned = retained ?? _createEngine(pack);
       _active = owned;
-      final choosing = Stopwatch()..start();
-      try {
-        await owned.chooseVoice(SpeechVoice(
-          name: pack.manifest.id, locale: pack.manifest.locale,
-        ));
-      } finally {
-        choosing.stop();
-        voiceSetupMs = choosing.elapsedMilliseconds;
+      if (retained == null) {
+        final choosing = Stopwatch()..start();
+        try {
+          await owned.chooseVoice(SpeechVoice(
+            name: pack.manifest.id, locale: pack.manifest.locale,
+          ));
+        } finally {
+          choosing.stop();
+          voiceSetupMs = choosing.elapsedMilliseconds;
+        }
+      } else {
+        voiceSetupMs = 0; // Already selected by the explicit warmup.
       }
       if (_disposed || token != _epoch) return;
 
@@ -381,7 +493,14 @@ class OfflineVoiceAudition {
   Future<void> stop() {
     ++_epoch;
     final previewToken = _previewEpoch;
-    final engine = _active;
+    final warmed = _preparedEngine;
+    _preparedEngine = null;
+    _preparedId = null;
+    _preparedFingerprint = null;
+    _preparedExpiry?.cancel();
+    _preparedExpiry = null;
+    if (warmed != null) onPreparedModelChanged?.call();
+    final engine = _active ?? warmed;
     final settled = _activeSettled?.future;
     _active = null;
     // A cancelled SHA verification has no native engine to stop, and
@@ -414,6 +533,8 @@ class OfflineVoiceAudition {
 
   Future<void> dispose() {
     _disposed = true;
+    _preparedExpiry?.cancel();
+    onPreparedModelChanged = null;
     return stop();
   }
 }
