@@ -894,3 +894,20 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Flutter/Dart tests authored but **not run**; no Windows/Android builds
   or GitHub Actions started.
 
+### M2 — Voice locale fidelity and more free preview languages (2026-10-30)
+
+- When a user explicitly pins an installed Windows/Android system voice,
+  the selected voice's locale now accompanies the generated utterance,
+  even when it differs from the imported book language. Book metadata and
+  saved per-book language are not silently rewritten. Without an explicit
+  voice, the automatic narrator still uses the book's locale and the
+  matching-installed-first resolver.
+- Missing cast voices fall back to that explicit narrator's locale;
+  multi-language cloud voices and verified cast locale resolution retain
+  their prior behavior. No extra synthesis, cloud fallback or new cost.
+- Extended source-independent, local audition samples to Dutch, Polish,
+  Swedish, Russian, Japanese and Chinese.
+- Added fake-engine locale regressions for explicit narrator, reverting
+  to automatic mode, and unavailable cast voice, plus six sample tests.
+  Flutter/Dart tests **authored but not run**; no build or GitHub Actions.
+

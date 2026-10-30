@@ -25,6 +25,23 @@ String? systemVoiceSampleText(String locale) {
     case 'pt':
       return 'Olá! Esta é uma amostra da voz portuguesa. '
           'Como soam as pausas e as perguntas?';
+    case 'nl':
+      return 'Goedemorgen! Dit is een voorbeeld van een Nederlandse stem. '
+          'Klinken de pauzes en vragen natuurlijk?';
+    case 'pl':
+      return 'Dzień dobry! To próbka polskiego głosu. '
+          'Czy pauzy i pytania brzmią naturalnie?';
+    case 'sv':
+      return 'Hej! Det här är ett prov på en svensk röst. '
+          'Låter pauserna och frågorna naturliga?';
+    case 'ru':
+      return 'Здравствуйте! Это образец русского голоса. '
+          'Естественно ли звучат паузы и вопросы?';
+    case 'ja':
+      return 'こんにちは。これは日本語の音声サンプルです。'
+          '間の取り方や質問は自然に聞こえますか？';
+    case 'zh':
+      return '你好！这是中文语音示例。停顿和问句听起来自然吗？';
     default:
       return null;
   }

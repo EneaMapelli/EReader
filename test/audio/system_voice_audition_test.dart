@@ -93,6 +93,12 @@ void main() {
     expect(systemVoiceSampleText('es-ES'), contains('española'));
     expect(systemVoiceSampleText('de-DE'), contains('deutschen'));
     expect(systemVoiceSampleText('pt-BR'), contains('portuguesa'));
+    expect(systemVoiceSampleText('nl-NL'), contains('Nederlandse'));
+    expect(systemVoiceSampleText('pl-PL'), contains('polskiego'));
+    expect(systemVoiceSampleText('sv-SE'), contains('svensk'));
+    expect(systemVoiceSampleText('ru-RU'), contains('русского'));
+    expect(systemVoiceSampleText('ja-JP'), contains('日本語'));
+    expect(systemVoiceSampleText('zh-CN'), contains('中文'));
     expect(systemVoiceSampleText('it_IT'),
         systemVoiceSampleText('it-IT'));
     expect(systemVoiceSampleText('xx-XX'), isNull);

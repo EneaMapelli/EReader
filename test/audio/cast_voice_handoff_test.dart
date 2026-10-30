@@ -104,6 +104,51 @@ Future<void> _selectItalianNarrator(
 }
 
 void main() {
+  test('explicit foreign system narrator uses voice locale without '
+      'rewriting the book language', () async {
+    final engine = _CastHandoffEngine();
+    final player = _player(engine, const [
+      SpeechSegment(0, 5, 'Ciao!'),
+    ]);
+    await player.loadVoices();
+    await player.applyPreferences(const SpeechPreferences(
+      providerId: 'system', language: 'it-IT',
+      voiceName: 'Actor EN', voiceLocale: 'en-US',
+    ));
+    await player.play();
+    expect(engine.voicesUsed, ['Actor EN']);
+    expect(engine.speechLanguages, ['en-US']);
+    expect(player.currentPreferences.language, 'it-IT');
+
+    // Clearing the explicit voice re-enables the automatic book locale;
+    // a new user-directed Play, not a silent background restart, reads it.
+    await player.applyPreferences(const SpeechPreferences(
+      providerId: 'system', language: 'it-IT',
+    ));
+    await player.play();
+    expect(engine.voicesUsed.last, 'Narrator IT');
+    expect(engine.speechLanguages.last, 'it-IT');
+    player.dispose();
+  });
+
+  test('missing cast identity falls back to explicit narrator locale',
+      () async {
+    final engine = _CastHandoffEngine();
+    final player = _player(engine, const [
+      SpeechSegment(0, 5, 'Hello'),
+    ]);
+    await player.loadVoices();
+    await player.applyPreferences(const SpeechPreferences(
+      providerId: 'system', language: 'it-IT',
+      voiceName: 'Actor EN', voiceLocale: 'en-US',
+    ));
+    player.castVoiceForSegment = (_) => wrongActor;
+    await player.play();
+    expect(engine.voicesUsed, ['Actor EN']);
+    expect(engine.speechLanguages, ['en-US']);
+    player.dispose();
+  });
+
   test('narrator Italian → actor English → narrator Italian restores locale',
       () async {
     final engine = _CastHandoffEngine();

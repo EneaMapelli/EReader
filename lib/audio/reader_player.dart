@@ -213,11 +213,24 @@ class ReaderPlayer extends ChangeNotifier {
     bool forPlayback = false,
   }) {
     final resolver = castVoiceForSegment;
+    // Explicit installed system voices carry their own pronunciation
+    // locale. A different imported book language remains in preferences,
+    // but must not be passed to setLanguage for a chosen foreign voice.
+    // Unpinned automatic voices still use the book metadata language.
+    String narratorLanguage(SpeechVoice? voice) {
+      final system = engineProviderId == 'system' ||
+          engineProviderId == 'system-native';
+      return system && selectedVoice != null &&
+              voice?.key == selectedVoice!.key &&
+              voice!.locale != 'multi'
+          ? voice.locale : language;
+    }
     // Preserve the historical native selection when no cast resolver is
     // installed. Preview/lookahead still uses the available first/marin
     // fallback, exactly as earlier _voiceFor did.
     if (forPlayback && resolver == null && selectedVoice != null) {
-      return (voice: selectedVoice, spokenLanguage: language);
+      return (voice: selectedVoice,
+          spokenLanguage: narratorLanguage(selectedVoice));
     }
     final requestedCast = resolver?.call(segment);
     SpeechVoice? fallback = selectedVoice;
@@ -272,7 +285,7 @@ class ReaderPlayer extends ChangeNotifier {
     return (
       voice: resolved,
       spokenLanguage: cast != null && cast.locale != 'multi'
-          ? cast.locale : language,
+          ? cast.locale : narratorLanguage(resolved),
     );
   }
 
