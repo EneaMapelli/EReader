@@ -46,6 +46,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   Directory? _home;
   Database? _db;
   bool _fullTextIndexing = false;
+  static const int _maxFullTextIndexBytes = 64 * 1024 * 1024;
   String? _startupInterruptedBookId;
 
   // Process-local order of USER/visual bookmark writes. Speech recovery
@@ -1332,6 +1333,18 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         if (!isFullTextIndexEnabled || (shouldCancel?.call() ?? false)) {
           cancelled = true;
           break;
+        }
+        if (text != null) {
+          // Fixed global budget, in addition to the per-book/file limits.
+          // FTS5 stores text as UTF-8; count bytes, not source characters.
+          final alreadyIndexed = _database.select('''
+            SELECT COALESCE(SUM(LENGTH(CAST(body AS BLOB))), 0) AS bytes
+            FROM library_fulltext_fts
+          ''').single['bytes'] as int;
+          if (alreadyIndexed + utf8.encode(text).length >
+              _maxFullTextIndexBytes) {
+            text = null;
+          }
         }
         if (getBook(book.id) != null) {
           _transaction(_database, () {
