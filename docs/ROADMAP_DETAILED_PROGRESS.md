@@ -92,7 +92,7 @@ automaticamente consegnate: sono ampliamenti dello scope.
 | ER-030 Preparazione audio capitoli/libro | Parziale: prefetch/cache, non job queue full-book |
 | ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
 | ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
-| ER-033 Statistiche/obiettivi | Non implementato |
+| ER-033 Statistiche/obiettivi | Parziale: catalogo, attività giornaliera e schede per libro in SQLite v23; obiettivo globale, storico 7 giorni e durata totale per libro. Campionamento euristico, QA Windows/Android e retention/privacy UX avanzata ancora aperti |
 | ER-034 Libreria massiva/collezioni/FTS | Parziale: filtri/ordinamento e ricerca metadati; niente raccolte smart/FTS dell'intera biblioteca |
 
 ## E. Evidenza e priorità
@@ -1036,3 +1036,16 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Test di migrazione, aggregazione, limiti, cascade e UI aggiunti ma **non
   eseguiti**. Nessuna compilazione Windows/Android né GitHub Actions.
 - La stima precedente del piano è datata e non viene aumentata senza QA nativa.
+
+### ER-033 — Classifica settimanale e dettaglio di ciascun libro
+
+- Elenco dei dieci libri con maggiore attività negli ultimi sette giorni
+  locali, ordinato per somma visuale+TTS; parità risolta in modo stabile.
+  Toccare un libro mostra tempo totale storico, visuale/TTS separati e
+  dettaglio degli ultimi sette giorni.
+- Query parametrizzate, aggregazione SQL e limiti 1–50; nessuna scansione
+  dei testi, cambio di consensi, nuova migrazione o rete.
+- Test di separazione bookId, ordinamento, limiti, eliminazione/foreign key,
+  durata inferiore al minuto e navigazione widget scritti, **non eseguiti**.
+  Nessuna build o workflow Actions avviati. Percentuali milestone invariate
+  senza prove native.
