@@ -8,6 +8,7 @@ class OfflineVoiceStatistics {
     required this.modelLoads,
     this.lastWorkerReadyMs,
     this.lastNativeModelInitializationMs,
+    this.lastNativeGenerationMs,
     required this.syntheses,
     required this.aheadSyntheses,
     required this.warmedWaveReuses,
@@ -28,6 +29,9 @@ class OfflineVoiceStatistics {
   /// Worker-local native sherpa bindings + ONNX construction. Null when
   /// using an older/test worker or before any timed ready handshake.
   final int? lastNativeModelInitializationMs;
+  /// Worker-local generate + WAV writing, excluding model initialization.
+  /// Null for legacy worker responses and unsupported engines.
+  final int? lastNativeGenerationMs;
   final int syntheses;
   final int aheadSyntheses;
   final int warmedWaveReuses;
@@ -54,6 +58,7 @@ class OfflineVoiceDiagnostics {
   int _modelLoads = 0;
   int? _lastWorkerReadyMs;
   int? _lastNativeModelInitializationMs;
+  int? _lastNativeGenerationMs;
   int _syntheses = 0;
   int _aheadSyntheses = 0;
   int _reused = 0;
@@ -75,6 +80,13 @@ class OfflineVoiceDiagnostics {
     // show a previous model's startup as the new model's measurement.
     _lastWorkerReadyMs = null;
     _lastNativeModelInitializationMs = null;
+    _lastNativeGenerationMs = null;
+  }
+
+  void recordNativeGeneration(Duration elapsed) {
+    if (!elapsed.isNegative) {
+      _lastNativeGenerationMs = elapsed.inMilliseconds;
+    }
   }
 
   void recordModelStartup({
@@ -124,6 +136,7 @@ class OfflineVoiceDiagnostics {
       modelLoads: _modelLoads,
       lastWorkerReadyMs: _lastWorkerReadyMs,
       lastNativeModelInitializationMs: _lastNativeModelInitializationMs,
+      lastNativeGenerationMs: _lastNativeGenerationMs,
       syntheses: _syntheses,
       aheadSyntheses: _aheadSyntheses,
       warmedWaveReuses: _reused,
