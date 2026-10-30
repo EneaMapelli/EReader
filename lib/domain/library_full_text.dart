@@ -150,6 +150,138 @@ LibraryFullTextJump? bestIndexedPassage(
   return firstExactIndexedWord(indexedSource, queryTokens.first);
 }
 
+/// An explicitly selected, source-exact search passage with a bounded
+/// display preview. Neither the preview nor the jump changes stored progress.
+class LibraryFullTextPassage {
+  const LibraryFullTextPassage({
+    required this.jump,
+    required this.excerpt,
+    required this.allTermsNearby,
+  });
+
+  final LibraryFullTextJump jump;
+  final String excerpt;
+  /// False means the terms match only across distant parts of this book.
+  final bool allTermsNearby;
+}
+
+class _IndexedPassageCandidate {
+  const _IndexedPassageCandidate(this.start, this.end, this.anchor);
+  final int start;
+  final int end;
+  final RegExpMatch anchor;
+  int get width => end - start;
+}
+
+/// Return a bounded list of *distinct* local passages for one book only.
+/// All-term spans are ranked by tightness, then source order. Overlapping
+/// windows collapse to one representative instead of showing near-duplicates.
+/// A distant match only yields one clearly labelled fallback occurrence.
+/// Scanning is linear in source length with O(query terms + limit) retention.
+List<LibraryFullTextPassage> findIndexedPassages(
+  String indexedSource,
+  List<String> queryTokens, {
+  int limit = 6,
+  int maxSpanChars = 320,
+  int contextChars = 65,
+}) {
+  if (limit < 1 || limit > 10 || maxSpanChars < 1 ||
+      maxSpanChars > 2048 || contextChars < 0 ||
+      contextChars > 160 || queryTokens.isEmpty ||
+      queryTokens.length > 8) {
+    return const [];
+  }
+  final targets = <String>{};
+  for (final token in queryTokens) {
+    if (token.isEmpty || token.length > 120) return const [];
+    targets.add(token.toLowerCase());
+  }
+  final latest = <String, RegExpMatch>{};
+  final chosen = <_IndexedPassageCandidate>[];
+  final words = RegExp(r'[\p{L}\p{N}\p{M}]+', unicode: true);
+
+  int compare(_IndexedPassageCandidate a, _IndexedPassageCandidate b) {
+    final width = a.width.compareTo(b.width);
+    return width != 0 ? width : a.start.compareTo(b.start);
+  }
+
+  for (final match in words.allMatches(indexedSource)) {
+    final token = match.group(0)!.toLowerCase();
+    if (!targets.contains(token)) continue;
+    latest[token] = match;
+    if (latest.length != targets.length) continue;
+
+    var earliest = match;
+    for (final entry in latest.values) {
+      if (entry.start < earliest.start) earliest = entry;
+    }
+    final candidate = _IndexedPassageCandidate(
+        earliest.start, match.end, earliest);
+    if (candidate.width > maxSpanChars) continue;
+
+    // Merge a cluster of close competing windows to avoid repeats.
+    final overlaps = <_IndexedPassageCandidate>[];
+    for (final existing in chosen) {
+      if (candidate.start < existing.end &&
+          existing.start < candidate.end) {
+        overlaps.add(existing);
+      }
+    }
+    if (overlaps.isNotEmpty) {
+      final best = ([candidate, ...overlaps]..sort(compare)).first;
+      chosen.removeWhere(overlaps.contains);
+      chosen.add(best);
+    } else {
+      chosen.add(candidate);
+    }
+    chosen.sort(compare);
+    if (chosen.length > limit) chosen.removeLast();
+  }
+
+  // A book-wide AND match may have no passage containing all the terms
+  // nearby. Show one conservative fallback, not a fabricated phrase.
+  if (chosen.isEmpty) {
+    final fallback = firstExactIndexedWord(indexedSource, queryTokens.first);
+    if (fallback == null) return const [];
+    return [
+      LibraryFullTextPassage(
+        jump: fallback,
+        excerpt: _indexedPassageExcerpt(indexedSource,
+            fallback.sourceOffset,
+            fallback.sourceOffset + fallback.expectedText.length,
+            contextChars),
+        allTermsNearby: false,
+      ),
+    ];
+  }
+
+  return List.unmodifiable([
+    for (final candidate in chosen)
+      LibraryFullTextPassage(
+        jump: _captureIndexedWord(indexedSource, candidate.anchor,
+            passageEnd: candidate.end),
+        excerpt: _indexedPassageExcerpt(indexedSource,
+            candidate.start, candidate.end, contextChars),
+        allTermsNearby: true,
+      ),
+  ]);
+}
+
+/// A display-only excerpt; avoid splitting a surrogate pair at a boundary.
+String _indexedPassageExcerpt(
+    String source, int start, int end, int contextChars) {
+  var left = (start - contextChars).clamp(0, source.length).toInt();
+  var right = (end + contextChars).clamp(0, source.length).toInt();
+  if (left > 0 && left < source.length &&
+      source.codeUnitAt(left) >= 0xDC00 &&
+      source.codeUnitAt(left) <= 0xDFFF) left--;
+  if (right > 0 && right < source.length &&
+      source.codeUnitAt(right) >= 0xDC00 &&
+      source.codeUnitAt(right) <= 0xDFFF) right++;
+  return source.substring(left, right)
+      .replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
 class LibraryFullTextHit {
   const LibraryFullTextHit({
     required this.bookId,
