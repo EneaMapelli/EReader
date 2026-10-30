@@ -28,10 +28,10 @@ void main() {
     return (await store.importFile(source.path)).id;
   }
 
-  test('fresh v23 library retains v20 favorite column, all unstarred', () async {
+  test('fresh v24 library retains v20 favorite column, all unstarred', () async {
     final id = await add('first');
     final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
-    expect(db.select('PRAGMA user_version').single['user_version'], 23);
+    expect(db.select('PRAGMA user_version').single['user_version'], 24);
     expect(db.select('PRAGMA table_info(books)')
         .any((row) => row['name'] == 'is_favorite'), isTrue);
     expect(db.select('SELECT is_favorite FROM books WHERE id = ?', [id])

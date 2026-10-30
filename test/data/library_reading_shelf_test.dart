@@ -28,10 +28,10 @@ void main() {
     return (await store.importFile(file.path)).id;
   }
 
-  test('fresh library defaults to To read with valid v23 schema', () async {
+  test('fresh library defaults to To read with valid v24 schema', () async {
     final id = await add('initial');
     final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
-    expect(db.select('PRAGMA user_version').single['user_version'], 23);
+    expect(db.select('PRAGMA user_version').single['user_version'], 24);
     expect(db.select('SELECT reading_status FROM books WHERE id = ?',
         [id]).single['reading_status'], 'toRead');
     db.dispose();

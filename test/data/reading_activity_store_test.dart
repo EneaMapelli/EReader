@@ -76,9 +76,9 @@ void main() {
       if (await home.exists()) await home.delete(recursive: true);
     });
 
-    test('fresh schema v23 has default 20 minute goal, empty days', () {
+    test('fresh schema v24 has default 20 minute goal, empty days', () {
       final db = sqlite3.open(p.join(home.path, 'library.sqlite'));
-      expect(db.select('PRAGMA user_version').single['user_version'], 23);
+      expect(db.select('PRAGMA user_version').single['user_version'], 24);
       db.dispose();
       final stats = store.weeklyReadingActivity(now: DateTime(2026, 10, 30));
       expect(stats.goalMinutes, 20);
