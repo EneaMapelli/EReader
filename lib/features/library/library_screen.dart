@@ -14,6 +14,7 @@ import '../../data/android_shared_book_inbox.dart';
 import '../../audio/reader_media_handler.dart';
 import '../../domain/book.dart';
 import '../../domain/library_catalog.dart';
+import '../../domain/library_search_query.dart';
 import '../../domain/library_reading_statistics.dart';
 import 'library_reading_statistics_sheet.dart';
 import '../reader/reader_screen.dart';
@@ -910,6 +911,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _showLibrarySearchHelp() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Search library'),
+        content: const Text(
+          'Search is local and matches book titles, authors and series. '
+          'Use multiple words to require all of them. Use double quotes '
+          'for a phrase, for example "space opera". '
+          'Use title:, author: or series: to restrict a term, for '
+          'example author:"Ada Writer" series:Atlas. '
+          'You can combine field terms with existing format, shelf, '
+          'favorites and collection filters. The text inside books '
+          'is not searched or uploaded.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showReadingStatistics() async {
     // Use every stored book, never the current filter selection.
     final stats = LibraryReadingStatistics.fromBooks(widget.store.books);
@@ -1112,15 +1138,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     onChanged: (value) => setState(() => _query = value),
                     decoration: InputDecoration(
                       labelText: 'Search library',
+                      hintText: 'title:Atlas author:"Ada Writer"',
+                      errorText: LibrarySearchQuery.parse(_query).error,
                       prefixIcon: const Icon(Icons.search),
                       border: const OutlineInputBorder(),
-                      suffixIcon: _query.isEmpty ? null : IconButton(
-                        tooltip: 'Clear library search',
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _query = '');
-                        },
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Library search help',
+                            icon: const Icon(Icons.help_outline),
+                            onPressed: _showLibrarySearchHelp,
+                          ),
+                          if (_query.isNotEmpty)
+                            IconButton(
+                              tooltip: 'Clear library search',
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _query = '');
+                              },
+                            ),
+                        ],
                       ),
                     ),
                   ),
