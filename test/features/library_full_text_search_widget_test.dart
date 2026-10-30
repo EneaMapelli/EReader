@@ -83,8 +83,8 @@ void main() {
   testWidgets('passage dialog opens a selected alternative without saving',
       (tester) async {
     final path = store.getBook(firstId)!.localPath;
-    final source = 'blue ${'valley ' * 18}dragon. ' +
-        ('unrelated ' * 50) +
+    final source = 'blue ${List.filled(18, 'valley ').join()}dragon. ' +
+        List.filled(50, 'unrelated ').join() +
         'A blue dragon flies at sunrise.';
     await File(path).writeAsString(source);
     store.setFullTextIndexEnabled(true);
@@ -119,7 +119,7 @@ void main() {
       (tester) async {
     final path = store.getBook(firstId)!.localPath;
     await File(path).writeAsString(
-        'dragon ' + ('faraway ' * 75) + 'blue');
+        'dragon ' + List.filled(75, 'faraway ').join() + 'blue');
     store.setFullTextIndexEnabled(true);
     await store.indexNextFullTextBatch();
 
