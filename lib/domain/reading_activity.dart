@@ -57,10 +57,21 @@ class ReadingActivityAccumulator {
   final Map<ReadingActivityMode, int> _remainders = {};
   bool _disposed = false;
 
-  int record(Duration elapsed, ReadingActivityMode? mode) {
+  /// [remainingVisual] is the monotonic visual-idle budget captured at
+  /// the START of the interval. Do not charge a whole timer pulse if the
+  /// foreground reading session became idle midway through that pulse.
+  int record(
+    Duration elapsed,
+    ReadingActivityMode? mode, {
+    Duration? remainingVisual,
+  }) {
     if (_disposed || mode == null || elapsed.isNegative ||
         elapsed == Duration.zero) return 0;
-    final clipped = elapsed > maxPulse ? maxPulse : elapsed;
+    var clipped = elapsed > maxPulse ? maxPulse : elapsed;
+    if (mode == ReadingActivityMode.visual && remainingVisual != null) {
+      if (remainingVisual <= Duration.zero) return 0;
+      if (clipped > remainingVisual) clipped = remainingVisual;
+    }
     final total = (_remainders[mode] ?? 0) + clipped.inMicroseconds;
     final seconds = total ~/ Duration.microsecondsPerSecond;
     _remainders[mode] = total % Duration.microsecondsPerSecond;
