@@ -300,6 +300,62 @@ List<LibraryFullTextPassage> findIndexedPassages(
   ]);
 }
 
+/// Select the earliest COMPLETE source word matching ANY sanitized term.
+//// This is deliberately lexical: a synonym not in the query is not found.
+/// The FTS5 OR result may match a different word than the first query term,
+/// so never fall back to searching only queryTokens.first.
+LibraryFullTextJump? firstIndexedAnyWord(
+    String source, List<String> queryTokens) {
+  if (queryTokens.isEmpty || queryTokens.length > 8 ||
+      queryTokens.any((token) => token.isEmpty || token.length > 120)) {
+    return null;
+  }
+  final targets = queryTokens.map((term) => term.toLowerCase()).toSet();
+  final words = RegExp(r'[\p{L}\p{N}\p{M}]+', unicode: true);
+  for (final match in words.allMatches(source)) {
+    if (targets.contains(match.group(0)!.toLowerCase())) {
+      return _captureIndexedWord(source, match);
+    }
+  }
+  return null;
+}
+
+/// Return at most ten non-overcrowded matching locations in source order.
+/// Adjacent OR hits are grouped into one preview to make the list useful
+/// when common words occur frequently in a paragraph. No fake "all terms"
+/// claim is made: each candidate only has to match ONE original term.
+List<LibraryFullTextPassage> findIndexedAnyWordPassages(
+    String source, List<String> queryTokens, {
+    int limit = 6,
+    int contextChars = 65,
+    int minSeparationChars = 120,
+}) {
+  if (limit < 1 || limit > 10 || contextChars < 0 ||
+      contextChars > 160 || minSeparationChars < 0 ||
+      minSeparationChars > 1024 || queryTokens.isEmpty ||
+      queryTokens.length > 8 ||
+      queryTokens.any((term) => term.isEmpty || term.length > 120)) {
+    return const [];
+  }
+  final targets = queryTokens.map((term) => term.toLowerCase()).toSet();
+  final passages = <LibraryFullTextPassage>[];
+  final words = RegExp(r'[\p{L}\p{N}\p{M}]+', unicode: true);
+  for (final match in words.allMatches(source)) {
+    if (!targets.contains(match.group(0)!.toLowerCase())) continue;
+    if (passages.isNotEmpty &&
+        match.start - passages.last.jump.sourceOffset <
+            minSeparationChars) continue;
+    passages.add(LibraryFullTextPassage(
+      jump: _captureIndexedWord(source, match),
+      excerpt: _indexedPassageExcerpt(
+          source, match.start, match.end, contextChars),
+      allTermsNearby: false,
+    ));
+    if (passages.length >= limit) break;
+  }
+  return List.unmodifiable(passages);
+}
+
 /// Positions of genuinely consecutive query tokens in the indexed
 /// canonical source. SQLite FTS phrase matching is the book-level filter;
 /// this local pass supplies verified UTF-16 destinations, independent of
