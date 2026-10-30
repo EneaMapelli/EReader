@@ -93,7 +93,7 @@ automaticamente consegnate: sono ampliamenti dello scope.
 | ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
 | ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
 | ER-033 Statistiche/obiettivi | Parziale: catalogo, tempi giornalieri e per libro in SQLite v23/v24, obiettivo globale, storico 7 giorni, cancellazione selettiva/globale e opt-out persistente dal tracciamento. Restano campionamento euristico e QA Windows/Android |
-| ER-034 Libreria massiva/collezioni/FTS | Parziale: filtri/ordinamento e ricerca metadati; niente raccolte smart/FTS dell'intera biblioteca |
+| ER-034 Libreria massiva/collezioni/FTS | Parziale: filtri/ordinamento, collezioni manuali e ricerca metadati offline avanzata (AND, frasi, campi); mancano raccolte smart persistenti e ricerca FTS nell'intero contenuto |
 
 ## E. Evidenza e priorità
 
@@ -1140,3 +1140,20 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   removing or hiding an existing one. Tests not executed without
   the Dart/Flutter SDK; no Windows/Android build or GitHub Actions.
 
+
+### ER-034 — Ricerca avanzata offline nella biblioteca (2026-10-30)
+
+- Nuovo parser `lib/domain/library_search_query.dart`: ricerca a più
+  parole con AND, frasi tra virgolette, prefissi `title:`, `author:`,
+  `series:` (senza distinzione maiuscole/minuscole). Preservate le
+  vecchie ricerche per sottostringa e tutte le combinazioni con filtri
+  formato, preferiti, stato e collezioni.
+- Limiti intenzionali di 256 caratteri UTF-16 e 16 termini; query
+  incomplete o malformate segnalate nella UI senza risultati ingannevoli.
+  Icona Help con esempi e conferma che l'app non cerca né carica i testi
+  integrali dei libri.
+- Nessuna nuova tabella, network, spesa API o modifica di lettura/TTS.
+  Il vero FTS5 offline sui contenuti rimane un incremento distinto,
+  potenzialmente opt-in e da qualificare sulle risorse del dispositivo.
+- Test di parsing, catalogo e UI scritti ma non eseguiti;
+  nessuna build Windows/Android né GitHub Actions avviata.
