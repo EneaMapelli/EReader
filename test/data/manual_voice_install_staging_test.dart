@@ -115,6 +115,60 @@ void main() {
     expect(await stage.exists(), isTrue);
   });
 
+  test('diagnostic distinguishes eligible, recent, busy and unsafe stages',
+      () async {
+    final old = await abandoned();
+    final fresh = await abandoned();
+    final legacy = await abandoned(marked: false);
+    final suspicious = await abandoned();
+    await File(p.join(suspicious.path,
+        ManualVoiceInstallStaging.payloadName, 'unknown.exe'))
+        .writeAsBytes([1]);
+    final live = await ManualVoiceInstallStaging.create(models);
+    final aged = DateTime.now().subtract(const Duration(days: 3));
+    await File(p.join(old.path, ManualVoiceInstallStaging.markerName))
+        .setLastModified(aged);
+    await File(p.join(suspicious.path, ManualVoiceInstallStaging.markerName))
+        .setLastModified(aged);
+
+    final health = await ManualVoiceInstallStaging.inspectAbandoned(models);
+    expect(health.candidates, 5);
+    expect(health.examined, 5);
+    expect(health.eligible, 1);
+    expect(health.recent, 1);
+    expect(health.busy, 1);
+    expect(health.unrecognized, 2);
+    expect(health.limited, isFalse);
+    expect(health.notExamined, 0);
+    expect(await old.exists(), isTrue);
+    expect(await fresh.exists(), isTrue);
+    expect(await legacy.exists(), isTrue);
+    expect(await suspicious.exists(), isTrue);
+    expect(await live.directory.exists(), isTrue);
+    await live.finish();
+  });
+
+  test('diagnostic sample is bounded and cannot remove files', () async {
+    final folders = <Directory>[];
+    for (var i = 0;
+        i < ManualVoiceInstallStaging.maxCandidatesPerSweep + 4; i++) {
+      folders.add(await abandoned());
+    }
+    final health = await ManualVoiceInstallStaging.inspectAbandoned(
+        models, minimumAge: Duration.zero);
+    expect(health.candidates,
+        ManualVoiceInstallStaging.maxCandidatesPerSweep + 4);
+    expect(health.examined, ManualVoiceInstallStaging.maxCandidatesPerSweep);
+    expect(health.eligible, ManualVoiceInstallStaging.maxCandidatesPerSweep);
+    expect(health.notExamined, 4);
+    expect(health.limited, isTrue);
+    expect((await Future.wait(folders.map((d) => d.exists())))
+        .every((exists) => exists), isTrue);
+    expect(() => ManualVoiceInstallStaging.inspectAbandoned(
+        models, minimumAge: const Duration(seconds: -1)),
+        throwsArgumentError);
+  });
+
   test('sixteen stages per sweep and idempotent retry', () async {
     final folders = <Directory>[];
     for (var i = 0;
