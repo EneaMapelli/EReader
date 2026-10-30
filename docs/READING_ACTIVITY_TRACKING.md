@@ -41,7 +41,7 @@ zero; no attempt is made to reconstruct past sessions from `last_opened_at`.
 Daily aggregates and goals remain in local SQLite. Export's SQLite snapshot
 includes them, but the add-only restore intentionally does **not** import
 activity history or goals to avoid silently merging personal time data.
-Backup preview now accepts schema v23 in addition to v17–v22.
+Backup preview accepts schema v17–v24 after adding the local opt-out.
 Deleting a book deletes its activity rows by foreign-key cascade.
 There is no automatic cloud analytics or API spend.
 
@@ -64,7 +64,7 @@ in this development session. No Windows/Android builds or GitHub Actions.
   SQLite; limits are 1–50, UI uses 10. Details use a single-book parameterized
   query, not a loop across a large catalog. There is no content extraction,
   upload, cloud spend, tracking of actual page turns or additional schema
-  migration beyond v23.
+  migration for per-book queries (the later opt-out is schema v24).
 - `weeklyReadingActivity(bookId: ...)` validates the book and scopes its
   daily rows. `bookReadingLifetimeTotals` accounts for dates outside the
   current week but never invents activity before tracking was introduced.
@@ -100,8 +100,7 @@ consents, collections or the separately stored daily goal.
   OS/SQLite filesystem may retain recoverable deleted bytes; this action
   is not a cryptographic secure erase.
 - **Activity measurement continues for new reading/TTS time** after
-  deletion. It does not disable tracking; there is currently no persisted
-  tracking opt-out control.
+  deletion unless the separate persistent tracking preference is Off.
 
 The recorder now snapshots the remaining visual-reading idle budget at
 the **start** of each monotonic timer interval. The accumulator clips
@@ -117,3 +116,33 @@ book isolation, preservation of progress/goal, idempotence, cancel/
 confirm UI paths, history refresh and mid-sample idle deadline. These
 tests were **not executed** in this iteration, and no Windows/Android
 build or GitHub Actions was started.
+
+## Persistent local tracking switch (SQLite v24)
+
+The library's **Reading stats** sheet now has a **Track reading and TTS time**
+switch, enabled by default on fresh installs and on upgrades to keep existing
+behavior. Turning it Off persists a `tracking_enabled = 0` bit in the
+existing `reading_activity_settings` singleton row, with a transactional
+v23→v24 migration. The same value survives app restarts. Opting out:
+
+- Prevents the reader from constructing its activity timer on the next open.
+- Also prevents activity storage at the `LibraryStore.recordReadingActivity`
+  boundary, including late callbacks and programmatic writes. Any running
+  tracker checks the preference and drops its fractional elapsed remainder.
+- Does **not** pause TTS, alter the open book, delete existing history or
+  change the daily goal. Existing history remains visible in weekly and
+  per-book dashboards, even while tracking is disabled.
+- Re-enabling tracks only **new** activity; previously disabled time is
+  not reconstructed. The app does not backfill from book-open timestamps.
+- Is a purely local preference, with no platform permission or networking.
+  The explicit user-created SQLite backup carries both the setting and
+  historical aggregates. Add-only restore does not import either the
+  setting or activity aggregates to a different library.
+
+SQLite's newer-schema guard and backup inspection accept v24; older v17–v23
+backups stay supported. Tests have been authored for fresh defaults,
+v23→v24 conversion, a partially downgraded schema marker, opt-out across
+restarts, no new activity while disabled, re-enable, active-history
+preservation, UI switch behavior and private SQLite export. They have
+**not been executed** in this development increment. No Windows build,
+Android build or GitHub Actions was triggered.

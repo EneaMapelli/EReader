@@ -92,7 +92,7 @@ automaticamente consegnate: sono ampliamenti dello scope.
 | ER-030 Preparazione audio capitoli/libro | Parziale: prefetch/cache, non job queue full-book |
 | ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
 | ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
-| ER-033 Statistiche/obiettivi | Parziale: catalogo, attività giornaliera e schede per libro in SQLite v23; obiettivo globale, storico 7 giorni e durata totale per libro. Campionamento euristico, QA Windows/Android e retention/privacy UX avanzata ancora aperti |
+| ER-033 Statistiche/obiettivi | Parziale: catalogo, tempi giornalieri e per libro in SQLite v23/v24, obiettivo globale, storico 7 giorni, cancellazione selettiva/globale e opt-out persistente dal tracciamento. Restano campionamento euristico e QA Windows/Android |
 | ER-034 Libreria massiva/collezioni/FTS | Parziale: filtri/ordinamento e ricerca metadati; niente raccolte smart/FTS dell'intera biblioteca |
 
 ## E. Evidenza e priorità
@@ -1080,3 +1080,19 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Flutter/Dart tests and Windows lock acceptance **not yet executed**.
   No builds or GitHub Actions.
 
+
+### ER-033 — Opt-out persistente e blocco registrazioni (SQLite v24)
+
+- Nella schermata statistiche aggiunto lo switch **Track reading and TTS
+  time**. L'impostazione sopravvive a riavvii e migrazioni da SQLite v23.
+  Per compatibilità con l'attuale comportamento, il valore iniziale è On.
+- Con Off il reader non crea il timer locale delle statistiche; anche
+  `LibraryStore.recordReadingActivity` verifica il flag e ignora scritture
+  arrivate in ritardo. Nessun TTS viene fermato dall'impostazione.
+- Conservati storico precedentemente registrato e obiettivo giornaliero.
+  Riattivando, si registrano soltanto attività future. La cancellazione
+  dello storico resta un comando distinto, con conferma.
+- Preview backup accetta v17–v24; la copia SQLite privata include il flag,
+  mentre il ripristino add-only non lo importa né modifica i consensi.
+- Test di upgrade v23→v24, marker ripristinato, UI, restart e copia di
+  backup predisposti ma non eseguiti. Nessuna compilazione o Actions.

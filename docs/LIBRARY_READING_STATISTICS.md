@@ -49,3 +49,11 @@ this week**, from which the user can open a book-specific summary of
 historical recorded visual and TTS time plus the daily breakdown. It is
 covered in [READING_ACTIVITY_TRACKING.md](READING_ACTIVITY_TRACKING.md).
 This is separate from the manual completion and last-opened counts.
+
+## Third increment — persistent tracking opt-out
+
+SQLite v24 adds a user-controlled **Track reading and TTS time** switch.
+The local activity recorder and its database writer both observe the
+preference. Turning it Off retains previously collected data and the
+daily goal; it does not delete the book or change narration. See
+[READING_ACTIVITY_TRACKING.md](READING_ACTIVITY_TRACKING.md).
