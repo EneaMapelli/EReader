@@ -1251,3 +1251,25 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Flutter/Dart tests not executed here (SDK unavailable). No Windows/
   Android builds or GitHub Actions started.
 
+### M3 — Separate worker WAV generation from cold-load overhead (2026-10-30)
+
+- The persistent VITS worker success response now carries the **actual
+  worker-local generate + WAV-write duration**, measured after ONNX
+  initialization. Older workers returning the original two-field reply
+  are still supported; their native generation duration remains unknown.
+  No private audio content, local path, book passage or error stack
+  is sent as part of these timing messages.
+- Cold-load reporting now separates **worker ready** (includes spawning
+  and message scheduling), **native model init** (worker-local Sherpa
+  bindings + ONNX loading) and **worker WAV generation** (no model
+  initialization or audio playback). The pre-existing caller-side
+  synthesis stopwatch necessarily overlaps with cold initialization;
+  it is accurately labeled **Synthesis path incl. startup** rather
+  than presented as an independently additive native synthesis number.
+- Existing three-minute resident model idle timer, Stop cancellation,
+  voice verification and bounded WAV cleanup remain unchanged.
+- Added pure Dart regression cases for old and extended reply formats,
+  cold and reused workers, reset of model metrics and preview formatting.
+  Source updates only: no Dart/Flutter SDK available to execute tests,
+  no Windows/Android build and no GitHub Actions.
+
