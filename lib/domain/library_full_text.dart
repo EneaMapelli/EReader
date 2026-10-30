@@ -52,6 +52,64 @@ LibraryFullTextJump? firstExactIndexedWord(
   return null;
 }
 
+/// Choose the shortest nearby passage containing ALL distinct query words.
+/// This scan runs only after the user selects a hit, never in query rebuilds.
+/// It uses O(number of query terms) state even on large/repetitive books.
+///
+/// If FTS5 matched the words somewhere in the book but no close passage
+/// exists, keep the conservative first-word fallback instead of presenting
+/// distant unrelated passages as one sentence. Unicode offsets are UTF-16.
+LibraryFullTextJump? bestIndexedPassage(
+  String indexedSource,
+  List<String> queryTokens, {
+  int maxSpanChars = 320,
+}) {
+  if (queryTokens.isEmpty || queryTokens.length > 8 ||
+      maxSpanChars < 1 || maxSpanChars > 2048) return null;
+  final targets = <String>{};
+  for (final token in queryTokens) {
+    if (token.isEmpty || token.length > 120) return null;
+    targets.add(token.toLowerCase());
+  }
+  if (targets.isEmpty) return null;
+  if (targets.length == 1) {
+    return firstExactIndexedWord(indexedSource, queryTokens.first);
+  }
+
+  // Store ONLY the most recent occurrence of each query term, never all
+  // text matches. For every new occurrence, these latest positions give
+  // the smallest candidate interval ending at that occurrence.
+  final recent = <String, RegExpMatch>{};
+  RegExpMatch? bestStart;
+  var bestWidth = maxSpanChars + 1;
+  final words = RegExp(r'[\p{L}\p{N}\p{M}]+', unicode: true);
+  for (final match in words.allMatches(indexedSource)) {
+    final token = match.group(0)!.toLowerCase();
+    if (!targets.contains(token)) continue;
+    recent[token] = match;
+    if (recent.length != targets.length) continue;
+    var earliest = match;
+    for (final occurrence in recent.values) {
+      if (occurrence.start < earliest.start) earliest = occurrence;
+    }
+    final width = match.end - earliest.start;
+    if (width <= maxSpanChars && width < bestWidth) {
+      bestWidth = width;
+      bestStart = earliest;
+      // Can't beat the total number of distinct nonempty words.
+      // Do not stop early: the next phrase may have the same span but
+      // is only accepted if it is strictly shorter (earliest wins).
+    }
+  }
+  if (bestStart != null) {
+    return LibraryFullTextJump(
+      sourceOffset: bestStart.start,
+      expectedText: bestStart.group(0)!,
+    );
+  }
+  return firstExactIndexedWord(indexedSource, queryTokens.first);
+}
+
 class LibraryFullTextHit {
   const LibraryFullTextHit({
     required this.bookId,
