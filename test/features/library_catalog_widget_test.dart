@@ -267,8 +267,8 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
     await tester.tap(find.byTooltip('Library search help'));
     await tester.pumpAndSettle();
-    expect(find.text('Search is local and matches book titles, authors and series.',
-        findRichText: true), findsNothing);
+    final help = tester.widget<AlertDialog>(find.byType(AlertDialog));
+    expect((help.content! as Text).data, contains('text inside books'));
     expect(find.text('Got it'), findsOneWidget);
     await tester.tap(find.text('Got it'));
     await tester.pumpAndSettle();
