@@ -94,6 +94,45 @@ class DiagnosticFakeOfflineEngine extends FakeOfflineEngine
   }
 }
 
+class BenchmarkFakeOfflineEngine extends FakeOfflineEngine
+    implements OfflineVoiceDiagnosticsProvider {
+  final OfflineVoiceDiagnostics diagnostics = OfflineVoiceDiagnostics();
+  final List<String> utterances = <String>[];
+  Completer<void>? secondGate;
+
+  @override
+  OfflineVoiceStatistics get offlineVoiceStatistics => diagnostics.snapshot;
+
+  @override
+  Future<void> speak(String text, {required String language,
+      required double rate, required double pitch}) async {
+    final first = utterances.isEmpty;
+    utterances.add(text);
+    if (first) {
+      diagnostics.recordModelLoad();
+      diagnostics.recordModelStartup(
+        workerReadyMs: 85, nativeModelInitializationMs: 51);
+    }
+    diagnostics.recordNativeGeneration(
+        Duration(milliseconds: first ? 60 : 19));
+    diagnostics.recordSynthesis(
+      Duration(milliseconds: first ? 120 : 41),
+      ahead: false,
+      wholeProcessRssBytes: 88 * 1024 * 1024,
+    );
+    await super.speak(text, language: language, rate: rate, pitch: pitch);
+    if (!first && secondGate != null) await secondGate!.future;
+  }
+
+  @override
+  Future<void> stop() async {
+    await super.stop();
+    if (secondGate != null && !secondGate!.isCompleted) {
+      secondGate!.complete();
+    }
+  }
+}
+
 InstalledOfflineVoicePack samplePack({String id = 'italian',
     String locale = 'it-IT', bool withPhonemizer = true}) =>
     InstalledOfflineVoicePack(
@@ -123,6 +162,94 @@ Future<void> until(bool Function() ready) async {
 }
 
 void main() {
+  test('consented cold/warm comparison uses one model and fixed public text',
+      () async {
+    final fake = BenchmarkFakeOfflineEngine();
+    var verifications = 0;
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async {
+        verifications++;
+        return samplePack();
+      },
+      createEngine: (_) => fake,
+    );
+    await audition.play('italian', compareColdWarm: true);
+    expect(verifications, 1);
+    expect(fake.speaks, 2);
+    expect(fake.utterances, hasLength(2));
+    expect(fake.utterances[0], offlineVoiceSampleText('it-IT'));
+    expect(fake.utterances[1], fake.utterances[0]);
+    expect(fake.disposals, 1);
+    final report = audition.lastReport!;
+    final compare = report.coldWarmComparison!;
+    expect(report.outcome, OfflineVoicePreviewOutcome.completed);
+    expect(compare.reusedNativeModel, isTrue);
+    expect(compare.firstNativeGenerationMs, 60);
+    expect(compare.secondNativeGenerationMs, 19);
+    expect(compare.firstSynthesisPathMs, 120);
+    expect(compare.secondSynthesisPathMs, 41);
+    expect(compare.firstSpeechWallMs, greaterThanOrEqualTo(0));
+    expect(compare.secondSpeechWallMs, greaterThanOrEqualTo(0));
+    final label = formatOfflineVoicePreviewReport(report);
+    expect(label, contains('Cold/warm demo (same phrase twice)'));
+    expect(label, contains('One native model reused'));
+    expect(label, contains('First worker WAV: 60 ms'));
+    expect(label, contains('Second worker WAV: 19 ms'));
+    expect(label, isNot(contains('/private/models/')));
+    await audition.dispose();
+  });
+
+  test('Stop during first cold phrase never schedules warm phrase', () async {
+    final fake = BenchmarkFakeOfflineEngine()
+      ..pending = Completer<void>();
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => fake,
+    );
+    final run = audition.play('italian', compareColdWarm: true);
+    await until(() => fake.speaks == 1);
+    await audition.stop();
+    await run;
+    expect(fake.speaks, 1);
+    expect(fake.disposals, 1);
+    expect(audition.lastReport?.outcome,
+        OfflineVoicePreviewOutcome.cancelled);
+    expect(audition.lastReport?.coldWarmComparison, isNull);
+    await audition.dispose();
+  });
+
+  test('Stop during second warm phrase discards partial comparison',
+      () async {
+    final fake = BenchmarkFakeOfflineEngine()
+      ..secondGate = Completer<void>();
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => fake,
+    );
+    final run = audition.play('italian', compareColdWarm: true);
+    await until(() => fake.speaks == 2);
+    await audition.stop();
+    await run;
+    expect(fake.speaks, 2);
+    expect(fake.disposals, 1);
+    expect(audition.lastReport!.outcome,
+        OfflineVoicePreviewOutcome.cancelled);
+    expect(audition.lastReport!.coldWarmComparison, isNull);
+    await audition.dispose();
+  });
+
+  test('ordinary preview still speaks exactly once', () async {
+    final fake = BenchmarkFakeOfflineEngine();
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => fake,
+    );
+    await audition.play('italian');
+    expect(fake.speaks, 1);
+    expect(audition.lastReport?.coldWarmComparison, isNull);
+    await audition.dispose();
+  });
+
   test('preview report measures real phases and native provider counters',
       () async {
     final fake = DiagnosticFakeOfflineEngine();
