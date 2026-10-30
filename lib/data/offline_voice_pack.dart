@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import 'manual_voice_install_staging.dart';
+
 /// One strictly relative phonemizer file. Directories/ZIP extraction are
 /// never trusted: each allowed asset is copied independently and hashed.
 class OfflineVoiceResource {
@@ -343,7 +345,8 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
       FileSystemEntityType.notFound) {
     return verify(target);
   }
-  final temporary = await modelsDirectory.createTemp('.install-');
+  final staging = await ManualVoiceInstallStaging.create(modelsDirectory);
+  final temporary = staging.payload;
   try {
     await _copyVerifiedFile(
       File(p.join(sourceDirectory.path, 'model.onnx')),
@@ -375,7 +378,7 @@ Future<InstalledOfflineVoicePack> installOfflineVoicePack({
       tokensPath: p.join(target.path, 'tokens.txt'),
     );
   } finally {
-    if (await temporary.exists()) await temporary.delete(recursive: true);
+    await staging.finish();
   }
 }
 
