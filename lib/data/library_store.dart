@@ -12,6 +12,7 @@ import '../domain/book.dart';
 import '../domain/book_collection.dart';
 import '../domain/smart_book_collection.dart';
 import '../domain/library_full_text.dart';
+import '../domain/book_search.dart';
 import 'book_decoder.dart';
 import '../domain/library_catalog.dart';
 import '../domain/reading_activity.dart';
