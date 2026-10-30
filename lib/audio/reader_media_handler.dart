@@ -52,6 +52,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // incident. Coalesce their Stop into one native operation per attached
   // player; a later book attachment starts with a fresh interruption scope.
   Future<void>? _interruptionPause;
+  int? _interruptionControlRevision;
 
   bool get hasActiveBook => _player != null;
 
@@ -82,6 +83,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     _bindingEpoch++;
     _commandEpoch++;
     _interruptionPause = null;
+    _interruptionControlRevision = null;
     _player?.removeListener(_onPlayerChanged);
     _player = null;
     _canStart = null;
@@ -272,30 +274,51 @@ class ReaderMediaHandler extends BaseAudioHandler {
   ///
   /// Returnable Future supports deterministic control-plane tests and
   /// allows repeated native interruptions to share one Stop barrier.
+  void _trackSystemInterruption(Future<void> pausing) {
+    _interruptionPause = pausing;
+    // The previous Stop may complete after a more recent interruption.
+    // Only the latest tracked Future may reset the pending interruption.
+    void clearIfLatest() {
+      if (identical(_interruptionPause, pausing)) {
+        _interruptionPause = null;
+        _interruptionControlRevision = null;
+      }
+    }
+    unawaited(pausing.then<void>((_) => clearIfLatest(),
+        onError: (Object _, StackTrace __) => clearIfLatest()));
+  }
+
   Future<void> pauseForSystemInterruption() {
-    if (_closed || _player == null) return Future<void>.value();
+    final player = _player;
+    if (_closed || player == null) return Future<void>.value();
     final pending = _interruptionPause;
     if (pending != null) {
-      // A fresh user/remote Play may have arrived since the first event.
-      // Even when sharing its Stop Future, the newer interruption must
-      // invalidate every later, not-yet-dispatched Play command.
+      // A duplicate phone/noisy callback must invalidate queued remote
+      // Play, but sharing the old Stop is safe ONLY if the player itself
+      // has not started another Play/Seek/voice change in the meantime.
+      // ReaderScreen can control ReaderPlayer directly, bypassing this
+      // handler's _commandEpoch. Without the revision check, a fresh
+      // direct Play can resume once the old Stop gate finally settles.
       _commandEpoch++;
-      return pending;
+      if (_interruptionControlRevision == player.narrationControlRevision) {
+        return pending;
+      }
+      // A newer direct operation superseded the first interruption.
+      // Reassert Pause and await BOTH Stop paths. The original pending
+      // interruption is still observed, and a duplicate of this new
+      // event will once again share its Future without a third Stop.
+      final latest = pause();
+      _interruptionControlRevision = player.narrationControlRevision;
+      final combined =
+          Future.wait<void>([pending, latest]).then<void>((_) {});
+      _trackSystemInterruption(combined);
+      return combined;
     }
-    // A seek/voice switch can already be awaiting native Stop with
-    // isPlaying=false and an auto-resume queued. Only a real pause()
-    // invalidates that pending navigation and its crash marker safely.
+    // A seek/voice switch may have isPlaying=false yet be about to
+    // resume. Only an explicit Pause invalidates that navigation.
     final pausing = pause();
-    _interruptionPause = pausing;
-    unawaited(pausing.then((_) {
-      if (identical(_interruptionPause, pausing)) {
-        _interruptionPause = null;
-      }
-    }, onError: (Object _, StackTrace __) {
-      if (identical(_interruptionPause, pausing)) {
-        _interruptionPause = null;
-      }
-    }));
+    _interruptionControlRevision = player.narrationControlRevision;
+    _trackSystemInterruption(pausing);
     return pausing;
   }
 

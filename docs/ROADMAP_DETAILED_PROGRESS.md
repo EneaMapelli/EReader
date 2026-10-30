@@ -694,3 +694,23 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   or GitHub Actions started. Physical background/phone-call acceptance
   remains pending.
 
+### M2/Android — Reassert interruption after direct in-reader controls (2026-10-30)
+
+- Fixed a race in Android media-session interruption coalescing: a second
+  phone/noisy event previously shared the first unfinished Pause even if
+  ReaderScreen had initiated a *new* direct Play or Seek meanwhile. That
+  newer control operation could restart audio when the first native Stop
+  finally resolved.
+- Added a read-only ReaderPlayer control revision. The media handler
+  continues to coalesce genuinely duplicate interruption events, while
+  reasserting Pause and joining both native-stop Futures whenever the
+  reader has issued newer control intent. Pending remote Play remains
+  invalidated without requiring a native operation for duplicates.
+- Added controlled integration tests for direct Play, direct Seek and
+  repeated interruption callbacks with a delayed native Stop. Check that
+  no later synthesis occurs, repeated callbacks share the new Stop and
+  the reader stays settled without automatic resume or cloud activity.
+- Tests authored but **not run** (Flutter/Dart SDK unavailable). No
+  Windows/Android build or GitHub Actions started; real device audio-focus
+  and incoming-call verification remains an acceptance requirement.
+

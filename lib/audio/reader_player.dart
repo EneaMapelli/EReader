@@ -513,6 +513,13 @@ class ReaderPlayer extends ChangeNotifier {
   bool isPlaying = false;
   int _session = 0;
   int _navigationEpoch = 0;
+
+  /// Increases whenever a new direct Play, Pause, Seek, voice/profile
+  /// change or source-end navigation supersedes previous control intent.
+  /// The Android media handler uses this to distinguish duplicate phone
+  /// events from a *new* user operation during an unfinished interruption.
+  /// It exposes no content, credentials or wall-clock timing.
+  int get narrationControlRevision => _navigationEpoch;
   bool _resumeAfterNavigation = false;
   int _pendingNativeStops = 0;
   int _pendingSegmentCompletions = 0;

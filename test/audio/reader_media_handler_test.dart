@@ -364,6 +364,67 @@ void main() {
     player.dispose();
   });
 
+  test('repeated interruption cancels direct Play during prior Stop',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'b', title: 'B');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First']);
+
+    // First phone event pauses but native Stop has not confirmed yet.
+    engine.stopGate = Completer<void>();
+    final first = handler.pauseForSystemInterruption();
+    expect(player.isPlaying, isFalse);
+    // A direct UI Play can bypass handler._commandEpoch and queue speech
+    // after the pending native Stop. A repeated phone event must cancel it.
+    final restarted = player.play();
+    expect(player.isPlaying, isTrue);
+    final second = handler.pauseForSystemInterruption();
+    expect(identical(first, second), isFalse,
+        reason: 'New direct user action requires a fresh Pause');
+    final duplicate = handler.pauseForSystemInterruption();
+    expect(identical(second, duplicate), isTrue,
+        reason: 'No further control changes: share the new Stop');
+    expect(player.isPlaying, isFalse);
+    engine.stopGate!.complete();
+    await Future.wait([first, second, duplicate, restarted]);
+    expect(engine.spoken, ['First'],
+        reason: 'An interrupted direct Play must not later synthesize');
+    expect(engine.stopCalls, 2,
+        reason: 'The second interruption reasserts Stop just once');
+    expect(player.isSettledIdle, isTrue);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('repeated interruption cancels direct navigation and Play',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'b', title: 'B');
+    await handler.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.stopGate = Completer<void>();
+    final first = handler.pauseForSystemInterruption();
+    // Start a new UI navigation that will queue a Play when Stop releases.
+    final newPlay = player.play();
+    final seek = player.seekTo(1);
+    expect(player.isPlaying, isFalse);
+    final second = handler.pauseForSystemInterruption();
+    engine.stopGate!.complete();
+    await Future.wait([first, second, newPlay, seek]);
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['First']);
+    expect(player.isPlaying, isFalse);
+    expect(player.isSettledIdle, isTrue);
+    await handler.close();
+    player.dispose();
+  });
+
   test('system interruption pauses without automatic resume', () async {
     final engine = _FakeSpeechEngine();
     final player = _reader(engine);
