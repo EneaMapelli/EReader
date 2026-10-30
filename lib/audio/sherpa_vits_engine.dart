@@ -618,6 +618,11 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       }
       try {
         await session.synthesize(text: text, wavPath: wavPath, speed: speed);
+        if (session.lastNativeGenerationMs != null) {
+          _diagnostics.recordNativeGeneration(
+            Duration(milliseconds: session.lastNativeGenerationMs!),
+          );
+        }
         if (!identical(_startupRecordedFor, session)) {
           _startupRecordedFor = session;
           _diagnostics.recordModelStartup(
