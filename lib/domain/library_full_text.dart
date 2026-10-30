@@ -301,7 +301,7 @@ List<LibraryFullTextPassage> findIndexedPassages(
 }
 
 /// Select the earliest COMPLETE source word matching ANY sanitized term.
-//// This is deliberately lexical: a synonym not in the query is not found.
+/// This is deliberately lexical: a synonym not in the query is not found.
 /// The FTS5 OR result may match a different word than the first query term,
 /// so never fall back to searching only queryTokens.first.
 LibraryFullTextJump? firstIndexedAnyWord(
