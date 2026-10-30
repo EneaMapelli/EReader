@@ -74,6 +74,9 @@ class _OfflineVoiceManagerScreenState
         packId: id, modelsDirectory: await _directory(),
       ),
     );
+    _audition.onPreparedModelChanged = () {
+      if (mounted) setState(() {});
+    };
     unawaited(_refresh());
   }
 
@@ -117,6 +120,84 @@ class _OfflineVoiceManagerScreenState
     } finally {
       _rememberPreviewMeasurement(stoppedId);
       if (mounted) setState(() => _stoppingSample = false);
+    }
+  }
+
+  /// Consent-only, silent native model load: RAM is bounded by the
+  /// underlying worker idle timer and a second 3-minute controller TTL.
+  Future<void> _prewarmVoice(OfflineVoicePackInspection entry) async {
+    if (!mounted || _loading || _busyId != null || !entry.ready ||
+        entry.installed?.phonemizerDataDir == null) return;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Prepare offline voice model silently?'),
+        content: const Text(
+          'This re-verifies the installed local voice and loads ONNX '
+          'into RAM without playing audio or generating any WAV. '
+          'It may use substantial CPU and memory. Only one model can '
+          'be prepared; it expires after at most 3 minutes and is '
+          'released on Stop, removal or screen exit. '
+          'The next Play rechecks SHA-256 before reuse. '
+          'No book text, network or API credits are involved.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Prepare model')),
+        ],
+      ),
+    );
+    if (!mounted || approved != true || _busyId != null) return;
+    setState(() {
+      _busyId = entry.id;
+      _sampleId = entry.id;
+      _sampleCancelled = false;
+      _message = 'Verifying and loading the silent ONNX model...';
+    });
+    try {
+      await _audition.prewarm(entry.id);
+      if (mounted && !_sampleCancelled) {
+        setState(() => _message =
+            'Offline voice model prepared without audio. '
+            'Next sample can reuse it for up to 3 minutes.');
+      }
+    } on UnsupportedError {
+      if (mounted && !_sampleCancelled) {
+        setState(() => _message =
+            'This speech engine does not support silent ONNX preparation.');
+      }
+    } catch (_) {
+      if (mounted && !_sampleCancelled) {
+        setState(() => _message =
+            'Silent model preparation failed or was cancelled. '
+            'No WAV, text or cloud request was created.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _sampleId = null;
+          _busyId = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _releasePreparedVoice() async {
+    if (_loading || _busyId != null) return;
+    try {
+      await _audition.stop();
+      if (mounted) {
+        setState(() => _message =
+            'Prepared offline model released from memory.');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _message =
+            'Unable to confirm prepared model release. Stop playback '
+            'and restart the voice manager before retrying.');
+      }
     }
   }
 
@@ -860,6 +941,22 @@ class _OfflineVoiceManagerScreenState
                           ? null : () => _previewVoice(
                               entry, compareColdWarm: true),
                     ),
+                  if ((Platform.isWindows || widget.audition != null) &&
+                      entry.ready &&
+                      entry.installed?.phonemizerDataDir != null)
+                    IconButton(
+                      key: ValueKey('offline-voice-prewarm-${entry.id}'),
+                      tooltip: _audition.hasPreparedModel(entry.id)
+                          ? 'Release prepared model ${entry.id}'
+                          : 'Prepare model silently ${entry.id}',
+                      icon: Icon(_audition.hasPreparedModel(entry.id)
+                          ? Icons.memory_outlined
+                          : Icons.bolt_outlined),
+                      onPressed: _loading || _busyId != null ? null
+                          : _audition.hasPreparedModel(entry.id)
+                              ? _releasePreparedVoice
+                              : () => _prewarmVoice(entry),
+                    ),
                   IconButton(
                     tooltip: 'Remove voice ${entry.id}',
                     icon: const Icon(Icons.delete_outline),
@@ -880,7 +977,9 @@ class _OfflineVoiceManagerScreenState
           'model alone. Stop includes native disposal. Cold/warm '
           'comparison plays the same public phrase twice on user consent; '
           'first/second wall times include playback and cannot be '
-          'interpreted as native synthesis latency.',
+          'interpreted as native synthesis latency. Silent model '
+          'preparation is opt-in and automatically expires after 3 '
+          'minutes or on Stop; no WAV or audio is created.',
         ),
         const SizedBox(height: 8),
         const Text(
