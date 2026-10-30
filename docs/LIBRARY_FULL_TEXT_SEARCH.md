@@ -24,14 +24,23 @@ through as FTS operators**: text is split into bounded Unicode words,
 wrapped in quoted tokens, and joined by AND. Search results are capped at
 30 book hits, display a short snippet from the local content and let the
 user open the book at a **validated original-source text position**.
-For a multi-word query the first complete occurrence of the first term
-is used as the destination. This avoids inventing a single "phrase"
-offset when the matching terms occur in different parts of the book.
+For a multi-word query the destination is now the **shortest nearby
+passage containing every distinct search term** (up to 320 UTF-16 code
+units), regardless of term order. If all terms occur only far apart,
+the conservative first complete word remains the fallback. Equal-width
+passages resolve to the earliest. Repeated query words do not require
+separate occurrences.
 
 The offset is computed in **UTF-16 code units** from indexed canonical
 text **only when a result is selected**: regular search keystrokes return
-short FTS5 snippets without loading every matching book's full text. The
-selected offset is then checked against freshly extracted text before opening.
+short FTS5 snippets without loading every matching book's full text.
+The selected source offset and a bounded slice of surrounding source
+(including the entire nearby multi-term passage) are checked against
+freshly extracted text before opening. A match word left at the same
+offset after nearby content has changed is **not** sufficient. This
+context is transient, not written to the FTS database or logs.
+Memory usage of this on-tap scan is bounded by the number of query terms,
+rather than by the number of occurrences across the document.
 TXT and EPUB land at the corresponding visual source/segment; EPUB
 reuses source-exact paragraph highlights. PDF matches enter text mode
 instead of treating the offset as a physical viewer page. If the text
@@ -137,3 +146,13 @@ cooperative between files.
 
 The implementation and tests are committed, but **no Flutter analyzer,
 Dart tests, native builds or GitHub Actions were executed**.
+
+## Proximity-ranking regression coverage
+
+Added domain scenarios for the shortest multiword passage, reversed word
+order, deterministic ties, duplicate words, far-apart fallback and UTF-16
+surrogate pairs. Source-context tests invalidate an otherwise-identical
+word after an adjacent passage changes. Integration coverage uses a real
+indexed TXT file to verify the closest cluster and the subsequent purge of
+stale indexed text. All locator scans remain deferred until a result is
+selected; queries do not materialize full book bodies.
