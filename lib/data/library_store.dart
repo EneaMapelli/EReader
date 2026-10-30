@@ -46,9 +46,10 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   Directory? _home;
   Database? _db;
   bool _fullTextIndexing = false;
-  // An explicit consent mutation invalidates outstanding async FTS work.
-  // Disabling and immediately re-enabling may not revive an old decoder.
-  int _fullTextConsentRevision = 0;
+  // An explicit FTS consent/reset mutation invalidates older async jobs
+  // and private worker previews, even if the index is immediately enabled
+  // again. This is process-local: no new DB column or book text is stored.
+  int _fullTextSessionRevision = 0;
   static const int _maxFullTextIndexBytes = 64 * 1024 * 1024;
   String? _startupInterruptedBookId;
 
@@ -1264,7 +1265,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     }
     // Bump only after successful consent mutation. Synchronous transaction
     // cannot interleave with a Future continuation on this isolate.
-    _fullTextConsentRevision++;
+    _fullTextSessionRevision++;
   }
 
   /// Clear an index while keeping consent. The next batch re-extracts
@@ -1278,6 +1279,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       _database.execute('DELETE FROM library_fulltext_jobs');
       _database.execute('DELETE FROM library_fulltext_source_state');
     });
+    // Reset must also invalidate in-flight read-only worker previews,
+    // even though index batches themselves cannot run concurrently.
+    _fullTextSessionRevision++;
   }
 
   int get fullTextIndexedBooks {
@@ -1340,7 +1344,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     }
     _ensureFullTextSourceState();
     _fullTextIndexing = true;
-    final revision = _fullTextConsentRevision;
+    final revision = _fullTextSessionRevision;
     var changed = 0;
     try {
       final entries = _database.select('''
@@ -1352,13 +1356,13 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       ''');
       for (var i = 0; i < entries.length; i++) {
         if (!isFullTextIndexEnabled ||
-            revision != _fullTextConsentRevision ||
+            revision != _fullTextSessionRevision ||
             (shouldCancel?.call() ?? false)) break;
         final row = entries[i];
         final id = row['book_id'] as String;
         final stat = await _fullTextSourceStamp(row['local_path'] as String);
         if (!isFullTextIndexEnabled ||
-            revision != _fullTextConsentRevision ||
+            revision != _fullTextSessionRevision ||
             (shouldCancel?.call() ?? false)) break;
         if (row['source_size'] != stat.size ||
             row['source_modified_us'] != stat.modifiedUs) {
@@ -1400,7 +1404,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     }
     _ensureFullTextSourceState();
     _fullTextIndexing = true;
-    final revision = _fullTextConsentRevision;
+    final revision = _fullTextSessionRevision;
     var processed = 0;
     var indexed = 0;
     var skipped = 0;
@@ -1416,7 +1420,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       ''', [maxBooks]).map(_fromRow).toList();
       for (final book in pending) {
         if (!isFullTextIndexEnabled ||
-            revision != _fullTextConsentRevision ||
+            revision != _fullTextSessionRevision ||
             (shouldCancel?.call() ?? false)) {
           cancelled = true;
           break;
@@ -1426,7 +1430,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         // Even a pending filesystem stat can outlive the old consent.
         // Do not start a fresh decode after a rapid disable/re-enable.
         if (!isFullTextIndexEnabled ||
-            revision != _fullTextConsentRevision ||
+            revision != _fullTextSessionRevision ||
             (shouldCancel?.call() ?? false)) {
           cancelled = true;
           break;
@@ -1453,7 +1457,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           text = null;
         }
         if (!isFullTextIndexEnabled ||
-            revision != _fullTextConsentRevision ||
+            revision != _fullTextSessionRevision ||
             (shouldCancel?.call() ?? false)) {
           cancelled = true;
           break;
@@ -1467,7 +1471,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         // Final source-stat also awaits. A consent switch at that boundary
         // must never let an obsolete job write into a fresh FTS5 table.
         if (!isFullTextIndexEnabled ||
-            revision != _fullTextConsentRevision ||
+            revision != _fullTextSessionRevision ||
             (shouldCancel?.call() ?? false)) {
           cancelled = true;
           break;
@@ -1613,7 +1617,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     ''', [bookId]);
     if (rows.isEmpty) return const [];
     final indexedText = rows.single['body'] as String;
-    final consentRevision = _fullTextConsentRevision;
+    final consentRevision = _fullTextSessionRevision;
     // Parse the potentially large local text on a worker isolate instead
     // of blocking the Flutter UI during an explicit passage inspection.
     final passages = await Isolate.run(() =>
@@ -1627,7 +1631,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     // A background preview must not return text fetched under consent that
     // was later revoked (including rapid disable/re-enable).
     if (!isFullTextIndexEnabled ||
-        consentRevision != _fullTextConsentRevision ||
+        consentRevision != _fullTextSessionRevision ||
         getBook(bookId) == null) return const [];
     return passages;
   }
