@@ -1365,7 +1365,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         ? (visualSpineIdref == null
             ? _epubLayout.blockForSourceOffset(sourceOffset)
             : _epubLayout.blockForSpine(visualSpineIdref, sourceOffset))
-        : index;
+        : index.clamp(0, player.segments.length - 1).toInt();
     _visualCheckpoint.hold(widget.book.format == BookFormat.epub
         ? sourceOffset : null,
         awaitTarget: widget.book.format == BookFormat.epub,
