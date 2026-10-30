@@ -31,3 +31,13 @@ Authored but **not executed** tests:
 library, counts, inclusive 168-hour boundary, future timestamps, immutable
 source, five-title cap and view-filter independence. Windows/Android builds
 and GitHub Actions were not started.
+
+## Second increment — 2026-10-30
+
+The additional implementation in [READING_ACTIVITY_TRACKING.md](READING_ACTIVITY_TRACKING.md)
+introduces optional local timing as separate daily aggregates (SQLite v23),
+a seven-day visual/TTS dashboard, and an editable daily goal. This does not
+change the meaning of the original manual shelf and last-opened counts above.
+It is a bounded heuristic (recent gestures for visual reading; active
+player intent for TTS), not biometric attention detection or exact acoustic
+duration. Tests are authored but not run.

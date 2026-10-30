@@ -1020,3 +1020,19 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   confirmation test; source reviewed, not run (Dart/Flutter unavailable).
   No Windows/Android builds or GitHub Actions started.
 
+
+### ER-033 — Statistiche, tempo di lettura e obiettivo locale (2026-10-30)
+
+- Aggiunto il pannello Reading stats con conteggi su tutti i libri (indipendente
+  dai filtri attivi), grafico di completamento manuale, ultimi aperti e formati.
+- Nuovo SQLite **v23**, preservando le migrazioni precedenti: aggregati di
+  secondi per giorno locale/libro e modo visivo/TTS, più obiettivo personale
+  0–240 minuti (20 predefinito). Nessun testo, log di eventi o telemetria cloud.
+- Campionamento a tempo monotono, intervalli limitati a 30 s, precedenza audio
+  per non contare due volte, inattività visiva oltre tre minuti ignorata,
+  pausa/visibilità e Android MediaSession considerati.
+- Dashboard di sette giorni e controllo obiettivo; backup SQLite contiene
+  questi valori, ma il restore add-only non li importa. Accetta v17–v23.
+- Test di migrazione, aggregazione, limiti, cascade e UI aggiunti ma **non
+  eseguiti**. Nessuna compilazione Windows/Android né GitHub Actions.
+- La stima precedente del piano è datata e non viene aumentata senza QA nativa.

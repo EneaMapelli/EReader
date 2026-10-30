@@ -119,7 +119,7 @@ void main() {
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
     try {
-      expect(db.select('PRAGMA user_version').first['user_version'], 22);
+      expect(db.select('PRAGMA user_version').first['user_version'], 23);
       expect(db.select('SELECT reading_status FROM books WHERE id = ?',
           [starred.id]).single['reading_status'], 'reading');
       expect(db.select('SELECT reading_status FROM books WHERE id = ?',
@@ -133,7 +133,7 @@ void main() {
     }
   });
 
-  test('v22 backup snapshots book collection memberships and manifest',
+  test('v23 backup snapshots book collection memberships and manifest',
       () async {
     final a = await addBook('assigned.txt', 'Grouped source content');
     final b = await addBook('other.txt', 'Ungrouped source content');
@@ -154,7 +154,7 @@ void main() {
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
     try {
-      expect(db.select('PRAGMA user_version').first['user_version'], 22);
+      expect(db.select('PRAGMA user_version').first['user_version'], 23);
       expect(db.select('SELECT * FROM book_collections'), hasLength(2));
       expect(db.select('SELECT * FROM book_collection_members'), hasLength(1));
     } finally {

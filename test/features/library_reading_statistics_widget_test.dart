@@ -69,6 +69,8 @@ void main() {
     await tester.tap(find.text('30 min').last);
     await tester.pumpAndSettle();
     expect(store.dailyReadingGoalMinutes, 30);
+    await tester.ensureVisible(
+        find.byTooltip('Close reading statistics'));
     await tester.tap(find.byTooltip('Close reading statistics'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('library-stats-open')));
