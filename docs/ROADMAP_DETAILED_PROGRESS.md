@@ -93,7 +93,7 @@ automaticamente consegnate: sono ampliamenti dello scope.
 | ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
 | ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
 | ER-033 Statistiche/obiettivi | Parziale: catalogo, tempi giornalieri e per libro in SQLite v23/v24, obiettivo globale, storico 7 giorni, cancellazione selettiva/globale e opt-out persistente dal tracciamento. Restano campionamento euristico e QA Windows/Android |
-| ER-034 Libreria massiva/collezioni/FTS | Parziale: ricerca metadati avanzata, collezioni manuali e raccolte smart dinamiche persistenti (SQLite v25); manca ancora ricerca FTS nel testo integrale e QA su biblioteche grandi |
+| ER-034 Libreria massiva/collezioni/FTS | Parziale: ricerca metadati avanzata, raccolte manuali e smart (v25), primo indice contenuti FTS5 opt-in (SQLite v26) con batch/cancellazione. Mancano hit-to-offset, aggiornamenti automatici, OCR e QA nativa/large-library |
 
 ## E. Evidenza e priorità
 
@@ -1273,3 +1273,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Source updates only: no Dart/Flutter SDK available to execute tests,
   no Windows/Android build and no GitHub Actions.
 
+
+### ER-034 — Primo indice full-text locale a consenso esplicito (SQLite v26)
+
+- SQLite v26 aggiunge esclusivamente configurazione opt-in (default Off)
+  e marcatori di lavorazione per libro. La tabella virtuale FTS5 contenente
+  il testo **non viene creata prima del consenso**.
+- La finestra `Search inside books` della biblioteca permette On/Off,
+  scansione esplicita di 10 libri alla volta (massimo API 20), avanzamento,
+  cancellazione cooperativa fra libri, reset e ricerca per termini Unicode
+  letterali combinati con AND. Estratti limitati a 30 libri.
+- Ricicla l'estrattore comune TXT/EPUB/PDF text layer; nessuna OCR. Limiti
+  di 12 MiB per file, 2 Mi caratteri UTF-16 per libro e 64 MiB per
+  contenuto complessivo indicizzato. Libri troppo grandi, assenti,
+  PDF scannerizzati e fonti non leggibili vengono saltati.
+- Disattivando si elimina la tabella FTS5 e i marcatori, ma non si
+  garantisce cancellazione crittografica da WAL/file system o backup
+  esportati. Il backup privato SQLite può contenere il testo indicizzato;
+  ripristino portabile add-only non abilita un indice a destinazione.
+- Nuovi test di regressione SQLite, migrazione v25→v26, batch,
+  cancellazione e UI predisposti, **non eseguiti**. Nessuna build nativa
+  o GitHub Actions. I risultati aprono per ora il libro alla posizione
+  salvata: navigazione precisa al match, cancellazione intra-PDF
+  e ottimizzazione di corpus grandi sono lavori successivi.
