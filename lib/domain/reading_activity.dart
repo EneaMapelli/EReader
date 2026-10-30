@@ -72,3 +72,18 @@ class ReadingActivityAccumulator {
     _remainders.clear();
   }
 }
+
+class BookReadingActivityTotals {
+  const BookReadingActivityTotals({
+    required this.bookId,
+    required this.title,
+    required this.visualSeconds,
+    required this.ttsSeconds,
+  });
+
+  final String bookId;
+  final String title;
+  final int visualSeconds;
+  final int ttsSeconds;
+  int get totalSeconds => visualSeconds + ttsSeconds;
+}
