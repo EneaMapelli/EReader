@@ -23,8 +23,19 @@ as literal AND terms. FTS query syntax typed by a user is **never passed
 through as FTS operators**: text is split into bounded Unicode words,
 wrapped in quoted tokens, and joined by AND. Search results are capped at
 30 book hits, display a short snippet from the local content and let the
-user open the book at its **previously saved reading position**. Jumping
-to the precise matched source location is **not yet implemented**.
+user open the book at a **validated original-source text position**.
+For a multi-word query the first complete occurrence of the first term
+is used as the destination. This avoids inventing a single "phrase"
+offset when the matching terms occur in different parts of the book.
+
+The offset is computed in **UTF-16 code units** from indexed canonical
+text and checked again against freshly extracted text before opening.
+TXT and EPUB land at the corresponding visual source/segment; EPUB
+reuses source-exact paragraph highlights. PDF matches enter text mode
+instead of treating the offset as a physical viewer page. If the text
+changed or the offset is stale, the reader opens at the previously saved
+progress and explains the fallback. Merely selecting a search result
+does **not** save a new narration checkpoint or start TTS.
 
 The initial implementation handles TXT, EPUB and PDFs with an existing
 selectable text layer. It uses `PrototypeDocumentDecoder`, the same
@@ -54,19 +65,23 @@ indexer, embeddings, model/API calls, telemetry or cloud sync is involved.
   altered or removed by an in-app clear command.
 - Deleting a book also deletes its FTS rows before the original book row
   is removed. Foreign-key cascades clean up per-book indexing markers.
-- No derived data is used to advance audio, voice characterization, reading
-  bookmarks or user progress; the results are display-only snippets.
+- Search results contain read-only text snippets and optional validated
+  visual destinations. Opening one does not advance narration, invoke a
+  voice/cloud provider, or write reading progress. Later explicit reading
+  interactions follow normal reader bookmark rules.
 - An older SQLite runtime without FTS5 must fail the explicit enabling
   action cleanly. It must not fail initial application startup or create
   a partial index without consent.
 
 ## Schema and restoration
 
-SQLite **v26** adds only `library_fulltext_settings` (single opt-in
-boolean) and `library_fulltext_jobs` (book ID and indexed/skipped bit)
-on migration. It **does not** create the virtual FTS5 table. Enabling
-creates `library_fulltext_fts(book_id UNINDEXED, body)` explicitly.
-Disabling drops that table and clears the index job markers.
+SQLite **v26** adds `library_fulltext_settings` (single opt-in boolean),
+`library_fulltext_jobs` (book ID, indexed/skipped bit), and
+`library_fulltext_source_state` (only source file size and last-modified
+timestamp, no text or original path). It **does not** create the virtual
+FTS5 table on startup. Enabling creates
+`library_fulltext_fts(book_id UNINDEXED, body)` explicitly.
+Disabling drops the FTS table and clears job and source-state markers.
 
 Backup inspection now accepts SQLite **v17 through v26**. The existing
 explicit SQLite snapshot contains all currently active local data,
@@ -88,3 +103,35 @@ PDF/scanned-source paths.
 
 **Dart/Flutter tests and native Windows/Android builds have NOT been
 executed in this increment**. No GitHub Actions run was started.
+
+## Explicit incremental refresh for new or modified books
+
+Newly imported books have no job marker, so they appear in the pending
+count and can be indexed in the next explicitly requested batch.
+Existing indexed/skipped books are not re-extracted on every refresh.
+
+Use **Check changed books** to asynchronously compare the saved file size
+and modified timestamp against the currently managed local files. If either
+changes, the old FTS content is deleted, the old job/fingerprint is removed,
+and that book becomes pending for the next **Index next 10 books** operation.
+This check never extracts book contents or starts a TTS/cloud session.
+A cancelled check may be repeated without affecting unchanged books.
+
+This intentionally detects normal file modifications, not adversarial
+changes that keep both file size and modification timestamp identical.
+An index can remain stale until the user checks, which is why opening
+a result independently verifies its expected source text. Indexing and
+changed-book checking are mutually exclusive operations; cancel is
+cooperative between files.
+
+## Navigation and incremental regression coverage
+
+- `test/domain/library_full_text_jump_test.dart`: source-offset validity,
+  Unicode word boundaries, and protection against stale text.
+- `test/data/library_full_text_index_test.dart`: stored search destinations,
+  modified-file invalidation, pending batches and cooperative cancellation.
+- `test/features/library_full_text_search_widget_test.dart`: forwarding the
+  selected UTF-16 destination and manually checking/re-indexing changed files.
+
+The implementation and tests are committed, but **no Flutter analyzer,
+Dart tests, native builds or GitHub Actions were executed**.
