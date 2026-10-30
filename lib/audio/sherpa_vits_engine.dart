@@ -824,8 +824,13 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       if (pending != null && pending.ready) {
         await _deleteStaging(pending.staging);
       }
-      // Only after native output Stop; never delay issuing audible Stop.
-      await _wavCleanup.retryPending(maxAttempts: 2);
+      // Once native output Stop has settled, release the UI-facing Stop
+      // without waiting for old Windows file handles to become deletable.
+      // Retry is bounded, serialized inside OfflineWavCleanup and
+      // awaited by ensureCapacity() before another WAV is generated.
+      // A failed background retry cannot resurrect audio or expose paths.
+      unawaited(_wavCleanup.retryPending(maxAttempts: 2)
+          .catchError((Object _) {}));
     }
   }
 
