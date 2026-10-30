@@ -1088,11 +1088,10 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     var visual = 0;
     var tts = 0;
     for (final row in rows) {
-      switch (row['mode'] as String) {
-        case 'visual':
-          visual = row['total_seconds'] as int;
-        case 'tts':
-          tts = row['total_seconds'] as int;
+      if (row['mode'] == 'visual') {
+        visual = row['total_seconds'] as int;
+      } else if (row['mode'] == 'tts') {
+        tts = row['total_seconds'] as int;
       }
     }
     return BookReadingActivityTotals(
