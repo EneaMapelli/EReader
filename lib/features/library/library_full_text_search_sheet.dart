@@ -22,6 +22,7 @@ class LibraryFullTextSearchSheet extends StatefulWidget {
 class _LibraryFullTextSearchSheetState
     extends State<LibraryFullTextSearchSheet> {
   String _query = '';
+  LibraryFullTextMatchMode _matchMode = LibraryFullTextMatchMode.allWords;
   bool _running = false;
   bool _cancelRequested = false;
   int _done = 0;
@@ -170,7 +171,8 @@ class _LibraryFullTextSearchSheetState
     // Resolve while this sheet and its query are still mounted. Decode is
     // intentionally deferred to reader load, never performed by the list.
     final jump = chosenJump ??
-        widget.store.fullTextJumpForHit(hit.bookId, _query);
+        widget.store.fullTextJumpForHit(
+          hit.bookId, _query, mode: _matchMode);
     Navigator.of(context).pop();
     widget.onOpenBook?.call(book, jump);
   }
@@ -178,11 +180,12 @@ class _LibraryFullTextSearchSheetState
   Future<void> _showPassages(LibraryFullTextHit hit) async {
     if (_running || !widget.store.isFullTextIndexEnabled) return;
     final queryAtStart = _query;
+    final modeAtStart = _matchMode;
     setState(() => _message = 'Finding matching passages in this book...');
     List<LibraryFullTextPassage> passages;
     try {
       passages = await widget.store.fullTextPassagesForHit(
-          hit.bookId, queryAtStart);
+          hit.bookId, queryAtStart, mode: modeAtStart);
     } catch (_) {
       if (mounted) {
         setState(() => _message =
@@ -193,7 +196,7 @@ class _LibraryFullTextSearchSheetState
     if (!mounted) return;
     if (!widget.store.isFullTextIndexEnabled ||
         widget.store.getBook(hit.bookId) == null ||
-        _query != queryAtStart) {
+        _query != queryAtStart || _matchMode != modeAtStart) {
       setState(() => _message = null);
       return;
     }
@@ -219,9 +222,12 @@ class _LibraryFullTextSearchSheetState
               final passage = passages[index];
               return ListTile(
                 key: ValueKey('fts-passage-${hit.bookId}-$index'),
-                title: Text(passage.allTermsNearby
-                    ? 'Passage ${index + 1} · all terms nearby'
-                    : 'Words far apart · first term'),
+                title: Text(modeAtStart ==
+                        LibraryFullTextMatchMode.exactPhrase
+                    ? 'Exact phrase ${index + 1}'
+                    : passage.allTermsNearby
+                        ? 'Passage ${index + 1} · all terms nearby'
+                        : 'Words far apart · first term'),
                 subtitle: Text(passage.excerpt,
                     maxLines: 4, overflow: TextOverflow.ellipsis),
                 onTap: () => Navigator.of(dialog).pop(passage.jump),
@@ -251,7 +257,8 @@ class _LibraryFullTextSearchSheetState
   Widget build(BuildContext context) {
     final enabled = widget.store.isFullTextIndexEnabled;
     final hits = enabled
-        ? widget.store.searchIndexedBookContents(_query) : <LibraryFullTextHit>[];
+        ? widget.store.searchIndexedBookContents(
+            _query, mode: _matchMode) : <LibraryFullTextHit>[];
     return SafeArea(
       child: FractionallySizedBox(
         heightFactor: 0.9,
@@ -318,6 +325,31 @@ class _LibraryFullTextSearchSheetState
                     value: _total > 0 ? _done / _total : null,
                   ),
                 const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 2,
+                  children: [
+                    ChoiceChip(
+                      key: const ValueKey('fts-mode-words'),
+                      label: const Text('All words'),
+                      selected: _matchMode == LibraryFullTextMatchMode.allWords,
+                      onSelected: (selected) {
+                        if (selected) setState(() =>
+                            _matchMode = LibraryFullTextMatchMode.allWords);
+                      },
+                    ),
+                    ChoiceChip(
+                      key: const ValueKey('fts-mode-phrase'),
+                      label: const Text('Exact phrase'),
+                      selected: _matchMode ==
+                          LibraryFullTextMatchMode.exactPhrase,
+                      onSelected: (selected) {
+                        if (selected) setState(() =>
+                            _matchMode = LibraryFullTextMatchMode.exactPhrase);
+                      },
+                    ),
+                  ],
+                ),
                 TextField(
                   key: const ValueKey('fts-query'),
                   maxLength: 120,
@@ -326,7 +358,10 @@ class _LibraryFullTextSearchSheetState
                     labelText: 'Words in book contents',
                     prefixIcon: Icon(Icons.search),
                     border: OutlineInputBorder(),
-                    helperText: 'Up to 8 words; all words must occur in a book.',
+                    helperText: _matchMode ==
+                            LibraryFullTextMatchMode.exactPhrase
+                        ? 'Consecutive words in order; punctuation ignored.'
+                        : 'Up to 8 words; all must occur in a book.',
                   ),
                 ),
               ],
