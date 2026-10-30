@@ -99,6 +99,7 @@ class BenchmarkFakeOfflineEngine extends FakeOfflineEngine
   final OfflineVoiceDiagnostics diagnostics = OfflineVoiceDiagnostics();
   final List<String> utterances = <String>[];
   Completer<void>? secondGate;
+  bool reloadForSecond = false;
 
   @override
   OfflineVoiceStatistics get offlineVoiceStatistics => diagnostics.snapshot;
@@ -108,7 +109,7 @@ class BenchmarkFakeOfflineEngine extends FakeOfflineEngine
       required double rate, required double pitch}) async {
     final first = utterances.isEmpty;
     utterances.add(text);
-    if (first) {
+    if (first || reloadForSecond) {
       diagnostics.recordModelLoad();
       diagnostics.recordModelStartup(
         workerReadyMs: 85, nativeModelInitializationMs: 51);
@@ -235,6 +236,44 @@ void main() {
     expect(audition.lastReport!.outcome,
         OfflineVoicePreviewOutcome.cancelled);
     expect(audition.lastReport!.coldWarmComparison, isNull);
+    await audition.dispose();
+  });
+
+  test('benchmark refuses to claim reuse if a second model is loaded',
+      () async {
+    final fake = BenchmarkFakeOfflineEngine()..reloadForSecond = true;
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => fake,
+    );
+    await audition.play('italian', compareColdWarm: true);
+    expect(fake.speaks, 2);
+    expect(fake.diagnostics.snapshot.modelLoads, 2);
+    final report = audition.lastReport!;
+    expect(report.outcome, OfflineVoicePreviewOutcome.completed);
+    expect(report.coldWarmComparison?.reusedNativeModel, isFalse);
+    expect(formatOfflineVoicePreviewReport(report),
+        contains('Model reuse not confirmed'));
+    await audition.dispose();
+  });
+
+  test('benchmark without native counters reports only observable wall times',
+      () async {
+    final fake = FakeOfflineEngine();
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => fake,
+    );
+    await audition.play('italian', compareColdWarm: true);
+    final result = audition.lastReport!.coldWarmComparison!;
+    expect(fake.speaks, 2);
+    expect(result.firstSpeechWallMs, greaterThanOrEqualTo(0));
+    expect(result.secondSpeechWallMs, greaterThanOrEqualTo(0));
+    expect(result.reusedNativeModel, isNull);
+    expect(result.firstNativeGenerationMs, isNull);
+    expect(result.secondNativeGenerationMs, isNull);
+    expect(formatOfflineVoicePreviewReport(audition.lastReport!),
+        isNot(contains('One native model reused')));
     await audition.dispose();
   });
 
