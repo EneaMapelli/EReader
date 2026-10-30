@@ -80,6 +80,59 @@ void main() {
     expect(store.getBook(firstId), isNotNull);
   });
 
+  testWidgets('passage dialog opens a selected alternative without saving',
+      (tester) async {
+    final path = store.getBook(firstId)!.localPath;
+    final source = 'blue ${'valley ' * 18}dragon. ' +
+        ('unrelated ' * 50) +
+        'A blue dragon flies at sunrise.';
+    await File(path).writeAsString(source);
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+
+    LibraryFullTextJump? selected;
+    await openSheet(tester, onOpenBook: (book, jump) {
+      expect(book.id, firstId);
+      selected = jump;
+    });
+    await tester.enterText(find.byKey(const ValueKey('fts-query')),
+        'blue dragon');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('fts-passages-$firstId')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('fts-passage-list')),
+        findsOneWidget);
+    expect(find.byKey(ValueKey('fts-passage-$firstId-0')),
+        findsOneWidget);
+    expect(find.byKey(ValueKey('fts-passage-$firstId-1')),
+        findsOneWidget);
+
+    await tester.tap(find.byKey(ValueKey('fts-passage-$firstId-1')));
+    await tester.pumpAndSettle();
+    expect(selected, isNotNull);
+    expect(selected!.sourceOffset, 0);
+    expect(selected!.validatedOffset(source), 0);
+    expect(store.getBook(firstId)!.progressOffset, 0);
+  });
+
+  testWidgets('distant words are labeled without inventing a common passage',
+      (tester) async {
+    final path = store.getBook(firstId)!.localPath;
+    await File(path).writeAsString(
+        'dragon ' + ('faraway ' * 75) + 'blue');
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+
+    await openSheet(tester);
+    await tester.enterText(find.byKey(const ValueKey('fts-query')),
+        'dragon blue');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('fts-passages-$firstId')));
+    await tester.pumpAndSettle();
+    expect(find.text('Words far apart · first term'),
+        findsOneWidget);
+  });
+
   testWidgets('disable confirmation cancels then deletes private index',
       (tester) async {
     store.setFullTextIndexEnabled(true);
