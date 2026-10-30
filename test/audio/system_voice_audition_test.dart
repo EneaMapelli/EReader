@@ -173,9 +173,8 @@ void main() {
     await _until(() => fake.catalogs == 1);
     expect(audition.isPlaying, isTrue);
     final stopping = audition.stop();
-    await stopping;
     fake.catalogGate!.complete();
-    await reading;
+    await Future.wait([stopping, reading]);
     expect(fake.choices, 0);
     expect(fake.speaks, 0);
     expect(fake.stops, 1);
@@ -191,9 +190,9 @@ void main() {
     final audition = SystemVoiceAudition(createEngine: (_) => fake);
     final reading = audition.play(italian);
     await _until(() => fake.choices == 1);
-    await audition.stop();
+    final stopping = audition.stop();
     fake.choiceGate!.complete();
-    await reading;
+    await Future.wait([stopping, reading]);
     expect(fake.speaks, 0);
     expect(fake.disposals, 1);
     await audition.dispose();
@@ -230,6 +229,30 @@ void main() {
     await audition.dispose();
   });
 
+  test('catalog refresh cannot overlap an unfinished audition', () async {
+    final fake = _FakeSystemEngine()..speechGate = Completer<void>();
+    final audition = SystemVoiceAudition(createEngine: (_) => fake);
+    final reading = audition.play(italian);
+    await _until(() => fake.speaks == 1);
+    await expectLater(audition.listVoices(), throwsStateError);
+    await audition.stop();
+    await reading;
+    await audition.dispose();
+  });
+
+  test('preview cannot start while installed-voice lookup is pending',
+      () async {
+    final fake = _FakeSystemEngine()..catalogGate = Completer<void>();
+    final audition = SystemVoiceAudition(createEngine: (_) => fake);
+    final listing = audition.listVoices();
+    await _until(() => fake.catalogs == 1);
+    await expectLater(audition.play(italian), throwsStateError);
+    fake.catalogGate!.complete();
+    await listing;
+    expect(fake.speaks, 0);
+    await audition.dispose();
+  });
+
   test('simultaneous Play is rejected rather than running two voices',
       () async {
     final fake = _FakeSystemEngine()
@@ -251,9 +274,9 @@ void main() {
     final audition = SystemVoiceAudition(createEngine: (_) => fake);
     final reading = audition.play(italian);
     await _until(() => fake.catalogs == 1);
-    await audition.dispose();
+    final closing = audition.dispose();
     fake.catalogGate!.complete();
-    await reading;
+    await Future.wait([closing, reading]);
     expect(fake.speaks, 0);
     expect(fake.disposals, 1);
     await expectLater(audition.play(italian), throwsStateError);

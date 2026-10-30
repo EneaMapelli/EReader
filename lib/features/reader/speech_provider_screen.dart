@@ -131,7 +131,8 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
 
   Future<void> _playSystemSample() async {
     final voice = _selectedSystemVoice;
-    if (voice == null || _systemSamplePlaying) return;
+    if (voice == null || _systemSamplePlaying ||
+        _checkingSystem) return;
     setState(() => _systemSamplePlaying = true);
     try {
       await _systemAudition.play(
@@ -528,7 +529,7 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
             Wrap(spacing: 8, runSpacing: 8, children: [
               OutlinedButton.icon(
                 onPressed: _busy || _systemSamplePlaying ||
-                        _selectedSystemVoice == null ||
+                        _checkingSystem || _selectedSystemVoice == null ||
                         systemVoiceSampleText(
                             _selectedSystemVoice!.locale) == null
                     ? null : _playSystemSample,
