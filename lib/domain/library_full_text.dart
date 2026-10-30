@@ -1,6 +1,6 @@
 /// Search modes use the same explicit, on-device FTS5 index. Phrase mode
 /// requires consecutive tokenizer words; it does not claim AI semantics.
-enum LibraryFullTextMatchMode { allWords, exactPhrase }
+enum LibraryFullTextMatchMode { allWords, anyWord, exactPhrase }
 
 /// Parse at most eight literal Unicode FTS words from a bounded query.
 /// Never expose raw user-provided FTS operators to MATCH.
@@ -23,7 +23,9 @@ String? libraryFullTextMatchExpression(
   if (mode == LibraryFullTextMatchMode.exactPhrase) {
     return '"${tokens.join(' ')}"';
   }
-  return tokens.map((token) => '"$token"').join(' AND ');
+  final separator = mode == LibraryFullTextMatchMode.anyWord
+      ? ' OR ' : ' AND ';
+  return tokens.map((token) => '"$token"').join(separator);
 }
 
 /// Optional on-device full-text index. Snippets are private excerpts and
