@@ -1553,11 +1553,11 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   /// Inspect a bounded number of alternative passages in ONE book,
   /// only after an explicit user interaction. Search-list rendering never
   /// pulls large FTS body columns into memory.
-  List<LibraryFullTextPassage> fullTextPassagesForHit(
+  Future<List<LibraryFullTextPassage>> fullTextPassagesForHit(
     String bookId,
     String query, {
     int limit = 6,
-  }) {
+  }) async {
     if (limit < 1 || limit > 10) {
       throw RangeError.range(limit, 1, 10, 'limit');
     }
@@ -1575,11 +1575,12 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       WHERE f.book_id = ? LIMIT 1
     ''', [bookId]);
     if (rows.isEmpty) return const [];
-    return findIndexedPassages(
-      rows.single['body'] as String,
-      tokens,
-      limit: limit,
-    );
+    final indexedText = rows.single['body'] as String;
+    // Parse the potentially large local text on a worker isolate instead
+    // of blocking the Flutter UI during an explicit passage inspection.
+    return Isolate.run(() => findIndexedPassages(
+      indexedText, tokens, limit: limit,
+    ));
   }
 
   /// Collections are book classifications, never book directories.
