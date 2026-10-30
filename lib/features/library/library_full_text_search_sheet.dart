@@ -354,10 +354,10 @@ class _LibraryFullTextSearchSheetState
                   key: const ValueKey('fts-query'),
                   maxLength: 120,
                   onChanged: (value) => setState(() => _query = value),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Words in book contents',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.search),
+                    border: const OutlineInputBorder(),
                     helperText: _matchMode ==
                             LibraryFullTextMatchMode.exactPhrase
                         ? 'Consecutive words in order; punctuation ignored.'
