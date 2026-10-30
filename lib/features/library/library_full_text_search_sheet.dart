@@ -177,11 +177,12 @@ class _LibraryFullTextSearchSheetState
 
   Future<void> _showPassages(LibraryFullTextHit hit) async {
     if (_running || !widget.store.isFullTextIndexEnabled) return;
+    final queryAtStart = _query;
     setState(() => _message = 'Finding matching passages in this book...');
     List<LibraryFullTextPassage> passages;
     try {
       passages = await widget.store.fullTextPassagesForHit(
-          hit.bookId, _query);
+          hit.bookId, queryAtStart);
     } catch (_) {
       if (mounted) {
         setState(() => _message =
@@ -190,6 +191,12 @@ class _LibraryFullTextSearchSheetState
       return;
     }
     if (!mounted) return;
+    if (!widget.store.isFullTextIndexEnabled ||
+        widget.store.getBook(hit.bookId) == null ||
+        _query != queryAtStart) {
+      setState(() => _message = null);
+      return;
+    }
     setState(() => _message = null);
     if (passages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
