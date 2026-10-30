@@ -93,7 +93,7 @@ automaticamente consegnate: sono ampliamenti dello scope.
 | ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
 | ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
 | ER-033 Statistiche/obiettivi | Parziale: catalogo, tempi giornalieri e per libro in SQLite v23/v24, obiettivo globale, storico 7 giorni, cancellazione selettiva/globale e opt-out persistente dal tracciamento. Restano campionamento euristico e QA Windows/Android |
-| ER-034 Libreria massiva/collezioni/FTS | Parziale: filtri/ordinamento, collezioni manuali e ricerca metadati offline avanzata (AND, frasi, campi); mancano raccolte smart persistenti e ricerca FTS nell'intero contenuto |
+| ER-034 Libreria massiva/collezioni/FTS | Parziale: ricerca metadati avanzata, collezioni manuali e raccolte smart dinamiche persistenti (SQLite v25); manca ancora ricerca FTS nel testo integrale e QA su biblioteche grandi |
 
 ## E. Evidenza e priorità
 
@@ -1181,3 +1181,20 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Dart/Flutter SDK is unavailable in this runtime. No Windows/Android
   packages, release or GitHub Actions started.
 
+
+### ER-034 — Raccolte intelligenti dinamiche (2026-10-30)
+
+- SQLite **v25** memorizza regole JSON validate in
+  `smart_book_collections`. Nessuna tabella di membership materializzata:
+  i libri sono filtrati dinamicamente a partire da metadati, preferiti,
+  scaffale manuale, formato, query avanzata e apertura pregressa.
+- Editor dalla gestione delle raccolte con creazione, modifica, conferma
+  eliminazione, validazione del nome/criteri e integrazione nella tendina
+  Collection. I filtri della raccolta sono combinati con i filtri
+  temporanei già presenti nella biblioteca.
+- Restano separate le collezioni manuali. Upgrade v24→v25 senza
+  modifica ai progressi, al TTS o ai file locali. I backup SQLite
+  conservano le regole, ma il restore portabile add-only non le importa
+  senza un futuro formato manifest e consenso esplicito.
+- Test di dominio, SQLite, interfaccia e copia di backup predisposti,
+  **non eseguiti**. Nessuna build Windows/Android o GitHub Actions.
