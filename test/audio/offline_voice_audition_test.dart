@@ -17,6 +17,7 @@ class FakeOfflineEngine implements SpeechEngine {
   double? pitch;
   Completer<void>? pending;
   Completer<void>? choiceGate;
+  Completer<void>? stopGate;
   int choices = 0;
   bool choosing = false;
   bool disposedWhileChoosing = false;
@@ -55,6 +56,8 @@ class FakeOfflineEngine implements SpeechEngine {
   Future<void> stop() async {
     stops++;
     if (pending != null && !pending!.isCompleted) pending!.complete();
+    final gate = stopGate;
+    if (gate != null) await gate.future;
   }
 
   @override
@@ -170,6 +173,36 @@ void main() {
     expect(fake.disposals, 1);
     expect(fake.disposedWhileChoosing, isFalse);
     expect(audition.isPlaying, isFalse);
+    await audition.dispose();
+  });
+
+  test('next offline audition awaits previous native Stop disposal',
+      () async {
+    final firstEngine = FakeOfflineEngine()
+      ..pending = Completer<void>()
+      ..stopGate = Completer<void>();
+    final secondEngine = FakeOfflineEngine();
+    var creations = 0;
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => creations++ == 0 ? firstEngine : secondEngine,
+    );
+    final first = audition.play('italian');
+    await until(() => firstEngine.speaks == 1);
+    final stopping = audition.stop();
+    await until(() => firstEngine.stops == 1);
+    await until(() => !audition.isPlaying);
+    expect(firstEngine.disposals, 0);
+    final second = audition.play('italian');
+    await Future<void>.delayed(Duration.zero);
+    expect(creations, 1,
+        reason: 'No second native model before Stop/dispose settles');
+    expect(secondEngine.speaks, 0);
+    firstEngine.stopGate!.complete();
+    await Future.wait([stopping, first, second]);
+    expect(firstEngine.disposals, 1);
+    expect(secondEngine.speaks, 1);
+    expect(secondEngine.disposals, 1);
     await audition.dispose();
   });
 
