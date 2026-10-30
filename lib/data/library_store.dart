@@ -978,6 +978,28 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     ''', [bookId, day, mode.name, seconds]);
   }
 
+  /// Explicit user-requested deletion of locally recorded activity only.
+  /// Returning affected aggregate rows lets the UI report accurately.
+  /// The goal, books, reading progress, bookmarks and TTS settings survive.
+  ///
+  /// A book-scoped clear rejects an unknown ID; an unscoped clear affects
+  /// every book, including items hidden by library filters.
+  int clearReadingActivity({String? bookId}) {
+    if (bookId != null && getBook(bookId) == null) {
+      throw StateError('Cannot clear activity for an unknown book');
+    }
+    if (bookId == null) {
+      _database.execute('DELETE FROM reading_activity_daily');
+    } else {
+      _database.execute(
+        'DELETE FROM reading_activity_daily WHERE book_id = ?', [bookId],
+      );
+    }
+    return _database.select(
+      'SELECT changes() AS affected',
+    ).single['affected'] as int;
+  }
+
   int get dailyReadingGoalMinutes =>
       _database.select(
         'SELECT goal_minutes FROM reading_activity_settings WHERE slot = 1',
