@@ -106,6 +106,10 @@ class _ReaderScreenState extends State<ReaderScreen>
   // change, reload or newer viewport event. Canceling the Timer normally
   // suffices, but the revision is a second guard for queued callbacks.
   int _visualSaveRevision = 0;
+  // Only the latest in-reader source selection can persist its bookmark.
+  // A superseded Seek may return successfully once native Stop settles;
+  // it must not write its obsolete visual location afterward.
+  int _selectionRevision = 0;
   // Fast progress updates while manually scrolling must not rebuild
   // the entire potentially large EPUB/painted-document widget tree.
   final ValueNotifier<int> _visualProgressTick = ValueNotifier<int>(0);
@@ -1308,12 +1312,16 @@ class _ReaderScreenState extends State<ReaderScreen>
     // A prior scroll debounce must never overwrite this explicit seek
     // or a source-exact bookmark/search hit after the next frame.
     _cancelPendingVisualSave();
+    final selection = ++_selectionRevision;
     if (visualOnlyEnd) {
       await player.seekToSourceEnd();
     } else {
       await player.seekTo(index);
     }
-    if (!mounted || _player != player) return;
+    if (!mounted || _player != player ||
+        selection != _selectionRevision ||
+        player.currentIndex != index ||
+        player.intendedNavigationIndex != index) return;
     // A verified EPUB link may point inside the current audio segment
     // or into a paragraph without any speech. Save that exact source
     // position, rather than saving a coarse TTS start and then rewriting.

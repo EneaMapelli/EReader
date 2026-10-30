@@ -403,6 +403,80 @@ void main() {
     player.dispose();
   });
 
+  test('new manual bookmark wins over delayed completed-speech write',
+      () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final acknowledgement = Completer<void>();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 6, 'First.'),
+        SpeechSegment(7, 14, 'Second.'),
+      ],
+      onSegmentStarted: recovery.onSegmentStarted,
+      onSegmentCompleted: (finished, next) async {
+        await acknowledgement.future;
+        await recovery.onSegmentCompleted(finished, next);
+      },
+    );
+    recovery.attach(player);
+    final reading = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(store.getBook(bookId)!.progressOffset, 0);
+    engine.finish();
+    for (var i = 0; i < 100 && !player.isCommittingSpeechSegment; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(player.isCommittingSpeechSegment, isTrue);
+
+    // The native clip has completed, but its acknowledgment has not.
+    final stopping = player.pause();
+    const destination = 15;
+    await store.savePosition(bookId, destination,
+      anchor: const ReadingAnchor(
+        kind: AnchorKind.text, sourceId: 'body',
+        localOffset: destination,
+      ),
+    );
+    expect(store.manualPositionRevision(bookId), 1);
+    acknowledgement.complete();
+    await Future.wait([reading, stopping]);
+    expect(player.currentIndex, 1,
+        reason: 'Completed audio still advances its in-memory cursor');
+    expect(store.getBook(bookId)!.progressOffset, destination,
+        reason: 'The delayed completion must not overwrite the later jump');
+    expect(store.getBook(bookId)!.progressAnchor?.localOffset, destination);
+    expect(activeCheckpoints(), 0);
+    recovery.dispose();
+    player.dispose();
+    await restartStore();
+    expect(store.getBook(bookId)!.progressOffset, destination);
+    expect(store.interruptedNarrationBook, isNull);
+  });
+
+  test('a fresh Play after a manual jump may record its new speech anchor',
+      () async {
+    final engine = _SpeechEngine();
+    final recovery = binding();
+    final player = playerFor(engine, recovery);
+    await store.savePosition(bookId, 15,
+      anchor: const ReadingAnchor(
+        kind: AnchorKind.text, sourceId: 'body', localOffset: 15),
+    );
+    expect(store.manualPositionRevision(bookId), 1);
+    await player.seekTo(1);
+    final reading = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['Second.']);
+    expect(store.getBook(bookId)!.progressOffset, 7,
+        reason: 'Explicit new playback supersedes a prior visual bookmark');
+    await player.pause();
+    await reading;
+    recovery.dispose();
+    player.dispose();
+  });
+
   test('paused completed audio retains SQLite progress until delayed '
       'checkpoint commits', () async {
     final engine = _SpeechEngine();

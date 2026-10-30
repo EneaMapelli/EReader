@@ -42,6 +42,15 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   Database? _db;
   String? _startupInterruptedBookId;
 
+  // Process-local order of USER/visual bookmark writes. Speech recovery
+  // writes must not change this counter: a delayed completion callback can
+  // compare its starting revision and avoid undoing a later manual jump.
+  // No schema migration is required: pending Futures cannot survive
+  // process termination, while the actual bookmark is durable in SQLite.
+  final Map<String, int> _manualPositionRevisions = {};
+  int manualPositionRevision(String bookId) =>
+      _manualPositionRevisions[bookId] ?? 0;
+
   Database get _database {
     final db = _db;
     if (db == null) throw StateError('LibraryStore not initialized');
@@ -1384,6 +1393,10 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     _database.execute(
         'UPDATE books SET progress_offset = ?, progress_anchor = ? WHERE id = ?',
         [offset, anchor == null ? null : jsonEncode(anchor.toJson()), bookId]);
+    if ((_database.select('SELECT changes() AS n').first['n'] as int) == 1) {
+      _manualPositionRevisions[bookId] =
+          manualPositionRevision(bookId) + 1;
+    }
   }
 
   /// Includes global rules and (if supplied) rules for the specified book.

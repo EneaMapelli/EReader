@@ -25,6 +25,7 @@ class NarrationRecoveryBinding {
 
   ReaderPlayer? _player;
   bool _disposed = false;
+  int? _segmentManualRevision;
 
   void attach(ReaderPlayer player) {
     if (_disposed || _player != null) {
@@ -44,6 +45,7 @@ class NarrationRecoveryBinding {
     store.recordSpeechSegmentStart(
       bookId, segment.start, anchor: anchorFor(segment),
     );
+    _segmentManualRevision = store.manualPositionRevision(bookId);
   }
 
   /// Advance the stored bookmark only after an entire utterance was heard.
@@ -62,6 +64,13 @@ class NarrationRecoveryBinding {
     // make an already-heard clip partial. Do not discard its checkpoint.
     if (_disposed || player == null ||
         !player.isCommittingSpeechSegment) return;
+    // A completed-utterance callback may have waited on an asynchronous
+    // wrapper while the user jumped elsewhere and saved a new bookmark.
+    // That manual write is newer than the spoken segment's checkpoint,
+    // so it wins even though the audio itself really finished.
+    if (_segmentManualRevision != store.manualPositionRevision(bookId)) {
+      return;
+    }
     final offset = nextAudible?.start ?? finished.end;
     // A final source end belongs to an actual EPUB spine/PDF page, not
     // necessarily to the clip START (or to an arbitrary chapter). Keep

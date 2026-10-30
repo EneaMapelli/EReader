@@ -806,3 +806,22 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Tests authored but not executed: local Flutter/Dart SDK unavailable;
   no build, packaging or GitHub Actions started.
 
+### M2 — Prevent older speech acknowledgments overriding visual bookmarks (2026-10-30)
+
+- Added an in-process per-book manual-position revision to LibraryStore.
+  Successful manual/visual `savePosition` writes increment it; internal
+  speech checkpoints do not. No new SQLite schema or migration required.
+- NarrationRecoveryBinding captures that revision after checkpointing the
+  start of the audible segment. A delayed completed-segment callback that
+  resumes after the user saved a newer manual bookmark cannot move the
+  durable book progress back to its older audio destination. Native audio
+  completion can still advance its own in-memory cursor.
+- ReaderScreen now discards a superseded in-reader `_select` after the
+  serialized Seek returns, before persisting or repainting an obsolete
+  visual bookmark. Latest manual selection and current player destination
+  must still agree. Explicit source-exact EPUB/spine anchors are retained.
+- Added SQLite regressions for a delayed completed-speech callback racing
+  a manual bookmark, durability across database reopen, and a fresh Play
+  properly superseding that older manual bookmark. Tests not executed
+  (Dart/Flutter unavailable); no build, release or GitHub Actions started.
+
