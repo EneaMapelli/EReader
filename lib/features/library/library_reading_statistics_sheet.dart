@@ -4,6 +4,7 @@ import '../../data/library_store.dart';
 import '../../domain/book.dart';
 import '../../domain/library_reading_statistics.dart';
 import '../../domain/reading_activity.dart';
+import 'book_reading_activity_sheet.dart';
 
 /// Snapshot of local metadata and explicitly recorded activity. Nothing in
 /// this panel sends analytics, changes reading anchors or starts narration.
@@ -28,6 +29,7 @@ class _LibraryReadingStatisticsSheetState
   Widget build(BuildContext context) {
     final s = widget.statistics;
     final week = widget.store.weeklyReadingActivity();
+    final activeBooks = widget.store.mostActiveReadingBooks();
     final color = Theme.of(context).colorScheme;
     return SafeArea(
       child: SizedBox(
@@ -138,6 +140,39 @@ class _LibraryReadingStatisticsSheetState
               day: day,
               goalMinutes: week.goalMinutes,
             ),
+            const SizedBox(height: 24),
+            Text('Most active books this week',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            if (activeBooks.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('No timed reading activity recorded yet.'),
+              )
+            else
+              for (final book in activeBooks)
+                ListTile(
+                  key: ValueKey('stats-book-${book.bookId}'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  leading: const Icon(Icons.menu_book_outlined),
+                  title: Text(book.title,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                    '${formatReadingActivityDuration(book.visualSeconds)} read'
+                    ' · ${formatReadingActivityDuration(book.ttsSeconds)} TTS',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    showDragHandle: true,
+                    builder: (_) => BookReadingActivitySheet(
+                      store: widget.store,
+                      bookId: book.bookId,
+                    ),
+                  ),
+                ),
             const SizedBox(height: 24),
             Text('Library by format',
                 style: Theme.of(context).textTheme.titleMedium),
