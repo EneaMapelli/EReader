@@ -172,6 +172,61 @@ void main() {
         temporaryDirectory: () async => root,
       );
 
+  test('slow orphan WAV recovery never blocks first synthesis or playback',
+      () async {
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    var recoveries = 0;
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack,
+      synthesizer: fakeSynthesize,
+      output: output,
+      temporaryDirectory: () async => root,
+      abandonedWavRecovery: (tempRoot) async {
+        expect(tempRoot.path, root.path);
+        recoveries++;
+        entered.complete();
+        await release.future;
+        return 0;
+      },
+    );
+    final speaking = synth.speak('Fast first words',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    await entered.future;
+    // The old synchronous recovery implementation would stall indefinitely
+    // at the blocked cleanup gate before the first WAV could be synthesized.
+    await speaking.timeout(const Duration(seconds: 5));
+    expect(texts, ['Fast first words']);
+    expect(output.playedBytes, isNotEmpty);
+    expect(recoveries, 1);
+    expect(await root.list(followLinks: false).toList(), hasLength(1),
+        reason: 'Current private WAV session remains OS-leased and owned');
+    release.complete();
+    await synth.dispose();
+    expect(await root.list(followLinks: false).toList(), isEmpty);
+  });
+
+  test('recovery errors cannot prevent valid offline playback',
+      () async {
+    var passes = 0;
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack,
+      synthesizer: fakeSynthesize,
+      output: output,
+      temporaryDirectory: () async => root,
+      abandonedWavRecovery: (_) async {
+        passes++;
+        throw const FileSystemException('Old temporary WAV is locked');
+      },
+    );
+    await synth.speak('Independent', language: 'en-US',
+        rate: 0.5, pitch: 1);
+    expect(passes, 1);
+    expect(texts, ['Independent']);
+    await synth.dispose();
+    expect(await root.list(followLinks: false).toList(), isEmpty);
+  });
+
   test('owned WAV session metadata is removed on settled Dispose',
       () async {
     final synth = engine();
