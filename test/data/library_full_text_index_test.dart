@@ -109,7 +109,7 @@ void main() {
         'blue dragon guards', 'blue dracon guards');
     expect(jump.validatedOffset(changed), isNull);
     // A fresh manual change scan will purge the old FTS results.
-    await File(path).writeAsString(changed);
+    await File(path).writeAsString('$changed extra');
     expect(await store.refreshChangedFullTextBooks(), 1);
     expect(store.searchIndexedBookContents('blue dragon'), isEmpty);
   });
