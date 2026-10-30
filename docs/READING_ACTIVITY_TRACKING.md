@@ -48,3 +48,33 @@ There is no automatic cloud analytics or API spend.
 Authored tests cover aggregate persistence, migration, deletion, idle /
 bounded-time sampling, input limits, and goal edits. They are **not executed**
 in this development session. No Windows/Android builds or GitHub Actions.
+
+## Per-book activity drilldown (2026-10-30, next increment)
+
+- The **Reading stats** sheet shows up to ten books with measured activity
+  during the seven latest local calendar days, sorted by combined timed
+  reading + timed TTS, descending. Equal totals sort by title (case-insensitive)
+  and then immutable book ID. Books with no activity during that period are
+  omitted from this leaderboard; it is not a ranking of reading completion.
+- Selecting a book opens a **read-only detail sheet** with separate visual/TTS
+  durations for the week and for all recorded history, followed by seven
+  local daily rows. Small durations remain visible in seconds rather than
+  being silently rounded down to zero minutes.
+- `mostActiveReadingBooks` runs one bounded, aggregated JOIN query against
+  SQLite; limits are 1–50, UI uses 10. Details use a single-book parameterized
+  query, not a loop across a large catalog. There is no content extraction,
+  upload, cloud spend, tracking of actual page turns or additional schema
+  migration beyond v23.
+- `weeklyReadingActivity(bookId: ...)` validates the book and scopes its
+  daily rows. `bookReadingLifetimeTotals` accounts for dates outside the
+  current week but never invents activity before tracking was introduced.
+  Deleted books have no lingering rows because of the v23 foreign key.
+- The **daily goal is global** across all books. A book's weekly breakdown
+  deliberately does not imply it has its own goal. Activity is a conservative
+  approximation, subject to sampling and device lifecycle limitations.
+
+Additional authored tests check isolation between books, recent-week cutoff,
+stable tie ordering, size limits, historical totals, rename persistence,
+reopen, cascade deletion, second-level duration formatting and a widget
+navigation drilldown. Tests, analyzer and native builds remain **unexecuted**
+in this session per owner instruction; do not mark them passing.
