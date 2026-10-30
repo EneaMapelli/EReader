@@ -441,7 +441,6 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
   /// Injected in tests to simulate slow filesystem recovery. Production
   /// recovery retains OfflineWavSession's bounded marker/lease safety checks.
   final Future<int> Function(Directory tempRoot) _abandonedWavRecovery;
-  Future<void>? _backgroundWavRecovery;
   // In production every completed sherpa WAV must pass bounded PCM
   // structural inspection BEFORE any decoder is allowed to load it.
   // Synthetic injection seams disable this by default (they often write
@@ -471,13 +470,13 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
         // Recovery is bounded and excludes every current in-process or
         // OS-leased session; it remains best-effort, never authorizes
         // touching arbitrary user files. Failures cannot block speech.
-        _backgroundWavRecovery = () async {
+        unawaited(() async {
           try {
             await _abandonedWavRecovery(temporaryRoot);
           } catch (_) {
             // Optional recovery cannot interrupt a valid narration.
           }
-        }();
+        }());
         return session;
       }();
 
