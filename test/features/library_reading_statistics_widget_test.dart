@@ -111,4 +111,71 @@ void main() {
     expect(store.bookReadingLifetimeTotals(ids['Beta']!).ttsSeconds, 10);
   });
 
+  testWidgets('global clear requires confirmation and retains book/goal',
+      (tester) async {
+    final id = store.books.first.id;
+    store.saveDailyReadingGoalMinutes(30);
+    store.recordReadingActivity(id, ReadingActivityMode.visual, 15);
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.tap(find.byKey(const ValueKey('library-stats-open')));
+    await tester.pumpAndSettle();
+
+    final clear = find.byKey(const ValueKey('stats-clear-all'));
+    await tester.ensureVisible(clear);
+    await tester.tap(clear);
+    await tester.pumpAndSettle();
+    expect(find.text('Delete all recorded activity?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(store.bookReadingLifetimeTotals(id).totalSeconds, 15);
+
+    await tester.ensureVisible(clear);
+    await tester.tap(clear);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete activity').last);
+    await tester.pumpAndSettle();
+    expect(store.bookReadingLifetimeTotals(id).totalSeconds, 0);
+    expect(store.dailyReadingGoalMinutes, 30);
+    expect(store.books, hasLength(2));
+    expect(find.text('No timed reading activity recorded yet.'),
+        findsOneWidget);
+  });
+
+  testWidgets('book clear deletes just that book and refreshes leaderboard',
+      (tester) async {
+    final ids = {for (final book in store.books) book.title: book.id};
+    store.recordReadingActivity(ids['Alpha']!, ReadingActivityMode.visual, 19);
+    store.recordReadingActivity(ids['Beta']!, ReadingActivityMode.tts, 10);
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.tap(find.byKey(const ValueKey('library-stats-open')));
+    await tester.pumpAndSettle();
+
+    final alphaRow = find.byKey(ValueKey('stats-book-${ids['Alpha']}'));
+    await tester.scrollUntilVisible(
+        alphaRow, 210, scrollable: find.byType(Scrollable).last);
+    await tester.tap(alphaRow);
+    await tester.pumpAndSettle();
+
+    final clear = find.byKey(const ValueKey('stats-clear-book'));
+    await tester.ensureVisible(clear);
+    await tester.tap(clear);
+    await tester.pumpAndSettle();
+    expect(find.text('Delete this book\'s activity?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(store.bookReadingLifetimeTotals(ids['Alpha']!).totalSeconds, 19);
+
+    await tester.ensureVisible(clear);
+    await tester.tap(clear);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete activity').last);
+    await tester.pumpAndSettle();
+
+    expect(store.bookReadingLifetimeTotals(ids['Alpha']!).totalSeconds, 0);
+    expect(store.bookReadingLifetimeTotals(ids['Beta']!).ttsSeconds, 10);
+    expect(find.byKey(ValueKey('stats-book-${ids['Alpha']}')),
+        findsNothing);
+    expect(store.books, hasLength(2));
+  });
+
 }
