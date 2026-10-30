@@ -165,8 +165,10 @@ class _LibraryFullTextSearchSheetState
   void _openHit(LibraryFullTextHit hit) {
     final book = widget.store.getBook(hit.bookId);
     if (book == null) return;
-    Navigator.of(context).pop();
+    // Resolve while this sheet and its query are still mounted. Decode is
+    // intentionally deferred to reader load, never performed by the list.
     final jump = widget.store.fullTextJumpForHit(hit.bookId, _query);
+    Navigator.of(context).pop();
     widget.onOpenBook?.call(book, jump);
   }
 
