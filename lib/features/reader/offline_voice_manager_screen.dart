@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../data/offline_voice_pack.dart';
+import '../../data/offline_voice_install_diagnostics.dart';
 import '../../data/piper_paola_installer.dart';
 import '../../data/curated_voice_staging.dart';
 import '../../data/manual_voice_install_staging.dart';
@@ -229,10 +230,11 @@ class _OfflineVoiceManagerScreenState
       setState(() => _message = removed
           ? 'Local voice removed.'
           : 'This voice was already removed.');
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        setState(() => _message =
-            'Unable to remove the voice. It may still be in use.');
+        setState(() => _message = diagnoseOfflineVoiceFailure(
+          error, operation: OfflineVoiceOperation.remove,
+        ).message);
       }
     } finally {
       if (mounted) setState(() => _busyId = null);
@@ -266,11 +268,11 @@ class _OfflineVoiceManagerScreenState
       if (mounted) {
         setState(() => _importPreview = preview);
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        setState(() => _message =
-            'Cannot inspect this voice folder. Check the pack manifest '
-            'and required files.');
+        setState(() => _message = diagnoseOfflineVoiceFailure(
+          error, operation: OfflineVoiceOperation.inspectFolder,
+        ).message);
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -298,11 +300,11 @@ class _OfflineVoiceManagerScreenState
               'experimental offline VITS; real native audio is untested.';
         });
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        setState(() => _message =
-            'Voice installation rejected. Check the source files, '
-            'checksums, space and existing model ID.');
+        setState(() => _message = diagnoseOfflineVoiceFailure(
+          error, operation: OfflineVoiceOperation.installFolder,
+        ).message);
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -373,12 +375,11 @@ class _OfflineVoiceManagerScreenState
               'Free local VITS / Piper to try it.';
         });
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        setState(() => _message =
-            'Paola could not be installed. Check Internet, disk space, '
-            'Windows tar availability and the model checksum. '
-            'No incomplete model is activated.');
+        setState(() => _message = diagnoseOfflineVoiceFailure(
+          error, operation: OfflineVoiceOperation.installPaola,
+        ).message);
       }
     } finally {
       if (mounted) {
