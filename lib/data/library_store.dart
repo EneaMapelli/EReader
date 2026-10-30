@@ -1295,6 +1295,72 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     ''').single['n'] as int;
   }
 
+  Future<({int size, int modifiedUs})> _fullTextSourceStamp(
+      String path) async {
+    try {
+      if (await FileSystemEntity.type(path, followLinks: false) !=
+          FileSystemEntityType.file) {
+        return (size: -1, modifiedUs: -1);
+      }
+      final stat = await File(path).stat();
+      return (
+        size: stat.size,
+        modifiedUs: stat.modified.toUtc().microsecondsSinceEpoch,
+      );
+    } catch (_) {
+      return (size: -1, modifiedUs: -1);
+    }
+  }
+
+  /// Only an explicit user action scans file metadata for changed sources.
+  /// Changed books lose stale hits, then become pending for the NEXT manual
+  /// indexing batch. No text is decoded and no cloud calls occur here.
+  Future<int> refreshChangedFullTextBooks({
+    bool Function()? shouldCancel,
+    void Function(int checked, int total)? onProgress,
+  }) async {
+    if (!isFullTextIndexEnabled || _fullTextIndexing) {
+      throw StateError('Enable indexing and finish the current operation');
+    }
+    _fullTextIndexing = true;
+    var changed = 0;
+    try {
+      final entries = _database.select('''
+        SELECT j.book_id, b.local_path, s.source_size, s.source_modified_us
+        FROM library_fulltext_jobs j
+        INNER JOIN books b ON b.id = j.book_id
+        LEFT JOIN library_fulltext_source_state s ON s.book_id = j.book_id
+        ORDER BY j.book_id
+      ''');
+      for (var i = 0; i < entries.length; i++) {
+        if (!isFullTextIndexEnabled || (shouldCancel?.call() ?? false)) break;
+        final row = entries[i];
+        final id = row['book_id'] as String;
+        final stat = await _fullTextSourceStamp(row['local_path'] as String);
+        if (!isFullTextIndexEnabled || (shouldCancel?.call() ?? false)) break;
+        if (row['source_size'] != stat.size ||
+            row['source_modified_us'] != stat.modifiedUs) {
+          _transaction(_database, () {
+            _database.execute('''
+              DELETE FROM library_fulltext_fts WHERE book_id = ?
+            ''', [id]);
+            _database.execute(
+                'DELETE FROM library_fulltext_jobs WHERE book_id = ?', [id]);
+            _database.execute(
+                'DELETE FROM library_fulltext_source_state WHERE book_id = ?',
+                [id]);
+          });
+          changed++;
+        }
+        onProgress?.call(i + 1, entries.length);
+        await Future<void>.delayed(Duration.zero);
+      }
+      return changed;
+    } finally {
+      _fullTextIndexing = false;
+    }
+  }
+
   /// Explicit, bounded, cancel-between-books indexing. Input is from the
   /// same text layer the reader uses: PDF scans without selectable text
   /// are marked skipped, never OCR'd. Inject decoder for native-free tests.
@@ -1330,6 +1396,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           break;
         }
         String? text;
+        final sourceStamp = await _fullTextSourceStamp(book.localPath);
         try {
           final file = File(book.localPath);
           // Do not follow a replacement file symlink and avoid oversized
@@ -1354,6 +1421,12 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         if (!isFullTextIndexEnabled || (shouldCancel?.call() ?? false)) {
           cancelled = true;
           break;
+        }
+        // If the file changed during the parser's read, mark the book
+        // skipped rather than caching text under the wrong source stamp.
+        if (text != null &&
+            await _fullTextSourceStamp(book.localPath) != sourceStamp) {
+          text = null;
         }
         if (text != null) {
           // Fixed global budget, in addition to the per-book/file limits.
@@ -1384,6 +1457,14 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
               ON CONFLICT(book_id) DO UPDATE
               SET indexed = excluded.indexed
             ''', [book.id, text == null ? 0 : 1]);
+            _database.execute('''
+              INSERT INTO library_fulltext_source_state
+                (book_id, source_size, source_modified_us)
+              VALUES (?, ?, ?)
+              ON CONFLICT(book_id) DO UPDATE SET
+                source_size = excluded.source_size,
+                source_modified_us = excluded.source_modified_us
+            ''', [book.id, sourceStamp.size, sourceStamp.modifiedUs]);
           });
           if (text == null) { skipped++; } else { indexed++; }
         } else {
