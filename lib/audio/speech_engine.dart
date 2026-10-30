@@ -94,6 +94,14 @@ abstract interface class OfflineAheadSpeechEngine {
   });
 }
 
+/// Optional model-only, user-initiated preparation for installed offline
+/// neural voices. Must not synthesize text, play audio, make network calls,
+/// or extend the engine's existing idle resource-retirement limit.
+/// Stop/Dispose must invalidate an in-progress model warmup.
+abstract interface class OfflineVoiceModelPrewarmer {
+  Future<void> prewarmModel();
+}
+
 /// Read-only, local per-engine performance information. The caller never
 /// gets access to private TTS source chunks or WAV file names.
 abstract interface class OfflineVoiceDiagnosticsProvider {
