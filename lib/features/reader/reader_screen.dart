@@ -97,6 +97,16 @@ class _ReaderScreenState extends State<ReaderScreen>
     return ReadingActivityMode.visual;
   }
 
+  Duration _visualTimeRemaining() {
+    final interaction = _lastReadingInteraction;
+    if (!_readerForeground || _loading || interaction == null) {
+      return Duration.zero;
+    }
+    final remaining = const Duration(minutes: 3) -
+        DateTime.now().difference(interaction);
+    return remaining > Duration.zero ? remaining : Duration.zero;
+  }
+
   void _onReadingGesture() {
     if (!_readerForeground || _loading) return;
     _readingActivityTracker?.refresh();
@@ -190,6 +200,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         store: widget.store,
         bookId: widget.book.id,
         mode: _currentReadingActivityMode,
+        visualTimeRemaining: _visualTimeRemaining,
       );
     });
     _itemPositionsListener.itemPositions.addListener(_onVisiblePositions);
