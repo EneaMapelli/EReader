@@ -82,6 +82,7 @@ class VitsPersistentSession {
   final Stopwatch _startupClock = Stopwatch()..start();
   int? _workerReadyMs;
   int? _nativeModelInitializationMs;
+  int? _lastNativeGenerationMs;
 
   /// Time from session creation to a ready worker, including isolate spawn
   /// and native model initialization. Null before handshake / on failure.
@@ -89,6 +90,9 @@ class VitsPersistentSession {
   /// Time spent in the worker initializing sherpa bindings + ONNX model.
   /// Legacy/custom workers without timed handshakes report null, never 0.
   int? get nativeModelInitializationMs => _nativeModelInitializationMs;
+  /// Worker-local generate + WAV write duration (excludes native model init).
+  /// Older worker responses cannot supply it and leave this value null.
+  int? get lastNativeGenerationMs => _lastNativeGenerationMs;
 
   /// True after Stop, a native failure, timeout or idle retirement.
   /// Callers must construct a fresh session before synthesizing again.
@@ -160,10 +164,15 @@ class VitsPersistentSession {
           nativeInitializationMs: message[1] as int);
       return;
     }
-    if (message is List && message.length == 2 &&
-        message[0] is int && message[1] is int) {
+    if (message is List &&
+        (message.length == 2 || message.length == 3) &&
+        message[0] is int && message[1] is int &&
+        (message.length == 2 ||
+            (message[2] is int && (message[2] as int) >= 0))) {
       if (message[0] == 0 && message[1] == _activeId &&
           _active != null) {
+        _lastNativeGenerationMs =
+            message.length == 3 ? message[2] as int : null;
         final active = _active!;
         _active = null;
         _synthesisTimer?.cancel();
@@ -197,6 +206,7 @@ class VitsPersistentSession {
     _idleTimer = null;
     final active = Completer<void>();
     _active = active;
+    _lastNativeGenerationMs = null;
     _activeId = ++_nextId;
     // Covers a worker that becomes unresponsive during FFI or after
     // receiving a queued command. Timeout retires the whole native model.
@@ -271,6 +281,8 @@ void vitsPersistentWorkerMain((SendPort, VitsSessionModel) init) async {
       }
       final id = input[0] as int;
       try {
+        // Excludes ONNX model init and isolate spawn; includes WAV writing.
+        final generationClock = Stopwatch()..start();
         final audio = tts.generate(
           text: input[1] as String, sid: 0, speed: input[3] as double,
         );
@@ -286,7 +298,8 @@ void vitsPersistentWorkerMain((SendPort, VitsSessionModel) init) async {
         )) {
           throw StateError('Unable to write local voice WAV');
         }
-        reply.send([0, id]);
+        generationClock.stop();
+        reply.send([0, id, generationClock.elapsedMilliseconds]);
       } catch (_) {
         reply.send([1, id]);
         break;
