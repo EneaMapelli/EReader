@@ -12,7 +12,6 @@ import '../domain/book.dart';
 import '../domain/book_collection.dart';
 import '../domain/smart_book_collection.dart';
 import '../domain/library_full_text.dart';
-import '../domain/book_search.dart';
 import 'book_decoder.dart';
 import '../domain/library_catalog.dart';
 import '../domain/reading_activity.dart';
@@ -1409,13 +1408,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       LIMIT ?
     ''', [matchQuery, limit]).map((row) {
       final original = row['body'] as String;
-      final matches = findSourceTextMatches(
-        original, tokens.first, maxResults: 1, contextChars: 0,
-      );
-      final jump = matches.isEmpty ? null : LibraryFullTextJump(
-        sourceOffset: matches.first.start,
-        expectedText: original.substring(matches.first.start, matches.first.end),
-      );
+      final jump = firstExactIndexedWord(original, tokens.first);
       return LibraryFullTextHit(
         bookId: row['book_id'] as String,
         title: row['title'] as String,
