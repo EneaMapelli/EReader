@@ -224,7 +224,8 @@ List<LibraryFullTextPassage> findIndexedPassages(
     for (final existing in chosen) {
       // Near-adjacent windows usually describe the same paragraph, even
       // when their exact term spans do not overlap.
-      if (candidate.start <= existing.end + 72 &&
+      if (targets.length > 1 &&
+          candidate.start <= existing.end + 72 &&
           existing.start <= candidate.end + 72) {
         overlaps.add(existing);
       }
