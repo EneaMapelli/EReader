@@ -161,10 +161,10 @@ Future<VerifiedLibraryBackup> inspectLibraryBackup(
         .first['integrity_check'];
     final schemaVersion =
         database.select('PRAGMA user_version').first['user_version'];
-    // New exports use v24. Older v17-v23 snapshots remain readable;
+    // New exports use v25. Older v17-v24 snapshots remain readable;
     // collections default to absent if the join table does not exist.
     if (integrity != 'ok' || schemaVersion is! int ||
-        schemaVersion < 17 || schemaVersion > 24) {
+        schemaVersion < 17 || schemaVersion > 25) {
       throw const FormatException('Unsupported or damaged backup database');
     }
     final source = database.select(
