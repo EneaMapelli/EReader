@@ -438,7 +438,7 @@ class OfflineVoicePackInspection {
 }
 
 /// Human-readable, deterministic size labels for a local-only diagnostic.
-/// This is allocated bytes in known files, not the filesystem's block usage.
+/// These are logical file bytes, not allocated filesystem blocks.
 String offlineVoiceSizeLabel(int bytes) {
   if (bytes < 0) throw ArgumentError.value(bytes, 'bytes');
   if (bytes < 1024) return '$bytes B';

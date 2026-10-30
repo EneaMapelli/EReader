@@ -225,6 +225,8 @@ void main() {
     expect(find.text('Local test voice'), findsNothing);
     expect(find.text('broken-voice'), findsOneWidget,
         reason: 'Damaged models must not disappear behind a filter');
+    expect(find.textContaining('Verified model files:'), findsOneWidget,
+        reason: 'Filtering visible cards must not change total storage');
     expect(tester.takeException(), isNull);
   });
 

@@ -102,6 +102,50 @@ void main() {
     expect(() => offlineVoiceSizeLabel(-1), throwsArgumentError);
   });
 
+  test('phonemizer assets contribute to reported size; damage hides total',
+      () async {
+    const phonemes = [1, 4, 2, 8, 16, 32, 64];
+    final phonemizer = await Directory(
+        p.join(input.path, 'espeak-ng-data')).create();
+    await File(p.join(phonemizer.path, 'phonemes'))
+        .writeAsBytes(phonemes);
+    final enriched = OfflineVoicePackManifest(
+      id: manifest.id,
+      displayName: manifest.displayName,
+      locale: manifest.locale,
+      licenseId: manifest.licenseId,
+      modelSha256: manifest.modelSha256,
+      tokensSha256: manifest.tokensSha256,
+      phonemizerResources: [
+        OfflineVoiceResource(
+          relativePath: 'espeak-ng-data/phonemes',
+          sha256: sha256.convert(phonemes).toString(),
+        ),
+      ],
+    );
+    final pack = await installOfflineVoicePack(
+      manifest: enriched, sourceDirectory: input,
+      modelsDirectory: installed,
+    );
+    var catalog = await inspectOfflineVoicePacks(
+        modelsDirectory: installed);
+    final expected = await File(pack.modelPath).length() +
+        await File(pack.tokensPath).length() +
+        await File(p.join(installed.path, enriched.id, 'voice-pack.json'))
+            .length() + phonemes.length;
+    expect(catalog.single.verifiedDiskBytes, expected);
+    expect(verifiedOfflineVoiceTotalBytes(catalog), expected);
+
+    // A file that changes after installation must never be counted
+    // as verified storage or silently passed to native model loading.
+    await File(p.join(pack.phonemizerDataDir!, 'phonemes'))
+        .writeAsBytes([0]);
+    catalog = await inspectOfflineVoicePacks(modelsDirectory: installed);
+    expect(catalog.single.ready, isFalse);
+    expect(catalog.single.verifiedDiskBytes, isNull);
+    expect(verifiedOfflineVoiceTotalBytes(catalog), 0);
+  });
+
   test('verified two-file model installs into a private pack directory',
       () async {
     final pack = await installOfflineVoicePack(
