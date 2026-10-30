@@ -1001,3 +1001,22 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   files or installed voice assets are involved. This test is source-only
   and not yet executed under Dart/Flutter or Windows filesystem locks.
 
+### M3 — Recoverable manual VITS/Piper staging (2026-10-30)
+
+- Manual import now creates a privately marked, OS-leased `.install-*`
+  parent and copies SHA-verified assets into `payload/`. Only the payload
+  directory is atomically promoted to the verified installed voice ID;
+  marker and lease metadata stay outside the installed model package.
+- Added explicit in-app **Clean interrupted local model imports** with a
+  confirmation dialog. Only aged (24h+), correctly marked, OS-unlocked,
+  allowlisted, bounded abandoned work dirs are eligible. Unmarked legacy
+  temp folders, installed model IDs, active imports, source voice folders
+  and any suspicious/symlinked structures are preserved.
+- Recovery scans up to 512 direct entries and attempts at most 16 stages
+  per user action. Files are removed individually with a type recheck,
+  nested folders only after emptied; no arbitrary recursive user-folder
+  deletion. No network or model activation.
+- Added pure crash/active/symlink/batch fixtures and a Flutter widget
+  confirmation test; source reviewed, not run (Dart/Flutter unavailable).
+  No Windows/Android builds or GitHub Actions started.
+

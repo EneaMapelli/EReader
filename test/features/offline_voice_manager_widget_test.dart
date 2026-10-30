@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:ereader/data/offline_voice_pack.dart';
+import 'package:ereader/data/manual_voice_install_staging.dart';
 import 'package:ereader/features/reader/offline_voice_manager_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -101,6 +102,49 @@ void main() {
     expect(find.textContaining('Local voice installed.'), findsOneWidget);
     expect((await inspectOfflineVoicePacks(modelsDirectory: models)).single.ready,
         isTrue);
+  });
+
+  testWidgets('manual abandoned-import cleanup requires approval and '
+      'preserves installed models', (tester) async {
+    final installed = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: source, modelsDirectory: models,
+    );
+    final stage = await models.createTemp(
+        ManualVoiceInstallStaging.prefix);
+    await File(p.join(stage.path, ManualVoiceInstallStaging.leaseName))
+        .create();
+    final marker = File(p.join(
+        stage.path, ManualVoiceInstallStaging.markerName));
+    await marker.writeAsString(ManualVoiceInstallStaging.markerContent);
+    await marker.setLastModified(
+        DateTime.now().subtract(const Duration(days: 4)));
+    final payload = await Directory(p.join(
+        stage.path, ManualVoiceInstallStaging.payloadName)).create();
+    await File(p.join(payload.path, 'model.onnx')).writeAsBytes([1]);
+
+    await mount(tester);
+    final button = find.byKey(
+        const ValueKey('clean-manual-model-imports'));
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.text('Clean interrupted local voice imports?'),
+        findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(await stage.exists(), isTrue);
+    expect(await File(installed.modelPath).exists(), isTrue);
+
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clean old imports'));
+    await letIoSettle(tester);
+    expect(await stage.exists(), isFalse);
+    expect(await File(installed.modelPath).exists(), isTrue);
+    expect(find.textContaining('Removed 1 interrupted local model import'),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('a folder picker cancel makes no changes',
