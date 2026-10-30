@@ -23,7 +23,9 @@ class BookReadingActivitySheet extends StatelessWidget {
         content: const Text(
           'Remove all recorded reading and TTS time for this book, '
           'including its historical days. This cannot be undone. '
-          'The book, reading position and bookmarks remain unchanged.',
+          'The book, reading position and bookmarks remain unchanged. '
+          'Previously exported backups are unaffected, and future activity '
+          'for this book will continue to be recorded.',
         ),
         actions: [
           TextButton(
