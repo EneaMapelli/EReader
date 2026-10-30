@@ -298,6 +298,55 @@ List<LibraryFullTextPassage> findIndexedPassages(
   ]);
 }
 
+/// Positions of genuinely consecutive query tokens in the indexed
+/// canonical source. SQLite FTS phrase matching is the book-level filter;
+/// this local pass supplies verified UTF-16 destinations, independent of
+/// SQLite's UTF-8 byte offsets. Bounded rolling window (max 8 tokens),
+/// bounded result list, no content saved or sent to an external service.
+List<LibraryFullTextPassage> findIndexedExactPhrases(
+  String indexedSource,
+  List<String> queryTokens, {
+  int limit = 6,
+  int maxSpanChars = 320,
+  int contextChars = 65,
+}) {
+  if (limit < 1 || limit > 10 || maxSpanChars < 1 ||
+      maxSpanChars > 2048 || contextChars < 0 || contextChars > 160 ||
+      queryTokens.isEmpty || queryTokens.length > 8 ||
+      queryTokens.any((token) => token.isEmpty || token.length > 120)) {
+    return const [];
+  }
+  final targets = queryTokens.map((word) => word.toLowerCase()).toList();
+  final window = <RegExpMatch>[];
+  final results = <LibraryFullTextPassage>[];
+  final words = RegExp(r'[\p{L}\p{N}\p{M}]+', unicode: true);
+  for (final match in words.allMatches(indexedSource)) {
+    window.add(match);
+    if (window.length > targets.length) window.removeAt(0);
+    if (window.length != targets.length) continue;
+    var matches = true;
+    for (var i = 0; i < targets.length; i++) {
+      if (window[i].group(0)!.toLowerCase() != targets[i]) {
+        matches = false;
+        break;
+      }
+    }
+    if (!matches) continue;
+    final first = window.first;
+    final end = window.last.end;
+    if (end - first.start > maxSpanChars) continue;
+    results.add(LibraryFullTextPassage(
+      jump: _captureIndexedWord(
+        indexedSource, first, passageEnd: end),
+      excerpt: _indexedPassageExcerpt(
+        indexedSource, first.start, end, contextChars),
+      allTermsNearby: true,
+    ));
+    if (results.length >= limit) break;
+  }
+  return List.unmodifiable(results);
+}
+
 /// A display-only excerpt; avoid splitting a surrogate pair at a boundary.
 String _indexedPassageExcerpt(
     String source, int start, int end, int contextChars) {
