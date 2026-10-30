@@ -77,7 +77,7 @@ void main() {
         .map((hit) => hit.bookId).toSet(), {alpha});
     expect(store.searchIndexedBookContents('dragon notexisting'), isEmpty);
     expect(store.searchIndexedBookContents(''), isEmpty);
-    expect(store.searchIndexedBookContents('x' * 121), isEmpty);
+    expect(store.searchIndexedBookContents(List.filled(121, 'x').join()), isEmpty);
     expect(store.searchIndexedBookContents('OR = --'), isEmpty);
     expect(() => store.searchIndexedBookContents('dragon', limit: 101),
         throwsRangeError);
@@ -88,7 +88,7 @@ void main() {
       () async {
     final path = store.getBook(alpha)!.localPath;
     final source = 'dragon in the distant opening. ' +
-        ('unrelated ' * 80) +
+        List.filled(80, 'unrelated ').join() +
         'A blue dragon guards the tower.';
     await File(path).writeAsString(source);
     store.setFullTextIndexEnabled(true);
@@ -117,8 +117,8 @@ void main() {
   test('selected book exposes bounded ranked alternatives without checkpoints',
       () async {
     final path = store.getBook(alpha)!.localPath;
-    final source = 'blue ${'valley ' * 18}dragon. '
-        + ('unrelated ' * 55)
+    final source = 'blue ${List.filled(18, 'valley ').join()}dragon. '
+        + List.filled(55, 'unrelated ').join()
         + 'A blue dragon flies at sunrise.';
     await File(path).writeAsString(source);
     store.setFullTextIndexEnabled(true);
