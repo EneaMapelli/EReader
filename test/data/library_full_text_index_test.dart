@@ -65,9 +65,12 @@ void main() {
     final results = store.searchIndexedBookContents('dragon');
     expect(results.map((hit) => hit.bookId).toSet(), {alpha, beta});
     for (final result in results) {
-      expect(result.jump, isNotNull);
-      expect(result.jump!.expectedText.toLowerCase(), 'dragon');
-      expect(result.jump!.sourceOffset, greaterThan(0));
+      expect(result.jump, isNull,
+          reason: 'Query results must not eagerly load every book body');
+      final destination = store.fullTextJumpForHit(result.bookId, 'dragon');
+      expect(destination, isNotNull);
+      expect(destination!.expectedText.toLowerCase(), 'dragon');
+      expect(destination.sourceOffset, greaterThan(0));
     }
     expect(store.getBook(alpha)!.progressOffset, 0);
     expect(store.getBook(beta)!.progressOffset, 0);
