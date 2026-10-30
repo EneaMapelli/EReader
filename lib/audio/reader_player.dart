@@ -668,6 +668,13 @@ class ReaderPlayer extends ChangeNotifier {
             engineProviderId == 'sherpa-vits' && warmNextOfflineChunk &&
             _engine is OfflineAheadSpeechEngine;
         if (canCloudWarm || canOfflineWarm) {
+          // The current utterance is ALREADY live. Any synchronous error
+          // while inspecting optional lookahead (a pronunciation transform,
+          // speaker resolver or note-skip predicate) must not abort its
+          // completion Future and leave native audio running after Play
+          // reports an error. A failed preview is retried as normal speech
+          // only when its actual turn arrives.
+          try {
           // Only the next actually audible passage may be prepared.
           var nextIndex = currentIndex + 1;
           while (nextIndex < _segments.length &&
@@ -708,6 +715,11 @@ class ReaderPlayer extends ChangeNotifier {
                 // Cache warming never synthesizes on a miss.
               }));
             }
+          }
+          } catch (_) {
+            // Optional lookahead cannot change the audible source cursor,
+            // crash checkpoint, current speaker or already-started clip.
+            // In particular, never trigger a paid cloud retry here.
           }
         }
         await playing;

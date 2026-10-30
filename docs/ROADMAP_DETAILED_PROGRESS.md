@@ -633,3 +633,23 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   No Windows/Android build or GitHub Actions initiated; physical OS
   behavior and spoken-voice verification are pending manual acceptance.
 
+### M2/M3 — Isolate speculative lookahead errors from audible playback (2026-10-30)
+
+- Fixed a real asynchronous audio lifecycle hazard: after invoking
+  `SpeechEngine.speak`, the player inspected the *next* segment's
+  pronunciation, cast or note-filtering callbacks **before** awaiting
+  the already-running audio Future. A synchronous exception in optional
+  lookahead could abandon playback, report idle/error and release focus
+  while the current utterance was still audible.
+- Speculative preview inspection now fails closed: no premature
+  completion, no new TTS request, no source-anchor/checkpoint mutation,
+  no automatic cloud retry. The current audio always reaches its normal
+  completion/cancellation path. Actual next-segment processing still
+  reports real errors; lookahead cannot hide those failures.
+- Added controlled offline fake-engine regressions for failing
+  pronunciation, cast and note-skip previews. They assert spoken order,
+  live playback state, source checkpoint callbacks and clean EOF.
+- Tests **authored, not executed** without Flutter/Dart SDK. No Windows
+  or Android builds or GitHub Actions initiated. Native sound/focus
+  acceptance remains open.
+
