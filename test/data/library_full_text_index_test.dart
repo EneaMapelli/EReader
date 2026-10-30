@@ -1,0 +1,186 @@
+import 'dart:io';
+
+import 'package:ereader/data/book_decoder.dart';
+import 'package:ereader/data/library_store.dart';
+import 'package:ereader/domain/book.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:sqlite3/sqlite3.dart';
+
+class _MissingTextDecoder implements DocumentDecoder {
+  @override
+  Future<DocumentContent> read(BookRecord record) async {
+    throw const FormatException('No selectable text');
+  }
+}
+
+void main() {
+  late Directory root;
+  late LibraryStore store;
+  late String alpha;
+  late String beta;
+
+  setUp(() async {
+    root = await Directory.systemTemp.createTemp('ereader-fts-');
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    final first = File(p.join(root.path, 'first.txt'));
+    final second = File(p.join(root.path, 'second.txt'));
+    await first.writeAsString('The friendly blue dragon sings at dawn.');
+    await second.writeAsString('A dragon sleeps under the silent moon.');
+    alpha = (await store.importFile(first.path)).id;
+    beta = (await store.importFile(second.path)).id;
+  });
+
+  tearDown(() async {
+    store.dispose();
+    if (await root.exists()) await root.delete(recursive: true);
+  });
+
+  test('fresh v26 is opt-out, no virtual table or silent indexing', () {
+    expect(store.isFullTextIndexEnabled, isFalse);
+    expect(store.fullTextIndexedBooks, 0);
+    expect(store.searchIndexedBookContents('dragon'), isEmpty);
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    expect(db.select('PRAGMA user_version').single['user_version'], 26);
+    expect(db.select("SELECT name FROM sqlite_master WHERE name = "
+        "'library_fulltext_fts'"), isEmpty);
+    db.dispose();
+    expect(store.books, hasLength(2));
+  });
+
+  test('explicit opt-in indexes local TXT and returns bounded literal hits',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    expect(store.isFullTextIndexEnabled, isTrue);
+    expect(store.fullTextIndexedBooks, 0);
+    expect(store.fullTextPendingBooks, 2);
+    final report = await store.indexNextFullTextBatch();
+    expect(report.indexed, 2);
+    expect(report.skipped, 0);
+    expect(report.remaining, 0);
+    expect(report.cancelled, isFalse);
+    expect(store.fullTextIndexedBooks, 2);
+
+    final results = store.searchIndexedBookContents('dragon');
+    expect(results.map((hit) => hit.bookId).toSet(), {alpha, beta});
+    expect(results.first.excerpt.toLowerCase(), contains('dragon'));
+    expect(store.searchIndexedBookContents('blue dragon')
+        .map((hit) => hit.bookId).toSet(), {alpha});
+    expect(store.searchIndexedBookContents('dragon notexisting'), isEmpty);
+    expect(store.searchIndexedBookContents(''), isEmpty);
+    expect(store.searchIndexedBookContents('x' * 121), isEmpty);
+    expect(store.searchIndexedBookContents('OR = --'), isEmpty);
+    expect(() => store.searchIndexedBookContents('dragon', limit: 101),
+        throwsRangeError);
+    expect(store.books, hasLength(2));
+  });
+
+  test('opt-out drops private FTS5 table, persists after restart', () async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    store.setFullTextIndexEnabled(false);
+    expect(store.isFullTextIndexEnabled, isFalse);
+    expect(store.fullTextIndexedBooks, 0);
+    expect(store.searchIndexedBookContents('dragon'), isEmpty);
+
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    expect(db.select("SELECT name FROM sqlite_master WHERE name = "
+        "'library_fulltext_fts'"), isEmpty);
+    db.dispose();
+    store.dispose();
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.isFullTextIndexEnabled, isFalse);
+    expect(store.books, hasLength(2));
+    store.setFullTextIndexEnabled(true);
+    expect(store.fullTextPendingBooks, 2);
+    expect(store.searchIndexedBookContents('dragon'), isEmpty);
+  });
+
+  test('reset clears snippets and skipped-book markers, not consent',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    final skipped = await store.indexNextFullTextBatch(
+        decoder: _MissingTextDecoder());
+    expect(skipped.skipped, 2);
+    expect(skipped.remaining, 0);
+    expect(store.fullTextIndexedBooks, 0);
+    store.resetFullTextIndex();
+    expect(store.isFullTextIndexEnabled, isTrue);
+    expect(store.fullTextPendingBooks, 2);
+    expect((await store.indexNextFullTextBatch()).indexed, 2);
+    expect(store.searchIndexedBookContents('dragon'), hasLength(2));
+    store.resetFullTextIndex();
+    expect(store.searchIndexedBookContents('dragon'), isEmpty);
+    expect(store.fullTextPendingBooks, 2);
+  });
+
+  test('cancel between books leaves a resumable batch, no duplicate text',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    var completed = 0;
+    final report = await store.indexNextFullTextBatch(
+      shouldCancel: () => completed == 1,
+      onProgress: (done, total) {
+        completed = done;
+        expect(total, 2);
+      },
+    );
+    expect(report.cancelled, isTrue);
+    expect(report.processed, 1);
+    expect(report.remaining, 1);
+    expect(store.fullTextIndexedBooks, 1);
+    expect((await store.indexNextFullTextBatch()).indexed, 1);
+    expect(store.searchIndexedBookContents('dragon'), hasLength(2));
+    expect(store.fullTextIndexedBooks, 2);
+  });
+
+  test('book removal purges indexed text and keeps unrelated books',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    await store.removeBook(alpha);
+    expect(store.fullTextIndexedBooks, 1);
+    expect(store.searchIndexedBookContents('blue'), isEmpty);
+    expect(store.searchIndexedBookContents('dragon').single.bookId, beta);
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    expect(db.select(
+      'SELECT COUNT(*) AS n FROM library_fulltext_fts WHERE book_id = ?',
+      [alpha],
+    ).single['n'], 0);
+    db.dispose();
+  });
+
+  test('v25 upgrade creates only opt-out state, preserving book metadata',
+      () async {
+    store.setBookFavorite(alpha, true);
+    store.dispose();
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    db.execute('DROP TABLE library_fulltext_jobs');
+    db.execute('DROP TABLE library_fulltext_settings');
+    db.execute('PRAGMA user_version = 25');
+    db.dispose();
+
+    store = LibraryStore(homeDirectory: root);
+    await store.initialize();
+    expect(store.isFullTextIndexEnabled, isFalse);
+    expect(store.getBook(alpha)!.isFavorite, isTrue);
+    expect(store.books, hasLength(2));
+    final check = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    expect(check.select('PRAGMA user_version').single['user_version'], 26);
+    expect(check.select("SELECT name FROM sqlite_master WHERE name = "
+        "'library_fulltext_fts'"), isEmpty);
+    check.dispose();
+  });
+
+  test('limits and disabled indexing reject changes without altering books',
+      () async {
+    await expectLater(store.indexNextFullTextBatch(), throwsStateError);
+    store.setFullTextIndexEnabled(true);
+    await expectLater(store.indexNextFullTextBatch(maxBooks: 21),
+        throwsRangeError);
+    expect(store.fullTextIndexedBooks, 0);
+    expect(store.books, hasLength(2));
+  });
+}
