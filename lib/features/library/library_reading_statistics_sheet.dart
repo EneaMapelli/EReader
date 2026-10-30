@@ -25,6 +25,38 @@ class LibraryReadingStatisticsSheet extends StatefulWidget {
 
 class _LibraryReadingStatisticsSheetState
     extends State<LibraryReadingStatisticsSheet> {
+  Future<void> _confirmClearAllActivity() async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete all recorded activity?'),
+        content: const Text(
+          'Remove timed reading and TTS history for every book, '
+          'including books hidden by filters. This cannot be undone. '
+          'Books, reading positions, bookmarks and your daily goal remain.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete activity'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true || !mounted) return;
+    final deleted = widget.store.clearReadingActivity();
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(deleted == 0
+          ? 'No activity history to delete.'
+          : 'Deleted $deleted activity totals.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = widget.statistics;
@@ -164,15 +196,18 @@ class _LibraryReadingStatisticsSheetState
                     ' · ${formatReadingActivityDuration(book.ttsSeconds)} TTS',
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    showDragHandle: true,
-                    builder: (_) => BookReadingActivitySheet(
-                      store: widget.store,
-                      bookId: book.bookId,
-                    ),
-                  ),
+                  onTap: () async {
+                    await showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      showDragHandle: true,
+                      builder: (_) => BookReadingActivitySheet(
+                        store: widget.store,
+                        bookId: book.bookId,
+                      ),
+                    );
+                    if (mounted) setState(() {});
+                  },
                 ),
             const SizedBox(height: 24),
             Text('Library by format',
@@ -206,6 +241,17 @@ class _LibraryReadingStatisticsSheetState
                   subtitle: Text(MaterialLocalizations.of(context)
                       .formatMediumDate(book.lastOpenedAt!.toLocal())),
                 ),
+            const SizedBox(height: 16),
+            const Divider(),
+            Text('Activity history and privacy',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              key: const ValueKey('stats-clear-all'),
+              onPressed: _confirmClearAllActivity,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Clear all timed activity'),
+            ),
             const SizedBox(height: 12),
             Text(
               'The session timer uses conservative elapsed-time sampling. '
