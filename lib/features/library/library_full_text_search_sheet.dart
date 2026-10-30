@@ -166,7 +166,8 @@ class _LibraryFullTextSearchSheetState
     final book = widget.store.getBook(hit.bookId);
     if (book == null) return;
     Navigator.of(context).pop();
-    widget.onOpenBook?.call(book, hit.jump);
+    final jump = widget.store.fullTextJumpForHit(hit.bookId, _query);
+    widget.onOpenBook?.call(book, jump);
   }
 
   @override
