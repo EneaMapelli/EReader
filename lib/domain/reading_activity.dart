@@ -87,3 +87,11 @@ class BookReadingActivityTotals {
   final int ttsSeconds;
   int get totalSeconds => visualSeconds + ttsSeconds;
 }
+
+/// Human-readable, non-rounded duration; sub-minute activity remains visible.
+String formatReadingActivityDuration(int seconds) {
+  if (seconds < 0) throw RangeError.range(seconds, 0, null, 'seconds');
+  if (seconds < 60) return '${seconds}s';
+  if (seconds < 3600) return '${seconds ~/ 60}m ${seconds % 60}s';
+  return '${seconds ~/ 3600}h ${(seconds % 3600) ~/ 60}m';
+}
