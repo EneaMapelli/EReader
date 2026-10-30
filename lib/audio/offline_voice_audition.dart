@@ -140,6 +140,7 @@ class OfflineVoiceAudition {
     int? voiceSetupMs;
     int? speechWallMs;
     var failed = false;
+    var cleanupFailed = false;
     var completed = false;
     try {
       await _stopping;
@@ -209,12 +210,16 @@ class OfflineVoiceAudition {
           _active = null;
           await owned.dispose();
         }
+      } catch (_) {
+        cleanupFailed = true;
+        rethrow;
       } finally {
         total.stop();
         if (_previewEpoch == token) {
           _lastReport = OfflineVoicePreviewReport(
             packId: packId,
-            outcome: failed ? OfflineVoicePreviewOutcome.failed
+            outcome: failed || cleanupFailed
+                ? OfflineVoicePreviewOutcome.failed
                 : completed ? OfflineVoicePreviewOutcome.completed
                 : OfflineVoicePreviewOutcome.cancelled,
             totalMs: total.elapsedMilliseconds,
