@@ -43,6 +43,35 @@ void main() {
     expect(stats.lastWholeProcessRssMiB, 104);
   });
 
+  test('startup metrics reset on a new native model load', () {
+    final log = OfflineVoiceDiagnostics();
+    expect(log.snapshot.lastWorkerReadyMs, isNull);
+    expect(log.snapshot.lastNativeModelInitializationMs, isNull);
+    log.recordModelLoad();
+    log.recordModelStartup(
+      workerReadyMs: 120,
+      nativeModelInitializationMs: 84,
+    );
+    final cold = log.snapshot;
+    expect(cold.modelLoads, 1);
+    expect(cold.lastWorkerReadyMs, 120);
+    expect(cold.lastNativeModelInitializationMs, 84);
+    log.recordModelStartup(
+      workerReadyMs: -1, nativeModelInitializationMs: -10);
+    expect(log.snapshot.lastWorkerReadyMs, 120,
+        reason: 'Invalid metrics cannot overwrite measurements');
+    log.recordModelLoad();
+    expect(log.snapshot.modelLoads, 2);
+    expect(log.snapshot.lastWorkerReadyMs, isNull,
+        reason: 'A new model is not yet initialized');
+    expect(log.snapshot.lastNativeModelInitializationMs, isNull);
+    expect(cold.lastNativeModelInitializationMs, 84,
+        reason: 'Older numeric snapshot remains immutable');
+    log.recordModelStartup(workerReadyMs: 90);
+    expect(log.snapshot.lastWorkerReadyMs, 90);
+    expect(log.snapshot.lastNativeModelInitializationMs, isNull);
+  });
+
   test('P95 retains only the last 64 samples, without unbounded history', () {
     final log = OfflineVoiceDiagnostics();
     log.recordSynthesis(

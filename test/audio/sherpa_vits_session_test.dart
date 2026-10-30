@@ -23,6 +23,20 @@ void _fakeReusableWorker((SendPort, VitsSessionModel) init) async {
   }
 }
 
+/// Emulates a native worker that reports its model-init duration. Only
+/// measurements and a tiny test WAV string cross the isolate boundary.
+void _timedReusableWorker((SendPort, VitsSessionModel) init) async {
+  final incoming = ReceivePort();
+  init.$1.send([incoming.sendPort, 23]);
+  var count = 0;
+  await for (final message in incoming) {
+    final request = message as List;
+    count++;
+    await File(request[2] as String).writeAsString('timed-request=$count');
+    init.$1.send([0, request[0]]);
+  }
+}
+
 void _blockedReusableWorker((SendPort, VitsSessionModel) init) async {
   final incoming = ReceivePort();
   init.$1.send(incoming.sendPort);
@@ -109,6 +123,35 @@ void main() {
       session.synthesize(text: 'again', wavPath: one, speed: 1),
       throwsA(isA<VitsWaveCancelled>()),
     );
+  });
+
+  test('new native readiness handshake separates model init and spawn',
+      () async {
+    final session = VitsPersistentSession.withEntrypoint(
+        model, _timedReusableWorker);
+    expect(session.workerReadyMs, isNull);
+    expect(session.nativeModelInitializationMs, isNull);
+    final wav = p.join(root.path, 'timed.wav');
+    await session.synthesize(text: 'a', wavPath: wav, speed: 1);
+    expect(session.workerReadyMs, greaterThanOrEqualTo(0));
+    expect(session.nativeModelInitializationMs, 23);
+    expect(await File(wav).readAsString(), 'timed-request=1');
+    final firstWorkerReadyMs = session.workerReadyMs;
+    await session.synthesize(text: 'b', wavPath: wav, speed: 1);
+    expect(await File(wav).readAsString(), 'timed-request=2');
+    expect(session.nativeModelInitializationMs, 23,
+        reason: 'Reuse cannot reinitialize or double-count the model');
+    expect(session.workerReadyMs, firstWorkerReadyMs);
+    session.cancel();
+
+    final legacy = VitsPersistentSession.withEntrypoint(
+        model, _fakeReusableWorker);
+    await legacy.synthesize(text: 'c',
+        wavPath: p.join(root.path, 'legacy.wav'), speed: 1);
+    expect(legacy.workerReadyMs, greaterThanOrEqualTo(0));
+    expect(legacy.nativeModelInitializationMs, isNull,
+        reason: 'Old worker handshake must not invent native timing');
+    legacy.cancel();
   });
 
   test('busy persistent worker rejects second request and cancels first',
@@ -253,6 +296,54 @@ void main() {
     await engine.dispose();
     expect((await root.list(recursive: true, followLinks: false).toList())
         .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
+  });
+
+  test('engine records cold ONNX load once per worker, not every phrase',
+      () async {
+    final pack = InstalledOfflineVoicePack(
+      manifest: OfflineVoicePackManifest(
+        id: 'mock-pack', displayName: 'Mock', locale: 'en-US',
+        licenseId: 'MIT', modelSha256: 'a' * 64,
+        tokensSha256: 'b' * 64,
+      ),
+      modelPath: p.join(root.path, 'voice.onnx'),
+      tokensPath: p.join(root.path, 'tokens.txt'),
+    );
+    var created = 0;
+    final engine = SherpaVitsSpeechEngine(
+      pack: pack,
+      output: _StringWaveOutput(),
+      temporaryDirectory: () async => root,
+      sessionFactory: (model) {
+        created++;
+        return VitsPersistentSession.withEntrypoint(
+            model, _timedReusableWorker);
+      },
+    );
+    expect(engine.offlineVoiceStatistics.lastNativeModelInitializationMs,
+        isNull);
+    await engine.speak('first', language: 'en-US', rate: 0.5, pitch: 1);
+    final cold = engine.offlineVoiceStatistics;
+    expect(cold.modelLoads, 1);
+    expect(cold.lastNativeModelInitializationMs, 23);
+    expect(cold.lastWorkerReadyMs, greaterThanOrEqualTo(0));
+    expect(cold.syntheses, 1);
+
+    await engine.speak('second', language: 'en-US', rate: 0.5, pitch: 1);
+    final warm = engine.offlineVoiceStatistics;
+    expect(created, 1);
+    expect(warm.modelLoads, 1);
+    expect(warm.syntheses, 2);
+    expect(warm.lastNativeModelInitializationMs, 23);
+    expect(warm.lastWorkerReadyMs, cold.lastWorkerReadyMs);
+
+    await engine.stop();
+    await engine.speak('third', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(created, 2,
+        reason: 'Stop must still retire the native resident model');
+    expect(engine.offlineVoiceStatistics.modelLoads, 2);
+    expect(engine.offlineVoiceStatistics.lastNativeModelInitializationMs, 23);
+    await engine.dispose();
   });
 
   test('engine reuses one model across speech, then recreates after Stop',

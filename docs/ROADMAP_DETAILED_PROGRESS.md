@@ -1228,3 +1228,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   unavailable here, so these tests were authored but not executed.
   No Windows/Android builds or GitHub Actions were started.
 
+### M3 — Measured cold native ONNX initialization vs warm synthesis (2026-10-30)
+
+- The native VITS isolate now reports a **worker-local** monotonic
+  measurement of sherpa binding initialization plus ONNX model construction
+  in its timed ready handshake. The main isolate separately measures
+  **worker ready** wall time including isolate spawn and scheduling.
+  This does not measure exact first audible sample.
+- Existing injected / legacy workers that return only a SendPort remain
+  compatible: their native initialization duration stays **unknown/null**,
+  never inferred or reported as zero. Invalid negative timings are ignored.
+- The engine records first successful readiness once per resident worker,
+  not per synthesized phrase. Previous model measurements are cleared
+  when a new model is constructed; the current three-minute idle timeout
+  and immediate Stop model retirement are unchanged.
+- Preview reports can display worker readiness, native ONNX init and
+  synthesis as **three distinct, optional timings** alongside existing
+  SHA, playback and Stop metrics. All are short-lived numeric statistics,
+  with no book passages, paths, API keys or persistent telemetry.
+- Synthetic worker, engine and diagnostic tests verify cold/warm reuse,
+  restart after Stop, old worker compatibility, resets and UI formatting.
+  Flutter/Dart tests not executed here (SDK unavailable). No Windows/
+  Android builds or GitHub Actions started.
+
