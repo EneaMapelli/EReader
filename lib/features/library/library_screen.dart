@@ -15,6 +15,7 @@ import '../../audio/reader_media_handler.dart';
 import '../../domain/book.dart';
 import '../../domain/library_catalog.dart';
 import '../../domain/library_search_query.dart';
+import '../../domain/library_full_text.dart';
 import '../../domain/library_reading_statistics.dart';
 import 'library_reading_statistics_sheet.dart';
 import '../reader/reader_screen.dart';
@@ -709,7 +710,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
-  Future<void> _open(BookRecord book) async {
+  Future<void> _open(BookRecord book, {
+    LibraryFullTextJump? initialSearchJump,
+  }) async {
     try {
       await widget.store.markBookOpened(book.id);
       if (!mounted) return;
@@ -718,6 +721,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           builder: (_) => ReaderScreen(
             book: book, store: widget.store,
             mediaHandler: widget.mediaHandler,
+            initialSearchJump: initialSearchJump,
           ),
         ),
       );
@@ -921,7 +925,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
       showDragHandle: true,
       builder: (_) => LibraryFullTextSearchSheet(
         store: widget.store,
-        onOpenBook: (book) => unawaited(_open(book)),
+        onOpenBook: (book, jump) =>
+            unawaited(_open(book, initialSearchJump: jump)),
       ),
     );
     if (mounted) setState(() {});
