@@ -178,4 +178,40 @@ void main() {
     expect(store.books, hasLength(2));
   });
 
+  testWidgets('tracking switch preserves history and goal while off',
+      (tester) async {
+    final id = store.books.first.id;
+    store.saveDailyReadingGoalMinutes(30);
+    store.recordReadingActivity(id, ReadingActivityMode.visual, 12);
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.tap(find.byKey(const ValueKey('library-stats-open')));
+    await tester.pumpAndSettle();
+
+    final toggle = find.byKey(const ValueKey('stats-tracking-enabled'));
+    await tester.ensureVisible(toggle);
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    expect(store.isReadingActivityTrackingEnabled, isFalse);
+    store.recordReadingActivity(id, ReadingActivityMode.tts, 25);
+    expect(store.bookReadingLifetimeTotals(id).totalSeconds, 12);
+    expect(store.dailyReadingGoalMinutes, 30);
+
+    await tester.tap(find.byTooltip('Close reading statistics'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('library-stats-open')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    expect(store.bookReadingLifetimeTotals(id).visualSeconds, 12);
+
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(store.isReadingActivityTrackingEnabled, isTrue);
+    store.recordReadingActivity(id, ReadingActivityMode.tts, 5);
+    expect(store.bookReadingLifetimeTotals(id).totalSeconds, 17);
+    expect(store.books, hasLength(2));
+  });
+
 }
