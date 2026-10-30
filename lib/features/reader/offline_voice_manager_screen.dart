@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../data/offline_voice_pack.dart';
 import '../../data/piper_paola_installer.dart';
 import '../../data/curated_voice_staging.dart';
+import '../../data/manual_voice_install_staging.dart';
 import '../../audio/offline_voice_audition.dart';
 
 /// Model management is deliberately separate from provider activation.
@@ -390,6 +391,52 @@ class _OfflineVoiceManagerScreenState
     await _refresh(clearMessage: false);
   }
 
+  /// Only marked, aged, unlocked local import stages qualify for deletion.
+  /// The accepted installed voice directories never contain stage metadata.
+  Future<void> _cleanInterruptedManualImports() async {
+    if (!mounted || _loading || _busyId != null) return;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Clean interrupted local voice imports?'),
+        content: const Text(
+          'Only EReader-marked incomplete manual model imports older '
+          'than 24 hours will be checked. Active imports, installed '
+          'models, unmarked legacy folders, your books and source voice '
+          'folders remain untouched. Nothing is downloaded.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Clean old imports')),
+        ],
+      ),
+    );
+    if (!mounted || approved != true || _busyId != null) return;
+    setState(() {
+      _busyId = 'manual-import-staging-cleanup';
+      _message = 'Checking interrupted model imports...';
+    });
+    try {
+      final cleaned = await ManualVoiceInstallStaging.recoverAbandoned(
+          await _directory());
+      if (mounted) {
+        setState(() => _message = cleaned == 0
+            ? 'No eligible interrupted local imports were removed.'
+            : 'Removed $cleaned interrupted local model import(s).');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _message =
+            'Unable to clean interrupted model imports. '
+            'Installed voices and source folders were not modified.');
+      }
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
   /// Explicit, age-limited cleanup. No user document folders, installed
   /// model packs, active downloads or unmarked legacy files are touched.
   Future<void> _cleanInterruptedPaolaDownloads() async {
@@ -517,6 +564,19 @@ class _OfflineVoiceManagerScreenState
             'document-provider adapter; existing voices can still '
             'be inspected and removed here.',
           ),
+        if (Platform.isWindows || widget.modelsDirectory != null) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            key: const ValueKey('clean-manual-model-imports'),
+            onPressed: _loading || _busyId != null
+                ? null : _cleanInterruptedManualImports,
+            icon: const Icon(Icons.cleaning_services_outlined),
+            label: const Text('Clean interrupted local model imports'),
+          ),
+          const Text('Only marked import sessions older than 24 hours; '
+              'installed voices, source folders and unmarked files are '
+              'never included.'),
+        ],
         if (_importPreview != null) ...[
           const SizedBox(height: 12),
           Card(
