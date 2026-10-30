@@ -193,6 +193,13 @@ class _OfflineVoiceManagerScreenState
       if (mounted) {
         setState(() {
           _packs = result;
+          // A verified sample cannot be compared after its pack was
+          // removed or replaced by an invalid model.
+          final validIds = result
+              .where((entry) => entry.ready)
+              .map((entry) => entry.id).toSet();
+          _previewMeasurements.removeWhere(
+              (id, _) => !validIds.contains(id));
           if (_languageFilter != null &&
               !installedOfflineVoiceLanguages(result)
                   .contains(_languageFilter)) {
@@ -224,6 +231,9 @@ class _OfflineVoiceManagerScreenState
       setState(() {
         _packs = mergeOfflineVoicePackInspection(
             _packs, packId, inspected);
+        if (inspected == null || !inspected.ready) {
+          _previewMeasurements.remove(packId);
+        }
         if (_languageFilter != null &&
             !installedOfflineVoiceLanguages(_packs)
                 .contains(_languageFilter)) {
