@@ -1,9 +1,100 @@
 import 'dart:io';
 
 import 'package:ereader/data/piper_paola_installer.dart';
+import 'package:ereader/data/curated_voice_staging.dart';
+import 'package:path/path.dart' as p;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('Curated Paola crash-safe temporary recovery', () {
+    late Directory root;
+    late Directory staging;
+
+    setUp(() async {
+      root = await Directory.systemTemp.createTemp('ereader-paola-staging-');
+      staging = await Directory(p.join(root.path, 'voice-downloads'))
+          .create();
+    });
+
+    tearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+
+    Future<Directory> candidate({bool marked = true}) async {
+      final folder = await staging.createTemp(CuratedVoiceStaging.prefix);
+      await File(p.join(folder.path,
+          CuratedVoiceStaging.leaseName)).create();
+      if (marked) {
+        await File(p.join(folder.path, CuratedVoiceStaging.markerName))
+            .writeAsString(CuratedVoiceStaging.markerContent);
+      }
+      await File(p.join(folder.path, PiperPaolaCatalog.archiveName))
+          .writeAsBytes([1, 2, 3]);
+      return folder;
+    }
+
+    test('old marked session is removed but unmarked and unrelated remain',
+        () async {
+      final abandoned = await candidate();
+      final unmarked = await candidate(marked: false);
+      final unrelated = await Directory(p.join(staging.path, 'user-files'))
+          .create();
+      await File(p.join(unrelated.path, 'keep.txt'))
+          .writeAsString('private');
+      final removed = await CuratedVoiceStaging.recoverAbandoned(
+          staging, minimumAge: Duration.zero);
+      expect(removed, 1);
+      expect(await abandoned.exists(), isFalse);
+      expect(await unmarked.exists(), isTrue);
+      expect(await File(p.join(unrelated.path, 'keep.txt'))
+          .readAsString(), 'private');
+    });
+
+    test('a live marked session and freshly created stage are not removed',
+        () async {
+      final live = await CuratedVoiceStaging.create(staging);
+      final crashed = await candidate();
+      expect(await CuratedVoiceStaging.recoverAbandoned(
+          staging, minimumAge: Duration.zero), 1);
+      expect(await live.directory.exists(), isTrue);
+      expect(await crashed.exists(), isFalse);
+      final recent = await candidate();
+      expect(await CuratedVoiceStaging.recoverAbandoned(staging), 0);
+      expect(await recent.exists(), isTrue);
+      await live.finish();
+      await live.finish();
+      expect(await live.directory.exists(), isFalse);
+    });
+
+    test('wrong marker and unexpected nested files fail closed',
+        () async {
+      final malformed = await candidate();
+      await File(p.join(malformed.path, CuratedVoiceStaging.markerName))
+          .writeAsString('UNTRUSTED');
+      final unexpected = await candidate();
+      await File(p.join(unexpected.path, 'unknown.txt'))
+          .writeAsString('leave alone');
+      final removed = await CuratedVoiceStaging.recoverAbandoned(
+          staging, minimumAge: Duration.zero);
+      expect(removed, 0);
+      expect(await malformed.exists(), isTrue);
+      expect(await unexpected.exists(), isTrue);
+    });
+
+    test('symlink in staging cannot trigger recursive deletion', () async {
+      if (Platform.isWindows) return;
+      final external = File(p.join(root.path, 'outside.txt'));
+      await external.writeAsString('safe');
+      final stage = await candidate();
+      await Link(p.join(stage.path, 'prepared'))
+          .create(external.path);
+      expect(await CuratedVoiceStaging.recoverAbandoned(
+          staging, minimumAge: Duration.zero), 0);
+      expect(await stage.exists(), isTrue);
+      expect(await external.readAsString(), 'safe');
+    });
+  });
+
   group('Curated Piper Paola model integrity', () {
     test('fixed official archive URL and digest cannot be swapped at runtime',
         () {

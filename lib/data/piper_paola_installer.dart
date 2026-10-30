@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
 import 'offline_voice_pack.dart';
+import 'curated_voice_staging.dart';
 
 /// Curated, converted sherpa-onnx VITS voice. NEVER download before
 /// explicit user consent. This pinned archive includes the pre-converted
@@ -139,8 +140,8 @@ Future<InstalledOfflineVoicePack> installCuratedPiperPaola({
       packId: PiperPaolaCatalog.id, modelsDirectory: modelsDirectory,
     );
   }
-  await stagingParent.create(recursive: true);
-  final stage = await stagingParent.createTemp('.paola-install-');
+  final staging = await CuratedVoiceStaging.create(stagingParent);
+  final stage = staging.directory;
   try {
     final archive = File(p.join(stage.path, PiperPaolaCatalog.archiveName));
     if (downloadOverride == null) {
@@ -230,10 +231,6 @@ Future<InstalledOfflineVoicePack> installCuratedPiperPaola({
         sourceDirectory: prepared,
         modelsDirectory: modelsDirectory);
   } finally {
-    try {
-      if (await stage.exists()) await stage.delete(recursive: true);
-    } on FileSystemException {
-      // A locked file is never left in user-supplied paths.
-    }
+    await staging.finish();
   }
 }

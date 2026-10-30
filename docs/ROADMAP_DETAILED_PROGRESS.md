@@ -963,3 +963,20 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   and clearing the summary after removal. Tests authored but not run
   (Flutter/Dart SDK unavailable). No builds or GitHub Actions started.
 
+### M3 — Crash-safe recovery for curated neural download staging (2026-10-30)
+
+- Paola installation now obtains an exclusive OS lease and writes an
+  exact app-private stage marker **before** downloading/extracting.
+  The normal finally block removes its own stage and releases the lease;
+  a crash leaves a marked, unlocked stage recoverable after 24 hours.
+- Added bounded, explicitly invoked recovery limited to the dedicated
+  voice-downloads parent, matching Paola-only stage names, exact marker
+  contents, age, no live in-process session and an exclusive OS lock.
+  Refuses unknown top-level entries, links and excessive extraction trees;
+  never touches installed ONNX packs, unrelated files or legacy unmarked
+  folders. No background cleanup, network calls or auto-downloads.
+- Added Dart tests for abandoned/live/recent stages, malformed markers,
+  unknown files, symlinks and idempotent completion. Flutter/Dart tests
+  are authored but not executed; native Windows locking still needs
+  on-device acceptance. No builds or GitHub Actions.
+
