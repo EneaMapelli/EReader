@@ -1049,3 +1049,15 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   durata inferiore al minuto e navigazione widget scritti, **non eseguiti**.
   Nessuna build o workflow Actions avviati. Percentuali milestone invariate
   senza prove native.
+
+### ER-033 — Cancellazione dati aggregati e precisione inattività
+
+- Comandi con dialoghi di conferma per eliminare il tempo di lettura/TTS
+  dell'intera biblioteca oppure del singolo libro; l'obiettivo e i
+  progressi di lettura rimangono invariati. Storico dei backup preesistenti
+  escluso dalla cancellazione; non si tratta di un secure erase.
+- Il timer visivo usa ora un budget d'inattività catturato all'inizio di
+  ogni campione per non registrare l'intera coda del campione dopo i tre
+  minuti dal gesto. I campioni TTS restano distinti.
+- Test unitari SQLite, limite d'inattività e dialoghi UI preparati ma non
+  eseguiti. Tracciamento di nuove sessioni ancora automatico.
