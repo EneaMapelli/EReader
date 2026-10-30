@@ -59,6 +59,17 @@ void main() {
     acc.dispose();
   });
 
+  test('resetting fractions at opt-out prevents carry-over on opt-in', () {
+    final acc = ReadingActivityAccumulator();
+    expect(acc.record(const Duration(milliseconds: 900),
+        ReadingActivityMode.tts), 0);
+    acc.clearRemainders();
+    expect(acc.record(const Duration(milliseconds: 200),
+        ReadingActivityMode.tts), 0);
+    expect(acc.record(const Duration(milliseconds: 850),
+        ReadingActivityMode.tts), 1);
+  });
+
   group('SQLite aggregate and goal', () {
     late Directory home;
     late LibraryStore store;
@@ -275,6 +286,92 @@ void main() {
       expect(store.dailyReadingGoalMinutes, 90);
     });
 
+
+    test('opt-out blocks new writes but retains history and global goal',
+        () async {
+      final now = DateTime(2026, 10, 30, 12);
+      expect(store.isReadingActivityTrackingEnabled, isTrue);
+      store.saveDailyReadingGoalMinutes(45);
+      store.recordReadingActivity(bookId, ReadingActivityMode.visual, 9,
+          at: now);
+      store.saveReadingActivityTrackingEnabled(false);
+      expect(store.isReadingActivityTrackingEnabled, isFalse);
+      store.recordReadingActivity(bookId, ReadingActivityMode.tts, 17,
+          at: now);
+      expect(store.bookReadingLifetimeTotals(bookId).visualSeconds, 9);
+      expect(store.bookReadingLifetimeTotals(bookId).ttsSeconds, 0);
+      expect(store.dailyReadingGoalMinutes, 45);
+
+      store.dispose();
+      store = LibraryStore(homeDirectory: home);
+      await store.initialize();
+      expect(store.isReadingActivityTrackingEnabled, isFalse);
+      store.recordReadingActivity(bookId, ReadingActivityMode.visual, 21,
+          at: now);
+      expect(store.bookReadingLifetimeTotals(bookId).totalSeconds, 9);
+      store.saveReadingActivityTrackingEnabled(true);
+      store.recordReadingActivity(bookId, ReadingActivityMode.tts, 5,
+          at: now);
+      expect(store.bookReadingLifetimeTotals(bookId).totalSeconds, 14);
+      expect(store.dailyReadingGoalMinutes, 45);
+    });
+
+    test('v23 settings migrate to enabled v24 without losing daily history',
+        () async {
+      final now = DateTime(2026, 10, 30, 12);
+      store.recordReadingActivity(bookId, ReadingActivityMode.visual, 17,
+          at: now);
+      store.dispose();
+      final db = sqlite3.open(p.join(home.path, 'library.sqlite'));
+      // Recreate the actual v23 column shape, rather than only downgrading
+      // the user_version marker on an already-upgraded v24 table.
+      db.execute('DROP TABLE reading_activity_settings');
+      db.execute('''
+        CREATE TABLE reading_activity_settings (
+          slot INTEGER PRIMARY KEY CHECK(slot = 1),
+          goal_minutes INTEGER NOT NULL DEFAULT 20
+            CHECK(goal_minutes BETWEEN 0 AND 240)
+        )
+      ''');
+      db.execute('''
+        INSERT INTO reading_activity_settings(slot, goal_minutes)
+        VALUES (1, 60)
+      ''');
+      db.execute('PRAGMA user_version = 23');
+      db.dispose();
+
+      store = LibraryStore(homeDirectory: home);
+      await store.initialize();
+      expect(store.isReadingActivityTrackingEnabled, isTrue);
+      expect(store.dailyReadingGoalMinutes, 60);
+      expect(store.bookReadingLifetimeTotals(bookId).visualSeconds, 17);
+      final upgraded = sqlite3.open(p.join(home.path, 'library.sqlite'));
+      expect(upgraded.select('PRAGMA user_version').single['user_version'],
+          24);
+      expect(upgraded.select('PRAGMA table_info(reading_activity_settings)')
+          .where((r) => r['name'] == 'tracking_enabled'), hasLength(1));
+      upgraded.dispose();
+    });
+
+    test('v23 marker with pre-existing flag preserves explicit opt-out',
+        () async {
+      store.saveReadingActivityTrackingEnabled(false);
+      store.saveDailyReadingGoalMinutes(90);
+      store.dispose();
+      final db = sqlite3.open(p.join(home.path, 'library.sqlite'));
+      db.execute('PRAGMA user_version = 23');
+      db.dispose();
+
+      store = LibraryStore(homeDirectory: home);
+      await store.initialize();
+      expect(store.isReadingActivityTrackingEnabled, isFalse);
+      expect(store.dailyReadingGoalMinutes, 90);
+      final check = sqlite3.open(p.join(home.path, 'library.sqlite'));
+      expect(check.select('PRAGMA table_info(reading_activity_settings)')
+          .where((r) => r['name'] == 'tracking_enabled'), hasLength(1));
+      expect(check.select('PRAGMA user_version').single['user_version'], 24);
+      check.dispose();
+    });
 
   });
 }
