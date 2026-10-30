@@ -1,4 +1,5 @@
 import 'book.dart';
+import 'library_search_query.dart';
 
 /// Library-only view controls. Filtering never changes SQLite records.
 enum LibrarySortOrder {
@@ -27,7 +28,8 @@ List<BookRecord> filterAndSortLibraryBooks(
   BookReadingStatus? readingStatus,
   Set<String>? collectionBookIds,
 }) {
-  final needle = query.trim().toLowerCase();
+  // Compile the query once per rebuild, not once per catalog item.
+  final search = LibrarySearchQuery.parse(query);
   final matching = <BookRecord>[
     for (final book in books)
       if ((collectionBookIds == null || collectionBookIds.contains(book.id)) &&
@@ -39,10 +41,7 @@ List<BookRecord> filterAndSortLibraryBooks(
                   book.lastOpenedAt != null) ||
               (activity == LibraryActivityFilter.neverOpened &&
                   book.lastOpenedAt == null)) &&
-          (needle.isEmpty ||
-              book.title.toLowerCase().contains(needle) ||
-              (book.author?.toLowerCase().contains(needle) ?? false) ||
-              (book.series?.toLowerCase().contains(needle) ?? false)))
+          search.matches(book))
         book,
   ];
   int compare(BookRecord a, BookRecord b) {
