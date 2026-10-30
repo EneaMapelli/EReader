@@ -520,6 +520,57 @@ List<OfflineVoicePackInspection> filterInstalledOfflineVoicePacks(
           pack,
     ]);
 
+/// Inspect only the model whose ID was affected by a user operation.
+/// Null means the model directory is absent. A present but invalid model
+/// remains visible as unavailable; no other large ONNX files are rehashed.
+/// This does not accept arbitrary filesystem paths or enable native inference.
+Future<OfflineVoicePackInspection?> inspectSingleOfflineVoicePack({
+  required String packId,
+  required Directory modelsDirectory,
+}) async {
+  if (!RegExp(r'^[a-z0-9][a-z0-9_-]{1,63}$').hasMatch(packId)) {
+    throw const FormatException('Invalid offline voice ID');
+  }
+  final dir = p.join(modelsDirectory.path, packId);
+  if (await FileSystemEntity.type(dir, followLinks: false) ==
+      FileSystemEntityType.notFound) return null;
+  try {
+    final verified = await loadInstalledOfflineVoicePack(
+      packId: packId, modelsDirectory: modelsDirectory,
+    );
+    final bytes = await _verifiedOfflineVoiceFileBytes(verified);
+    return OfflineVoicePackInspection(
+      id: packId, ready: true, installed: verified,
+      verifiedDiskBytes: bytes,
+    );
+  } catch (_) {
+    // Preserve a damaged or unexpectedly changed model as unavailable.
+    // A later full refresh can reverify every voice in the catalog.
+    return OfflineVoicePackInspection(id: packId, ready: false);
+  }
+}
+
+/// Merge just one inspected voice into an existing immutable catalog,
+/// preserving other verification results and stable lexicographic ordering.
+/// A null replacement means this exact voice was removed.
+List<OfflineVoicePackInspection> mergeOfflineVoicePackInspection(
+    Iterable<OfflineVoicePackInspection> current,
+    String packId,
+    OfflineVoicePackInspection? replacement) {
+  if (replacement != null && replacement.id != packId) {
+    throw ArgumentError.value(replacement.id, 'replacement.id');
+  }
+  final byId = <String, OfflineVoicePackInspection>{
+    for (final item in current)
+      if (item.id != packId) item.id: item,
+    if (replacement != null) packId: replacement,
+  };
+  final keys = byId.keys.toList()..sort();
+  return List<OfflineVoicePackInspection>.unmodifiable(
+    [for (final key in keys) byId[key]!],
+  );
+}
+
 /// Explicitly inspect locally installed voices for a future model-manager UI.
 /// This is not called during ordinary reading: SHA-256 verification of a
 /// large model is intentionally opt-in and can consume CPU/disk IO.
@@ -545,14 +596,10 @@ Future<List<OfflineVoicePackInspection>> inspectOfflineVoicePacks({
       throw const FormatException('Excessive local voice pack count');
     }
     try {
-      final verified = await loadInstalledOfflineVoicePack(
+      final inspected = await inspectSingleOfflineVoicePack(
         packId: id, modelsDirectory: modelsDirectory,
       );
-      final diskBytes = await _verifiedOfflineVoiceFileBytes(verified);
-      entries.add(OfflineVoicePackInspection(
-        id: id, ready: true, installed: verified,
-        verifiedDiskBytes: diskBytes,
-      ));
+      if (inspected != null) entries.add(inspected);
     } catch (_) {
       entries.add(OfflineVoicePackInspection(id: id, ready: false));
     }
