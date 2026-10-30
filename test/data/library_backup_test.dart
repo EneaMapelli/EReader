@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:ereader/data/library_backup.dart';
 import 'package:ereader/data/library_store.dart';
 import 'package:ereader/domain/book.dart';
+import 'package:ereader/domain/smart_book_collection.dart';
 import 'package:ereader/domain/reading_activity.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -64,6 +65,43 @@ void main() {
     }
     expect(store.isReadingActivityTrackingEnabled, isFalse);
     expect(store.bookReadingLifetimeTotals(book.id).totalSeconds, 13);
+  });
+
+  test('v25 snapshot preserves local smart definitions, add-only restore does not',
+      () async {
+    await addBook('story.txt', 'Local archive story');
+    final smart = store.createSmartCollection('Smart Stars',
+        const SmartBookCollectionRule(favoritesOnly: true));
+    final backup = await store.exportLibraryBackup(backups);
+    final sqlite = sqlite3.open(
+        p.join(backup.directory.path, 'library.sqlite'));
+    try {
+      expect(sqlite.select('PRAGMA user_version').single['user_version'], 25);
+      final rules = sqlite.select('''
+        SELECT id, name, rule_json FROM smart_book_collections
+        WHERE id = ?
+      ''', [smart.id]);
+      expect(rules, hasLength(1));
+      expect(rules.single['name'], 'Smart Stars');
+      expect(rules.single['rule_json'], contains('favoritesOnly'));
+    } finally {
+      sqlite.dispose();
+    }
+    final destination = LibraryStore(
+        homeDirectory: Directory(p.join(root.path, 'restore-dest')));
+    try {
+      await destination.initialize();
+      final preview = await destination.previewLibraryRestore(backup.directory);
+      expect(preview.availableToImport, 1);
+      final restored = await destination.restoreLibraryBackup(backup.directory);
+      expect(restored.added, 1);
+      expect(destination.books, hasLength(1));
+      expect(destination.smartCollections, isEmpty,
+          reason: 'Portable add-only restore does not implicitly install rules');
+    } finally {
+      destination.dispose();
+    }
+    expect(store.smartCollections.single.id, smart.id);
   });
 
   test('backups contain hashed books, standalone SQLite and metadata',
