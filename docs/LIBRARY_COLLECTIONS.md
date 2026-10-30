@@ -86,3 +86,44 @@ native OS secret vault is restored.
 **No tests or Windows/Android builds were run**, and no GitHub
 Actions were dispatched. Native acceptance still requires
 end-to-end checks on a physical Android device and Windows.
+
+## Dynamic smart collections (SQLite v25; 2026-10-30)
+
+The Collections manager now also offers a **New smart collection** action.
+A smart collection is **a saved local filter**, not an additional book list.
+Its membership is computed from the live SQLite book catalog each time it is
+displayed, so metadata edits, favorite toggles, shelf changes, imports,
+opening/never-opened state and book deletions take effect immediately.
+
+Criteria can be combined with AND: bounded advanced metadata search
+(`title:`, `author:`, `series:`, quotes), file format, Favorites only,
+manual Reading/To read/Finished shelf, and Opened/Never opened activity.
+At least one criterion is required; invalid search syntax is rejected in
+the editor instead of silently selecting all books.
+
+- Smart categories have a distinctive icon in the **Collection** dropdown.
+  The selection composes with the library's temporary search and filters.
+- Create/edit/delete smart rules from the Collections manager. Delete
+  requires confirmation and never removes or moves any books.
+- The normal **Book collections** checklist is exclusively for manual
+  memberships; smart membership cannot be individually checked or unchecked.
+- Manual and smart categories use separate tables and identifiers. New
+  collection names cannot conflict across those two types.
+- SQLite v25 stores `smart_book_collections` with ID, name, creation time
+  and a validated, bounded JSON rule. It creates **no per-book membership
+  rows, no FTS index, no network request or text extraction**.
+- Existing manual collections and their assignments remain unchanged when
+  v24 libraries migrate. Future catalog changes automatically affect smart
+  membership; reading and speech checkpoints are not involved.
+
+**Backup behavior:** The explicitly created private SQLite snapshot contains
+the v25 smart rules, but the current portable add-only restore imports books
+and manually assigned collections **only**. It does **not** activate smart
+rules in a destination library or silently overwrite local filters. Backup
+inspection accepts schemas v17–v25. A later portable manifest version
+should introduce a separate validated, user-confirmed smart-rules restore.
+
+Source and widget regression tests were added for v24→v25 migration,
+persistence, rename, live membership recalculation, rule validation and
+confirmed deletion. They were **not executed**; no Windows/Android build or
+GitHub Actions run was started.
