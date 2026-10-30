@@ -102,6 +102,25 @@ void main() {
     expect(store.books, hasLength(1));
   });
 
+  testWidgets('manual changed-book check updates the pending count',
+      (tester) async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    final managed = File(store.getBook(firstId)!.localPath);
+    await managed.writeAsString('New book text about a golden owl.');
+    await openSheet(tester);
+    expect(store.fullTextPendingBooks, 0);
+    await tester.tap(find.byKey(const ValueKey('fts-check-changes')));
+    await tester.pumpAndSettle();
+    expect(store.fullTextPendingBooks, 1);
+    expect(store.searchIndexedBookContents('dragon'), isEmpty);
+    expect(find.textContaining('1 changed books queued'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('fts-index-next')));
+    await tester.pumpAndSettle();
+    expect(store.searchIndexedBookContents('owl'), hasLength(1));
+    expect(store.fullTextPendingBooks, 0);
+  });
+
   testWidgets('reset needs confirmation and permits reindex',
       (tester) async {
     store.setFullTextIndexEnabled(true);
