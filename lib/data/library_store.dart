@@ -185,7 +185,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 23) {
+      if (version > 24) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -660,6 +660,22 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           db.execute('PRAGMA user_version = 23');
         });
       }
+      // v24: user-controlled, persistent opt-out. Existing installations
+      // preserve the previous enabled behavior until deliberately disabled.
+      // A partially downgraded marker must not attempt ADD COLUMN twice.
+      if (version < 24) {
+        _transaction(db, () {
+          if (!_hasSqliteColumn(
+              db, 'reading_activity_settings', 'tracking_enabled')) {
+            db.execute('''
+              ALTER TABLE reading_activity_settings
+              ADD COLUMN tracking_enabled INTEGER NOT NULL DEFAULT 1
+                CHECK(tracking_enabled IN (0, 1))
+            ''');
+          }
+          db.execute('PRAGMA user_version = 24');
+        });
+      }
       await _migrateLegacyJson(db, support);
       // A marker is stale only on a new process startup. Consume exactly
       // once; reopening a book must NEVER cause the app to auto-synthesize.
@@ -969,6 +985,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     if (getBook(bookId) == null) {
       throw StateError('Cannot record activity for an unknown book');
     }
+    // Enforcement belongs at the storage boundary, not just the toggle
+    // widget: late Timer callbacks cannot silently override an opt-out.
+    if (!isReadingActivityTrackingEnabled) return;
     final day = readingLocalDate(at ?? DateTime.now());
     _database.execute('''
       INSERT INTO reading_activity_daily(book_id, local_day, mode, seconds)
@@ -998,6 +1017,21 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     return _database.select(
       'SELECT changes() AS affected',
     ).single['affected'] as int;
+  }
+
+  /// Local-only toggle. Disabling keeps all existing aggregate rows and
+  /// the user's goal intact; re-enabling starts recording new time only.
+  bool get isReadingActivityTrackingEnabled =>
+      (_database.select('''
+        SELECT tracking_enabled FROM reading_activity_settings
+        WHERE slot = 1
+      ''').single['tracking_enabled'] as int) == 1;
+
+  void saveReadingActivityTrackingEnabled(bool enabled) {
+    _database.execute('''
+      UPDATE reading_activity_settings
+      SET tracking_enabled = ? WHERE slot = 1
+    ''', [enabled ? 1 : 0]);
   }
 
   int get dailyReadingGoalMinutes =>
