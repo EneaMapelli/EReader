@@ -153,6 +153,95 @@ void main() {
     expect(offlinePackLanguage(entries[1]), isNull);
   });
 
+  test('single-pack reconciliation preserves other voices and sorting',
+      () async {
+    final first = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input,
+      modelsDirectory: installed,
+    );
+    final otherManifest = OfflineVoicePackManifest(
+      id: 'another-voice',
+      displayName: 'Second narrator', locale: 'it-IT',
+      licenseId: 'MIT',
+      modelSha256: manifest.modelSha256,
+      tokensSha256: manifest.tokensSha256,
+    );
+    final original = await inspectOfflineVoicePacks(
+        modelsDirectory: installed);
+    expect(original.map((entry) => entry.id),
+        ['piper-en-test']);
+
+    await installOfflineVoicePack(
+      manifest: otherManifest,
+      sourceDirectory: input, modelsDirectory: installed,
+    );
+    final changed = await inspectSingleOfflineVoicePack(
+      packId: 'another-voice', modelsDirectory: installed,
+    );
+    expect(changed?.ready, isTrue);
+    expect(changed?.verifiedDiskBytes, greaterThan(0));
+    final merged = mergeOfflineVoicePackInspection(
+        original, 'another-voice', changed);
+    expect(merged.map((entry) => entry.id),
+        ['another-voice', manifest.id]);
+    expect(identical(merged.last, original.single), isTrue,
+        reason: 'Unchanged models retain their prior verification result');
+    expect(original, hasLength(1),
+        reason: 'Merge cannot modify previous snapshots');
+    expect(verifiedOfflineVoiceTotalBytes(merged),
+        original.single.verifiedDiskBytes! + changed!.verifiedDiskBytes!);
+    expect(() => merged.clear(), throwsUnsupportedError);
+
+    final removed = await removeInstalledOfflineVoicePack(
+      packId: otherManifest.id, modelsDirectory: installed,
+    );
+    expect(removed, isTrue);
+    final missing = await inspectSingleOfflineVoicePack(
+      packId: otherManifest.id, modelsDirectory: installed,
+    );
+    expect(missing, isNull);
+    final afterRemoval = mergeOfflineVoicePackInspection(
+        merged, otherManifest.id, missing);
+    expect(afterRemoval.map((entry) => entry.id), [manifest.id]);
+    expect(identical(afterRemoval.single, original.single), isTrue);
+    expect(await File(first.modelPath).exists(), isTrue);
+  });
+
+  test('targeted verification demotes changed pack and preserves warnings',
+      () async {
+    final voice = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: input,
+      modelsDirectory: installed,
+    );
+    final legacy = await Directory(
+        p.join(installed.path, 'broken-voice')).create();
+    await File(p.join(legacy.path, 'garbage.txt'))
+        .writeAsBytes([1, 2]);
+    final baseline = await inspectOfflineVoicePacks(
+        modelsDirectory: installed);
+    expect(baseline.map((e) => e.ready), [false, true]);
+    await File(voice.tokensPath).writeAsBytes([0]);
+
+    final damaged = await inspectSingleOfflineVoicePack(
+      packId: manifest.id, modelsDirectory: installed,
+    );
+    expect(damaged?.ready, isFalse);
+    expect(damaged?.installed, isNull);
+    expect(damaged?.verifiedDiskBytes, isNull);
+    final snapshot = mergeOfflineVoicePackInspection(
+        baseline, manifest.id, damaged);
+    expect(snapshot.map((e) => e.ready), [false, false]);
+    expect(identical(snapshot.first, baseline.first), isTrue);
+    expect(verifiedOfflineVoiceTotalBytes(snapshot), 0);
+    await expectLater(inspectSingleOfflineVoicePack(
+      packId: '../wrong', modelsDirectory: installed,
+    ), throwsFormatException);
+    expect(() => mergeOfflineVoicePackInspection(
+        baseline, manifest.id,
+        const OfflineVoicePackInspection(id: 'wrong', ready: false)),
+        throwsArgumentError);
+  });
+
   test('verified catalog measures only manifest-approved model files',
       () async {
     final pack = await installOfflineVoicePack(
