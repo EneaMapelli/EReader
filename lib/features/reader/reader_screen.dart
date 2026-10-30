@@ -2124,6 +2124,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                             _controls(player),
                           ],
                         ),
+      ),
+    ),
     );
   }
 
