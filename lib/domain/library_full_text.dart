@@ -57,15 +57,11 @@ class LibraryFullTextHit {
     required this.bookId,
     required this.title,
     required this.excerpt,
-    this.jump,
   });
 
   final String bookId;
   final String title;
   final String excerpt;
-  /// Null when the FTS tokenizer matched but a source-exact UTF-16
-  /// destination could not be verified in the indexed text.
-  final LibraryFullTextJump? jump;
 }
 
 class LibraryFullTextIndexReport {
