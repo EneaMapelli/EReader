@@ -6,8 +6,8 @@ import '../../domain/library_reading_statistics.dart';
 import '../../domain/reading_activity.dart';
 import 'book_reading_activity_sheet.dart';
 
-/// Snapshot of local metadata and explicitly recorded activity. Nothing in
-/// this panel sends analytics, changes reading anchors or starts narration.
+/// Local catalog and activity dashboard. Privacy controls and goal edits
+/// change only activity settings/history; never narration or reading anchors.
 class LibraryReadingStatisticsSheet extends StatefulWidget {
   const LibraryReadingStatisticsSheet({
     super.key,
@@ -126,7 +126,24 @@ class _LibraryReadingStatisticsSheetState
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+            SwitchListTile.adaptive(
+              key: const ValueKey('stats-tracking-enabled'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Track reading and TTS time'),
+              subtitle: Text(widget.store.isReadingActivityTrackingEnabled
+                  ? 'On: locally record future reading and TTS time.'
+                  : 'Off: no new activity time is recorded. '
+                    'Existing history and your daily goal are preserved.'),
+              value: widget.store.isReadingActivityTrackingEnabled,
+              onChanged: (enabled) {
+                // Store-level enforcement also blocks outstanding callbacks
+                // from any reader opened before the preference changed.
+                widget.store.saveReadingActivityTrackingEnabled(enabled);
+                setState(() {});
+              },
+            ),
+            const SizedBox(height: 16),
             Text('Local reading and listening — last 7 days',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
@@ -261,7 +278,8 @@ class _LibraryReadingStatisticsSheetState
               'and stops after three idle minutes; TTS tracks active playback '
               'intent, not verified audible speech. Suspended periods may be '
               'undercounted. Reading and Finished are manual shelves, and '
-              'opening timestamps are not session counts. Data stays local.',
+              'opening timestamps are not session counts. Data stays local. '
+              'You can stop future tracking without erasing past totals.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: color.onSurfaceVariant),
             ),
