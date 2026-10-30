@@ -418,7 +418,10 @@ class _ReaderScreenState extends State<ReaderScreen>
           ? _lastFollowedIndex : null;
       recoveryBinding.attach(player);
       player.addListener(_onPlaybackChanged);
-      final remoteChapterTargets = widget.book.format == BookFormat.epub
+      // Windows has no AudioService media handler: do not materialize
+      // a chapter-index map for books opened only in the desktop reader.
+      final remoteChapterTargets = widget.mediaHandler != null &&
+              widget.book.format == BookFormat.epub
           ? buildEpubMediaChapterTargets(
               chapters, chunks.length, document.text.length)
           : const <int, EpubMediaChapterTarget>{};
