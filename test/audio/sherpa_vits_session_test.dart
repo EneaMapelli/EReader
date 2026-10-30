@@ -33,7 +33,7 @@ void _timedReusableWorker((SendPort, VitsSessionModel) init) async {
     final request = message as List;
     count++;
     await File(request[2] as String).writeAsString('timed-request=$count');
-    init.$1.send([0, request[0]]);
+    init.$1.send([0, request[0], 7]);
   }
 }
 
@@ -135,6 +135,7 @@ void main() {
     await session.synthesize(text: 'a', wavPath: wav, speed: 1);
     expect(session.workerReadyMs, greaterThanOrEqualTo(0));
     expect(session.nativeModelInitializationMs, 23);
+    expect(session.lastNativeGenerationMs, 7);
     expect(await File(wav).readAsString(), 'timed-request=1');
     final firstWorkerReadyMs = session.workerReadyMs;
     await session.synthesize(text: 'b', wavPath: wav, speed: 1);
@@ -142,6 +143,7 @@ void main() {
     expect(session.nativeModelInitializationMs, 23,
         reason: 'Reuse cannot reinitialize or double-count the model');
     expect(session.workerReadyMs, firstWorkerReadyMs);
+    expect(session.lastNativeGenerationMs, 7);
     session.cancel();
 
     final legacy = VitsPersistentSession.withEntrypoint(
@@ -151,6 +153,8 @@ void main() {
     expect(legacy.workerReadyMs, greaterThanOrEqualTo(0));
     expect(legacy.nativeModelInitializationMs, isNull,
         reason: 'Old worker handshake must not invent native timing');
+    expect(legacy.lastNativeGenerationMs, isNull,
+        reason: 'Older two-field responses cannot invent WAV timing');
     legacy.cancel();
   });
 
@@ -326,6 +330,7 @@ void main() {
     final cold = engine.offlineVoiceStatistics;
     expect(cold.modelLoads, 1);
     expect(cold.lastNativeModelInitializationMs, 23);
+    expect(cold.lastNativeGenerationMs, 7);
     expect(cold.lastWorkerReadyMs, greaterThanOrEqualTo(0));
     expect(cold.syntheses, 1);
 
@@ -335,6 +340,7 @@ void main() {
     expect(warm.modelLoads, 1);
     expect(warm.syntheses, 2);
     expect(warm.lastNativeModelInitializationMs, 23);
+    expect(warm.lastNativeGenerationMs, 7);
     expect(warm.lastWorkerReadyMs, cold.lastWorkerReadyMs);
 
     await engine.stop();
