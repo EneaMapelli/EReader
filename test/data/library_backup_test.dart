@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:ereader/data/library_backup.dart';
 import 'package:ereader/data/library_store.dart';
 import 'package:ereader/domain/book.dart';
+import 'package:ereader/domain/reading_activity.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
@@ -33,6 +34,37 @@ void main() {
     await source.writeAsString(text);
     return store.importFile(source.path);
   }
+
+  test('v24 private SQLite export includes opted-out state and old totals',
+      () async {
+    final book = await addBook('tracking.txt', 'Original private story.');
+    store.recordReadingActivity(book.id, ReadingActivityMode.visual, 13);
+    store.saveDailyReadingGoalMinutes(45);
+    store.saveReadingActivityTrackingEnabled(false);
+    store.recordReadingActivity(book.id, ReadingActivityMode.tts, 20);
+
+    final backup = await store.exportLibraryBackup(backups);
+    final snapshot = sqlite3.open(
+        p.join(backup.directory.path, 'library.sqlite'));
+    try {
+      expect(snapshot.select('PRAGMA user_version').single['user_version'], 24);
+      final settings = snapshot.select(
+          'SELECT tracking_enabled, goal_minutes '
+          'FROM reading_activity_settings WHERE slot = 1').single;
+      expect(settings['tracking_enabled'], 0);
+      expect(settings['goal_minutes'], 45);
+      final activity = snapshot.select(
+          'SELECT mode, seconds FROM reading_activity_daily '
+          'WHERE book_id = ?', [book.id]);
+      expect(activity, hasLength(1));
+      expect(activity.single['mode'], 'visual');
+      expect(activity.single['seconds'], 13);
+    } finally {
+      snapshot.dispose();
+    }
+    expect(store.isReadingActivityTrackingEnabled, isFalse);
+    expect(store.bookReadingLifetimeTotals(book.id).totalSeconds, 13);
+  });
 
   test('backups contain hashed books, standalone SQLite and metadata',
       () async {
