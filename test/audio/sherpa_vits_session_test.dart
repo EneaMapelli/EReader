@@ -191,6 +191,27 @@ void main() {
         throwsA(isA<VitsWaveCancelled>()));
   });
 
+  test('unused prepared model retires on unchanged idle timeout',
+      () async {
+    final timers = <_ManualVitsTimer>[];
+    final session = VitsPersistentSession.withEntrypoint(
+      model, _timedReusableWorker,
+      timerScheduler: (delay, action) {
+        final timer = _ManualVitsTimer(delay, action);
+        timers.add(timer);
+        return timer;
+      },
+    );
+    await session.prepare();
+    expect(await root.list().toList(), isEmpty);
+    final idle = timers.lastWhere((timer) =>
+        timer.delay == const Duration(minutes: 3) && timer.isActive);
+    idle.fire();
+    expect(session.isClosed, isTrue);
+    expect(await root.list().toList(), isEmpty,
+        reason: 'An idle warm model never generates audio or WAV files');
+  });
+
   test('model initialization timeout also rejects explicit warmup',
       () async {
     final timers = <_ManualVitsTimer>[];
@@ -442,6 +463,34 @@ void main() {
     await engine.stop();
     await engine.prewarmModel();
     expect(created, 2, reason: 'Stop must retire the old native model');
+    await engine.dispose();
+  });
+
+  test('Stop cancels an engine model-only warmup in progress',
+      () async {
+    final pack = InstalledOfflineVoicePack(
+      manifest: OfflineVoicePackManifest(
+        id: 'mock-pack', displayName: 'Mock', locale: 'en-US',
+        licenseId: 'MIT', modelSha256: 'a' * 64,
+        tokensSha256: 'b' * 64,
+      ),
+      modelPath: p.join(root.path, 'voice.onnx'),
+      tokensPath: p.join(root.path, 'tokens.txt'),
+    );
+    final engine = SherpaVitsSpeechEngine(
+      pack: pack, output: _StringWaveOutput(),
+      temporaryDirectory: () async => root,
+      sessionFactory: (cfg) =>
+          VitsPersistentSession.withEntrypoint(cfg, _neverReadyWorker),
+    );
+    await engine.chooseVoice(
+        const SpeechVoice(name: 'mock-pack', locale: 'en-US'));
+    final pending = expectLater(engine.prewarmModel(),
+        throwsA(isA<VitsWaveCancelled>()));
+    await engine.stop();
+    await pending;
+    expect(engine.offlineVoiceStatistics.syntheses, 0);
+    expect(await root.list().toList(), isEmpty);
     await engine.dispose();
   });
 
