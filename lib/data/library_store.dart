@@ -1547,7 +1547,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       WHERE f.book_id = ? LIMIT 1
     ''', [bookId]);
     if (rows.isEmpty) return null;
-    return firstExactIndexedWord(rows.single['body'] as String, tokens.first);
+    return bestIndexedPassage(rows.single['body'] as String, tokens);
   }
 
   /// Collections are book classifications, never book directories.
