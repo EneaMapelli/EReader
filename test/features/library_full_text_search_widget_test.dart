@@ -133,6 +133,42 @@ void main() {
         findsOneWidget);
   });
 
+  testWidgets('Exact phrase chip narrows results and opens phrase passage',
+      (tester) async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    BookRecord? opened;
+    LibraryFullTextJump? chosen;
+    await openSheet(tester, onOpenBook: (book, jump) {
+      opened = book;
+      chosen = jump;
+    });
+
+    await tester.enterText(find.byKey(const ValueKey('fts-query')),
+        'dragon green');
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('fts-hit-$firstId')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('fts-mode-phrase')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('fts-hit-$firstId')), findsNothing);
+    expect(find.text('No matches in indexed books.'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const ValueKey('fts-query')),
+        'green dragon');
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('fts-hit-$firstId')), findsOneWidget);
+    await tester.tap(find.byKey(ValueKey('fts-passages-$firstId')));
+    await tester.pumpAndSettle();
+    expect(find.text('Exact phrase 1'), findsOneWidget);
+    await tester.tap(find.byKey(ValueKey('fts-passage-$firstId-0')));
+    await tester.pumpAndSettle();
+    expect(opened?.id, firstId);
+    expect(chosen?.sourceOffset, 2);
+    expect(chosen?.expectedText, 'green');
+    expect(store.getBook(firstId)!.progressOffset, 0);
+  });
+
   testWidgets('disable confirmation cancels then deletes private index',
       (tester) async {
     store.setFullTextIndexEnabled(true);
