@@ -1295,6 +1295,20 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     ''').single['n'] as int;
   }
 
+  void _ensureFullTextSourceState() {
+    // Safe when called by an explicit FTS operation against an earlier v26
+    // install that predates change detection. Never creates text or FTS5
+    // data behind the user's back.
+    _database.execute('''
+      CREATE TABLE IF NOT EXISTS library_fulltext_source_state (
+        book_id TEXT PRIMARY KEY NOT NULL
+          REFERENCES books(id) ON DELETE CASCADE,
+        source_size INTEGER NOT NULL,
+        source_modified_us INTEGER NOT NULL
+      )
+    ''');
+  }
+
   Future<({int size, int modifiedUs})> _fullTextSourceStamp(
       String path) async {
     try {
@@ -1322,6 +1336,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     if (!isFullTextIndexEnabled || _fullTextIndexing) {
       throw StateError('Enable indexing and finish the current operation');
     }
+    _ensureFullTextSourceState();
     _fullTextIndexing = true;
     var changed = 0;
     try {
@@ -1376,6 +1391,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     if (!isFullTextIndexEnabled || _fullTextIndexing) {
       throw StateError('Enable full-text indexing and finish the current batch');
     }
+    _ensureFullTextSourceState();
     _fullTextIndexing = true;
     var processed = 0;
     var indexed = 0;
