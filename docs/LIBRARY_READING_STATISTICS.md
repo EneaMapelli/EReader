@@ -41,3 +41,11 @@ change the meaning of the original manual shelf and last-opened counts above.
 It is a bounded heuristic (recent gestures for visual reading; active
 player intent for TTS), not biometric attention detection or exact acoustic
 duration. Tests are authored but not run.
+
+## Per-book reading activity breakdown
+
+A separate v23 activity tracker also drives the list **Most active books
+this week**, from which the user can open a book-specific summary of
+historical recorded visual and TTS time plus the daily breakdown. It is
+covered in [READING_ACTIVITY_TRACKING.md](READING_ACTIVITY_TRACKING.md).
+This is separate from the manual completion and last-opened counts.
