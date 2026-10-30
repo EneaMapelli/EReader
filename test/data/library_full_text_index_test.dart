@@ -84,6 +84,36 @@ void main() {
     expect(store.books, hasLength(2));
   });
 
+  test('full-text hit picks nearest multiword passage on selected book',
+      () async {
+    final path = store.getBook(alpha)!.localPath;
+    final source = 'dragon in the distant opening. ' +
+        ('unrelated ' * 80) +
+        'A blue dragon guards the tower.';
+    await File(path).writeAsString(source);
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+
+    // FTS itself does not load entire sources for each row/snippet.
+    final hits = store.searchIndexedBookContents('dragon blue');
+    expect(hits.map((hit) => hit.bookId), contains(alpha));
+    final jump = store.fullTextJumpForHit(alpha, 'dragon blue');
+    expect(jump, isNotNull);
+    expect(jump!.sourceOffset, source.lastIndexOf('blue'));
+    expect(jump.expectedText, 'blue');
+    expect(jump.validatedOffset(source), jump.sourceOffset);
+    expect(store.getBook(alpha)!.progressOffset, 0);
+
+    // A changed phrase with the same starting word is still stale.
+    final changed = source.replaceFirst(
+        'blue dragon guards', 'blue dracon guards');
+    expect(jump.validatedOffset(changed), isNull);
+    // A fresh manual change scan will purge the old FTS results.
+    await File(path).writeAsString(changed);
+    expect(await store.refreshChangedFullTextBooks(), 1);
+    expect(store.searchIndexedBookContents('blue dragon'), isEmpty);
+  });
+
   test('opt-out drops private FTS5 table, persists after restart', () async {
     store.setFullTextIndexEnabled(true);
     await store.indexNextFullTextBatch();
