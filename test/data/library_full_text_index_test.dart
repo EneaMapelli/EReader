@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:ereader/data/book_decoder.dart';
@@ -12,6 +13,18 @@ class _MissingTextDecoder implements DocumentDecoder {
   @override
   Future<DocumentContent> read(BookRecord record) async {
     throw const FormatException('No selectable text');
+  }
+}
+
+/// Hold one decoder read in flight while explicit index consent changes.
+class _PausedDecoder implements DocumentDecoder {
+  final started = Completer<void>();
+  final released = Completer<DocumentContent>();
+
+  @override
+  Future<DocumentContent> read(BookRecord record) {
+    started.complete();
+    return released.future;
   }
 }
 
@@ -264,6 +277,79 @@ void main() {
     store.resetFullTextIndex();
     expect(store.searchIndexedBookContents('dragon'), isEmpty);
     expect(store.fullTextPendingBooks, 2);
+  });
+
+  test('disable and immediate re-enable cannot revive an old FTS decoder',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    final paused = _PausedDecoder();
+    final running = store.indexNextFullTextBatch(decoder: paused);
+    await paused.started.future;
+
+    store.setFullTextIndexEnabled(false);
+    expect(store.searchIndexedBookContents('dragon'), isEmpty);
+    store.setFullTextIndexEnabled(true);
+    // A new consent session may not be indexed until the old decoder ends.
+    await expectLater(store.indexNextFullTextBatch(), throwsStateError);
+    paused.released.complete(const DocumentContent(
+        text: 'Private stale transcript of a dragon.', title: 'Old'));
+    final report = await running;
+
+    expect(report.cancelled, isTrue);
+    expect(report.processed, 0);
+    expect(report.indexed, 0);
+    expect(store.fullTextIndexedBooks, 0);
+    expect(store.fullTextPendingBooks, 2);
+    expect(store.searchIndexedBookContents('stale'), isEmpty);
+    expect((await store.indexNextFullTextBatch()).indexed, 2);
+    expect(store.searchIndexedBookContents('dragon'), hasLength(2));
+    expect(store.searchIndexedBookContents('stale'), isEmpty);
+  });
+
+  test('disabling during a decoder read aborts without restoring consent',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    final paused = _PausedDecoder();
+    final running = store.indexNextFullTextBatch(decoder: paused);
+    await paused.started.future;
+
+    store.setFullTextIndexEnabled(false);
+    paused.released.complete(const DocumentContent(
+        text: 'No trace should be indexed.', title: 'Old'));
+    final result = await running;
+    expect(result.cancelled, isTrue);
+    expect(result.processed, 0);
+    expect(result.remaining, 0);
+    expect(store.isFullTextIndexEnabled, isFalse);
+    expect(store.searchIndexedBookContents('trace'), isEmpty);
+    final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
+    expect(db.select(
+      "SELECT name FROM sqlite_master WHERE name = 'library_fulltext_fts'"),
+      isEmpty);
+    db.dispose();
+  });
+
+  test('metadata refresh stops on a rapid consent disable and re-enable',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    var checked = 0;
+    final changed = await store.refreshChangedFullTextBooks(
+      onProgress: (done, total) {
+        checked = done;
+        expect(total, 2);
+        if (done == 1) {
+          store.setFullTextIndexEnabled(false);
+          store.setFullTextIndexEnabled(true);
+        }
+      },
+    );
+    expect(changed, 0);
+    expect(checked, 1);
+    expect(store.isFullTextIndexEnabled, isTrue);
+    expect(store.fullTextIndexedBooks, 0);
+    expect(store.fullTextPendingBooks, 2);
+    expect((await store.indexNextFullTextBatch()).indexed, 2);
   });
 
   test('cancel between books leaves a resumable batch, no duplicate text',
