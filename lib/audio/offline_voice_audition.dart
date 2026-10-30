@@ -66,6 +66,34 @@ class OfflineVoicePreviewReport {
       );
 }
 
+/// Timing scopes are explicit so audio playback is never mistaken
+/// for native synthesis. Compare only the same fixed demo phrase.
+String formatOfflineVoicePreviewReport(OfflineVoicePreviewReport report) {
+  final status = switch (report.outcome) {
+    OfflineVoicePreviewOutcome.completed => 'Completed',
+    OfflineVoicePreviewOutcome.cancelled => 'Stopped',
+    OfflineVoicePreviewOutcome.failed => 'Failed',
+  };
+  final fields = <String>[
+    '$status preview',
+    if (report.verificationMs != null)
+      'SHA verification: ${report.verificationMs} ms',
+    if (report.voiceSetupMs != null)
+      'Voice selection: ${report.voiceSetupMs} ms',
+    if (report.nativeSynthesisMs != null)
+      'Native synthesis: ${report.nativeSynthesisMs} ms',
+    if (report.decoderHandoffMs != null)
+      'WAV decoder handoff: ${report.decoderHandoffMs} ms',
+    if (report.speechWallMs != null)
+      'Speech incl. playback: ${report.speechWallMs} ms',
+    if (report.stopAndDisposeMs != null)
+      'Stop + disposal: ${report.stopAndDisposeMs} ms',
+    if (report.wholeProcessRssMiB != null)
+      'Whole-app RAM snapshot: ${report.wholeProcessRssMiB} MiB',
+  ];
+  return fields.join(' · ');
+}
+
 /// Isolated, opt-in offline audition. A pack is re-verified on each Play;
 /// Stop invalidates verification BEFORE native synthesis starts.
 /// Stop and Dispose settle before another engine may start.
