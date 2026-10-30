@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:ereader/audio/offline_voice_audition.dart';
+import 'package:ereader/audio/offline_voice_diagnostics.dart';
 import 'package:ereader/audio/system_voice_audition.dart';
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/data/offline_voice_pack.dart';
@@ -67,6 +68,24 @@ class FakeOfflineEngine implements SpeechEngine {
   }
 }
 
+class DiagnosticFakeOfflineEngine extends FakeOfflineEngine
+    implements OfflineVoiceDiagnosticsProvider {
+  final OfflineVoiceDiagnostics diagnostics = OfflineVoiceDiagnostics();
+
+  @override
+  OfflineVoiceStatistics get offlineVoiceStatistics => diagnostics.snapshot;
+
+  @override
+  Future<void> speak(String text, {required String language,
+      required double rate, required double pitch}) async {
+    diagnostics.recordModelLoad();
+    diagnostics.recordSynthesis(const Duration(milliseconds: 47),
+        ahead: false, wholeProcessRssBytes: 84 * 1024 * 1024);
+    diagnostics.recordHandoff(const Duration(milliseconds: 8));
+    await super.speak(text, language: language, rate: rate, pitch: pitch);
+  }
+}
+
 InstalledOfflineVoicePack samplePack({String id = 'italian',
     String locale = 'it-IT', bool withPhonemizer = true}) =>
     InstalledOfflineVoicePack(
@@ -96,6 +115,97 @@ Future<void> until(bool Function() ready) async {
 }
 
 void main() {
+  test('preview report measures real phases and native provider counters',
+      () async {
+    final fake = DiagnosticFakeOfflineEngine();
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => fake,
+    );
+    expect(audition.lastReport, isNull);
+    await audition.play('italian');
+    final report = audition.lastReport!;
+    expect(report.packId, 'italian');
+    expect(report.outcome, OfflineVoicePreviewOutcome.completed);
+    expect(report.verificationMs, greaterThanOrEqualTo(0));
+    expect(report.voiceSetupMs, greaterThanOrEqualTo(0));
+    expect(report.speechWallMs, greaterThanOrEqualTo(0));
+    expect(report.totalMs, greaterThanOrEqualTo(report.speechWallMs!));
+    expect(report.nativeSynthesisMs, 47);
+    expect(report.decoderHandoffMs, 8);
+    expect(report.wholeProcessRssMiB, 84);
+    expect(report.stopAndDisposeMs, isNull);
+    final text = formatOfflineVoicePreviewReport(report);
+    expect(text, contains('Native synthesis: 47 ms'));
+    expect(text, contains('WAV decoder handoff: 8 ms'));
+    expect(text, contains('Whole-app RAM snapshot: 84 MiB'));
+    expect(text, isNot(contains('model.onnx')));
+    await audition.dispose();
+  });
+
+  test('Stop captures elapsed disposal and labels cancellation, not success',
+      () async {
+    final fake = DiagnosticFakeOfflineEngine()
+      ..pending = Completer<void>()
+      ..stopGate = Completer<void>();
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => fake,
+    );
+    final work = audition.play('italian');
+    await until(() => fake.speaks == 1);
+    final stopping = audition.stop();
+    await until(() => fake.stops == 1);
+    expect(audition.lastReport, isNull);
+    fake.stopGate!.complete();
+    await Future.wait([work, stopping]);
+    final report = audition.lastReport!;
+    expect(report.outcome, OfflineVoicePreviewOutcome.cancelled);
+    expect(report.stopAndDisposeMs, greaterThanOrEqualTo(0));
+    expect(report.speechWallMs, greaterThanOrEqualTo(0));
+    expect(report.nativeSynthesisMs, 47);
+    expect(formatOfflineVoicePreviewReport(report),
+        contains('Stop + disposal:'));
+    await audition.dispose();
+  });
+
+  test('cancelled SHA verification has no invented native timing',
+      () async {
+    final verification = Completer<InstalledOfflineVoicePack>();
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) => verification.future,
+      createEngine: (_) => FakeOfflineEngine(),
+    );
+    final reading = audition.play('italian');
+    await audition.stop();
+    verification.complete(samplePack());
+    await reading;
+    final report = audition.lastReport!;
+    expect(report.outcome, OfflineVoicePreviewOutcome.cancelled);
+    expect(report.verificationMs, greaterThanOrEqualTo(0));
+    expect(report.voiceSetupMs, isNull);
+    expect(report.nativeSynthesisMs, isNull);
+    expect(report.speechWallMs, isNull);
+    expect(report.stopAndDisposeMs, isNull);
+    await audition.dispose();
+  });
+
+  test('failed verification exposes no untrusted content in report',
+      () async {
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async =>
+          throw const FormatException('private file /home/user/secret'),
+      createEngine: (_) => FakeOfflineEngine(),
+    );
+    await expectLater(audition.play('italian'), throwsFormatException);
+    final report = audition.lastReport!;
+    expect(report.outcome, OfflineVoicePreviewOutcome.failed);
+    expect(report.voiceSetupMs, isNull);
+    expect(report.nativeSynthesisMs, isNull);
+    expect(formatOfflineVoicePreviewReport(report), isNot(contains('/home/')));
+    await audition.dispose();
+  });
+
   test('sample is a fixed local phrase, never sourced from an ebook', () async {
     final fake = FakeOfflineEngine();
     var loads = 0;
