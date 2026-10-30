@@ -143,6 +143,50 @@ void main() {
     expect(store.fullTextIndexedBooks, 2);
   });
 
+  test('explicit change check queues only modified books and drops stale hits',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    expect(await store.refreshChangedFullTextBooks(), 0);
+    expect(store.fullTextPendingBooks, 0);
+    final path = store.getBook(alpha)!.localPath;
+    await File(path).writeAsString('A turquoise fox wakes at sunrise.');
+    final changed = await store.refreshChangedFullTextBooks();
+    expect(changed, 1);
+    expect(store.fullTextIndexedBooks, 1);
+    expect(store.fullTextPendingBooks, 1);
+    expect(store.searchIndexedBookContents('blue'), isEmpty);
+    expect(store.searchIndexedBookContents('dragon').single.bookId, beta);
+    final reindexed = await store.indexNextFullTextBatch();
+    expect(reindexed.indexed, 1);
+    expect(reindexed.remaining, 0);
+    expect(store.searchIndexedBookContents('turquoise').single.bookId, alpha);
+    expect(store.searchIndexedBookContents('blue'), isEmpty);
+    expect(await store.refreshChangedFullTextBooks(), 0);
+  });
+
+  test('changed-file recheck can stop between books without deleting others',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    final path = store.getBook(alpha)!.localPath;
+    await File(path).writeAsString('A white fox.');
+    var examined = 0;
+    final changed = await store.refreshChangedFullTextBooks(
+      shouldCancel: () => examined > 0,
+      onProgress: (done, total) {
+        examined = done;
+        expect(total, 2);
+      },
+    );
+    expect(examined, 1);
+    expect(changed, inInclusiveRange(0, 1));
+    // A second explicit check completes any interrupted inspection.
+    await store.refreshChangedFullTextBooks();
+    expect(store.fullTextPendingBooks, 1);
+    expect((await store.indexNextFullTextBatch()).indexed, 1);
+  });
+
   test('book removal purges indexed text and keeps unrelated books',
       () async {
     store.setFullTextIndexEnabled(true);
