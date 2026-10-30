@@ -1522,7 +1522,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       FROM library_fulltext_fts f
       INNER JOIN books b ON b.id = f.book_id
       WHERE library_fulltext_fts MATCH ?
-      ORDER BY rank
+      ORDER BY rank, b.title COLLATE NOCASE, b.id
       LIMIT ?
     ''', [matchQuery, limit]).map((row) => LibraryFullTextHit(
       bookId: row['book_id'] as String,
@@ -1552,6 +1552,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     if (mode == LibraryFullTextMatchMode.exactPhrase) {
       final passages = findIndexedExactPhrases(source, tokens, limit: 1);
       return passages.isEmpty ? null : passages.first.jump;
+    }
+    if (mode == LibraryFullTextMatchMode.anyWord) {
+      return firstIndexedAnyWord(source, tokens);
     }
     return bestIndexedPassage(source, tokens);
   }
@@ -1587,7 +1590,10 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     return Isolate.run(() =>
       mode == LibraryFullTextMatchMode.exactPhrase
           ? findIndexedExactPhrases(indexedText, tokens, limit: limit)
-          : findIndexedPassages(indexedText, tokens, limit: limit),
+          : mode == LibraryFullTextMatchMode.anyWord
+              ? findIndexedAnyWordPassages(
+                  indexedText, tokens, limit: limit)
+              : findIndexedPassages(indexedText, tokens, limit: limit),
     );
   }
 
