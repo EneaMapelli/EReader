@@ -104,6 +104,52 @@ void main() {
         isTrue);
   });
 
+  testWidgets('new local model appears without replacing existing catalog',
+      (tester) async {
+    await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: source,
+      modelsDirectory: models,
+    );
+    final secondSource = await Directory(
+        p.join(root.path, 'second-source')).create();
+    await File(p.join(source.path, 'model.onnx')).copy(
+        p.join(secondSource.path, 'model.onnx'));
+    await File(p.join(source.path, 'tokens.txt')).copy(
+        p.join(secondSource.path, 'tokens.txt'));
+    final secondManifest = OfflineVoicePackManifest(
+      id: 'second-voice', displayName: 'Second voice',
+      locale: 'it-IT', licenseId: 'MIT',
+      modelSha256: manifest.modelSha256,
+      tokensSha256: manifest.tokensSha256,
+    );
+    await File(p.join(secondSource.path, 'voice-pack.json'))
+        .writeAsString(jsonEncode(secondManifest.toJson()));
+    await mountWithPicker(tester, () async => secondSource.path);
+    expect(find.text('Local test voice'), findsOneWidget);
+
+    await tester.tap(find.text('Import local voice folder'));
+    await letIoSettle(tester);
+    final check = find.byKey(
+        const ValueKey('offline-voice-license-approval'));
+    await tester.ensureVisible(check);
+    await tester.pumpAndSettle();
+    await tester.tap(check);
+    await tester.pump();
+    final install = find.widgetWithText(
+        FilledButton, 'Verify and install locally');
+    await tester.ensureVisible(install);
+    await tester.pumpAndSettle();
+    await tester.tap(install);
+    await letIoSettle(tester);
+    expect(find.text('Local test voice'), findsOneWidget);
+    expect(find.text('Second voice'), findsOneWidget);
+    expect(find.textContaining('across 2 installed'), findsOneWidget);
+    expect(find.textContaining('Local voice installed.'), findsOneWidget);
+    expect((await inspectOfflineVoicePacks(modelsDirectory: models))
+        .where((item) => item.ready).length, 2);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('changed voice checksum reports action without exposing source',
       (tester) async {
     await putVoiceManifest();
