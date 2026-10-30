@@ -1198,3 +1198,33 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   senza un futuro formato manifest e consenso esplicito.
 - Test di dominio, SQLite, interfaccia e copia di backup predisposti,
   **non eseguiti**. Nessuna build Windows/Android o GitHub Actions.
+
+### M3 — Low-latency VITS startup and Stop, safe WAV housekeeping (2026-10-30)
+
+- The first audible VITS utterance now opens its own OS-leased,
+  app-marked WAV session **before** starting the bounded orphan-WAV
+  recovery sweep. Previous synchronous recovery could stall first audio
+  while Windows or a slow disk enumerated temporary files. Recovery
+  now runs independently, still using strict ownership markers,
+  link rejection, a bounded candidate scan, in-process live-session
+  registry and exclusive OS lease. A recovery failure cannot cancel
+  otherwise valid speech. No file paths are logged or uploaded.
+- After native audio output has acknowledged **Stop**, bounded deletion
+  retries for previously locked WAVs are no longer on the UI-facing
+  Stop critical path. The existing `OfflineWavCleanup` serializer
+  and `ensureCapacity()` barrier prevent a subsequent Play from
+  bypassing the WAV cleanup capacity gate. Dispose continues to await
+  pending cleanup as needed before releasing the private session lease.
+  Native output is stopped **before** any cleanup is scheduled.
+- Added fake slow-filesystem tests to prove first playback succeeds
+  while orphan recovery is blocked, Stop can return while an old WAV
+  cleanup is blocked, next Play waits on that cleanup, and actual
+  background recovery can delete an abandoned marked session without
+  touching the current OS-locked session. The same tests assert that
+  housekeeping exceptions never block valid audio.
+- Optimization is structural, **not** a measured Windows-device
+  speedup. The benchmarks and native audio/Stop acceptance remain
+  necessary before claiming latency improvements. Flutter/Dart SDK is
+  unavailable here, so these tests were authored but not executed.
+  No Windows/Android builds or GitHub Actions were started.
+
