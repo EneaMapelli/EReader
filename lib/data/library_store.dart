@@ -1537,7 +1537,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   LibraryFullTextJump? fullTextJumpForHit(String bookId, String query) {
     if (!isFullTextIndexEnabled || query.length > 120 ||
         getBook(bookId) == null) return null;
-    final tokens = RegExp(r'[\\p{L}\\p{N}]+', unicode: true)
+    final tokens = RegExp(r'[\p{L}\p{N}]+', unicode: true)
         .allMatches(query).map((match) => match.group(0)!).toList();
     if (tokens.isEmpty || tokens.length > 8) return null;
     final rows = _database.select('''
