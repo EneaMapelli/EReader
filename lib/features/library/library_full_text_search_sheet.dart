@@ -12,7 +12,7 @@ class LibraryFullTextSearchSheet extends StatefulWidget {
   });
 
   final LibraryStore store;
-  final ValueChanged<BookRecord>? onOpenBook;
+  final void Function(BookRecord, LibraryFullTextJump?)? onOpenBook;
 
   @override
   State<LibraryFullTextSearchSheet> createState() =>
@@ -132,7 +132,7 @@ class _LibraryFullTextSearchSheetState
     final book = widget.store.getBook(hit.bookId);
     if (book == null) return;
     Navigator.of(context).pop();
-    widget.onOpenBook?.call(book);
+    widget.onOpenBook?.call(book, hit.jump);
   }
 
   @override
@@ -159,8 +159,8 @@ class _LibraryFullTextSearchSheetState
               const SizedBox(height: 6),
               const Text(
                 'Offline search in indexed TXT, EPUB and selectable PDF '
-                'text. Scanned PDF pages require OCR. Results open a book '
-                'at its saved reading position, not yet at the matching line.',
+                'text. Scanned PDF pages require OCR. Open a result at '
+                'its verified text match; changed books use the saved position.',
               ),
               SwitchListTile.adaptive(
                 key: const ValueKey('fts-enabled'),
