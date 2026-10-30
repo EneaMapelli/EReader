@@ -110,7 +110,9 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   void _onReadingGesture() {
-    if (!_readerForeground || _loading) return;
+    // An explicit opt-out also avoids capturing the last gesture in memory.
+    if (!_readerForeground || _loading ||
+        !widget.store.isReadingActivityTrackingEnabled) return;
     _readingActivityTracker?.refresh();
     _lastReadingInteraction = DateTime.now();
     _readingActivityTracker?.refresh();
