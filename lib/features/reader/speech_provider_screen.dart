@@ -57,6 +57,11 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
   final SystemVoiceAudition _systemAudition = SystemVoiceAudition();
   List<SpeechVoice> _installedSystemVoices = const [];
   SpeechVoice? _selectedSystemVoice;
+  String? _systemVoiceLanguageFilter;
+  static const _automaticSystemVoice = '__auto_system_voice__';
+  // Distinguish a deliberate draft "Automatic" from an unsaved old voice
+  // when the OS voice catalog is refreshed.
+  bool _explicitVoiceDraftChanged = false;
   bool _checkingSystem = false;
   bool _systemSamplePlaying = false;
   String? _message;
@@ -66,6 +71,10 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
     super.initState();
     _current = widget.store.getSpeechPreferences(bookId: widget.bookId);
     _providerId = _current.providerId;
+    // Initially show voices for the book (or saved narrator's language).
+    // The user can still switch to All languages or another accent.
+    _systemVoiceLanguageFilter = systemVoicePrimaryLanguage(
+        _current.voiceLocale ?? _current.language);
     if (_current.providerId == SherpaVitsSpeechEngine.providerId) {
       _selectedOfflineVoiceId = _current.modelId;
     }
@@ -95,30 +104,26 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
     try {
       final voices = await _systemAudition.listVoices();
       if (!mounted) return;
-      final savedName = _current.voiceName;
-      final savedLocale = _current.voiceLocale;
-      SpeechVoice? preferred;
-      for (final voice in voices) {
-        if (voice.name == savedName && voice.locale == savedLocale) {
-          preferred = voice;
-          break;
-        }
-      }
-      if (preferred == null) {
-        for (final voice in voices) {
-          if (voice.locale.toLowerCase().replaceAll('_', '-') ==
-              _current.language.toLowerCase().replaceAll('_', '-')) {
-            preferred = voice;
-            break;
-          }
-        }
-      }
+      final previousDraft = _selectedSystemVoice;
+      final saved = resolveExplicitSystemVoice(
+        voices,
+        voiceName: previousDraft?.name ?? _current.voiceName,
+        voiceLocale: previousDraft?.locale ?? _current.voiceLocale,
+      );
+      final languages = systemVoiceCatalogLanguages(voices);
       setState(() {
         _installedSystemVoices = voices;
-        // Do not silently choose a mismatched first-installed voice.
-        // Null means "use the device default" unless the user selects
-        // an explicit voice from the catalog.
-        _selectedSystemVoice = preferred;
+        // Refreshing must not silently choose another narrator or replace
+        // a pending reset to automatic with the old persisted voice.
+        _selectedSystemVoice = _explicitVoiceDraftChanged
+            ? resolveExplicitSystemVoice(voices,
+                voiceName: previousDraft?.name,
+                voiceLocale: previousDraft?.locale)
+            : saved;
+        if (_systemVoiceLanguageFilter != null &&
+            !languages.contains(_systemVoiceLanguageFilter)) {
+          _systemVoiceLanguageFilter = null;
+        }
       });
     } catch (_) {
       _feedback('Unable to read installed system voices.');
@@ -309,6 +314,7 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
         selected, bookId: widget.bookId,
       );
       _current = selected;
+      _explicitVoiceDraftChanged = false;
       _feedback('Provider choice saved for this book.');
     } catch (error) {
       _feedback('Unable to save provider: ' + error.toString());
@@ -463,6 +469,19 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
     final cloud = _providerId == OpenAiSpeechEngine.providerId;
     final freeSystem =
         _providerId == 'system' || _providerId == 'system-native';
+    final systemVoiceLanguages =
+        systemVoiceCatalogLanguages(_installedSystemVoices);
+    final filteredSystemVoices = filterSystemVoiceCatalog(
+        _installedSystemVoices, _systemVoiceLanguageFilter);
+    // The current draft remains visible while browsing another language,
+    // so Flutter's dropdown always contains its selected value.
+    final selectableSystemVoices = <SpeechVoice>[
+      if (_selectedSystemVoice != null &&
+          !filteredSystemVoices.any(
+              (voice) => voice.key == _selectedSystemVoice!.key))
+        _selectedSystemVoice!,
+      ...filteredSystemVoices,
+    ];
     return Scaffold(
       appBar: AppBar(title: const Text('Speech engines')),
       body: ListView(
@@ -519,28 +538,66 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
               const Text('No installed voices found. You can still save '
                   'the engine and use its device default voice. Check '
                   'Windows or Android settings to install more voices.'),
-            if (_installedSystemVoices.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedSystemVoice?.key,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                    labelText: 'Installed voice (optional)',
-                    hintText: 'Use device default voice'),
-                items: [
-                  for (final voice in _installedSystemVoices)
-                    DropdownMenuItem(
-                      value: voice.key,
-                      child: Text(voice.toString(),
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                ],
-                onChanged: _busy || _systemSamplePlaying ? null : (key) {
-                  if (key == null) return;
-                  setState(() => _selectedSystemVoice =
-                      _installedSystemVoices.firstWhere(
-                          (voice) => voice.key == key));
-                },
-              ),
+            DropdownButtonFormField<String>(
+              value: _systemVoiceLanguageFilter ?? 'all',
+              isExpanded: true,
+              decoration: const InputDecoration(
+                  labelText: 'Show installed voices by language'),
+              items: [
+                const DropdownMenuItem(
+                    value: 'all', child: Text('All installed languages')),
+                for (final language in systemVoiceLanguages)
+                  DropdownMenuItem(value: language,
+                      child: Text(language.toUpperCase())),
+              ],
+              onChanged: _busy || _systemSamplePlaying ? null : (value) {
+                if (value == null) return;
+                setState(() => _systemVoiceLanguageFilter =
+                    value == 'all' ? null : value);
+              },
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              // Recreate the field when the draft changes externally
+              // (Reset/Refresh), not merely when the user picks an item.
+              key: ValueKey('system-voice-${_selectedSystemVoice?.key ?? _automaticSystemVoice}-${_systemVoiceLanguageFilter ?? 'all'}'),
+              value: _selectedSystemVoice?.key ?? _automaticSystemVoice,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                  labelText: 'Narrator voice for this book'),
+              items: [
+                const DropdownMenuItem(
+                  value: _automaticSystemVoice,
+                  child: Text('Automatic — match book language')),
+                for (final voice in selectableSystemVoices)
+                  DropdownMenuItem(
+                    value: voice.key,
+                    child: Text(voice.toString(),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: _busy || _systemSamplePlaying ? null : (key) {
+                if (key == null) return;
+                setState(() {
+                  _explicitVoiceDraftChanged = true;
+                  _selectedSystemVoice = key == _automaticSystemVoice
+                      ? null
+                      : selectableSystemVoices.firstWhere(
+                          (voice) => voice.key == key);
+                });
+              },
+            ),
+            const SizedBox(height: 5),
+            const Text('Automatic keeps the narrator unpinned and '
+                'chooses an installed system voice compatible with the '
+                'book language when available. Preview is available '
+                'only for an explicitly selected voice.'),
+            if (_current.voiceName != null &&
+                !_installedSystemVoices.any((voice) =>
+                    voice.name == _current.voiceName &&
+                    voice.locale == _current.voiceLocale))
+              const Text('The previously saved voice is no longer '
+                  'installed. Choose another one or save Automatic.'),
             const SizedBox(height: 8),
             Wrap(spacing: 8, runSpacing: 8, children: [
               OutlinedButton.icon(

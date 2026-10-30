@@ -30,6 +30,51 @@ String? systemVoiceSampleText(String locale) {
   }
 }
 
+/// User-visible catalog grouping. A locale's primary BCP-47 language
+/// remains stable across region accents (en-US/en-GB) and underscores.
+String systemVoicePrimaryLanguage(String locale) =>
+    locale.trim().toLowerCase().replaceAll('_', '-').split('-').first;
+
+/// Sorted, deduplicated languages installed on the user's device.
+/// This is a local catalog projection, never a guess about online voices.
+List<String> systemVoiceCatalogLanguages(Iterable<SpeechVoice> voices) {
+  final result = <String>{};
+  for (final voice in voices) {
+    if (voice.name.trim().isEmpty || voice.locale.trim().isEmpty) continue;
+    result.add(systemVoicePrimaryLanguage(voice.locale));
+  }
+  return List<String>.unmodifiable(result.toList()..sort());
+}
+
+/// Filtering is purely presentational: it never silently selects a narrator
+/// and does not change the chosen book speech language.
+List<SpeechVoice> filterSystemVoiceCatalog(
+    Iterable<SpeechVoice> voices, String? primaryLanguage) =>
+    List<SpeechVoice>.unmodifiable([
+      for (final voice in voices)
+        if (voice.name.trim().isNotEmpty &&
+            voice.locale.trim().isNotEmpty &&
+            (primaryLanguage == null ||
+                systemVoicePrimaryLanguage(voice.locale) ==
+                    primaryLanguage.toLowerCase()))
+          voice,
+    ]);
+
+/// Return only an explicit voice that is STILL installed. An unsaved book
+/// or a disappeared voice must remain automatic, not pin the first voice
+/// matching the language merely because the settings page was opened.
+SpeechVoice? resolveExplicitSystemVoice(
+    Iterable<SpeechVoice> voices, {
+    required String? voiceName,
+    required String? voiceLocale,
+  }) {
+  if (voiceName == null || voiceLocale == null) return null;
+  for (final voice in voices) {
+    if (voice.name == voiceName && voice.locale == voiceLocale) return voice;
+  }
+  return null;
+}
+
 typedef SystemVoiceAuditionEngineFactory = SpeechEngine Function(
     bool interpretWindowsPunctuation);
 

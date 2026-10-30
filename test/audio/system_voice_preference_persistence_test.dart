@@ -51,6 +51,21 @@ void main() {
       expect(store.getSpeechPreferences(bookId: bookId).providerId,
           'system-native');
 
+      // A real user can select Automatic in the free system voice picker.
+      // It removes the explicit choice and remains that way across reopen;
+      // merely inspecting the OS catalog must not re-pin a different voice.
+      final automatic = native.copyWith(clearVoice: true);
+      await store.saveSpeechPreferences(automatic, bookId: bookId);
+      expect(store.getSpeechPreferences(bookId: bookId).voiceName, isNull);
+      expect(store.getSpeechPreferences(bookId: bookId).voiceLocale, isNull);
+      store.dispose();
+      store = LibraryStore(homeDirectory: root);
+      await store.initialize();
+      final reopenedAutomatic = store.getSpeechPreferences(bookId: bookId);
+      expect(reopenedAutomatic.providerId, 'system-native');
+      expect(reopenedAutomatic.voiceName, isNull);
+      expect(reopenedAutomatic.voiceLocale, isNull);
+
       // Leaving system TTS removes the stale OS voice identity without
       // touching the book's stored source/reading position.
       await store.saveSpeechPreferences(native.copyWith(

@@ -876,3 +876,21 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Manual native playback acceptance remains open; no TTS SDK was available
   in this environment, so the tests are source-only and not executed.
 
+### M2 — Explicit system narrator / local voice language filter (2026-10-30)
+
+- Free installed Windows/Android voices can now be browsed by primary
+  language (including all installed languages), without network discovery,
+  cloud cost or a spoken book preview.
+- The voice picker always includes `Automatic — match book language`:
+  opening or refreshing the settings screen does **not** silently select
+  the first installed voice matching the current book locale.
+- Explicit per-book voices are restored only if actually installed;
+  a missing/deleted voice does not silently become a different narrator.
+  A user-selected reset to Automatic survives a catalog refresh and the
+  SQLite preference round-trip, while the existing installed preview and
+  Save controls continue to require deliberate user action.
+- Added deterministic catalog language/filter/explicit-identity tests,
+  plus SQLite reopen test for reset to unpinned system narration.
+  Flutter/Dart tests authored but **not run**; no Windows/Android builds
+  or GitHub Actions started.
+

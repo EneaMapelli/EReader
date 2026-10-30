@@ -98,6 +98,42 @@ void main() {
     expect(systemVoiceSampleText('xx-XX'), isNull);
   });
 
+  test('catalog language filters group accents without selecting narrator',
+      () {
+    const voices = [
+      SpeechVoice(name: 'Italian', locale: 'it-IT'),
+      SpeechVoice(name: 'British', locale: 'en-GB'),
+      SpeechVoice(name: 'American', locale: 'en_US'),
+      SpeechVoice(name: 'French', locale: 'fr-FR'),
+      SpeechVoice(name: '', locale: 'it-IT'),
+      SpeechVoice(name: 'Missing', locale: ''),
+    ];
+    expect(systemVoiceCatalogLanguages(voices), ['en', 'fr', 'it']);
+    expect(systemVoicePrimaryLanguage(' en_US '), 'en');
+    expect(filterSystemVoiceCatalog(voices, 'en').map((v) => v.name),
+        ['British', 'American']);
+    expect(filterSystemVoiceCatalog(voices, 'it').single.name, 'Italian');
+    expect(filterSystemVoiceCatalog(voices, null), hasLength(4));
+    expect(() => filterSystemVoiceCatalog(voices, 'en').clear(),
+        throwsUnsupportedError);
+  });
+
+  test('an unpinned or missing OS voice never becomes an implicit selection',
+      () {
+    const voices = [
+      SpeechVoice(name: 'Italian A', locale: 'it-IT'),
+      SpeechVoice(name: 'Italian B', locale: 'it-IT'),
+    ];
+    expect(resolveExplicitSystemVoice(voices,
+        voiceName: null, voiceLocale: null), isNull);
+    expect(resolveExplicitSystemVoice(voices,
+        voiceName: 'Italian Z', voiceLocale: 'it-IT'), isNull);
+    expect(resolveExplicitSystemVoice(voices,
+        voiceName: 'Italian B', voiceLocale: 'it-IT')?.name, 'Italian B');
+    expect(resolveExplicitSystemVoice(voices,
+        voiceName: 'Italian B', voiceLocale: 'en-US'), isNull);
+  });
+
   test('installed catalog is deduplicated and temporary engine disposed',
       () async {
     final fake = _FakeSystemEngine(voices: const [
