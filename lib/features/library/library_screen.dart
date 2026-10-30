@@ -19,6 +19,7 @@ import '../../domain/library_reading_statistics.dart';
 import 'library_reading_statistics_sheet.dart';
 import '../reader/reader_screen.dart';
 import 'library_collections_sheet.dart';
+import 'library_full_text_search_sheet.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({
@@ -913,6 +914,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _showFullTextSearch() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => LibraryFullTextSearchSheet(
+        store: widget.store,
+        onOpenBook: (book) => unawaited(_open(book)),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
   Future<void> _showLibrarySearchHelp() async {
     await showDialog<void>(
       context: context,
@@ -980,6 +994,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
       appBar: AppBar(
         title: const Text('EReader'),
         actions: [
+          IconButton(
+            key: const ValueKey('library-fulltext-open'),
+            tooltip: 'Search inside books offline',
+            icon: const Icon(Icons.manage_search),
+            onPressed: _busy ? null : _showFullTextSearch,
+          ),
           IconButton(
             tooltip: 'Manage collections',
             icon: const Icon(Icons.folder_open_outlined),
