@@ -539,7 +539,12 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
                   'the engine and use its device default voice. Check '
                   'Windows or Android settings to install more voices.'),
             DropdownButtonFormField<String>(
-              value: _systemVoiceLanguageFilter ?? 'all',
+              key: ValueKey('voice-language-${systemVoiceLanguages.join(',')}-${_systemVoiceLanguageFilter ?? 'all'}'),
+              // The first frame precedes asynchronous OS enumeration.
+              // 'all' is always a valid dropdown item, including when
+              // no installed voice has been discovered yet.
+              value: systemVoiceLanguages.contains(_systemVoiceLanguageFilter)
+                  ? _systemVoiceLanguageFilter : 'all',
               isExpanded: true,
               decoration: const InputDecoration(
                   labelText: 'Show installed voices by language'),
@@ -592,7 +597,7 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
                 'chooses an installed system voice compatible with the '
                 'book language when available. Preview is available '
                 'only for an explicitly selected voice.'),
-            if (_current.voiceName != null &&
+            if (!_checkingSystem && _current.voiceName != null &&
                 !_installedSystemVoices.any((voice) =>
                     voice.name == _current.voiceName &&
                     voice.locale == _current.voiceLocale))
