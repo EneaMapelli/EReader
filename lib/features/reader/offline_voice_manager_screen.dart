@@ -53,6 +53,7 @@ class _OfflineVoiceManagerScreenState
   String? _sampleId;
   bool _stoppingSample = false;
   bool _sampleCancelled = false;
+  ManualVoiceStagingHealth? _manualStageHealth;
 
   Future<Directory> _directory() async {
     final resolver = widget.modelsDirectory;
@@ -391,6 +392,28 @@ class _OfflineVoiceManagerScreenState
     await _refresh(clearMessage: false);
   }
 
+  /// On-demand, non-destructive preflight. This cannot change voice packs.
+  Future<void> _inspectInterruptedManualImports() async {
+    if (!mounted || _loading || _busyId != null) return;
+    setState(() {
+      _busyId = 'manual-import-staging-inspection';
+      _manualStageHealth = null;
+    });
+    try {
+      final result = await ManualVoiceInstallStaging.inspectAbandoned(
+          await _directory());
+      if (mounted) setState(() => _manualStageHealth = result);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _message =
+            'Unable to inspect temporary voice imports. '
+            'No model files were changed.');
+      }
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
   /// Only marked, aged, unlocked local import stages qualify for deletion.
   /// The accepted installed voice directories never contain stage metadata.
   Future<void> _cleanInterruptedManualImports() async {
@@ -416,6 +439,7 @@ class _OfflineVoiceManagerScreenState
     if (!mounted || approved != true || _busyId != null) return;
     setState(() {
       _busyId = 'manual-import-staging-cleanup';
+      _manualStageHealth = null;
       _message = 'Checking interrupted model imports...';
     });
     try {
@@ -566,6 +590,34 @@ class _OfflineVoiceManagerScreenState
           ),
         if (Platform.isWindows || widget.modelsDirectory != null) ...[
           const SizedBox(height: 8),
+          OutlinedButton.icon(
+            key: const ValueKey('inspect-manual-model-imports'),
+            onPressed: _loading || _busyId != null
+                ? null : _inspectInterruptedManualImports,
+            icon: const Icon(Icons.info_outline),
+            label: const Text('Inspect interrupted local imports'),
+          ),
+          if (_manualStageHealth != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              'Temporary import diagnostics (read-only sample): '
+              'eligible ' + _manualStageHealth!.eligible.toString() +
+              ', recent ' + _manualStageHealth!.recent.toString() +
+              ', in use/locked ' + _manualStageHealth!.busy.toString() +
+              ', unrecognized ' +
+              _manualStageHealth!.unrecognized.toString() +
+              '. Inspected ' +
+              _manualStageHealth!.examined.toString() + ' of ' +
+              _manualStageHealth!.candidates.toString() +
+              ' discovered candidates.' +
+              (_manualStageHealth!.limited
+                  ? ' Scan limited; repeat inspection for another batch.'
+                  : ''),
+              key: const ValueKey('manual-model-import-health'),
+            ),
+            const Text('Eligible is a snapshot, not a guarantee. '
+                'Recent and unrecognized files are never deleted.'),
+          ],
           OutlinedButton.icon(
             key: const ValueKey('clean-manual-model-imports'),
             onPressed: _loading || _busyId != null
