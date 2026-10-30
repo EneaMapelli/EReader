@@ -276,7 +276,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     final previousTarget = _pendingSkipTarget;
     final base = previousTarget != null &&
             _pendingSkipRevision == player.narrationControlRevision
-        ? previousTarget : player.currentIndex;
+        ? previousTarget : player.intendedNavigationIndex;
     final length = player.segments.length;
     final target = (base + delta).clamp(0, length).toInt();
     // Explicit EOF is a silent source position, never a replay of the

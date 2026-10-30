@@ -509,6 +509,41 @@ void main() {
     await retry;
   });
 
+  test('pending direct Seek advertises target to external controls',
+      () async {
+    final first = player.play();
+    await _until(() => engine.spoken.length == 1);
+    engine.stopGate = Completer<void>();
+    final seek = player.seekTo(2);
+    expect(player.currentIndex, 0);
+    expect(player.intendedNavigationIndex, 2,
+        reason: 'External media buttons must see the requested cursor');
+    engine.stopGate!.complete();
+    await seek;
+    await first;
+    await _until(() => engine.spoken.length == 2);
+    expect(player.currentIndex, 2);
+    expect(player.intendedNavigationIndex, 2);
+    await player.pause();
+  });
+
+  test('superseded Seek does not expose an obsolete source position',
+      () async {
+    final first = player.play();
+    await _until(() => engine.spoken.length == 1);
+    engine.stopGate = Completer<void>();
+    final old = player.seekTo(1);
+    expect(player.intendedNavigationIndex, 1);
+    final latest = player.seekTo(2);
+    expect(player.intendedNavigationIndex, 2);
+    engine.stopGate!.complete();
+    await Future.wait([old, latest, first]);
+    await _until(() => engine.spoken.length == 2);
+    expect(player.currentIndex, 2);
+    expect(player.intendedNavigationIndex, 2);
+    await player.pause();
+  });
+
   test('direct Play is denied after disposal', () async {
     player.dispose();
     await player.play();

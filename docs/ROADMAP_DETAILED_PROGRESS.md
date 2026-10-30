@@ -735,3 +735,18 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   No Windows/Android builds or GitHub Actions started; verify lock-screen
   labels, focus and chapter-boundary behavior on an actual device.
 
+### M2/Android — Compose external skips with direct pending Seek (2026-10-30)
+
+- Exposed a read-only ReaderPlayer intended-navigation index for
+  in-flight Seek/source-end operations. Only the current navigation
+  revision owns the pending target; an interrupted or superseded Seek
+  cannot leak an obsolete cursor.
+- The Android media handler uses that target when a direct in-reader
+  navigation is followed by a remote Previous/Next while native Stop
+  is pending. This fixes interleaving that would otherwise step from
+  the last *committed* cursor instead of the newer direct selection.
+- Added deterministic pending/superseded Seek regression tests.
+  Updated the mixed direct+remote media test in the preceding commit.
+- Tests authored but **not executed** without Dart/Flutter.
+  No build, release or GitHub Actions initiated.
+

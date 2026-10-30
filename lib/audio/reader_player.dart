@@ -513,6 +513,17 @@ class ReaderPlayer extends ChangeNotifier {
   bool isPlaying = false;
   int _session = 0;
   int _navigationEpoch = 0;
+  int? _pendingNavigationIndex;
+  int? _pendingNavigationEpoch;
+
+  /// The latest requested source position while a Seek is still waiting
+  /// for native Stop/checkpoint settlement. Headset Previous/Next can
+  /// therefore compose with a *direct* reader jump, not an obsolete
+  /// currentIndex. Superseded operations never expose their old target.
+  int get intendedNavigationIndex =>
+      _pendingNavigationIndex != null &&
+              _pendingNavigationEpoch == _navigationEpoch
+          ? _pendingNavigationIndex! : currentIndex;
 
   /// Increases whenever a new direct Play, Pause, Seek, voice/profile
   /// change or source-end navigation supersedes previous control intent.
@@ -932,10 +943,16 @@ class ReaderPlayer extends ChangeNotifier {
     // to continue playing; only the MOST RECENT seek may set the position.
     final resume = isPlaying || _resumeAfterNavigation;
     final epoch = ++_navigationEpoch;
+    final desiredIndex = _segments.isEmpty
+        ? currentIndex
+        : index.clamp(0, _segments.length - 1).toInt();
+    _pendingNavigationIndex = desiredIndex;
+    _pendingNavigationEpoch = epoch;
     _resumeAfterNavigation = resume;
     await _stopCurrent();
     if (_disposed || epoch != _navigationEpoch || _segments.isEmpty) return;
-    currentIndex = index.clamp(0, _segments.length - 1).toInt();
+    currentIndex = desiredIndex;
+    _pendingNavigationIndex = null;
     if (resume) {
       // play() synchronously transitions to playing before its first await.
       // Do not publish an artificial idle interval that would release focus
@@ -954,10 +971,13 @@ class ReaderPlayer extends ChangeNotifier {
   Future<void> seekToSourceEnd() async {
     if (_disposed) return;
     final epoch = ++_navigationEpoch;
+    _pendingNavigationIndex = _segments.length;
+    _pendingNavigationEpoch = epoch;
     _resumeAfterNavigation = false;
     await _stopCurrent();
     if (_disposed || epoch != _navigationEpoch) return;
     currentIndex = _segments.length;
+    _pendingNavigationIndex = null;
     _notify();
   }
 
