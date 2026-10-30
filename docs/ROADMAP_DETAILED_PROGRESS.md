@@ -1372,3 +1372,37 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   nessuna alterazione dello stato di lettura.
 - Stato: modifiche committate; test Dart/Flutter e build native **non
   eseguiti**; nessuna GitHub Actions avviata.
+
+### M3 — Explicit silent ONNX model preparation with bounded RAM (2026-10-30)
+
+- Added **Prepare model silently** to the Windows offline-neural-voice manager.
+  Explicit user confirmation first explains CPU/RAM consumption, model
+  residency, the absence of audible audio and the fact that this prepares
+  only the next voice **preview**, not a book or an automatic background job.
+  The action re-verifies all installed pack checksums and starts the
+  existing isolated Sherpa ONNX worker via a new model-only `prepare()`
+  handshake: no text, synthesis, WAV staging, network or API credits.
+- At most **one** prepared engine is retained per audition controller.
+  A scheduled **3-minute TTL** and the independent existing 3-minute
+  native worker idle timer release RAM. The user can also explicitly
+  release the model; cancel/Stop during pack verification or native init
+  invalidates the operation, while screen disposal cancels/tears down the
+  model. The model is never silently created merely by choosing a voice.
+- The following Play always re-verifies the installed model and compares
+  its complete manifest/expected hashes and verified file paths before
+  consuming the prepared engine; an altered pack never inherits an old
+  resident worker. Model removal and catalog-detected damage release
+  any matching prepared worker before removing or updating disk files.
+  Expiry disposal is serialized before creating another native worker;
+  a failed native Dispose fails closed and blocks a fresh allocation.
+- The old VITS readiness and synthesis timeouts are preserved. Legacy
+  test workers remain compatible, and Stop/idle retirement still forcibly
+  release isolated model sessions. All preparation and diagnostic data
+  remain local and are not persisted or uploaded.
+- Added synthetic isolate and controller tests for no-WAV readiness,
+  native timeout, Stop during load, idle expiry, safe verified reuse,
+  changed manifest rejection, single-engine ownership, delayed/failed
+  native Dispose, unsupported TTS engines and explicit UI consent/release.
+  Flutter/Dart tests were **not executed** (SDK unavailable here); no
+  Windows/Android builds or GitHub Actions launched.
+
