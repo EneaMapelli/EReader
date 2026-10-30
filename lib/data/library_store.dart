@@ -1381,7 +1381,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     }
     if (!isFullTextIndexEnabled) return const [];
     if (query.trim().isEmpty || query.length > 120) return const [];
-    final tokens = RegExp(r'[\\p{L}\\p{N}]+', unicode: true)
+    final tokens = RegExp(r'[\p{L}\p{N}]+', unicode: true)
         .allMatches(query).map((match) => match.group(0)!).toList();
     if (tokens.isEmpty || tokens.length > 8) return const [];
     final matchQuery = tokens.map((token) => '"$token"').join(' AND ');
