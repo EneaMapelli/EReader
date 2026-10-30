@@ -93,7 +93,7 @@ automaticamente consegnate: sono ampliamenti dello scope.
 | ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
 | ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
 | ER-033 Statistiche/obiettivi | Parziale: catalogo, tempi giornalieri e per libro in SQLite v23/v24, obiettivo globale, storico 7 giorni, cancellazione selettiva/globale e opt-out persistente dal tracciamento. Restano campionamento euristico e QA Windows/Android |
-| ER-034 Libreria massiva/collezioni/FTS | Parziale: ricerca metadati avanzata, raccolte manuali e smart (v25), primo indice contenuti FTS5 opt-in (SQLite v26) con batch/cancellazione. Mancano hit-to-offset, aggiornamenti automatici, OCR e QA nativa/large-library |
+| ER-034 Libreria massiva/collezioni/FTS | Parziale: metadati avanzati, raccolte manuali/smart (v25), indice FTS5 opt-in (v26), apertura al match UTF-16 verificato e refresh incrementale manuale. Mancano OCR, reindicizzazione continua opt-in, miglior allineamento multi-termine e QA nativa/large-library |
 
 ## E. Evidenza e priorità
 
@@ -1325,3 +1325,29 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   UI consent and two-audible-plays tests. Tests **not executed** here
   because Dart/Flutter SDK is unavailable. No platform builds or Actions.
 
+
+### ER-034 — Navigazione FTS su offset verificato e refresh incrementale (2026-10-30)
+
+- La ricerca nell'indice FTS5 produce una posizione UTF-16 candidata per
+  una parola *intera*, derivata dal testo canonico indicizzato. Il reader
+  confronta il testo del risultato con quello appena decodificato:
+  posizionamento visuale su EPUB/TXT, modalità testo per PDF con text layer;
+  se non coincide apre il checkpoint già salvato con messaggio esplicativo.
+- La navigazione iniziale non salva un nuovo segnalibro e non avvia
+  TTS. Per EPUB sono riutilizzati blocchi visivi, evidenziazione e
+  checkpoint visivo temporaneo che protegge gli anchor dalle prime
+  notifiche della lista. I filtri multi-termine puntano alla prima
+  occorrenza completa del primo termine; la navigazione a passaggio
+  contestuale più pertinente richiede ricerca ulteriore.
+- Nuova azione manuale `Check changed books` dentro la finestra FTS.
+  Usa solo dimensione e data di modifica dei file per invalidare l'indice
+  di fonti alterate e reinserirle in coda. Le fonti immutate e le relative
+  righe indicizzate non vengono riscritte. Nuovi import sono già pending.
+  Lo scan è cancellabile tra libri; nessuna attività automatica o cloud.
+- Aggiunta `library_fulltext_source_state` (solo stato locale fonte) in
+  SQLite v26; la tabella non copia nuovi testi e viene cancellata allo
+  spegnimento dell'indice. Compatibilità con database v26 attivati prima
+  dell'aggiunta tramite creazione idempotente al prossimo comando FTS.
+- Test dominio/store/UI per validazione dell'offset, rifiuto risultati
+  obsoleti, cancellazione, aggiornamento selettivo e riavvio preparati,
+  non eseguiti. Nessuna build Windows/Android né GitHub Actions.
