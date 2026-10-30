@@ -1,3 +1,31 @@
+/// Search modes use the same explicit, on-device FTS5 index. Phrase mode
+/// requires consecutive tokenizer words; it does not claim AI semantics.
+enum LibraryFullTextMatchMode { allWords, exactPhrase }
+
+/// Parse at most eight literal Unicode FTS words from a bounded query.
+/// Never expose raw user-provided FTS operators to MATCH.
+List<String> libraryFullTextTokens(String query) {
+  if (query.trim().isEmpty || query.length > 120) return const [];
+  final words = RegExp(r'[\p{L}\p{N}]+', unicode: true)
+      .allMatches(query).map((match) => match.group(0)!).toList();
+  if (words.isEmpty || words.length > 8) return const [];
+  return List.unmodifiable(words);
+}
+
+/// Only internally generated quoted tokens are passed into SQLite MATCH.
+/// Double quotes and punctuation in the input are treated as separators.
+String? libraryFullTextMatchExpression(
+  String query, {
+  LibraryFullTextMatchMode mode = LibraryFullTextMatchMode.allWords,
+}) {
+  final tokens = libraryFullTextTokens(query);
+  if (tokens.isEmpty) return null;
+  if (mode == LibraryFullTextMatchMode.exactPhrase) {
+    return '"${tokens.join(' ')}"';
+  }
+  return tokens.map((token) => '"$token"').join(' AND ');
+}
+
 /// Optional on-device full-text index. Snippets are private excerpts and
 /// must never be logged or sent to remote analytics/providers.
 ///
