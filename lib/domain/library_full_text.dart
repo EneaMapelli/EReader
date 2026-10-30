@@ -30,6 +30,28 @@ class LibraryFullTextJump {
   }
 }
 
+/// Find the first COMPLETE Unicode word matching an FTS token.
+/// Searching the indexed canonical text, rather than an FTS5 byte offset,
+/// preserves Dart's UTF-16 source indices even after surrogate pairs.
+/// Return null for token normalization differences rather than navigating
+/// to a substring inside an unrelated word.
+LibraryFullTextJump? firstExactIndexedWord(
+    String indexedSource, String queryToken) {
+  if (queryToken.isEmpty || queryToken.length > 120) return null;
+  final target = queryToken.toLowerCase();
+  final words = RegExp(r'[\\p{L}\\p{N}\\p{M}]+', unicode: true);
+  for (final match in words.allMatches(indexedSource)) {
+    final word = match.group(0)!;
+    if (word.toLowerCase() == target) {
+      return LibraryFullTextJump(
+        sourceOffset: match.start,
+        expectedText: word,
+      );
+    }
+  }
+  return null;
+}
+
 class LibraryFullTextHit {
   const LibraryFullTextHit({
     required this.bookId,
