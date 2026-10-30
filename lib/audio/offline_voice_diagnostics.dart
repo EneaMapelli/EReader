@@ -6,6 +6,8 @@
 class OfflineVoiceStatistics {
   const OfflineVoiceStatistics({
     required this.modelLoads,
+    this.lastWorkerReadyMs,
+    this.lastNativeModelInitializationMs,
     required this.syntheses,
     required this.aheadSyntheses,
     required this.warmedWaveReuses,
@@ -20,6 +22,12 @@ class OfflineVoiceStatistics {
   });
 
   final int modelLoads;
+  /// Wall time from persistent session creation to ready worker; includes
+  /// isolate spawn, model load and message scheduling. Null if unmeasured.
+  final int? lastWorkerReadyMs;
+  /// Worker-local native sherpa bindings + ONNX construction. Null when
+  /// using an older/test worker or before any timed ready handshake.
+  final int? lastNativeModelInitializationMs;
   final int syntheses;
   final int aheadSyntheses;
   final int warmedWaveReuses;
@@ -44,6 +52,8 @@ class OfflineVoiceDiagnostics {
   final List<int> _recentMs = <int>[];
 
   int _modelLoads = 0;
+  int? _lastWorkerReadyMs;
+  int? _lastNativeModelInitializationMs;
   int _syntheses = 0;
   int _aheadSyntheses = 0;
   int _reused = 0;
@@ -59,7 +69,26 @@ class OfflineVoiceDiagnostics {
     if (count >= 0) _pendingWaveFolders = count;
   }
 
-  void recordModelLoad() => _modelLoads++;
+  void recordModelLoad() {
+    _modelLoads++;
+    // A new model has not necessarily finished initializing yet. Never
+    // show a previous model's startup as the new model's measurement.
+    _lastWorkerReadyMs = null;
+    _lastNativeModelInitializationMs = null;
+  }
+
+  void recordModelStartup({
+    int? workerReadyMs,
+    int? nativeModelInitializationMs,
+  }) {
+    if (workerReadyMs != null && workerReadyMs >= 0) {
+      _lastWorkerReadyMs = workerReadyMs;
+    }
+    if (nativeModelInitializationMs != null &&
+        nativeModelInitializationMs >= 0) {
+      _lastNativeModelInitializationMs = nativeModelInitializationMs;
+    }
+  }
 
   void recordSynthesis(
     Duration elapsed, {
@@ -93,6 +122,8 @@ class OfflineVoiceDiagnostics {
         ? 0 : ((sorted.length * 95 + 99) ~/ 100) - 1;
     return OfflineVoiceStatistics(
       modelLoads: _modelLoads,
+      lastWorkerReadyMs: _lastWorkerReadyMs,
+      lastNativeModelInitializationMs: _lastNativeModelInitializationMs,
       syntheses: _syntheses,
       aheadSyntheses: _aheadSyntheses,
       warmedWaveReuses: _reused,

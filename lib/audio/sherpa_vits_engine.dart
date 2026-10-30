@@ -432,6 +432,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
   final bool _useLegacyJobs;
   final VitsPersistentSession Function(VitsSessionModel) _sessionFactory;
   VitsPersistentSession? _nativeSession;
+  VitsPersistentSession? _startupRecordedFor;
   VitsWaveJob? _nativeJob;
   _PreparedWave? _prepared;
   Future<void>? _currentSynthesisReady;
@@ -617,6 +618,13 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       }
       try {
         await session.synthesize(text: text, wavPath: wavPath, speed: speed);
+        if (!identical(_startupRecordedFor, session)) {
+          _startupRecordedFor = session;
+          _diagnostics.recordModelStartup(
+            workerReadyMs: session.workerReadyMs,
+            nativeModelInitializationMs: session.nativeModelInitializationMs,
+          );
+        }
         return true;
       } on VitsWaveCancelled {
         return false;

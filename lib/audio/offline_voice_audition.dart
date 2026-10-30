@@ -34,6 +34,8 @@ class OfflineVoicePreviewReport {
     this.voiceSetupMs,
     this.speechWallMs,
     this.nativeSynthesisMs,
+    this.workerReadyMs,
+    this.nativeModelInitializationMs,
     this.decoderHandoffMs,
     this.wholeProcessRssMiB,
     this.stopAndDisposeMs,
@@ -46,6 +48,10 @@ class OfflineVoicePreviewReport {
   final int? voiceSetupMs;
   final int? speechWallMs;
   final int? nativeSynthesisMs;
+  /// From worker creation through ready handshake, including isolate spawn.
+  final int? workerReadyMs;
+  /// Worker-local time to initialize sherpa bindings and the ONNX model.
+  final int? nativeModelInitializationMs;
   final int? decoderHandoffMs;
   /// Whole app process RSS snapshot, NOT memory attributable to this voice.
   final int? wholeProcessRssMiB;
@@ -60,6 +66,8 @@ class OfflineVoicePreviewReport {
         voiceSetupMs: voiceSetupMs,
         speechWallMs: speechWallMs,
         nativeSynthesisMs: nativeSynthesisMs,
+        workerReadyMs: workerReadyMs,
+        nativeModelInitializationMs: nativeModelInitializationMs,
         decoderHandoffMs: decoderHandoffMs,
         wholeProcessRssMiB: wholeProcessRssMiB,
         stopAndDisposeMs: milliseconds,
@@ -80,6 +88,10 @@ String formatOfflineVoicePreviewReport(OfflineVoicePreviewReport report) {
       'SHA verification: ${report.verificationMs} ms',
     if (report.voiceSetupMs != null)
       'Voice selection: ${report.voiceSetupMs} ms',
+    if (report.workerReadyMs != null)
+      'Worker ready: ${report.workerReadyMs} ms',
+    if (report.nativeModelInitializationMs != null)
+      'Native model init: ${report.nativeModelInitializationMs} ms',
     if (report.nativeSynthesisMs != null)
       'Native synthesis: ${report.nativeSynthesisMs} ms',
     if (report.decoderHandoffMs != null)
@@ -229,6 +241,12 @@ class OfflineVoiceAudition {
             nativeSynthesisMs: nativeStats == null ||
                     nativeStats.syntheses == 0
                 ? null : nativeStats.lastSynthesisMs,
+            workerReadyMs: nativeStats == null ||
+                    nativeStats.syntheses == 0
+                ? null : nativeStats.lastWorkerReadyMs,
+            nativeModelInitializationMs: nativeStats == null ||
+                    nativeStats.syntheses == 0
+                ? null : nativeStats.lastNativeModelInitializationMs,
             decoderHandoffMs: nativeStats == null ||
                     nativeStats.syntheses == 0
                 ? null : nativeStats.lastDecoderHandoffMs,

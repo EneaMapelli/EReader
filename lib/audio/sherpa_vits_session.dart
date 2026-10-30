@@ -79,6 +79,16 @@ class VitsPersistentSession {
   int _activeId = 0;
   int _nextId = 0;
   bool _closed = false;
+  final Stopwatch _startupClock = Stopwatch()..start();
+  int? _workerReadyMs;
+  int? _nativeModelInitializationMs;
+
+  /// Time from session creation to a ready worker, including isolate spawn
+  /// and native model initialization. Null before handshake / on failure.
+  int? get workerReadyMs => _workerReadyMs;
+  /// Time spent in the worker initializing sherpa bindings + ONNX model.
+  /// Legacy/custom workers without timed handshakes report null, never 0.
+  int? get nativeModelInitializationMs => _nativeModelInitializationMs;
 
   /// True after Stop, a native failure, timeout or idle retirement.
   /// Callers must construct a fresh session before synthesizing again.
@@ -116,23 +126,38 @@ class VitsPersistentSession {
     }
   }
 
+  void _acceptReady(SendPort port, {int? nativeInitializationMs}) {
+    if (_commands != null) {
+      _closeWith(StateError('Unexpected second VITS initialization'));
+      return;
+    }
+    _startupClock.stop();
+    _workerReadyMs = _startupClock.elapsedMilliseconds;
+    _nativeModelInitializationMs = nativeInitializationMs;
+    _commands = port;
+    _startupTimer?.cancel();
+    _startupTimer = null;
+    final queued = _queued;
+    _queued = null;
+    if (queued != null) {
+      port.send(queued);
+    } else {
+      _beginIdleTimer();
+    }
+  }
+
   void _onMessage(dynamic message) {
     if (_closed) return;
     if (message is SendPort) {
-      if (_commands != null) {
-        _closeWith(StateError('Unexpected second VITS initialization'));
-        return;
-      }
-      _commands = message;
-      _startupTimer?.cancel();
-      _startupTimer = null;
-      final queued = _queued;
-      _queued = null;
-      if (queued != null) {
-        message.send(queued);
-      } else {
-        _beginIdleTimer();
-      }
+      // Keep compatibility with old and injected test workers.
+      _acceptReady(message);
+      return;
+    }
+    if (message is List && message.length == 2 &&
+        message[0] is SendPort && message[1] is int &&
+        (message[1] as int) >= 0) {
+      _acceptReady(message[0] as SendPort,
+          nativeInitializationMs: message[1] as int);
       return;
     }
     if (message is List && message.length == 2 &&
@@ -219,6 +244,9 @@ void vitsPersistentWorkerMain((SendPort, VitsSessionModel) init) async {
   final port = ReceivePort();
   sherpa.OfflineTts? tts;
   try {
+    // Worker-local clock excludes isolate spawn and main-isolate scheduling.
+    // Includes native binding initialization and actual ONNX model creation.
+    final modelClock = Stopwatch()..start();
     sherpa.initBindings();
     final model = init.$2;
     tts = sherpa.OfflineTts(sherpa.OfflineTtsConfig(
@@ -232,7 +260,8 @@ void vitsPersistentWorkerMain((SendPort, VitsSessionModel) init) async {
         provider: 'cpu',
       ),
     ));
-    reply.send(port.sendPort);
+    modelClock.stop();
+    reply.send([port.sendPort, modelClock.elapsedMilliseconds]);
     await for (final input in port) {
       if (input is! List || input.length != 4 ||
           input[0] is! int || input[1] is! String ||
