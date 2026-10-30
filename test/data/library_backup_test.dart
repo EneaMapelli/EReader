@@ -104,6 +104,51 @@ void main() {
     expect(store.smartCollections.single.id, smart.id);
   });
 
+  test('v26 opted-in FTS content is private backup data, not portable consent',
+      () async {
+    final book = await addBook('search-private.txt',
+        'This private manuscript mentions a violet phoenix.');
+    store.setFullTextIndexEnabled(true);
+    expect((await store.indexNextFullTextBatch()).indexed, 1);
+    final backup = await store.exportLibraryBackup(backups);
+    final db = sqlite3.open(
+        p.join(backup.directory.path, 'library.sqlite'));
+    try {
+      expect(db.select('PRAGMA user_version').single['user_version'], 26);
+      expect(db.select(
+        'SELECT body FROM library_fulltext_fts WHERE book_id = ?',
+        [book.id]).single['body'], contains('violet phoenix'));
+    } finally {
+      db.dispose();
+    }
+
+    final destination = LibraryStore(
+        homeDirectory: Directory(p.join(root.path, 'restore-fts-dest')));
+    try {
+      await destination.initialize();
+      final preview = await destination.previewLibraryRestore(backup.directory);
+      expect(preview.availableToImport, 1);
+      final result = await destination.restoreLibraryBackup(backup.directory);
+      expect(result.added, 1);
+      expect(destination.getBook(book.id), isNotNull);
+      expect(destination.isFullTextIndexEnabled, isFalse);
+      expect(destination.searchIndexedBookContents('phoenix'), isEmpty);
+      final targetDb = sqlite3.open(
+          p.join(root.path, 'restore-fts-dest', 'library.sqlite'));
+      try {
+        expect(targetDb.select(
+          "SELECT name FROM sqlite_master WHERE name = "
+          "'library_fulltext_fts'",
+        ), isEmpty);
+      } finally {
+        targetDb.dispose();
+      }
+    } finally {
+      destination.dispose();
+    }
+    expect(store.isFullTextIndexEnabled, isTrue);
+  });
+
   test('backups contain hashed books, standalone SQLite and metadata',
       () async {
     final a = await addBook('one.txt', 'First original manuscript.');
