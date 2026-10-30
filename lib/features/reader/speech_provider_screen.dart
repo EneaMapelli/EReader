@@ -115,8 +115,10 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
       }
       setState(() {
         _installedSystemVoices = voices;
-        _selectedSystemVoice = preferred ??
-            (voices.isEmpty ? null : voices.first);
+        // Do not silently choose a mismatched first-installed voice.
+        // Null means "use the device default" unless the user selects
+        // an explicit voice from the catalog.
+        _selectedSystemVoice = preferred;
       });
     } catch (_) {
       _feedback('Unable to read installed system voices.');
@@ -296,10 +298,11 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
         pitch: offlineSelected == null ? _current.pitch : 1.0,
         voiceName: systemVoice?.name,
         voiceLocale: systemVoice?.locale,
-        clearVoice: !usingSystem &&
-            (_providerId != _current.providerId ||
-             (_providerId == SherpaVitsSpeechEngine.providerId &&
-              _current.modelId != modelForProvider)),
+        clearVoice: usingSystem
+            ? systemVoice == null
+            : (_providerId != _current.providerId ||
+                (_providerId == SherpaVitsSpeechEngine.providerId &&
+                    _current.modelId != modelForProvider)),
       );
       selected.validate();
       await widget.store.saveSpeechPreferences(
@@ -513,14 +516,16 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
             const SizedBox(height: 10),
             if (_checkingSystem) const LinearProgressIndicator(),
             if (_installedSystemVoices.isEmpty)
-              const Text('No installed voices found. Check the speech '
-                  'voices in Windows or Android settings.'),
+              const Text('No installed voices found. You can still save '
+                  'the engine and use its device default voice. Check '
+                  'Windows or Android settings to install more voices.'),
             if (_installedSystemVoices.isNotEmpty)
               DropdownButtonFormField<String>(
                 value: _selectedSystemVoice?.key,
                 isExpanded: true,
                 decoration: const InputDecoration(
-                    labelText: 'Installed voice'),
+                    labelText: 'Installed voice (optional)',
+                    hintText: 'Use device default voice'),
                 items: [
                   for (final voice in _installedSystemVoices)
                     DropdownMenuItem(
