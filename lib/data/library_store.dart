@@ -11,6 +11,8 @@ import 'package:sqlite3/sqlite3.dart';
 import '../domain/book.dart';
 import '../domain/book_collection.dart';
 import '../domain/smart_book_collection.dart';
+import '../domain/library_full_text.dart';
+import 'book_decoder.dart';
 import '../domain/library_catalog.dart';
 import '../domain/reading_activity.dart';
 import 'epub_catalog_metadata.dart';
@@ -43,6 +45,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   final Set<String> _failedPdfCovers = {};
   Directory? _home;
   Database? _db;
+  bool _fullTextIndexing = false;
   String? _startupInterruptedBookId;
 
   // Process-local order of USER/visual bookmark writes. Speech recovery
@@ -187,7 +190,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 25) {
+      if (version > 26) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -693,6 +696,31 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           db.execute('PRAGMA user_version = 25');
         });
       }
+      // v26 holds opt-in state only. The private FTS5 virtual table is NOT
+      // created at startup or migration: only explicit user consent does so.
+      if (version < 26) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS library_fulltext_settings (
+              slot INTEGER PRIMARY KEY CHECK(slot = 1),
+              enabled INTEGER NOT NULL DEFAULT 0
+                CHECK(enabled IN (0, 1))
+            )
+          ''');
+          db.execute('''
+            INSERT OR IGNORE INTO library_fulltext_settings(slot, enabled)
+            VALUES (1, 0)
+          ''');
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS library_fulltext_jobs (
+              book_id TEXT PRIMARY KEY NOT NULL
+                REFERENCES books(id) ON DELETE CASCADE,
+              indexed INTEGER NOT NULL CHECK(indexed IN (0, 1))
+            )
+          ''');
+          db.execute('PRAGMA user_version = 26');
+        });
+      }
       await _migrateLegacyJson(db, support);
       // A marker is stale only on a new process startup. Consume exactly
       // once; reopening a book must NEVER cause the app to auto-synthesize.
@@ -1179,6 +1207,198 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       .select('SELECT * FROM books ORDER BY imported_at DESC, title COLLATE NOCASE')
       .map(_fromRow)
       .toList();
+
+  /// Only the setting and an EMPTY bookkeeping table exist by default.
+  /// Enabling FTS5 is an explicit local-only user action.
+  bool get isFullTextIndexEnabled =>
+      (_database.select(
+        'SELECT enabled FROM library_fulltext_settings WHERE slot = 1',
+      ).single['enabled'] as int) == 1;
+
+  /// A separate user action is required to start processing book contents.
+  /// Disabling drops the entire FTS5 virtual table and clears job markers;
+  /// SQLite filesystem/WAL remnants or external backups are not secure-erased.
+  void setFullTextIndexEnabled(bool enabled) {
+    if (_fullTextIndexing && !enabled) {
+      // The in-flight decoder may still finish; it will observe this flag
+      // before writing. Dropping is safe once that decode has yielded.
+    }
+    if (enabled) {
+      _transaction(_database, () {
+        _database.execute('''
+          CREATE VIRTUAL TABLE IF NOT EXISTS library_fulltext_fts
+          USING fts5(book_id UNINDEXED, body, tokenize='unicode61 remove_diacritics 2')
+        ''');
+        _database.execute('''
+          UPDATE library_fulltext_settings SET enabled = 1 WHERE slot = 1
+        ''');
+      });
+    } else {
+      _transaction(_database, () {
+        _database.execute('''
+          UPDATE library_fulltext_settings SET enabled = 0 WHERE slot = 1
+        ''');
+        _database.execute('DELETE FROM library_fulltext_jobs');
+        _database.execute('DROP TABLE IF EXISTS library_fulltext_fts');
+      });
+    }
+  }
+
+  /// Clear an index while keeping consent. The next batch re-extracts
+  /// sources; it never reuses stale excerpts from old source files.
+  void resetFullTextIndex() {
+    if (!isFullTextIndexEnabled || _fullTextIndexing) {
+      throw StateError('Indexing must be enabled and idle');
+    }
+    _transaction(_database, () {
+      _database.execute('DELETE FROM library_fulltext_fts');
+      _database.execute('DELETE FROM library_fulltext_jobs');
+    });
+  }
+
+  int get fullTextIndexedBooks {
+    if (!isFullTextIndexEnabled) return 0;
+    return _database.select('''
+      SELECT COUNT(*) AS n FROM library_fulltext_jobs WHERE indexed = 1
+    ''').single['n'] as int;
+  }
+
+  int get fullTextPendingBooks {
+    if (!isFullTextIndexEnabled) return 0;
+    return _database.select('''
+      SELECT COUNT(*) AS n FROM books b
+      WHERE NOT EXISTS (
+        SELECT 1 FROM library_fulltext_jobs j WHERE j.book_id = b.id
+      )
+    ''').single['n'] as int;
+  }
+
+  /// Explicit, bounded, cancel-between-books indexing. Input is from the
+  /// same text layer the reader uses: PDF scans without selectable text
+  /// are marked skipped, never OCR'd. Inject decoder for native-free tests.
+  Future<LibraryFullTextIndexReport> indexNextFullTextBatch({
+    int maxBooks = 10,
+    DocumentDecoder? decoder,
+    bool Function()? shouldCancel,
+    void Function(int completed, int total)? onProgress,
+  }) async {
+    if (maxBooks < 1 || maxBooks > 20) {
+      throw RangeError.range(maxBooks, 1, 20, 'maxBooks');
+    }
+    if (!isFullTextIndexEnabled || _fullTextIndexing) {
+      throw StateError('Enable full-text indexing and finish the current batch');
+    }
+    _fullTextIndexing = true;
+    var processed = 0;
+    var indexed = 0;
+    var skipped = 0;
+    var cancelled = false;
+    try {
+      final pending = _database.select('''
+        SELECT b.* FROM books b
+        WHERE NOT EXISTS (
+          SELECT 1 FROM library_fulltext_jobs j WHERE j.book_id = b.id
+        )
+        ORDER BY b.imported_at DESC, b.id
+        LIMIT ?
+      ''', [maxBooks]).map(_fromRow).toList();
+      for (final book in pending) {
+        if (!isFullTextIndexEnabled || (shouldCancel?.call() ?? false)) {
+          cancelled = true;
+          break;
+        }
+        String? text;
+        try {
+          final file = File(book.localPath);
+          // Do not follow a replacement file symlink and avoid oversized
+          // ZIP/PDF/TXT input before delegating to existing native parsers.
+          if (await FileSystemEntity.type(
+                  book.localPath, followLinks: false) !=
+              FileSystemEntityType.file) {
+            throw const FormatException('Missing or linked source');
+          }
+          if (await file.length() > 12 * 1024 * 1024) {
+            throw const FormatException('Book too large for indexing');
+          }
+          text = (await (decoder ?? PrototypeDocumentDecoder()).read(book)).text;
+          if (text.isEmpty || text.length > 2 * 1024 * 1024) {
+            throw const FormatException('Extracted text outside index budget');
+          }
+        } catch (_) {
+          // Skips are counted, but filesystem paths, book text and raw
+          // native/PDF parser errors are never persisted or logged.
+          text = null;
+        }
+        if (!isFullTextIndexEnabled || (shouldCancel?.call() ?? false)) {
+          cancelled = true;
+          break;
+        }
+        if (getBook(book.id) != null) {
+          _transaction(_database, () {
+            _database.execute(
+                'DELETE FROM library_fulltext_fts WHERE book_id = ?',
+                [book.id]);
+            if (text != null) {
+              _database.execute('''
+                INSERT INTO library_fulltext_fts(book_id, body)
+                VALUES (?, ?)
+              ''', [book.id, text]);
+            }
+            _database.execute('''
+              INSERT INTO library_fulltext_jobs(book_id, indexed)
+              VALUES (?, ?)
+              ON CONFLICT(book_id) DO UPDATE
+              SET indexed = excluded.indexed
+            ''', [book.id, text == null ? 0 : 1]);
+          });
+          if (text == null) { skipped++; } else { indexed++; }
+        } else {
+          skipped++;
+        }
+        processed++;
+        onProgress?.call(processed, pending.length);
+        // Give the UI a chance to display progress and request cancellation.
+        await Future<void>.delayed(Duration.zero);
+      }
+      return LibraryFullTextIndexReport(
+        processed: processed,
+        indexed: indexed,
+        skipped: skipped,
+        remaining: isFullTextIndexEnabled ? fullTextPendingBooks : 0,
+        cancelled: cancelled,
+      );
+    } finally {
+      _fullTextIndexing = false;
+    }
+  }
+
+  /// FTS syntax is never forwarded untrusted: only bounded literal Unicode
+  /// words become quoted FTS tokens, combined with AND. No remote requests.
+  List<LibraryFullTextHit> searchIndexedBookContents(
+      String query, {int limit = 30}) {
+    if (limit < 1 || limit > 100) {
+      throw RangeError.range(limit, 1, 100, 'limit');
+    }
+    if (!isFullTextIndexEnabled) return const [];
+    if (query.trim().isEmpty || query.length > 120) return const [];
+    final tokens = RegExp(r'[\\p{L}\\p{N}]+', unicode: true)
+        .allMatches(query).map((match) => match.group(0)!).toList();
+    if (tokens.isEmpty || tokens.length > 8) return const [];
+    final matchQuery = tokens.map((token) => '"$token"').join(' AND ');
+    return List.unmodifiable(_database.select('''
+      SELECT f.book_id, b.title,
+        snippet(library_fulltext_fts, 1, '', '', ' … ', 16) AS excerpt
+      FROM library_fulltext_fts f
+      INNER JOIN books b ON b.id = f.book_id
+      WHERE library_fulltext_fts MATCH ?
+      ORDER BY rank
+      LIMIT ?
+    ''', [matchQuery, limit]).map((row) => LibraryFullTextHit(
+      bookId: row['book_id'] as String,
+      title: row['title'] as String,
+      excerpt: row['excerpt'] as String,
+    )));
+  }
 
   /// Collections are book classifications, never book directories.
   List<BookCollection> get collections => _database.select('''
@@ -3130,6 +3350,12 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           ['book:$bookId']);
       _database.execute('DELETE FROM reading_preferences WHERE scope_id = ?',
           ['book:$bookId']);
+      // FTS5 is not FK-backed. Remove private derived text explicitly
+      // BEFORE deleting the source book, even if its path later fails.
+      if (isFullTextIndexEnabled) {
+        _database.execute(
+            'DELETE FROM library_fulltext_fts WHERE book_id = ?', [bookId]);
+      }
       _database.execute('DELETE FROM books WHERE id = ?', [bookId]);
     });
     if (_isManagedPath(book.localPath)) {
