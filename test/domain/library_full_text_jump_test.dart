@@ -26,6 +26,57 @@ void main() {
     expect(firstExactIndexedWord(source, 'missing'), isNull);
   });
 
+  test('multiple words open their nearest complete passage', () {
+    final source = 'dragon on the first page. '
+        '${List.filled(90, 'filler').join(' ')} '
+        'A brilliant blue dragon appeared at sunset.';
+    final chosen = bestIndexedPassage(source, ['dragon', 'blue']);
+    expect(chosen, isNotNull);
+    expect(chosen!.sourceOffset, source.lastIndexOf('blue'));
+    expect(chosen.expectedText, 'blue');
+    expect(chosen.validatedOffset(source), source.lastIndexOf('blue'));
+  });
+
+  test('multiword phrases may occur in reverse order and ties pick earliest',
+      () {
+    const source = 'blue dragon. Much later, dragon blue.';
+    final closest = bestIndexedPassage(source, ['dragon', 'blue']);
+    expect(closest?.sourceOffset, 0);
+    expect(closest?.expectedText, 'blue');
+    const tie = 'red fox. red fox.';
+    expect(bestIndexedPassage(tie, ['fox', 'red'])?.sourceOffset, 0);
+  });
+
+  test('long-distance matches fall back to first exact whole word', () {
+    final source = 'dragon ' + ('x ' * 300) + 'blue';
+    final chosen = bestIndexedPassage(source, ['dragon', 'blue']);
+    expect(chosen?.sourceOffset, 0);
+    expect(chosen?.expectedText, 'dragon');
+    expect(bestIndexedPassage(source, ['missing', 'blue']), isNull);
+    expect(bestIndexedPassage(source, ['dragon', 'blue'],
+        maxSpanChars: 5)?.sourceOffset, 0);
+  });
+
+  test('repeated query words are deduplicated, surrogates keep UTF-16 offsets',
+      () {
+    const source = '🐉 blue dragon rests by the river.';
+    final hit = bestIndexedPassage(source, ['dragon', 'blue', 'dragon']);
+    expect(hit?.sourceOffset, 3);
+    expect(hit?.validatedOffset(source), 3);
+    expect(bestIndexedPassage(source, ['blue'])?.sourceOffset, 3);
+    expect(bestIndexedPassage(source, []), isNull);
+    expect(bestIndexedPassage(source, List.filled(9, 'dragon')), isNull);
+    expect(bestIndexedPassage(source, ['blue', 'dragon'],
+        maxSpanChars: 3000), isNull);
+  });
+
+  test('term boundaries reject partial matches and respect Unicode words', () {
+    const source = 'dragonfly flies, then the dragon lands.';
+    final hit = bestIndexedPassage(source, ['dragon', 'lands']);
+    expect(hit?.sourceOffset, source.lastIndexOf('dragon'));
+    expect(bestIndexedPassage('dragonfly', ['dragon']), isNull);
+  });
+
   test('empty or out of range matches reject stale targets', () {
     expect(const LibraryFullTextJump(
       sourceOffset: -1, expectedText: 'a',
