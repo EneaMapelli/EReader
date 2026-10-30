@@ -109,6 +109,48 @@ void main() {
     expect(layout.blockForSourceOffset(source.length), isNot(0));
   });
 
+  test('two same-offset illustrated appendices remain distinguishable',
+      () {
+    const story = 'Voice stops here.';
+    final document = DocumentContent(
+      title: 'Shared-offset appendices',
+      text: story,
+      epubSpineRanges: const [
+        EpubSpineRange(idref: 'narrated', href: 'story.xhtml',
+            start: 0, end: story.length),
+        EpubSpineRange(idref: 'appendix-first', href: 'a.xhtml',
+            start: story.length, end: story.length),
+        EpubSpineRange(idref: 'appendix-second', href: 'b.xhtml',
+            start: story.length, end: story.length),
+      ],
+      epubImages: [
+        EpubEmbeddedImage(offset: story.length, bytes: png,
+            alt: 'First illustration', resourcePath: 'images/a.png',
+            spineIdref: 'appendix-first'),
+        EpubEmbeddedImage(offset: story.length, bytes: png,
+            alt: 'Second illustration', resourcePath: 'images/b.png',
+            spineIdref: 'appendix-second'),
+      ],
+    );
+    const utterances = [SpeechSegment(0, story.length, story)];
+    final chapters = buildEpubChapters(document, utterances);
+    final layout = buildProgressiveEpubVisualLayout(
+        document, utterances, chapters);
+    final targets = buildEpubMediaChapterTargets(
+        chapters, utterances.length, story.length);
+    final eof = targets[utterances.length]!;
+    expect(eof.silentSpineIdref, 'appendix-first');
+    expect(layout.blocks, hasLength(3));
+    expect(layout.blockForSpine('appendix-first', story.length), 1);
+    expect(layout.blockForSpine('appendix-second', story.length), 2);
+    expect(layout.blockForSpine(
+        eof.silentSpineIdref!, eof.sourceOffset), 1);
+    expect(layout.blocks[1].images.single.alt, 'First illustration');
+    expect(layout.blocks[2].images.single.alt, 'Second illustration');
+    expect(layout.positionForVisibleBlock(1, utterances).segmentIndex,
+        utterances.length);
+  });
+
   test('visual checkpoint pin keeps exact empty OPF tile selected', () {
     final document = sample();
     final layout = buildProgressiveEpubVisualLayout(document, clips,

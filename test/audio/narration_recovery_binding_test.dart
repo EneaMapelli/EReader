@@ -2,6 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:ereader/audio/narration_recovery_binding.dart';
+import 'package:ereader/data/book_decoder.dart';
+import 'package:ereader/data/epub_text_extractor.dart';
+import 'package:ereader/domain/book.dart';
+import 'package:ereader/features/reader/epub_chapter_navigation.dart';
 import 'package:ereader/audio/reader_media_handler.dart';
 import 'package:ereader/audio/reader_player.dart';
 import 'package:ereader/audio/speech_engine.dart';
@@ -123,6 +127,51 @@ void main() {
       db.dispose();
     }
   }
+
+  test('silent EPUB appendix remote EOF bookmark survives SQLite restart',
+      () async {
+    const source = 'First. Second. Third.';
+    const document = DocumentContent(
+      title: 'Illustrated ending',
+      text: source,
+      epubSpineRanges: [
+        EpubSpineRange(idref: 'story', href: 'story.xhtml',
+            start: 0, end: source.length),
+        EpubSpineRange(idref: 'art-first', href: 'art-a.xhtml',
+            start: source.length, end: source.length),
+        EpubSpineRange(idref: 'art-second', href: 'art-b.xhtml',
+            start: source.length, end: source.length),
+      ],
+    );
+    const clips = [SpeechSegment(0, source.length, source)];
+    final chapters = buildEpubChapters(document, clips);
+    final targets = buildEpubMediaChapterTargets(
+        chapters, clips.length, source.length);
+    final eof = targets[clips.length]!;
+    expect(eof.silentSpineIdref, 'art-first');
+    expect(eof.sourceOffset, source.length);
+    final anchor = ReadingAnchor(
+      kind: AnchorKind.epubSpine,
+      sourceId: eof.silentSpineIdref!,
+      localOffset: 0,
+    );
+
+    // This is the same persistent source pair that ReaderScreen writes
+    // after a *paused* remote media skip. It is not a speech checkpoint
+    // and must not set the crash-only narration marker.
+    await store.savePosition(bookId, eof.sourceOffset, anchor: anchor);
+    expect(activeCheckpoints(), 0);
+    await restartStore();
+    final restored = store.getBook(bookId)!;
+    expect(restored.progressOffset, source.length);
+    expect(restored.progressAnchor?.kind, AnchorKind.epubSpine);
+    expect(restored.progressAnchor?.sourceId, 'art-first');
+    expect(document.offsetOf(restored.progressAnchor!), source.length);
+    expect(speechResumeIndexForOffset(
+        clips, restored.progressOffset), clips.length,
+        reason: 'A silent final appendix cannot replay the last clip');
+    expect(store.interruptedNarrationBook, isNull);
+  });
 
   test('real ReaderPlayer checkpoints before speech and pause clears it',
       () async {

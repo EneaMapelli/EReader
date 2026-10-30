@@ -793,3 +793,16 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   identity test. Tests **written but not run** (Dart/Flutter unavailable).
   No Windows/Android build or GitHub Actions started.
 
+### M2/EPUB — Verify silent appendices across layout and SQLite reopen
+
+- Added an integration fixture with **two actual illustrated OPF
+  appendices sharing one UTF-16 source offset**. Confirmed the intended
+  first appendix resolves to its own progressive-layout tile and image,
+  instead of the adjacent distinct illustration.
+- Added SQLite restart regression for the paused remote-EOF bookmark:
+  first trailing silent spine `idref`, EPUB anchor round trip, exact
+  source position, no false interrupted-narration marker and completed
+  TTS cursor (never replay the final audio clip).
+- Tests authored but not executed: local Flutter/Dart SDK unavailable;
+  no build, packaging or GitHub Actions started.
+
