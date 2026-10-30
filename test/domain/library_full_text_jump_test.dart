@@ -48,7 +48,7 @@ void main() {
   });
 
   test('long-distance matches fall back to first exact whole word', () {
-    final source = 'dragon ' + ('x ' * 300) + 'blue';
+    final source = 'dragon ' + List.filled(300, 'x ').join() + 'blue';
     final chosen = bestIndexedPassage(source, ['dragon', 'blue']);
     expect(chosen?.sourceOffset, 0);
     expect(chosen?.expectedText, 'dragon');
@@ -113,7 +113,7 @@ void main() {
       sourceOffset: 6, expectedText: 'a',
     ).validatedOffset('a'), isNull);
     expect(LibraryFullTextJump(
-      sourceOffset: 0, expectedText: 'a' * 121,
-    ).validatedOffset('a' * 121), isNull);
+      sourceOffset: 0, expectedText: List.filled(121, 'a').join(),
+    ).validatedOffset(List.filled(121, 'a').join()), isNull);
   });
 }
