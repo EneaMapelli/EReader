@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
@@ -34,6 +35,34 @@ void main() {
         const OSError('private', 13))).kind, OfflineVoiceFailureKind.accessDenied);
     expect(report(FileSystemException('busy', '/private/user/token',
         const OSError('private', 32))).kind, OfflineVoiceFailureKind.lockedFiles);
+  });
+
+  test('Paola network, extractor and Windows failure advice is sanitized',
+      () {
+    final cases = <(Object, OfflineVoiceFailureKind)>[
+      (const SocketException('Secret DNS endpoint'),
+          OfflineVoiceFailureKind.download),
+      (TimeoutException('Private URL timeout'),
+          OfflineVoiceFailureKind.download),
+      (const FormatException('Piper download unavailable or unsafe'),
+          OfflineVoiceFailureKind.download),
+      (ProcessException('tar.exe', ['/private/voice.tar.bz2'],
+          'Private source path'), OfflineVoiceFailureKind.extraction),
+      (const FormatException('Windows tar could not unpack Piper voice'),
+          OfflineVoiceFailureKind.extraction),
+      (UnsupportedError('Private platform details'),
+          OfflineVoiceFailureKind.unsupported),
+      (FileSystemException('Private storage', '/private/voice',
+          const OSError('Private', 112)), OfflineVoiceFailureKind.noSpace),
+    ];
+    for (final (error, expected) in cases) {
+      final diagnosis = diagnoseOfflineVoiceFailure(
+          error, operation: OfflineVoiceOperation.installPaola);
+      expect(diagnosis.kind, expected);
+      expect(diagnosis.message, startsWith('Paola could not be installed.'));
+      expect(diagnosis.message, isNot(contains('/private/')));
+      expect(diagnosis.message, isNot(contains('Secret DNS')));
+    }
   });
 
   test('offline voice failure messages cannot reveal OS paths or source text',
