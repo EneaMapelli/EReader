@@ -70,6 +70,47 @@ class FakeOfflineEngine implements SpeechEngine {
   }
 }
 
+class PreparedVoiceFakeEngine extends FakeOfflineEngine
+    implements OfflineVoiceModelPrewarmer {
+  int prepares = 0;
+  Completer<void>? prepareGate;
+
+  @override
+  Future<void> prewarmModel() async {
+    prepares++;
+    final pending = prepareGate;
+    if (pending != null) await pending.future;
+  }
+
+  @override
+  Future<void> stop() async {
+    if (prepareGate != null && !prepareGate!.isCompleted) {
+      prepareGate!.complete();
+    }
+    await super.stop();
+  }
+}
+
+class _FakePreparedExpiry implements Timer {
+  _FakePreparedExpiry(this.delay, this.action);
+  final Duration delay;
+  final void Function() action;
+  bool _active = true;
+  int _tick = 0;
+  @override
+  bool get isActive => _active;
+  @override
+  int get tick => _tick;
+  @override
+  void cancel() => _active = false;
+  void fire() {
+    if (!_active) return;
+    _active = false;
+    _tick++;
+    action();
+  }
+}
+
 class DiagnosticFakeOfflineEngine extends FakeOfflineEngine
     implements OfflineVoiceDiagnosticsProvider {
   final OfflineVoiceDiagnostics diagnostics = OfflineVoiceDiagnostics();
@@ -163,6 +204,142 @@ Future<void> until(bool Function() ready) async {
 }
 
 void main() {
+  test('explicit silent warmup is reused only after another verification',
+      () async {
+    final engine = PreparedVoiceFakeEngine();
+    var reads = 0;
+    var created = 0;
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async {
+        reads++;
+        return samplePack();
+      },
+      createEngine: (_) {
+        created++;
+        return engine;
+      },
+    );
+    await audition.prewarm('italian');
+    expect(audition.hasPreparedModel('italian'), isTrue);
+    expect(engine.prepares, 1);
+    expect(engine.speaks, 0,
+        reason: 'Native model-only preparation must not generate speech');
+    expect(engine.disposals, 0);
+    await audition.play('italian');
+    expect(reads, 2, reason: 'Always rehash pack before reuse');
+    expect(created, 1);
+    expect(engine.prepares, 1);
+    expect(engine.speaks, 1);
+    expect(engine.disposals, 1);
+    expect(audition.hasPreparedModel('italian'), isFalse);
+    await audition.dispose();
+  });
+
+  test('pack metadata change forbids reuse of a prepared worker',
+      () async {
+    final created = <PreparedVoiceFakeEngine>[];
+    var reads = 0;
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async {
+        reads++;
+        return samplePack(locale: reads == 1 ? 'it-IT' : 'en-US');
+      },
+      createEngine: (_) {
+        final engine = PreparedVoiceFakeEngine();
+        created.add(engine);
+        return engine;
+      },
+    );
+    await audition.prewarm('italian');
+    await audition.play('italian');
+    expect(reads, 2);
+    expect(created, hasLength(2));
+    expect(created.first.disposals, 1);
+    expect(created.first.speaks, 0);
+    expect(created.last.speaks, 1);
+    expect(created.last.disposals, 1);
+    expect(audition.hasPreparedModel('italian'), isFalse);
+    await audition.dispose();
+  });
+
+  test('prepared model is released after 3 minutes without audio',
+      () async {
+    final timers = <_FakePreparedExpiry>[];
+    final engine = PreparedVoiceFakeEngine();
+    var changes = 0;
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => engine,
+      onPreparedModelChanged: () { changes++; },
+      preparedTimerScheduler: (delay, action) {
+        final timer = _FakePreparedExpiry(delay, action);
+        timers.add(timer);
+        return timer;
+      },
+    );
+    await audition.prewarm('italian');
+    expect(timers.single.delay, OfflineVoiceAudition.preparedLifetime);
+    expect(audition.hasPreparedModel('italian'), isTrue);
+    expect(engine.disposals, 0);
+    timers.single.fire();
+    await until(() => engine.disposals == 1);
+    expect(audition.hasPreparedModel('italian'), isFalse);
+    expect(engine.prepares, 1);
+    expect(engine.speaks, 0);
+    expect(changes, 2, reason: 'UI observes warm and expired transitions');
+    await audition.dispose();
+  });
+
+  test('Stop cancels ONNX warmup still loading', () async {
+    final engine = PreparedVoiceFakeEngine()
+      ..prepareGate = Completer<void>();
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => engine,
+    );
+    final warming = audition.prewarm('italian');
+    await until(() => engine.prepares == 1);
+    final stopping = audition.stop();
+    await Future.wait([warming, stopping]);
+    expect(engine.stops, 1);
+    expect(engine.disposals, 1);
+    expect(engine.speaks, 0);
+    expect(audition.hasPreparedModel('italian'), isFalse);
+    await audition.dispose();
+  });
+
+  test('Stop releases a prepared ONNX worker without creating a WAV',
+      () async {
+    final engine = PreparedVoiceFakeEngine();
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => engine,
+    );
+    await audition.prewarm('italian');
+    await audition.stop();
+    expect(engine.prepares, 1);
+    expect(engine.speaks, 0);
+    expect(engine.stops, 1);
+    expect(engine.disposals, 1);
+    expect(audition.hasPreparedModel('italian'), isFalse);
+    await audition.dispose();
+  });
+
+  test('generic TTS engines cannot silently claim ONNX preparation',
+      () async {
+    final engine = FakeOfflineEngine();
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => engine,
+    );
+    await expectLater(audition.prewarm('italian'),
+        throwsUnsupportedError);
+    expect(engine.speaks, 0);
+    expect(engine.disposals, 1);
+    expect(audition.hasPreparedModel('italian'), isFalse);
+    await audition.dispose();
+  });
+
   test('consented cold/warm comparison uses one model and fixed public text',
       () async {
     final fake = BenchmarkFakeOfflineEngine();
