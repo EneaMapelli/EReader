@@ -45,9 +45,9 @@ class ReaderActivityTracker {
     if (seconds == 0 || active == null) return;
     try {
       store.recordReadingActivity(bookId, active, seconds);
-    } on StateError {
-      // During app shutdown the store may already be disposed. Stats are
-      // optional and must never block or restart a narration transaction.
+    } catch (_) {
+      // Local storage may fail during shutdown or if the disk fills.
+      // Optional statistics must never disrupt the reader or native TTS.
     }
   }
 
