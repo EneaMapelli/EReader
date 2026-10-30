@@ -222,8 +222,10 @@ List<LibraryFullTextPassage> findIndexedPassages(
     // Merge a cluster of close competing windows to avoid repeats.
     final overlaps = <_IndexedPassageCandidate>[];
     for (final existing in chosen) {
-      if (candidate.start < existing.end &&
-          existing.start < candidate.end) {
+      // Near-adjacent windows usually describe the same paragraph, even
+      // when their exact term spans do not overlap.
+      if (candidate.start <= existing.end + 72 &&
+          existing.start <= candidate.end + 72) {
         overlaps.add(existing);
       }
     }
