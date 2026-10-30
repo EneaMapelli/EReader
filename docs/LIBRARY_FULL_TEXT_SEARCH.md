@@ -195,6 +195,43 @@ All words/Any word/Exact phrase selectors. Tests were authored, but
 **not executed** here (Dart/Flutter SDK unavailable); no Windows/Android
 builds or GitHub Actions were started.
 
+## Concurrent consent changes and stale-result protection
+
+An explicit opt-out drops the current local index immediately. Because book
+decoding and file metadata checks are asynchronous, they can outlive that
+operation. A **process-local session revision** now invalidates all such
+in-flight work, even when the user disables and *immediately re-enables*
+indexing before the previous decode finishes.
+
+- A pending index batch checks its session both before starting a decode
+  and after every asynchronous decoding/stat boundary. A revoked session
+  exits as cancelled without writing stale book text or skipped markers
+  into the newly enabled index. A new batch may begin after the old
+  operation has exited. Explicit cancellation is still cooperative:
+  decoding already in progress cannot be interrupted mid-parser.
+- Explicit change detection also stops if its session has been replaced;
+  it never resumes an obsolete scan just because the index is enabled
+  again.
+- A selected book's alternative passage previews are computed on a
+  worker isolate. After that work returns, the store rechecks both the
+  **session revision** and an in-memory **index-data revision**. A result
+  obtained before opt-out, reset, reindexing, changed-book invalidation
+  or book deletion is discarded. This does not serialize private excerpts
+  to disk, and it does not re-enable an opted-out index.
+- These counters are process-local only; no schema change, background
+  scheduler, new dependency, cloud call, or additional user tracking is
+  introduced. Existing warnings about SQLite WAL and backups remain.
+- Source verification in the reader remains the final independent
+  safeguard against content changes that occur without an explicit
+  refresh or while a book is already open.
+
+Regression coverage includes a deliberately paused decoder, rapid
+disable/re-enable while a decode is outstanding, cancellation of a
+changed-file scan, and rejection of previews pending during reset,
+consent revocation and book deletion. The tests are **authored but not
+executed** here: Dart/Flutter SDK is unavailable. No Windows/Android
+builds or GitHub Actions have been launched.
+
 ## Alternative passages within a matching book
 
 Each indexed book result now has a **Show matching passages** action. Opening
