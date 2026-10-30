@@ -104,6 +104,42 @@ void main() {
         isTrue);
   });
 
+  testWidgets('changed voice checksum reports action without exposing source',
+      (tester) async {
+    await putVoiceManifest();
+    await mountWithPicker(tester, () async => source.path);
+    await tester.tap(find.text('Import local voice folder'));
+    await letIoSettle(tester);
+    expect(find.text('Declared license: MIT'), findsOneWidget);
+
+    // The file is modified AFTER the UI displayed its review, so the
+    // canonical importer must rehash the file before accepting it.
+    await File(p.join(source.path, 'tokens.txt'))
+        .writeAsBytes([91, 92, 93]);
+    final consent = find.byKey(
+        const ValueKey('offline-voice-license-approval'));
+    await tester.ensureVisible(consent);
+    await tester.pumpAndSettle();
+    await tester.tap(consent);
+    await tester.pump();
+    final install = find.widgetWithText(
+        FilledButton, 'Verify and install locally');
+    await tester.ensureVisible(install);
+    await tester.pumpAndSettle();
+    await tester.tap(install);
+    await letIoSettle(tester);
+
+    expect(find.textContaining('Voice installation rejected.'),
+        findsOneWidget);
+    expect(find.textContaining('expected checksums'), findsOneWidget);
+    expect(find.textContaining(source.path), findsNothing,
+        reason: 'Absolute file paths must never be displayed');
+    expect(await File(p.join(source.path, 'tokens.txt')).readAsBytes(),
+        [91, 92, 93]);
+    expect(await inspectOfflineVoicePacks(modelsDirectory: models), isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('manual import inspection is read-only and reports eligibility',
       (tester) async {
     final stage = await models.createTemp(
