@@ -700,7 +700,10 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (!mounted || _loading || _player == null || _document == null ||
         (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
     final player = _player!;
-    if (player.isPlaying || player.segments.isEmpty) return;
+    // A pending native Stop/checkpoint makes isPlaying=false while a
+    // Seek may still auto-resume. Never treat its transient viewport
+    // notifications as a manual bookmark or override crash recovery.
+    if (!player.isSettledIdle || player.segments.isEmpty) return;
     final visible = _itemPositionsListener.itemPositions.value
         .where((item) =>
             item.itemTrailingEdge > 0 && item.itemLeadingEdge < 1)
@@ -748,7 +751,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     final revision = _visualSaveRevision;
     final document = _document;
     _saveVisualPositionTimer = Timer(const Duration(milliseconds: 450), () {
-      if (!mounted || player.isPlaying || _player != player ||
+      if (!mounted || !player.isSettledIdle || _player != player ||
           _visualSaveRevision != revision || _document != document ||
           (widget.book.format == BookFormat.epub &&
               _currentEpubVisualSourceOffset != sourceOffset) ||
@@ -1142,29 +1145,31 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   Future<void> _move(int delta) async {
     final player = _player;
-    if (player == null) return;
-    _cancelPendingVisualSave();
-    await player.seekTo(player.currentIndex + delta);
-    if (player.segments.isNotEmpty) {
-      _visiblePositionIndex = player.currentIndex;
-      if (widget.book.format == BookFormat.epub) {
-        _visualCheckpoint.clear();
-        _currentEpubVisualSourceOffset =
-            player.segments[player.currentIndex].start;
-        final target = _epubLayout.blockForSegment(player.currentIndex);
-        _visualCheckpoint.hold(
-            _currentEpubVisualSourceOffset, awaitTarget: true);
-        _lastVisibleEpubBlockIndex = target;
-        _lastFollowedIndex = target;
-        if (_itemScrollController.isAttached) {
-          _itemScrollController.jumpTo(index: target, alignment: 0.12);
-        }
+    final document = _document;
+    if (!mounted || player == null || player.segments.isEmpty ||
+        document == null) return;
+    final target = player.sourceStepDestination(delta);
+    // Next on a completed book is idempotent. The final narrated chunk
+    // must not be replayed by clamping a Next to the last *audio* index.
+    if (target == player.segments.length && player.isSettledIdle &&
+        player.currentIndex == target) return;
+    try {
+      if (target == player.segments.length) {
+        final eof = widget.book.format == BookFormat.epub
+            ? epubSpeechEndTarget(
+                _chapters, player.segments.length, document.text.length)
+            : EpubMediaChapterTarget(sourceOffset: document.text.length);
+        await _select(target, visualSourceOffset: eof.sourceOffset,
+            visualSpineIdref: eof.silentSpineIdref);
+      } else {
+        // _select owns the native Stop barrier, latest-selection guard,
+        // source-exact SQLite write and visual scroll checkpoint.
+        await _select(target);
       }
-      await widget.store.savePosition(
-        widget.book.id,
-        player.segments[player.currentIndex].start,
-        anchor: _document?.anchorAt(
-          widget.book.format, player.segments[player.currentIndex].start),
+    } catch (error) {
+      if (!mounted || _player != player) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot move to this passage: $error')),
       );
     }
   }
@@ -1303,8 +1308,10 @@ class _ReaderScreenState extends State<ReaderScreen>
     bool preserveSearchHighlight = false,
   }) async {
     final player = _player;
-    final visualOnlyEnd = widget.book.format == BookFormat.epub &&
-        visualSourceOffset != null && index == player?.segments.length;
+    // Explicit source EOF also exists for TXT and PDF. Ordinary segment
+    // selection still refuses out-of-range positions.
+    final visualOnlyEnd = visualSourceOffset != null &&
+        index == player?.segments.length;
     if (player == null || index < 0 ||
         (index >= player.segments.length && !visualOnlyEnd)) return;
     // Navigating elsewhere clears a previous search-result highlight.
@@ -1325,9 +1332,11 @@ class _ReaderScreenState extends State<ReaderScreen>
     // A verified EPUB link may point inside the current audio segment
     // or into a paragraph without any speech. Save that exact source
     // position, rather than saving a coarse TTS start and then rewriting.
-    final sourceOffset = widget.book.format == BookFormat.epub &&
-            visualSourceOffset != null
-        ? visualSourceOffset : player.segments[index].start;
+    final sourceOffset = visualOnlyEnd
+        ? visualSourceOffset
+        : widget.book.format == BookFormat.epub &&
+                visualSourceOffset != null
+            ? visualSourceOffset : player.segments[index].start;
     final explicitSilentAnchor = widget.book.format == BookFormat.epub &&
         visualSpineIdref != null
         ? ReadingAnchor(kind: AnchorKind.epubSpine,

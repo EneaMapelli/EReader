@@ -825,3 +825,28 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   properly superseding that older manual bookmark. Tests not executed
   (Dart/Flutter unavailable); no build, release or GitHub Actions started.
 
+### M2 — Unified in-reader source stepping and reliable EOF (2026-10-30)
+
+- Reused ReaderScreen._select for Left/Right and onscreen Previous/Next.
+  It owns the serialized native Stop, supersession checks, exact source
+  bookmark persistence and EPUB visual checkpoint; the old _move wrote
+  unguarded positions after possibly superseded awaits.
+- ReaderPlayer.sourceStepDestination composes consecutive user controls
+  from the most recent *intended* Seek instead of stale currentIndex,
+  including one deliberate silent EOF position. Next from the last spoken
+  segment now stops cleanly and saves source EOF; another Next at settled
+  EOF is a no-op; Previous moves to the final audible segment.
+- Expanded _select's explicit source-EOF handling to TXT and PDF. EPUB
+  source EOF selects the first trailing illustrated OPF spine by ID, not
+  a same-offset but different appendix. The EPUB EOF lookup is linear
+  only when needed, without building a per-book Android navigation map
+  for Windows or each in-reader button press.
+- Prevented viewport callbacks and delayed scroll-timer writes while
+  ReaderPlayer is temporarily non-playing but **not settled idle**
+  (pending Stop, auto-resuming Seek or speech completion checkpoint).
+  These frames must not replace the crash recovery anchor.
+- Added deterministic player and EPUB pure lookup regressions for
+  rapid intents, EOF, and shared-offset illustrated appendices.
+  Tests **authored but not executed** without Dart/Flutter SDK.
+  No Windows/Android builds, releases or GitHub Actions started.
+

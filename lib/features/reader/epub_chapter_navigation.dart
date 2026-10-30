@@ -103,6 +103,31 @@ class EpubMediaChapterTarget {
   final String? silentSpineIdref;
 }
 
+/// Resolve only the EOF visual destination without constructing a chapter
+/// index: useful for in-reader Next on Windows and for large EPUBs.
+/// Return the first illustrated-only trailing spine, if there is one.
+EpubMediaChapterTarget epubSpeechEndTarget(
+    List<EpubChapter> chapters, int speechSegmentCount,
+    int sourceLength) {
+  var lastSpokenChapter = -1;
+  for (var index = 0; index < chapters.length; index++) {
+    if (chapters[index].hasSpeech &&
+        chapters[index].segmentIndex < speechSegmentCount) {
+      lastSpokenChapter = index;
+    }
+  }
+  for (var index = lastSpokenChapter + 1;
+      index < chapters.length; index++) {
+    if (!chapters[index].hasSpeech) {
+      return EpubMediaChapterTarget(
+        sourceOffset: chapters[index].start,
+        silentSpineIdref: chapters[index].idref,
+      );
+    }
+  }
+  return EpubMediaChapterTarget(sourceOffset: sourceLength);
+}
+
 /// Build one immutable source lookup when the reader opens, rather than
 /// rescanning every OPF section for each lock-screen Next/Previous.
 /// A completed narration may still have trailing illustrated-only spines;
@@ -111,30 +136,16 @@ Map<int, EpubMediaChapterTarget> buildEpubMediaChapterTargets(
     List<EpubChapter> chapters, int speechSegmentCount,
     int sourceLength) {
   final targets = <int, EpubMediaChapterTarget>{};
-  var lastSpokenChapter = -1;
-  for (var i = 0; i < chapters.length; i++) {
-    final chapter = chapters[i];
+  for (final chapter in chapters) {
     if (chapter.hasSpeech &&
         chapter.segmentIndex >= 0 &&
         chapter.segmentIndex < speechSegmentCount) {
-      lastSpokenChapter = i;
       targets.putIfAbsent(chapter.segmentIndex, () =>
           EpubMediaChapterTarget(sourceOffset: chapter.start));
     }
   }
-  EpubChapter? trailingSilent;
-  for (var i = lastSpokenChapter + 1; i < chapters.length; i++) {
-    if (!chapters[i].hasSpeech) {
-      trailingSilent = chapters[i];
-      break;
-    }
-  }
-  targets[speechSegmentCount] = trailingSilent == null
-      ? EpubMediaChapterTarget(sourceOffset: sourceLength)
-      : EpubMediaChapterTarget(
-          sourceOffset: trailingSilent.start,
-          silentSpineIdref: trailingSilent.idref,
-        );
+  targets[speechSegmentCount] =
+      epubSpeechEndTarget(chapters, speechSegmentCount, sourceLength);
   return Map<int, EpubMediaChapterTarget>.unmodifiable(targets);
 }
 

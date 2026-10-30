@@ -228,6 +228,23 @@ void main() {
     expect(targets[400000]?.sourceOffset, 2400000);
   });
 
+  test('in-reader EOF lookup preserves illustrated spine without map',
+      () {
+    const chapters = [
+      EpubChapter(idref: 'narrated', title: 'Story', start: 0,
+          end: 50, segmentIndex: 0),
+      EpubChapter(idref: 'art-a', title: 'Art A', start: 50,
+          end: 50, segmentIndex: 1, hasSpeech: false),
+      EpubChapter(idref: 'art-b', title: 'Art B', start: 50,
+          end: 50, segmentIndex: 1, hasSpeech: false),
+    ];
+    final destination = epubSpeechEndTarget(chapters, 1, 50);
+    expect(destination.sourceOffset, 50);
+    expect(destination.silentSpineIdref, 'art-a');
+    expect(epubSpeechEndTarget(const [], 1, 50).sourceOffset, 50);
+    expect(epubSpeechEndTarget(const [], 1, 50).silentSpineIdref, isNull);
+  });
+
   test('media EOF selects first trailing silent spine by its exact ID', () {
     const chapters = [
       EpubChapter(idref: 'cover', title: 'Cover', start: 0, end: 0,

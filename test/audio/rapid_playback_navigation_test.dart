@@ -111,6 +111,28 @@ void main() {
     }
   });
 
+  test('in-reader step target accumulates rapid commands through Stop',
+      () async {
+    final original = player.play();
+    await _until(() => engine.spoken.length == 1);
+    engine.stopGate = Completer<void>();
+    final firstTarget = player.sourceStepDestination(1);
+    expect(firstTarget, 1);
+    final first = player.seekTo(firstTarget);
+    expect(player.currentIndex, 0);
+    expect(player.sourceStepDestination(1), 2);
+    final ending = player.seekToSourceEnd();
+    expect(player.sourceStepDestination(1), player.segments.length);
+    expect(player.sourceStepDestination(-1), player.segments.length - 1);
+    engine.stopGate!.complete();
+    await Future.wait([original, first, ending]);
+    expect(player.currentIndex, player.segments.length);
+    expect(player.isPlaying, isFalse);
+    expect(engine.spoken, ['One']);
+    expect(player.sourceStepDestination(1), player.segments.length);
+    expect(player.sourceStepDestination(-1), player.segments.length - 1);
+  });
+
   test('visual-only EOF seek never replays the previous spoken clip',
       () async {
     final running = player.play();

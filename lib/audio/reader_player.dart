@@ -525,6 +525,14 @@ class ReaderPlayer extends ChangeNotifier {
               _pendingNavigationEpoch == _navigationEpoch
           ? _pendingNavigationIndex! : currentIndex;
 
+  /// Relative source navigation must use the most recently requested
+  /// destination, not the last committed cursor while native Stop is
+  /// still in flight. The extra EOF position is deliberate: the final
+  /// Next action may stop narration without replaying the last sentence.
+  int sourceStepDestination(int delta) =>
+      (intendedNavigationIndex + delta)
+          .clamp(0, _segments.length).toInt();
+
   /// Increases whenever a new direct Play, Pause, Seek, voice/profile
   /// change or source-end navigation supersedes previous control intent.
   /// The Android media handler uses this to distinguish duplicate phone
