@@ -39,7 +39,7 @@ LibraryFullTextJump? firstExactIndexedWord(
     String indexedSource, String queryToken) {
   if (queryToken.isEmpty || queryToken.length > 120) return null;
   final target = queryToken.toLowerCase();
-  final words = RegExp(r'[\\p{L}\\p{N}\\p{M}]+', unicode: true);
+  final words = RegExp(r'[\p{L}\p{N}\p{M}]+', unicode: true);
   for (final match in words.allMatches(indexedSource)) {
     final word = match.group(0)!;
     if (word.toLowerCase() == target) {
