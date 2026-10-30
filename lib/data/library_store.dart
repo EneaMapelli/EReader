@@ -50,6 +50,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
   // and private worker previews, even if the index is immediately enabled
   // again. This is process-local: no new DB column or book text is stored.
   int _fullTextSessionRevision = 0;
+  // In-flight preview results become stale after an index mutation.
+  // This process-local counter never exposes or persists book text.
+  int _fullTextDataRevision = 0;
   static const int _maxFullTextIndexBytes = 64 * 1024 * 1024;
   String? _startupInterruptedBookId;
 
@@ -1266,6 +1269,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     // Bump only after successful consent mutation. Synchronous transaction
     // cannot interleave with a Future continuation on this isolate.
     _fullTextSessionRevision++;
+    _fullTextDataRevision++;
   }
 
   /// Clear an index while keeping consent. The next batch re-extracts
@@ -1282,6 +1286,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     // Reset must also invalidate in-flight read-only worker previews,
     // even though index batches themselves cannot run concurrently.
     _fullTextSessionRevision++;
+    _fullTextDataRevision++;
   }
 
   int get fullTextIndexedBooks {
@@ -1376,6 +1381,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
                 'DELETE FROM library_fulltext_source_state WHERE book_id = ?',
                 [id]);
           });
+          _fullTextDataRevision++;
           changed++;
         }
         onProgress?.call(i + 1, entries.length);
@@ -1514,6 +1520,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
                 source_modified_us = excluded.source_modified_us
             ''', [book.id, sourceStamp.size, sourceStamp.modifiedUs]);
           });
+          _fullTextDataRevision++;
           if (text == null) { skipped++; } else { indexed++; }
         } else {
           skipped++;
@@ -1618,6 +1625,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     if (rows.isEmpty) return const [];
     final indexedText = rows.single['body'] as String;
     final consentRevision = _fullTextSessionRevision;
+    final dataRevision = _fullTextDataRevision;
     // Parse the potentially large local text on a worker isolate instead
     // of blocking the Flutter UI during an explicit passage inspection.
     final passages = await Isolate.run(() =>
@@ -1632,6 +1640,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     // was later revoked (including rapid disable/re-enable).
     if (!isFullTextIndexEnabled ||
         consentRevision != _fullTextSessionRevision ||
+        dataRevision != _fullTextDataRevision ||
         getBook(bookId) == null) return const [];
     return passages;
   }
@@ -3594,6 +3603,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       }
       _database.execute('DELETE FROM books WHERE id = ?', [bookId]);
     });
+    _fullTextDataRevision++;
     if (_isManagedPath(book.localPath)) {
       final file = File(book.localPath);
       if (await file.exists()) await file.delete();
