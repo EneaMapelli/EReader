@@ -379,6 +379,19 @@ void main() {
     expect(store.fullTextPendingBooks, 2);
   });
 
+  test('deleting an indexed book invalidates its in-flight preview',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    final preview = store.fullTextPassagesForHit(alpha, 'blue dragon');
+    final removal = store.removeBook(alpha);
+    expect(await preview, isEmpty);
+    await removal;
+    expect(store.getBook(alpha), isNull);
+    expect(store.searchIndexedBookContents('blue'), isEmpty);
+    expect(store.searchIndexedBookContents('dragon').single.bookId, beta);
+  });
+
   test('cancel between books leaves a resumable batch, no duplicate text',
       () async {
     store.setFullTextIndexEnabled(true);
