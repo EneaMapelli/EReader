@@ -538,6 +538,9 @@ class ReaderPlayer extends ChangeNotifier {
       !_disposed && !isPlaying &&
       !_resumeAfterNavigation && _pendingNativeStops == 0 &&
       _pendingSegmentCompletions == 0 && !nativeStopUnconfirmed;
+  // Keep the physical native Stop queue independent from checkpoint/durable
+  // position writes: those may take longer without proving audio is unsafe.
+  Future<void> _pendingNativeStop = Future<void>.value();
   Future<void> _pendingStop = Future<void>.value();
   Future<void> _pendingCompletion = Future<void>.value();
   Future<void> _pendingVoiceChange = Future<void>.value();
@@ -815,34 +818,41 @@ class ReaderPlayer extends ChangeNotifier {
     // and release focus/erase recovery while native speech still plays.
     _pendingNativeStops++;
     _notify();
-    final priorStop = _pendingStop;
+    final priorNativeStop = _pendingNativeStop;
+    final priorSettled = _pendingStop;
     final stopping = () async {
       try {
-        await priorStop;
+        await priorNativeStop;
       } catch (_) {
-        // A failed prior stop is handled separately; never use its
-        // completion as proof that a new utterance may start.
+        // A failed native Stop is tracked separately by _stopFailed.
       }
       if (_stopFailed) {
         throw StateError('An earlier native speech Stop failed');
       }
       await _engine.stop();
     }();
-    // Native Stop and SQLite acknowledgment are TWO different deadlines.
-    // A slow checkpoint must not be mistaken for an unconfirmed native
-    // Stop (which would permanently lock narration). New Play/Seek waits
-    // for BOTH, but the native safety timeout applies only to Stop.
+    _pendingNativeStop = stopping;
+    // A second Pause/Seek may arrive while the first completed segment
+    // waits for its SQLite checkpoint. Native Stops must queue behind only
+    // other native Stops, not behind a slow database acknowledgement.
+    // The full settled chain still fences every older acknowledgement
+    // before a new Play/Seek is allowed to advance source position.
     final settled = () async {
+      try {
+        await priorSettled;
+      } catch (_) {
+        // The previous command reports its own native Stop failure.
+      }
       try {
         await stopping;
       } catch (_) {
-        // The native failure is reported by the original Stop future.
+        // The original Stop Future and timeout below report the failure.
       }
       try {
         await _pendingCompletion;
       } catch (_) {
-        // A rejected checkpoint keeps its old cursor for safe replay.
-        // It must never suppress or replace a native Stop failure.
+        // A rejected checkpoint leaves the cursor at its previous
+        // safe replay position; it must not poison future native Stops.
       }
     }();
     _pendingStop = settled;
@@ -864,9 +874,6 @@ class ReaderPlayer extends ChangeNotifier {
 
     try {
       await stopping.timeout(nativeStopTimeout);
-      // Keep the recovery marker and audio focus owned by this book
-      // until an already-audible segment's checkpoint is fully resolved.
-      await settled;
     } on TimeoutException {
       _stopUnconfirmed = true;
       // A queued Play/Seek/voice change must never restart merely because
@@ -889,6 +896,10 @@ class ReaderPlayer extends ChangeNotifier {
       _notify();
       rethrow;
     }
+    // Checkpoint callbacks may themselves throw TimeoutException. They
+    // are not evidence of an unsafe native Stop and must never put the
+    // TTS engine in the permanent native-stop recovery lock.
+    await settled;
   }
 
   Future<void> pause() async {

@@ -150,6 +150,86 @@ void main() {
     player.dispose();
   });
 
+  test('duplicate Pause cannot time out behind a slow completed checkpoint',
+      () async {
+    final engine = _CompleteSpeechEngine();
+    final ack = Completer<void>();
+    final player = ReaderPlayer(
+      engine: engine, segments: segments,
+      nativeStopTimeout: const Duration(milliseconds: 25),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => ack.future,
+    );
+    final reading = player.play();
+    await _until(() => engine.spoken.length == 1);
+    engine.finish(0);
+    await _until(() => player.isCommittingSpeechSegment);
+
+    final first = player.pause();
+    final second = player.pause();
+    await Future<void>.delayed(const Duration(milliseconds: 70));
+    expect(player.nativeStopUnconfirmed, isFalse,
+        reason: 'A delayed checkpoint is not a hung physical Stop');
+    expect(player.isSettledIdle, isFalse);
+    expect(engine.spoken, ['One']);
+    ack.complete();
+    await Future.wait([first, second, reading]);
+    expect(player.currentIndex, 1);
+    expect(player.isSettledIdle, isTrue);
+    player.dispose();
+  });
+
+  test('rapid remote-style skips wait for checkpoint but not native Stop',
+      () async {
+    final engine = _CompleteSpeechEngine();
+    final ack = Completer<void>();
+    final player = ReaderPlayer(
+      engine: engine, segments: segments,
+      nativeStopTimeout: const Duration(milliseconds: 25),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => ack.future,
+    );
+    final reading = player.play();
+    await _until(() => engine.spoken.length == 1);
+    engine.finish(0);
+    await _until(() => player.isCommittingSpeechSegment);
+
+    final oldSkip = player.seekTo(1);
+    final lastSkip = player.seekTo(2);
+    await Future<void>.delayed(const Duration(milliseconds: 70));
+    expect(player.nativeStopUnconfirmed, isFalse);
+    expect(engine.spoken, ['One']);
+    expect(player.isSettledIdle, isFalse);
+    ack.complete();
+    await Future.wait([oldSkip, lastSkip, reading]);
+    await _until(() => engine.spoken.length == 2);
+    expect(engine.spoken, ['One', 'Three']);
+    expect(player.currentIndex, 2);
+    await player.pause();
+    player.dispose();
+  });
+
+  test('checkpoint timeout exception cannot masquerade as native Stop',
+      () async {
+    final engine = _CompleteSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine, segments: segments,
+      nativeStopTimeout: const Duration(milliseconds: 25),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) async =>
+          throw TimeoutException('Database acknowledgment timed out'),
+    );
+    final reading = player.play();
+    await _until(() => engine.spoken.length == 1);
+    engine.finish(0);
+    await expectLater(reading, throwsA(isA<TimeoutException>()));
+    expect(player.currentIndex, 0);
+    expect(player.nativeStopUnconfirmed, isFalse);
+    await player.pause();
+    expect(player.nativeStopUnconfirmed, isFalse);
+    player.dispose();
+  });
+
   test('rejected completion checkpoint retains last safe replay anchor',
       () async {
     final engine = _CompleteSpeechEngine();

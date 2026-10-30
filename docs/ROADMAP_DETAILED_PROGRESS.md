@@ -674,3 +674,23 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Tests **written but not run** (Flutter/Dart SDK unavailable); no
   Windows/Android build or GitHub Actions started.
 
+### M2 — Separate native Stop queue from completed-segment checkpoints (2026-10-30)
+
+- Fixed repeat Pause/Seek commands behind an outstanding completed-segment
+  SQLite acknowledgment: the previous serialized Stop queue contained
+  checkpoint latency, so a second physical Stop could incorrectly exceed
+  its native 8-second deadline and lock narration even though audio had
+  already stopped.
+- Added a native-only Stop queue alongside the existing full-settlement
+  queue. Only the native chain is subject to the safety timeout; Play and
+  navigation still wait for *all* prior stop/checkpoint work.
+- Scoped TimeoutException handling strictly to the actual physical
+  Stop, never to an asynchronous SQLite callback that may itself time out.
+- Added regression tests for duplicate Pause, rapid skip requests
+  during a held completion checkpoint and checkpoint-specific timeout.
+  The tests verify last-command-wins cursor semantics, no premature
+  audio and no false native engine recovery lock.
+- **Tests not run** without Dart/Flutter; no Windows or Android builds
+  or GitHub Actions started. Physical background/phone-call acceptance
+  remains pending.
+
