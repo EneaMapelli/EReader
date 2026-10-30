@@ -406,12 +406,15 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
     OfflineWaveOutput? output,
     Future<Directory> Function()? temporaryDirectory,
     OfflineWavCleanup? wavCleanup,
+    Future<int> Function(Directory tempRoot)? abandonedWavRecovery,
     bool? validateNativeWaveOutput,
   })  : _validateNativeWaveOutput = validateNativeWaveOutput ??
             (synthesizer == null &&
              jobFactory == null &&
              sessionFactory == null),
         _wavCleanup = wavCleanup ?? OfflineWavCleanup(),
+        _abandonedWavRecovery =
+            abandonedWavRecovery ?? OfflineWavSession.recoverAbandoned,
         _synthesizer = synthesizer,
         _jobFactory = jobFactory ?? VitsWaveJob.new,
         _useLegacyJobs = jobFactory != null,
@@ -435,6 +438,10 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
   final OfflineWaveOutput _output;
   final Future<Directory> Function() _temporaryDirectory;
   final OfflineWavCleanup _wavCleanup;
+  /// Injected in tests to simulate slow filesystem recovery. Production
+  /// recovery retains OfflineWavSession's bounded marker/lease safety checks.
+  final Future<int> Function(Directory tempRoot) _abandonedWavRecovery;
+  Future<void>? _backgroundWavRecovery;
   // In production every completed sherpa WAV must pass bounded PCM
   // structural inspection BEFORE any decoder is allowed to load it.
   // Synthetic injection seams disable this by default (they often write
@@ -457,11 +464,21 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
   Future<OfflineWavSession> _session() =>
       _wavSessionOpening ??= () async {
         final temporaryRoot = await _temporaryDirectory();
-        // Only app-owned, marked, OS-unlocked prior WAV sessions are
-        // considered. Never scan file names from other application roots.
-        await OfflineWavSession.recoverAbandoned(temporaryRoot);
         if (_disposed) throw StateError('Offline voice already disposed');
-        return OfflineWavSession.create(temporaryRoot);
+        // Create and lock OUR new session before looking for orphaned WAVs.
+        // A slow system-temp scan must not delay the first utterance.
+        final session = await OfflineWavSession.create(temporaryRoot);
+        // Recovery is bounded and excludes every current in-process or
+        // OS-leased session; it remains best-effort, never authorizes
+        // touching arbitrary user files. Failures cannot block speech.
+        _backgroundWavRecovery = () async {
+          try {
+            await _abandonedWavRecovery(temporaryRoot);
+          } catch (_) {
+            // Optional recovery cannot interrupt a valid narration.
+          }
+        }();
+        return session;
       }();
 
   Future<Directory> _newStaging(String prefix) async {
