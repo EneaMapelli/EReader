@@ -114,6 +114,34 @@ void main() {
     expect(store.searchIndexedBookContents('blue dragon'), isEmpty);
   });
 
+  test('selected book exposes bounded ranked alternatives without checkpoints',
+      () async {
+    final path = store.getBook(alpha)!.localPath;
+    final source = 'blue ${'valley ' * 18}dragon. '
+        + ('unrelated ' * 55)
+        + 'A blue dragon flies at sunrise.';
+    await File(path).writeAsString(source);
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    final passages =
+        await store.fullTextPassagesForHit(alpha, 'blue dragon');
+    expect(passages, hasLength(2));
+    expect(passages.first.jump.sourceOffset, source.lastIndexOf('blue'));
+    expect(passages.last.jump.sourceOffset, 0);
+    expect(passages.every((passage) => passage.allTermsNearby), isTrue);
+    expect(store.getBook(alpha)!.progressOffset, 0);
+
+    final single = await store.fullTextPassagesForHit(alpha, 'blue',
+        limit: 1);
+    expect(single, hasLength(1));
+    expect(single.single.jump.validatedOffset(source), isNotNull);
+    expect(await store.fullTextPassagesForHit(alpha, 'missing'), isEmpty);
+    await expectLater(store.fullTextPassagesForHit(alpha, 'blue',
+        limit: 11), throwsRangeError);
+    store.setFullTextIndexEnabled(false);
+    expect(await store.fullTextPassagesForHit(alpha, 'blue'), isEmpty);
+  });
+
   test('opt-out drops private FTS5 table, persists after restart', () async {
     store.setFullTextIndexEnabled(true);
     await store.indexNextFullTextBatch();
