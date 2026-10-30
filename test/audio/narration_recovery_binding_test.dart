@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:ereader/audio/narration_recovery_binding.dart';
 import 'package:ereader/data/book_decoder.dart';
 import 'package:ereader/data/epub_text_extractor.dart';
- import 'package:ereader/features/reader/epub_chapter_navigation.dart';
+import 'package:ereader/features/reader/epub_chapter_navigation.dart';
 import 'package:ereader/audio/reader_media_handler.dart';
 import 'package:ereader/audio/reader_player.dart';
 import 'package:ereader/audio/speech_engine.dart';
