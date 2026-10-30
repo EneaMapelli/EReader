@@ -285,6 +285,13 @@ class _OfflineVoiceManagerScreenState
       final result = await inspectOfflineVoicePacks(
         modelsDirectory: await _directory(),
       );
+      final preparedId = _audition.preparedModelId;
+      if (preparedId != null &&
+          !result.any((entry) =>
+              entry.ready && entry.id == preparedId)) {
+        // Release mapped ONNX files before presenting removed/corrupt state.
+        await _audition.stop();
+      }
       if (mounted) {
         setState(() {
           _packs = result;
@@ -322,6 +329,10 @@ class _OfflineVoiceManagerScreenState
       final inspected = await inspectSingleOfflineVoicePack(
         packId: packId, modelsDirectory: await _directory(),
       );
+      if ((inspected == null || !inspected.ready) &&
+          _audition.hasPreparedModel(packId)) {
+        await _audition.stop();
+      }
       if (!mounted) return;
       setState(() {
         _packs = mergeOfflineVoicePackInspection(
@@ -374,6 +385,10 @@ class _OfflineVoiceManagerScreenState
       _message = null;
     });
     try {
+      if (_audition.hasPreparedModel(entry.id)) {
+        // Windows may otherwise deny deletion of the memory-mapped ONNX.
+        await _audition.stop();
+      }
       final removed = await removeInstalledOfflineVoicePack(
         packId: entry.id,
         modelsDirectory: await _directory(),
