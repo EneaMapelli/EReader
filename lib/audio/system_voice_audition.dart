@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'speech_engine.dart';
 
 /// Local fixed samples for user-initiated comparisons of installed OS
@@ -48,17 +50,23 @@ class SystemVoiceAudition {
   Future<void> _stopping = Future<void>.value();
   int _epoch = 0;
   bool _running = false;
+  bool _listing = false;
   bool _disposed = false;
+  Completer<void>? _activeSettled;
 
   bool get isPlaying => _running;
 
   Future<List<SpeechVoice>> listVoices() async {
     if (_disposed) throw StateError('Voice audition is closed');
-    if (_running) throw StateError('Stop the current sample first');
-    await _stopping;
-    if (_disposed) throw StateError('Voice audition is closed');
-    final engine = _createEngine(false);
+    if (_running || _listing) {
+      throw StateError('Finish the current voice operation first');
+    }
+    _listing = true;
+    SpeechEngine? engine;
     try {
+      await _stopping;
+      if (_disposed) throw StateError('Voice audition is closed');
+      engine = _createEngine(false);
       final raw = await engine.listVoices();
       final unique = <String, SpeechVoice>{};
       for (final voice in raw) {
@@ -71,7 +79,11 @@ class SystemVoiceAudition {
         ..sort((a, b) => a.toString().compareTo(b.toString()));
       return List<SpeechVoice>.unmodifiable(voices);
     } finally {
-      await engine.dispose();
+      try {
+        await engine?.dispose();
+      } finally {
+        _listing = false;
+      }
     }
   }
 
@@ -81,7 +93,9 @@ class SystemVoiceAudition {
     double pitch = 1.0,
   }) async {
     if (_disposed) throw StateError('Voice audition is closed');
-    if (_running) throw StateError('A system voice sample is already playing');
+    if (_running || _listing) {
+      throw StateError('A system voice operation is already running');
+    }
     final sample = systemVoiceSampleText(voice.locale);
     if (sample == null) {
       throw const FormatException(
@@ -93,6 +107,8 @@ class SystemVoiceAudition {
     }
     _running = true;
     final token = ++_epoch;
+    final settled = Completer<void>();
+    _activeSettled = settled;
     SpeechEngine? owned;
     try {
       await _stopping;
@@ -118,6 +134,8 @@ class SystemVoiceAudition {
         }
       } finally {
         _running = false;
+        if (identical(_activeSettled, settled)) _activeSettled = null;
+        if (!settled.isCompleted) settled.complete();
       }
     }
   }
@@ -125,6 +143,7 @@ class SystemVoiceAudition {
   Future<void> stop() {
     ++_epoch;
     final engine = _active;
+    final settled = _activeSettled?.future;
     _active = null;
     if (engine == null) return _stopping;
     final prior = _stopping;
@@ -133,6 +152,10 @@ class SystemVoiceAudition {
       try {
         await engine.stop();
       } finally {
+        // A native listVoices/chooseVoice call can finish AFTER Stop.
+        // Wait until the cancelled Play has unwound before disposing
+        // its engine or permitting a different voice to start.
+        if (settled != null) await settled;
         await engine.dispose();
       }
     }();
