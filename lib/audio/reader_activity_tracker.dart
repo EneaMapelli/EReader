@@ -11,16 +11,20 @@ class ReaderActivityTracker {
     required this.store,
     required this.bookId,
     required ReadingActivityMode? Function() mode,
+    Duration Function()? visualTimeRemaining,
     Duration interval = const Duration(seconds: 15),
-  }) : _mode = mode {
+  }) : _mode = mode, _visualTimeRemaining = visualTimeRemaining {
     _stopwatch.start();
     _active = _mode();
+    _snapshotVisualBudget();
     _timer = Timer.periodic(interval, (_) => refresh());
   }
 
   final LibraryStore store;
   final String bookId;
   final ReadingActivityMode? Function() _mode;
+  final Duration Function()? _visualTimeRemaining;
+  Duration? _visualBudgetAtStart;
   final ReadingActivityAccumulator _accumulator = ReadingActivityAccumulator();
   final Stopwatch _stopwatch = Stopwatch();
   Timer? _timer;
@@ -33,6 +37,12 @@ class ReaderActivityTracker {
     if (_closed) return;
     _flush();
     _active = _mode();
+    _snapshotVisualBudget();
+  }
+
+  void _snapshotVisualBudget() {
+    _visualBudgetAtStart = _active == ReadingActivityMode.visual
+        ? _visualTimeRemaining?.call() : null;
   }
 
   void _flush() {
@@ -41,7 +51,9 @@ class ReaderActivityTracker {
       ..reset()
       ..start();
     final active = _active;
-    final seconds = _accumulator.record(elapsed, active);
+    final seconds = _accumulator.record(
+      elapsed, active, remainingVisual: _visualBudgetAtStart,
+    );
     if (seconds == 0 || active == null) return;
     try {
       store.recordReadingActivity(bookId, active, seconds);
