@@ -1296,3 +1296,32 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   o GitHub Actions. I risultati aprono per ora il libro alla posizione
   salvata: navigazione precisa al match, cancellazione intra-PDF
   e ottimizzazione di corpus grandi sono lavori successivi.
+
+### M3 — Opt-in same-phrase cold/warm neural voice comparison (2026-10-30)
+
+- Offline voice manager offers a separate **Compare cold/warm** action for
+  installed, SHA-verified Windows neural models. An explicit confirmation
+  warns that the SAME short public demonstration phrase is spoken **twice**
+  (audibly), using the same local engine. No books, personal passages,
+  cloud calls, model downloads or hidden/background prewarming are used.
+- Only a completed two-phrase run produces a comparison, with first and
+  second wall-clock times (both include playback), and separate optional
+  native worker WAV-generation and synthesis-path times. Actual native
+  model reuse is shown as confirmed only when the engine reports exactly
+  two successive syntheses without another model load; worker restarts
+  and missing native statistics never produce a false reuse claim.
+- The explicit Stop button invalidates the session epoch and cancels
+  the second phrase if the first is stopped; stopping during the second
+  also discards the incomplete comparison. Existing serial native disposal,
+  per-voice last-report LRU (12 entries), fixed demo text and memory-only
+  reporting remain. Standard Play still speaks exactly once.
+- The resident worker's 3-minute inactivity retirement and Stop
+  cancellation policy were **not** changed: any automatic model warming
+  would need an additional, separately approved design after measuring
+  actual cold/warm latency and whole-process RAM on Windows.
+- Added unit/controller tests for complete comparison, model reuse,
+  unexpected reload, generic engines without native statistics, both
+  Stop cancellation phases, and one-play backward compatibility, plus
+  UI consent and two-audible-plays tests. Tests **not executed** here
+  because Dart/Flutter SDK is unavailable. No platform builds or Actions.
+
