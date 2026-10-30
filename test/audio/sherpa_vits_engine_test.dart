@@ -404,6 +404,53 @@ void main() {
         rate: 0.5, pitch: 1), throwsStateError);
   });
 
+  test('Stop does not wait for a blocked Windows WAV cleanup retry',
+      () async {
+    final cleanupStarted = Completer<void>();
+    final cleanupRelease = Completer<void>();
+    var deletes = 0;
+    final cleaner = OfflineWavCleanup(
+      deleteDirectory: (folder) async {
+        deletes++;
+        if (deletes == 1) {
+          throw const FileSystemException('WAV decoder still holds file');
+        }
+        if (deletes == 2) {
+          cleanupStarted.complete();
+          await cleanupRelease.future;
+        }
+        if (await folder.exists()) await folder.delete(recursive: true);
+      },
+    );
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack, synthesizer: fakeSynthesize,
+      output: output, wavCleanup: cleaner,
+      temporaryDirectory: () async => root,
+    );
+    await synth.speak('First', language: 'en-US', rate: 0.5, pitch: 1);
+    expect(cleaner.pendingCount, 1);
+
+    final stopped = synth.stop();
+    await cleanupStarted.future;
+    // Even with an indefinitely blocked deletion, native audible Stop
+    // must settle and acknowledge the user request immediately.
+    await stopped.timeout(const Duration(seconds: 5));
+    expect(output.stops, 1);
+    expect(cleaner.pendingCount, 1);
+
+    final resumed = synth.speak('Second',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    await Future<void>.delayed(Duration.zero);
+    expect(texts, ['First'],
+        reason: 'Next synthesis waits for in-flight cleanup capacity check');
+    cleanupRelease.complete();
+    await resumed.timeout(const Duration(seconds: 5));
+    expect(texts, ['First', 'Second']);
+    expect(cleaner.pendingCount, 0);
+    await synth.dispose();
+    expect(await root.list().toList(), isEmpty);
+  });
+
   test('locked WAV is retained and retried before the next utterance',
       () async {
     var locked = true;
