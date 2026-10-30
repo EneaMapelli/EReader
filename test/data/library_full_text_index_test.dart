@@ -143,6 +143,39 @@ void main() {
     expect(await store.fullTextPassagesForHit(alpha, 'blue'), isEmpty);
   });
 
+  test('Any word OR returns books absent from the All words list and '
+      'opens a real matching term', () async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    const mode = LibraryFullTextMatchMode.anyWord;
+
+    final all = store.searchIndexedBookContents('blue moon');
+    expect(all, isEmpty);
+    final any = store.searchIndexedBookContents('blue moon', mode: mode);
+    expect(any.map((hit) => hit.bookId).toSet(), {alpha, beta});
+    // First queried term is absent in beta, so it must open "moon"
+    // instead of returning an invalid or fabricated "blue" position.
+    final jump = store.fullTextJumpForHit(beta, 'blue moon', mode: mode);
+    expect(jump, isNotNull);
+    expect(jump!.expectedText.toLowerCase(), 'moon');
+    expect(jump.validatedOffset('A dragon sleeps under the silent moon.'),
+        'A dragon sleeps under the silent moon.'.indexOf('moon'));
+
+    final alternatives = await store.fullTextPassagesForHit(
+        beta, 'blue moon', mode: mode);
+    expect(alternatives, isNotEmpty);
+    expect(alternatives.single.jump.expectedText.toLowerCase(), 'moon');
+    expect(alternatives.single.allTermsNearby, isFalse);
+    expect(store.getBook(alpha)!.progressOffset, 0);
+    expect(store.getBook(beta)!.progressOffset, 0);
+    expect(store.searchIndexedBookContents(
+        'unavailable moon', mode: mode)
+        .map((hit) => hit.bookId), contains(beta));
+    expect(store.searchIndexedBookContents(
+        'unavailable moon',
+        mode: LibraryFullTextMatchMode.exactPhrase), isEmpty);
+  });
+
   test('exact phrase mode filters SQLite books and opens a true phrase',
       () async {
     store.setFullTextIndexEnabled(true);
