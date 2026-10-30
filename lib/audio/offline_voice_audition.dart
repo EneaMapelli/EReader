@@ -220,12 +220,11 @@ class OfflineVoiceAudition {
       // An expiring warmup must finish releasing native ONNX before another
       // worker is allowed to allocate native model memory.
       _preparedRetirement = retirement;
-      try {
-        await retirement;
-      } finally {
-        if (identical(_preparedRetirement, retirement)) {
-          _preparedRetirement = Future<void>.value();
-        }
+      // A failed native Dispose must leave the controller fail-closed:
+      // another ONNX worker must not load on top of an unconfirmed release.
+      await retirement;
+      if (identical(_preparedRetirement, retirement)) {
+        _preparedRetirement = Future<void>.value();
       }
     }
   }
