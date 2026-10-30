@@ -225,9 +225,11 @@ class _LibraryFullTextSearchSheetState
                 title: Text(modeAtStart ==
                         LibraryFullTextMatchMode.exactPhrase
                     ? 'Exact phrase ${index + 1}'
-                    : passage.allTermsNearby
-                        ? 'Passage ${index + 1} · all terms nearby'
-                        : 'Words far apart · first term'),
+                    : modeAtStart == LibraryFullTextMatchMode.anyWord
+                        ? 'Matching word · passage ${index + 1}'
+                        : passage.allTermsNearby
+                            ? 'Passage ${index + 1} · all terms nearby'
+                            : 'Words far apart · first term'),
                 subtitle: Text(passage.excerpt,
                     maxLines: 4, overflow: TextOverflow.ellipsis),
                 onTap: () => Navigator.of(dialog).pop(passage.jump),
@@ -339,6 +341,15 @@ class _LibraryFullTextSearchSheetState
                       },
                     ),
                     ChoiceChip(
+                      key: const ValueKey('fts-mode-any'),
+                      label: const Text('Any word'),
+                      selected: _matchMode == LibraryFullTextMatchMode.anyWord,
+                      onSelected: (selected) {
+                        if (selected) setState(() =>
+                            _matchMode = LibraryFullTextMatchMode.anyWord);
+                      },
+                    ),
+                    ChoiceChip(
                       key: const ValueKey('fts-mode-phrase'),
                       label: const Text('Exact phrase'),
                       selected: _matchMode ==
@@ -361,7 +372,9 @@ class _LibraryFullTextSearchSheetState
                     helperText: _matchMode ==
                             LibraryFullTextMatchMode.exactPhrase
                         ? 'Consecutive words in order; punctuation ignored.'
-                        : 'Up to 8 words; all must occur in a book.',
+                        : _matchMode == LibraryFullTextMatchMode.anyWord
+                            ? 'Match at least one word; results ranked by FTS.'
+                            : 'Up to 8 words; all must occur in a book.',
                   ),
                 ),
               ],
