@@ -228,4 +228,63 @@ void main() {
     expect(store.books, hasLength(3));
   });
 
+  testWidgets('advanced field search combines AND terms and existing filters',
+      (tester) async {
+    final ids = {for (final book in store.books) book.title: book.id};
+    store.updateBookMetadata(ids['Alpha']!,
+        title: 'Alpha', author: 'Ada Writer', series: 'North Star');
+    store.updateBookMetadata(ids['Beta']!,
+        title: 'Beta', author: 'Ada Writer', series: 'Southern Sky');
+    store.updateBookMetadata(ids['Zulu']!,
+        title: 'Zulu', author: 'Marco Rossi', series: 'North Star');
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+
+    final search = find.byKey(const ValueKey('library-search'));
+    await tester.enterText(search, 'author:"Ada Writer" series:"North Star"');
+    await tester.pump();
+    expect(find.text('Alpha'), findsOneWidget);
+    expect(find.text('Beta'), findsNothing);
+    expect(find.text('Zulu'), findsNothing);
+
+    await tester.enterText(search, 'north writer');
+    await tester.pump();
+    expect(find.text('Alpha'), findsOneWidget);
+    expect(find.text('Zulu'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('library-favorites-only')));
+    await tester.pump();
+    expect(find.text('No books match your filters.'), findsOneWidget);
+    expect(store.books, hasLength(3));
+    await tester.tap(find.text('Clear filters'));
+    await tester.pump();
+    expect(find.text('Alpha'), findsOneWidget);
+    expect(find.text('Beta'), findsOneWidget);
+    expect(find.text('Zulu'), findsOneWidget);
+  });
+
+  testWidgets('search syntax help, malformed query and clear are safe',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.tap(find.byTooltip('Library search help'));
+    await tester.pumpAndSettle();
+    expect(find.text('Search is local and matches book titles, authors and series.',
+        findRichText: true), findsNothing);
+    expect(find.text('Got it'), findsOneWidget);
+    await tester.tap(find.text('Got it'));
+    await tester.pumpAndSettle();
+
+    final search = find.byKey(const ValueKey('library-search'));
+    await tester.enterText(search, 'title:');
+    await tester.pump();
+    final field = tester.widget<TextField>(search);
+    expect(field.decoration!.errorText, 'Enter text after a search field');
+    expect(find.text('No books match your filters.'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Clear library search'));
+    await tester.pump();
+    expect(tester.widget<TextField>(search).controller!.text, isEmpty);
+    expect(store.books, hasLength(3));
+    expect(find.text('Zulu'), findsOneWidget);
+  });
+
 }
