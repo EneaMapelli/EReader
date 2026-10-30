@@ -65,9 +65,9 @@ class CuratedVoiceStaging {
   Future<void> _finishOnce() async {
     var contentsRemoved = false;
     try {
-      // Native Windows archive handles may outlive the extraction Future.
-      // Remove the owned files FIRST. If a file remains locked, retain
-      // the marker and lease so the abandoned stage can be recovered later.
+      // A Windows archive handle may outlive the extraction Future.
+      // If any owned content remains locked, leave the exact marker
+      // in place for a later lease-guarded recovery.
       await for (final entry in directory.list(followLinks: false)) {
         final name = p.basename(entry.path);
         if (name == markerName || name == leaseName) continue;
@@ -84,7 +84,7 @@ class CuratedVoiceStaging {
       contentsRemoved = true;
       await _marker(directory).delete();
     } on FileSystemException {
-      // Keep exact marker metadata for a later lease-guarded sweep.
+      // The marked stage remains recoverable when a native file is locked.
     } finally {
       try { await _lease.unlock(); } on FileSystemException {}
       await _lease.close();
@@ -95,7 +95,7 @@ class CuratedVoiceStaging {
       await _leaseFile(directory).delete();
       await directory.delete();
     } on FileSystemException {
-      // After the marker is removed, only empty metadata may remain.
+      // Only empty lease metadata may remain after removing the marker.
     }
   }
 
@@ -152,84 +152,7 @@ class CuratedVoiceStaging {
         if (++inspected > maxRootEntries) break;
         final name = p.basename(entity.path);
         if (entity is Directory &&
-            RegExp(r'^\.paola-install-[a-zA-Z0-9_-]+.hasMatch(name)) {
-          discovered.add(Directory(entity.path));
-        }
-      }
-    } on FileSystemException {
-      return 0;
-    }
-    if (discovered.isEmpty) return 0;
-    discovered.sort((a, b) => a.path.compareTo(b.path));
-    final start = _cursor % discovered.length;
-    final count = discovered.length < maxCandidatesPerSweep
-        ? discovered.length : maxCandidatesPerSweep;
-    _cursor = (start + count) % discovered.length;
-    final cutoff = DateTime.now().subtract(minimumAge);
-    var removed = 0;
-
-    for (var i = 0; i < count; i++) {
-      final dir = discovered[(start + i) % discovered.length];
-      final key = _absolute(dir);
-      if (_live.contains(key) || !_recovering.add(key)) continue;
-      RandomAccessFile? lease;
-      var locked = false;
-      var emptied = false;
-      try {
-        if (!await _validMarker(dir, cutoff)) continue;
-        lease = await _leaseFile(dir).open(mode: FileMode.append);
-        try {
-          await lease.lock(FileLock.exclusive);
-          locked = true;
-        } on FileSystemException {
-          // The current downloader owns the OS lock.
-          continue;
-        }
-        if (_live.contains(key) ||
-            !await _validMarker(dir, cutoff) ||
-            !await _safeContents(dir)) continue;
-        // Delete only allowlisted children while holding the lease.
-        // Do not recursively delete an unknown path or traverse symlinks.
-        await for (final child in dir.list(followLinks: false)) {
-          final name = p.basename(child.path);
-          if (name == markerName || name == leaseName) continue;
-          final type = await FileSystemEntity.type(
-              child.path, followLinks: false);
-          if (type == FileSystemEntityType.directory) {
-            await Directory(child.path).delete(recursive: true);
-          } else if (type == FileSystemEntityType.file) {
-            await File(child.path).delete();
-          } else {
-            throw const FileSystemException('Unsafe staging entry');
-          }
-        }
-        await _marker(dir).delete();
-        emptied = true;
-      } on FileSystemException {
-        // The original marked candidate remains for a later retry.
-      } finally {
-        if (lease != null) {
-          if (locked) {
-            try { await lease.unlock(); } on FileSystemException {}
-          }
-          await lease.close();
-        }
-        _recovering.remove(key);
-      }
-      if (!emptied) continue;
-      try {
-        await _leaseFile(dir).delete();
-        await dir.delete();
-        removed++;
-      } on FileSystemException {
-        // All model/archive bytes have been removed; only the empty
-        // lease-only metadata may remain on a locked Windows volume.
-      }
-    }
-    return removed;
-  }
-}
-).hasMatch(name)) {
+            RegExp(r'^\.paola-install-[a-zA-Z0-9_-]+$').hasMatch(name)) {
           discovered.add(Directory(entity.path));
         }
       }
