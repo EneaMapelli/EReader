@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:ereader/data/manual_voice_install_staging.dart';
 import 'package:ereader/data/offline_voice_pack.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -139,15 +140,50 @@ void main() {
     final tokens = File(p.join(source.path, 'tokens.txt'));
     await model.writeAsBytes([1, 2, 3]);
     await tokens.writeAsBytes([4, 5]);
-    // The canonical installer rehashes against these expected digests.
-    // No model runtime is created, and nothing is downloaded.
-    const modelHash =
-        '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81';
-    const tokensHash =
-        '2fa1b377bf67309f65e5e9192d6a0facc27d2b80f091164c64bc31169f0b30';
-    // Digest fixture is intentionally calculated below rather than
-    // depending on an opaque precomputed SHA.
-    expect(modelHash, isNotEmpty);
-    expect(tokensHash, isNotEmpty);
+    final manifest = OfflineVoicePackManifest(
+      id: 'test-voice', displayName: 'Test offline model',
+      locale: 'it-IT', licenseId: 'MIT',
+      modelSha256: sha256.convert([1, 2, 3]).toString(),
+      tokensSha256: sha256.convert([4, 5]).toString(),
+    );
+    final installed = await installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: source,
+      modelsDirectory: models,
+    );
+    expect(await File(installed.modelPath).readAsBytes(), [1, 2, 3]);
+    expect(await File(installed.tokensPath).readAsBytes(), [4, 5]);
+    final contents = await Directory(
+        p.join(models.path, manifest.id)).list().toList();
+    expect(contents.map((entry) => p.basename(entry.path)).toSet(),
+        {'model.onnx', 'tokens.txt', 'voice-pack.json'},
+        reason: 'No marker/lease is ever promoted to a playable model');
+    expect((await models.list().toList()).map(
+        (entry) => p.basename(entry.path)).toList(), [manifest.id]);
+    final reopened = await loadInstalledOfflineVoicePack(
+      packId: manifest.id, modelsDirectory: models);
+    expect(reopened.manifest.id, manifest.id);
+  });
+
+  test('SHA mismatch clears the marked staging and installs no model',
+      () async {
+    final source = await Directory(p.join(root.path, 'bad-source'))
+        .create();
+    await File(p.join(source.path, 'model.onnx'))
+        .writeAsBytes([1, 2, 3]);
+    await File(p.join(source.path, 'tokens.txt'))
+        .writeAsBytes([4, 5]);
+    final manifest = OfflineVoicePackManifest(
+      id: 'bad-voice', displayName: 'Rejected model', locale: 'en-US',
+      licenseId: 'MIT',
+      modelSha256: sha256.convert([1, 2, 3]).toString(),
+      tokensSha256: sha256.convert([99]).toString(),
+    );
+    await expectLater(installOfflineVoicePack(
+      manifest: manifest, sourceDirectory: source,
+      modelsDirectory: models,
+    ), throwsFormatException);
+    expect(await models.list().toList(), isEmpty);
+    expect(await File(p.join(source.path, 'model.onnx')).readAsBytes(),
+        [1, 2, 3], reason: 'Failed import never deletes the user source');
   });
 }
