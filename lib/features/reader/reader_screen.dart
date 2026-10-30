@@ -455,11 +455,16 @@ class _ReaderScreenState extends State<ReaderScreen>
                 awaitTarget: true, targetBlockIndex: block);
             _lastVisibleEpubBlockIndex = block;
             _lastFollowedIndex = block;
-            if (_autoFollow && _itemScrollController.isAttached) {
+            // A paused remote chapter jump is an explicit navigation,
+            // not automatic speech-follow. Display it even when the user
+            // disabled auto-follow for active narration.
+            if ((_autoFollow || !player.isPlaying) &&
+                _itemScrollController.isAttached) {
               _itemScrollController.jumpTo(
                   index: block, alignment: 0.12);
             }
-          } else if (_autoFollow && _itemScrollController.isAttached) {
+          } else if ((_autoFollow || !player.isPlaying) &&
+              _itemScrollController.isAttached) {
             _itemScrollController.jumpTo(
                 index: index.clamp(0, chunks.length - 1).toInt(),
                 alignment: 0.12);
