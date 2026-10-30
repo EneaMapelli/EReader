@@ -7,6 +7,31 @@ import 'package:path/path.dart' as p;
 /// recovery marker and lock NEVER enter a verified model package.
 ///
 /// Old unmarked .install-* folders deliberately remain untouched.
+/// Bounded, read-only recovery diagnostic. Eligible is not a promise:
+/// another process can take a lock or change files after this snapshot.
+class ManualVoiceStagingHealth {
+  const ManualVoiceStagingHealth({
+    required this.candidates,
+    required this.examined,
+    required this.eligible,
+    required this.recent,
+    required this.busy,
+    required this.unrecognized,
+    required this.rootLimitReached,
+  });
+
+  final int candidates;
+  final int examined;
+  final int eligible;
+  final int recent;
+  final int busy;
+  final int unrecognized;
+  final bool rootLimitReached;
+
+  int get notExamined => candidates - examined;
+  bool get limited => rootLimitReached || notExamined > 0;
+}
+
 class ManualVoiceInstallStaging {
   ManualVoiceInstallStaging._(this.directory, this._lease);
 
@@ -23,6 +48,7 @@ class ManualVoiceInstallStaging {
   static final Set<String> _live = <String>{};
   static final Set<String> _recovering = <String>{};
   static int _cursor = 0;
+  static int _diagnosticCursor = 0;
 
   final Directory directory;
   final RandomAccessFile _lease;
@@ -200,6 +226,116 @@ class ManualVoiceInstallStaging {
       await dir.delete(); // nonrecursive, must already be empty
     }
     await payload.delete();
+  }
+
+  /// Explicit read-only preflight: never cleans or starts an ONNX model.
+  /// Fixed scan budgets and a rotating candidate cursor avoid starvation.
+  static Future<ManualVoiceStagingHealth> inspectAbandoned(
+    Directory modelsDirectory, {
+    Duration minimumAge = minRecoveryAge,
+  }) async {
+    if (minimumAge.isNegative) {
+      throw ArgumentError.value(minimumAge, 'minimumAge');
+    }
+    if (await FileSystemEntity.type(modelsDirectory.path,
+            followLinks: false) != FileSystemEntityType.directory) {
+      return const ManualVoiceStagingHealth(
+        candidates: 0, examined: 0, eligible: 0, recent: 0,
+        busy: 0, unrecognized: 0, rootLimitReached: false,
+      );
+    }
+    final discovered = <Directory>[];
+    var scanned = 0;
+    var rootLimitReached = false;
+    try {
+      await for (final entry in modelsDirectory.list(followLinks: false)) {
+        if (++scanned > maxRootEntries) {
+          rootLimitReached = true;
+          break;
+        }
+        if (entry is Directory &&
+            RegExp(r'^\.install-[A-Za-z0-9_-]+$')
+                .hasMatch(p.basename(entry.path))) {
+          discovered.add(Directory(entry.path));
+        }
+      }
+    } on FileSystemException {
+      return const ManualVoiceStagingHealth(
+        candidates: 0, examined: 0, eligible: 0, recent: 0,
+        busy: 0, unrecognized: 0, rootLimitReached: true,
+      );
+    }
+    discovered.sort((a, b) => a.path.compareTo(b.path));
+    if (discovered.isEmpty) {
+      return ManualVoiceStagingHealth(
+        candidates: 0, examined: 0, eligible: 0, recent: 0,
+        busy: 0, unrecognized: 0, rootLimitReached: rootLimitReached,
+      );
+    }
+    final count = discovered.length < maxCandidatesPerSweep
+        ? discovered.length : maxCandidatesPerSweep;
+    final start = _diagnosticCursor % discovered.length;
+    _diagnosticCursor = (start + count) % discovered.length;
+    final now = DateTime.now();
+    final cutoff = now.subtract(minimumAge);
+    var eligible = 0;
+    var recent = 0;
+    var busy = 0;
+    var unrecognized = 0;
+
+    for (var i = 0; i < count; i++) {
+      final stage = discovered[(start + i) % discovered.length];
+      final key = _key(stage);
+      if (_live.contains(key) || !_recovering.add(key)) {
+        busy++;
+        continue;
+      }
+      RandomAccessFile? lease;
+      var locked = false;
+      try {
+        if (!await _validMarker(stage, now)) {
+          unrecognized++;
+          continue;
+        }
+        if (!await _validMarker(stage, cutoff)) {
+          recent++;
+          continue;
+        }
+        lease = await _leaseFile(stage).open(mode: FileMode.append);
+        try {
+          await lease.lock(FileLock.exclusive);
+          locked = true;
+        } on FileSystemException {
+          busy++;
+          continue;
+        }
+        if (_live.contains(key)) {
+          busy++;
+        } else if (await _validMarker(stage, cutoff) &&
+            await _safeContents(stage)) {
+          eligible++;
+        } else {
+          unrecognized++;
+        }
+      } on FileSystemException {
+        unrecognized++;
+      } on FormatException {
+        unrecognized++;
+      } finally {
+        if (lease != null) {
+          if (locked) {
+            try { await lease.unlock(); } on FileSystemException {}
+          }
+          await lease.close();
+        }
+        _recovering.remove(key);
+      }
+    }
+    return ManualVoiceStagingHealth(
+      candidates: discovered.length, examined: count,
+      eligible: eligible, recent: recent, busy: busy,
+      unrecognized: unrecognized, rootLimitReached: rootLimitReached,
+    );
   }
 
   /// Called ONLY from an explicit user cleanup command, never on startup.
