@@ -158,6 +158,13 @@ void main() {
     expect(fake.stops, 1);
     expect(fake.disposals, 1);
     expect(find.textContaining('sample stopped'), findsOneWidget);
+    expect(find.byKey(
+        const ValueKey('offline-preview-metrics-preview-it')), findsOneWidget);
+    expect(find.textContaining('Stopped preview'), findsOneWidget);
+    expect(find.textContaining('SHA verification:'), findsOneWidget);
+    expect(find.textContaining('Stop + disposal:'), findsOneWidget);
+    // A generic SpeechEngine cannot pretend to measure ONNX synthesis.
+    expect(find.textContaining('Native synthesis:'), findsNothing);
     expect(find.byTooltip('Remove voice preview-it'), findsOneWidget);
   });
 }
