@@ -30,6 +30,7 @@ import 'pdf_speech_navigation.dart';
 import '../../data/epub_reader_preflight.dart';
 import '../../data/epub_speech_note_filter.dart';
 import '../../data/epub_progress_recovery.dart';
+import '../../domain/library_full_text.dart';
 import '../../data/library_store.dart';
 import '../../domain/reading_preferences.dart';
 import '../../domain/book.dart';
@@ -58,10 +59,14 @@ import 'reading_progress_bar.dart';
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
     super.key, required this.book, required this.store, this.mediaHandler,
+    this.initialSearchJump,
   });
   final BookRecord book;
   final LibraryStore store;
   final ReaderMediaHandler? mediaHandler;
+  /// Optional visual-only source hint from a local full-text search result.
+  /// It never directly persists a reading checkpoint or starts narration.
+  final LibraryFullTextJump? initialSearchJump;
 
   @override
   State<ReaderScreen> createState() => _ReaderScreenState();
@@ -130,6 +135,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   String? _error;
   bool _loading = true;
   int _loadEpoch = 0;
+  bool _initialSearchJumpConsumed = false;
   CancellableEpubPreflight? _activeEpubTask;
   EpubPreflightTimings? _epubWorkerTimings;
   int? _epubCastLayoutUs;
@@ -213,7 +219,13 @@ class _ReaderScreenState extends State<ReaderScreen>
     _displayPdfPage = widget.book.format == BookFormat.pdf
         ? widget.store.getPdfVisualPage(widget.book.id)
         : 1;
-    if (widget.book.format != BookFormat.pdf) {
+    if (widget.book.format == BookFormat.pdf &&
+        widget.initialSearchJump != null) {
+      // Search points into selectable PDF text, not physical viewer pages.
+      // Enter text mode without modifying the saved PDF page bookmark.
+      _pdfTextMode = true;
+    }
+    if (widget.book.format != BookFormat.pdf || _pdfTextMode) {
       _load();
     } else {
       _loading = false;
