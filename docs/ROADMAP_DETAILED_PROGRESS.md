@@ -929,3 +929,17 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   model activation, automatic downloading, build or GitHub Actions.
   Tests authored but not run (Flutter/Dart SDK unavailable).
 
+### M3 — Filter installed neural packs without hiding corrupt models (2026-10-30)
+
+- Added a local language filter to the offline VITS/Piper model manager.
+  It derives normalized primary languages only from inspected, verified
+  pack manifests. All-language mode remains the default and refreshes
+  invalidate stale filters when a pack is removed.
+- Corrupt/incomplete models remain visible with their unavailable warning
+  under **every** language filter; a filter never bypasses SHA verification,
+  guesses a model language or enables an experimental engine.
+- Added pure catalog filter tests and a Flutter widget test with two
+  real locally installed manifests plus a damaged directory. None of
+  these tests invokes an ONNX runtime, makes network requests or calls
+  GitHub Actions. Flutter/Dart tests not executed in this environment.
+

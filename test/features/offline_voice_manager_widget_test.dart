@@ -182,6 +182,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('installed language filter retains corrupted-pack warnings',
+      (tester) async {
+    await installOfflineVoicePack(
+      manifest: manifest,
+      sourceDirectory: source,
+      modelsDirectory: models,
+    );
+    await installOfflineVoicePack(
+      manifest: OfflineVoicePackManifest(
+        id: 'italian-model',
+        displayName: 'Italian local voice',
+        locale: 'it-IT',
+        licenseId: 'MIT',
+        modelSha256: manifest.modelSha256,
+        tokensSha256: manifest.tokensSha256,
+      ),
+      sourceDirectory: source,
+      modelsDirectory: models,
+    );
+    await Directory(p.join(models.path, 'broken-voice'))
+        .create(recursive: true);
+    await mount(tester);
+    expect(find.text('Local test voice'), findsOneWidget);
+    expect(find.text('Italian local voice'), findsOneWidget);
+    expect(find.text('broken-voice'), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(
+        const ValueKey('offline-model-language-filter-all')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(
+        const ValueKey('offline-model-language-filter-all')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('IT').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Italian local voice'), findsOneWidget);
+    expect(find.text('Local test voice'), findsNothing);
+    expect(find.text('broken-voice'), findsOneWidget,
+        reason: 'Damaged models must not disappear behind a filter');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('corrupted pack is marked unavailable rather than activated',
       (tester) async {
     await Directory(p.join(models.path, 'broken-voice'))

@@ -433,6 +433,37 @@ class OfflineVoicePackInspection {
   final InstalledOfflineVoicePack? installed;
 }
 
+/// Return primary language tags from SHA-verified, installed local packs.
+/// Invalid packs have unknown metadata and remain visible as warnings.
+String? offlinePackLanguage(OfflineVoicePackInspection entry) {
+  final installed = entry.installed;
+  if (!entry.ready || installed == null) return null;
+  return installed.manifest.locale
+      .trim().toLowerCase().replaceAll('_', '-').split('-').first;
+}
+
+List<String> installedOfflineVoiceLanguages(
+    Iterable<OfflineVoicePackInspection> packs) {
+  final languages = <String>{};
+  for (final pack in packs) {
+    final language = offlinePackLanguage(pack);
+    if (language != null) languages.add(language);
+  }
+  return List<String>.unmodifiable(languages.toList()..sort());
+}
+
+/// A failed pack is always visible: a language filter must not hide model
+/// corruption or create the appearance of a successfully verified model.
+List<OfflineVoicePackInspection> filterInstalledOfflineVoicePacks(
+    Iterable<OfflineVoicePackInspection> packs, String? language) =>
+    List<OfflineVoicePackInspection>.unmodifiable([
+      for (final pack in packs)
+        if (language == null ||
+            !pack.ready ||
+            offlinePackLanguage(pack) == language.toLowerCase())
+          pack,
+    ]);
+
 /// Explicitly inspect locally installed voices for a future model-manager UI.
 /// This is not called during ordinary reading: SHA-256 verification of a
 /// large model is intentionally opt-in and can consume CPU/disk IO.

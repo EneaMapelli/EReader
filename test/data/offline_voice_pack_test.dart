@@ -38,6 +38,37 @@ void main() {
           ? (await installed.list().map((e) => p.basename(e.path)).toList())
           : const [];
 
+  test('offline catalog filters only verified locale, keeps corrupt warnings',
+      () {
+    InstalledOfflineVoicePack voice(String id, String locale) =>
+        InstalledOfflineVoicePack(
+          manifest: OfflineVoicePackManifest(
+            id: id, displayName: id, locale: locale,
+            licenseId: 'MIT',
+            modelSha256: List.filled(64, 'a').join(),
+            tokensSha256: List.filled(64, 'b').join(),
+          ),
+          modelPath: '/virtual/$id/model.onnx',
+          tokensPath: '/virtual/$id/tokens.txt',
+        );
+    final entries = [
+      OfflineVoicePackInspection(id: 'it-one', ready: true,
+          installed: voice('it-one', 'it-IT')),
+      const OfflineVoicePackInspection(id: 'broken', ready: false),
+      OfflineVoicePackInspection(id: 'en-one', ready: true,
+          installed: voice('en-one', 'en_US')),
+    ];
+    expect(installedOfflineVoiceLanguages(entries), ['en', 'it']);
+    expect(filterInstalledOfflineVoicePacks(entries, 'it')
+        .map((e) => e.id), ['it-one', 'broken']);
+    expect(filterInstalledOfflineVoicePacks(entries, 'en')
+        .map((e) => e.id), ['broken', 'en-one']);
+    expect(filterInstalledOfflineVoicePacks(entries, null), entries);
+    expect(() => filterInstalledOfflineVoicePacks(entries, 'it').clear(),
+        throwsUnsupportedError);
+    expect(offlinePackLanguage(entries[1]), isNull);
+  });
+
   test('verified two-file model installs into a private pack directory',
       () async {
     final pack = await installOfflineVoicePack(

@@ -39,6 +39,7 @@ class OfflineVoiceManagerScreen extends StatefulWidget {
 class _OfflineVoiceManagerScreenState
     extends State<OfflineVoiceManagerScreen> {
   List<OfflineVoicePackInspection> _packs = const [];
+  String? _languageFilter;
   bool _loading = false;
   String? _busyId;
   String? _message;
@@ -167,7 +168,16 @@ class _OfflineVoiceManagerScreenState
       final result = await inspectOfflineVoicePacks(
         modelsDirectory: await _directory(),
       );
-      if (mounted) setState(() => _packs = result);
+      if (mounted) {
+        setState(() {
+          _packs = result;
+          if (_languageFilter != null &&
+              !installedOfflineVoiceLanguages(result)
+                  .contains(_languageFilter)) {
+            _languageFilter = null;
+          }
+        });
+      }
     } catch (_) {
       // Do not display local filesystem paths or native error stacks.
       if (mounted) {
@@ -505,7 +515,38 @@ class _OfflineVoiceManagerScreenState
           const SizedBox(height: 12),
           const Text('No local neural voices installed.'),
         ],
-        for (final entry in _packs)
+        if (_packs.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            key: ValueKey('offline-model-language-filter-${_languageFilter ?? 'all'}'),
+            value: _languageFilter ?? 'all',
+            isExpanded: true,
+            decoration: const InputDecoration(
+                labelText: 'Filter installed neural voices by language'),
+            items: [
+              const DropdownMenuItem(
+                  value: 'all', child: Text('All languages')),
+              for (final language in installedOfflineVoiceLanguages(_packs))
+                DropdownMenuItem(
+                    value: language, child: Text(language.toUpperCase())),
+            ],
+            onChanged: _loading || _busyId != null ? null : (value) {
+              if (value == null) return;
+              setState(() =>
+                  _languageFilter = value == 'all' ? null : value);
+            },
+          ),
+          const SizedBox(height: 6),
+          const Text('Unavailable models remain visible as warnings, '
+              'even while filtering verified voices.'),
+          if (_languageFilter != null &&
+              !filterInstalledOfflineVoicePacks(
+                  _packs, _languageFilter).any((pack) => pack.ready))
+            Text('No verified neural voices installed for '
+                '${_languageFilter!.toUpperCase()}.'),
+        ],
+        for (final entry in filterInstalledOfflineVoicePacks(
+            _packs, _languageFilter))
           Card(
             key: ValueKey('offline-voice-${entry.id}'),
             child: ListTile(
