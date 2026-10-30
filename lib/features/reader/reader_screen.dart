@@ -78,7 +78,9 @@ class _ReaderScreenState extends State<ReaderScreen>
   /// Count visual time only after an explicit reader gesture. A dormant
   /// screen times out after three minutes; audio is its own exclusive mode.
   ReadingActivityMode? _currentReadingActivityMode() {
-    if (!mounted) return null;
+    if (!mounted || !widget.store.isReadingActivityTrackingEnabled) {
+      return null;
+    }
     final player = _player;
     final onReaderRoute = ModalRoute.of(context)?.isCurrent ?? false;
     final audioVisible = _readerForeground && onReaderRoute;
@@ -195,7 +197,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     // A route becomes available only after the first frame; do not access
     // ModalRoute.of(context) from initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || !widget.store.isReadingActivityTrackingEnabled) return;
+      // Disabled means no sampler or periodic activity timer is created.
       _readingActivityTracker = ReaderActivityTracker(
         store: widget.store,
         bookId: widget.book.id,

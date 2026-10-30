@@ -15,7 +15,7 @@ class ReaderActivityTracker {
     Duration interval = const Duration(seconds: 15),
   }) : _mode = mode, _visualTimeRemaining = visualTimeRemaining {
     _stopwatch.start();
-    _active = _mode();
+    _active = _trackingEnabled() ? _mode() : null;
     _snapshotVisualBudget();
     _timer = Timer.periodic(interval, (_) => refresh());
   }
@@ -31,12 +31,23 @@ class ReaderActivityTracker {
   ReadingActivityMode? _active;
   bool _closed = false;
 
+  /// A preference can also change while a reader is suspended. Treat
+  /// unavailable storage as disabled rather than risking an unhandled
+  /// periodic-timer exception during shutdown.
+  bool _trackingEnabled() {
+    try {
+      return store.isReadingActivityTrackingEnabled;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Flush OLD mode first, so a new Play/Pause never relabels the prior
   /// interval. Stopwatch (monotonic) is independent of system clock changes.
   void refresh() {
     if (_closed) return;
     _flush();
-    _active = _mode();
+    _active = _trackingEnabled() ? _mode() : null;
     _snapshotVisualBudget();
   }
 
@@ -50,6 +61,12 @@ class ReaderActivityTracker {
     _stopwatch
       ..reset()
       ..start();
+    // Do not collect or carry fractional samples after an opt-out.
+    // The database separately checks the preference on every write.
+    if (!_trackingEnabled()) {
+      _accumulator.clearRemainders();
+      return;
+    }
     final active = _active;
     final seconds = _accumulator.record(
       elapsed, active, remainingVisual: _visualBudgetAtStart,

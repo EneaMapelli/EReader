@@ -78,6 +78,10 @@ class ReadingActivityAccumulator {
     return seconds;
   }
 
+  /// An opt-out boundary must not carry fractions of previously observed
+  /// time into an unrelated later opt-in interval.
+  void clearRemainders() => _remainders.clear();
+
   void dispose() {
     _disposed = true;
     _remainders.clear();
