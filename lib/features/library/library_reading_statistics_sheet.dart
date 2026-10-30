@@ -33,7 +33,9 @@ class _LibraryReadingStatisticsSheetState
         content: const Text(
           'Remove timed reading and TTS history for every book, '
           'including books hidden by filters. This cannot be undone. '
-          'Books, reading positions, bookmarks and your daily goal remain.',
+          'Books, reading positions, bookmarks and your daily goal remain. '
+          'Previously exported backups are unchanged. Future reading '
+          'activity will still be recorded.',
         ),
         actions: [
           TextButton(
