@@ -1550,6 +1550,38 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     return bestIndexedPassage(rows.single['body'] as String, tokens);
   }
 
+  /// Inspect a bounded number of alternative passages in ONE book,
+  /// only after an explicit user interaction. Search-list rendering never
+  /// pulls large FTS body columns into memory.
+  List<LibraryFullTextPassage> fullTextPassagesForHit(
+    String bookId,
+    String query, {
+    int limit = 6,
+  }) {
+    if (limit < 1 || limit > 10) {
+      throw RangeError.range(limit, 1, 10, 'limit');
+    }
+    if (!isFullTextIndexEnabled || query.trim().isEmpty ||
+        query.length > 120 || getBook(bookId) == null) {
+      return const [];
+    }
+    final tokens = RegExp(r'[\p{L}\p{N}]+', unicode: true)
+        .allMatches(query).map((match) => match.group(0)!).toList();
+    if (tokens.isEmpty || tokens.length > 8) return const [];
+    final rows = _database.select('''
+      SELECT f.body FROM library_fulltext_fts f
+      INNER JOIN library_fulltext_jobs j
+        ON j.book_id = f.book_id AND j.indexed = 1
+      WHERE f.book_id = ? LIMIT 1
+    ''', [bookId]);
+    if (rows.isEmpty) return const [];
+    return findIndexedPassages(
+      rows.single['body'] as String,
+      tokens,
+      limit: limit,
+    );
+  }
+
   /// Collections are book classifications, never book directories.
   List<BookCollection> get collections => _database.select('''
     SELECT id, name, created_at FROM book_collections
