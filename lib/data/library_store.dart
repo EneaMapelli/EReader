@@ -10,6 +10,8 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/book.dart';
 import '../domain/book_collection.dart';
+import '../domain/smart_book_collection.dart';
+import '../domain/library_catalog.dart';
 import '../domain/reading_activity.dart';
 import 'epub_catalog_metadata.dart';
 import 'library_backup.dart';
@@ -185,7 +187,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 24) {
+      if (version > 25) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -674,6 +676,21 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
             ''');
           }
           db.execute('PRAGMA user_version = 24');
+        });
+      }
+      // v25 stores only rules for smart collections. Membership is always
+      // derived from the live catalog, never materialized into a join table.
+      if (version < 25) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS smart_book_collections (
+              id TEXT PRIMARY KEY NOT NULL,
+              name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+              rule_json TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            )
+          ''');
+          db.execute('PRAGMA user_version = 25');
         });
       }
       await _migrateLegacyJson(db, support);
@@ -1173,8 +1190,96 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     createdAt: DateTime.parse(row['created_at'] as String),
   )).toList();
 
+  /// Persist only bounded local metadata filters; no text indexing and no
+  /// changes to the books or their manual collection memberships.
+  List<SmartBookCollection> get smartCollections => _database.select('''
+    SELECT id, name, rule_json, created_at
+    FROM smart_book_collections
+    ORDER BY name COLLATE NOCASE, id
+  ''').map(_smartCollectionFromRow).toList();
+
+  SmartBookCollection _smartCollectionFromRow(Row row) {
+    final rule = SmartBookCollectionRule.fromJson(
+        jsonDecode(row['rule_json'] as String));
+    final result = SmartBookCollection(
+      id: row['id'] as String,
+      name: row['name'] as String,
+      createdAt: DateTime.parse(row['created_at'] as String),
+      rule: rule,
+    );
+    result.validate();
+    return result;
+  }
+
+  SmartBookCollection createSmartCollection(
+      String name, SmartBookCollectionRule rule) {
+    final clean = BookCollection.cleanName(name);
+    rule.validate();
+    if (_database.select(
+        'SELECT id FROM book_collections WHERE name = ? COLLATE NOCASE',
+        [clean]).isNotEmpty) {
+      throw const FormatException('A manual collection already has that name');
+    }
+    if (smartCollections.length >= 1000) {
+      throw StateError('Too many smart collections');
+    }
+    final id = 'smart_${DateTime.now().microsecondsSinceEpoch}_'
+        '${Random.secure().nextInt(1 << 32)}';
+    _database.execute('''
+      INSERT INTO smart_book_collections(id, name, rule_json, created_at)
+      VALUES (?, ?, ?, ?)
+    ''', [id, clean, jsonEncode(rule.toJson()),
+          DateTime.now().toUtc().toIso8601String()]);
+    return smartCollections.firstWhere((entry) => entry.id == id);
+  }
+
+  SmartBookCollection updateSmartCollection(
+      String id, String name, SmartBookCollectionRule rule) {
+    final clean = BookCollection.cleanName(name);
+    rule.validate();
+    if (_database.select(
+        'SELECT id FROM book_collections WHERE name = ? COLLATE NOCASE',
+        [clean]).isNotEmpty) {
+      throw const FormatException('A manual collection already has that name');
+    }
+    _database.execute('''
+      UPDATE smart_book_collections SET name = ?, rule_json = ?
+      WHERE id = ?
+    ''', [clean, jsonEncode(rule.toJson()), id]);
+    if ((_database.select('SELECT changes() AS n').single['n'] as int) != 1) {
+      throw StateError('Unknown smart collection');
+    }
+    return smartCollections.firstWhere((entry) => entry.id == id);
+  }
+
+  void deleteSmartCollection(String id) {
+    _database.execute('DELETE FROM smart_book_collections WHERE id = ?', [id]);
+    if ((_database.select('SELECT changes() AS n').single['n'] as int) != 1) {
+      throw StateError('Unknown smart collection');
+    }
+  }
+
+  Set<String> smartCollectionBookIds(String id) {
+    final found = smartCollections.where((entry) => entry.id == id);
+    if (found.isEmpty) throw StateError('Unknown smart collection');
+    final rule = found.single.rule;
+    return filterAndSortLibraryBooks(
+      books,
+      query: rule.query,
+      format: rule.format,
+      favoritesOnly: rule.favoritesOnly,
+      readingStatus: rule.readingStatus,
+      activity: rule.activity,
+    ).map((book) => book.id).toSet();
+  }
+
   BookCollection createCollection(String name) {
     final clean = BookCollection.cleanName(name);
+    if (_database.select(
+        'SELECT id FROM smart_book_collections WHERE name = ? COLLATE NOCASE',
+        [clean]).isNotEmpty) {
+      throw const FormatException('A smart collection already has that name');
+    }
     if ((_database.select('SELECT COUNT(*) AS n FROM book_collections')
             .first['n'] as int) >= 1000) {
       throw StateError('Too many collections');
@@ -1190,6 +1295,11 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
 
   BookCollection renameCollection(String id, String name) {
     final clean = BookCollection.cleanName(name);
+    if (_database.select(
+        'SELECT id FROM smart_book_collections WHERE name = ? COLLATE NOCASE',
+        [clean]).isNotEmpty) {
+      throw const FormatException('A smart collection already has that name');
+    }
     _database.execute(
       'UPDATE book_collections SET name = ? WHERE id = ?', [clean, id],
     );
