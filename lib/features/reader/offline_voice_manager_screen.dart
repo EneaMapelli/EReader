@@ -193,6 +193,35 @@ class _OfflineVoiceManagerScreenState
     }
   }
 
+  /// Keep cached verification results for unchanged voices. Only the
+  /// affected model is rehashed; explicit Refresh still checks all packs.
+  /// Never claim a successful catalog update if filesystem access failed.
+  Future<void> _reconcileChangedVoice(String packId) async {
+    if (!mounted) return;
+    try {
+      final inspected = await inspectSingleOfflineVoicePack(
+        packId: packId, modelsDirectory: await _directory(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _packs = mergeOfflineVoicePackInspection(
+            _packs, packId, inspected);
+        if (_languageFilter != null &&
+            !installedOfflineVoiceLanguages(_packs)
+                .contains(_languageFilter)) {
+          _languageFilter = null;
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _message =
+            '${_message == null ? "" : "${_message!} "}'
+            'Unable to update this model in the catalog. '
+            'Use Refresh local voices to verify all installed models.');
+      }
+    }
+  }
+
   Future<void> _remove(OfflineVoicePackInspection entry) async {
     if (!mounted || _loading || _busyId != null) return;
     final approve = await showDialog<bool>(
@@ -237,10 +266,11 @@ class _OfflineVoiceManagerScreenState
         ).message);
       }
     } finally {
+      // Recheck even on failure: a partially removed model must not be
+      // left marked verified, while other models need no expensive hashing.
+      await _reconcileChangedVoice(entry.id);
       if (mounted) setState(() => _busyId = null);
     }
-    // Refresh after the mutation settles, regardless of removal result.
-    await _refresh(clearMessage: false);
   }
 
 
@@ -307,9 +337,9 @@ class _OfflineVoiceManagerScreenState
         ).message);
       }
     } finally {
+      await _reconcileChangedVoice(preview.manifest.id);
       if (mounted) setState(() => _loading = false);
     }
-    await _refresh(clearMessage: false);
   }
 
   Future<void> _installPiperPaola() async {
@@ -382,6 +412,7 @@ class _OfflineVoiceManagerScreenState
         ).message);
       }
     } finally {
+      await _reconcileChangedVoice(PiperPaolaCatalog.id);
       if (mounted) {
         setState(() {
           _busyId = null;
@@ -390,7 +421,6 @@ class _OfflineVoiceManagerScreenState
         });
       }
     }
-    await _refresh(clearMessage: false);
   }
 
   /// On-demand, non-destructive preflight. This cannot change voice packs.
