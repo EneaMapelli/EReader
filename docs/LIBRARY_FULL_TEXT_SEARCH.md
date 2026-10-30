@@ -157,6 +157,42 @@ indexed TXT file to verify the closest cluster and the subsequent purge of
 stale indexed text. All locator scans remain deferred until a result is
 selected; queries do not materialize full book bodies.
 
+## All words and Exact phrase query modes
+
+The search sheet now lets the user choose **All words** (the default,
+backward-compatible behavior) or **Exact phrase**.
+
+- **All words** uses a parameterized FTS5 expression of separately quoted
+  Unicode tokens joined with `AND`. Terms can occur anywhere in a book.
+  Opening a hit favors the closest term cluster, or the first complete
+  matching word if the terms appear only far apart.
+- **Exact phrase** builds a single FTS5 quoted phrase from the same
+  sanitized tokens. The indexed book must contain the words consecutively,
+  in the specified order. SQLite's `unicode61` tokenizer treats punctuation
+  as a separator, so a phrase can match across commas or sentence boundaries;
+  this is **token adjacency**, not exact punctuation or typography.
+- At most **eight tokens** and **120 query characters** are accepted in
+  either mode. User-supplied FTS operators or quotes are not executed:
+  punctuation is discarded before constructing the internal query.
+- For a selected phrase hit, the app locates the first source-verified
+  consecutive word sequence with a bounded UTF-16 span. The alternative
+  passages dialog shows up to six separate matching sequences, in source
+  order, rather than treating scattered words as a phrase. Context is checked
+  again on freshly decoded text before the reader navigates.
+- The existing index and privacy opt-in are unchanged; no additional
+  database content, external dependencies or network calls are required.
+  An indexed hit produced by tokenizer normalization may lack an exact
+  original-source jump; in that case the reader keeps the saved position.
+
+This feature is a precise **lexical phrase search**, not synonym or
+embedding-based semantic search. Scanned PDFs without a selectable text
+layer are still not searchable without future optional OCR support.
+
+Domain, SQLite and widget regression tests cover input quoting, token
+order, repeated tokens, punctuation, UTF-16 anchors, mode selection,
+source navigation and preserving reading progress. These tests are
+authored but **not executed**; no builds or GitHub Actions were started.
+
 ## Alternative passages within a matching book
 
 Each indexed book result now has a **Show matching passages** action. Opening
