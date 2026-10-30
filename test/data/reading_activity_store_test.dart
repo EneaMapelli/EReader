@@ -34,6 +34,14 @@ void main() {
         ReadingActivityMode.visual), 0);
   });
 
+  test('duration formatter preserves seconds below a full minute', () {
+    expect(formatReadingActivityDuration(0), '0s');
+    expect(formatReadingActivityDuration(59), '59s');
+    expect(formatReadingActivityDuration(125), '2m 5s');
+    expect(formatReadingActivityDuration(3660), '1h 1m');
+    expect(() => formatReadingActivityDuration(-1), throwsRangeError);
+  });
+
   group('SQLite aggregate and goal', () {
     late Directory home;
     late LibraryStore store;
