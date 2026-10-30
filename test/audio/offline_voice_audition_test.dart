@@ -22,6 +22,7 @@ class FakeOfflineEngine implements SpeechEngine {
   int choices = 0;
   bool choosing = false;
   bool disposedWhileChoosing = false;
+  bool failDispose = false;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => const [
@@ -65,6 +66,7 @@ class FakeOfflineEngine implements SpeechEngine {
   Future<void> dispose() async {
     if (choosing) disposedWhileChoosing = true;
     disposals++;
+    if (failDispose) throw StateError('private native cleanup path');
   }
 }
 
@@ -203,6 +205,22 @@ void main() {
     expect(report.voiceSetupMs, isNull);
     expect(report.nativeSynthesisMs, isNull);
     expect(formatOfflineVoicePreviewReport(report), isNot(contains('/home/')));
+    await audition.dispose();
+  });
+
+  test('native disposal failure never reports a successful preview',
+      () async {
+    final engine = FakeOfflineEngine()..failDispose = true;
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => engine,
+    );
+    await expectLater(audition.play('italian'), throwsStateError);
+    expect(engine.speaks, 1);
+    expect(engine.disposals, 1);
+    expect(audition.lastReport?.outcome, OfflineVoicePreviewOutcome.failed);
+    expect(formatOfflineVoicePreviewReport(audition.lastReport!),
+        isNot(contains('private native cleanup path')));
     await audition.dispose();
   });
 
