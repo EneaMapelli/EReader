@@ -54,6 +54,7 @@ class _OfflineVoiceManagerScreenState
   String? _sampleId;
   bool _stoppingSample = false;
   bool _sampleCancelled = false;
+  String? _preparingModelId;
   // Ephemeral, bounded comparison data; never stored or transmitted.
   final Map<String, OfflineVoicePreviewReport> _previewMeasurements = {};
   static const int _maxPreviewMeasurements = 12;
@@ -110,7 +111,9 @@ class _OfflineVoiceManagerScreenState
     try {
       await _audition.stop();
       if (mounted) {
-        setState(() => _message = 'Offline voice sample stopped.');
+        setState(() => _message = _preparingModelId == stoppedId
+            ? 'Silent ONNX model preparation cancelled.'
+            : 'Offline voice sample stopped.');
       }
     } catch (_) {
       if (mounted) {
@@ -153,6 +156,7 @@ class _OfflineVoiceManagerScreenState
     setState(() {
       _busyId = entry.id;
       _sampleId = entry.id;
+      _preparingModelId = entry.id;
       _sampleCancelled = false;
       _message = 'Verifying and loading the silent ONNX model...';
     });
@@ -178,6 +182,7 @@ class _OfflineVoiceManagerScreenState
       if (mounted) {
         setState(() {
           _sampleId = null;
+          _preparingModelId = null;
           _busyId = null;
         });
       }
@@ -933,7 +938,9 @@ class _OfflineVoiceManagerScreenState
                     IconButton(
                       key: ValueKey('offline-voice-preview-${entry.id}'),
                       tooltip: _sampleId == entry.id
-                          ? 'Stop sample ${entry.id}'
+                          ? _preparingModelId == entry.id
+                              ? 'Cancel model preparation ${entry.id}'
+                              : 'Stop sample ${entry.id}'
                           : 'Preview voice ${entry.id}',
                       icon: Icon(_sampleId == entry.id
                           ? Icons.stop_circle_outlined
