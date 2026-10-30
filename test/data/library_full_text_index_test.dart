@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:ereader/data/book_decoder.dart';
 import 'package:ereader/data/library_store.dart';
 import 'package:ereader/domain/book.dart';
+import 'package:ereader/domain/library_full_text.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
@@ -140,6 +141,56 @@ void main() {
         limit: 11), throwsRangeError);
     store.setFullTextIndexEnabled(false);
     expect(await store.fullTextPassagesForHit(alpha, 'blue'), isEmpty);
+  });
+
+  test('exact phrase mode filters SQLite books and opens a true phrase',
+      () async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+
+    const mode = LibraryFullTextMatchMode.exactPhrase;
+    expect(store.searchIndexedBookContents('blue dragon', mode: mode)
+        .map((hit) => hit.bookId), [alpha]);
+    expect(store.searchIndexedBookContents('dragon blue', mode: mode), isEmpty);
+    expect(store.searchIndexedBookContents('dragon sings', mode: mode)
+        .map((hit) => hit.bookId), [alpha]);
+    expect(store.searchIndexedBookContents('sings dragon', mode: mode), isEmpty);
+
+    final jump = store.fullTextJumpForHit(alpha, 'blue dragon', mode: mode);
+    expect(jump, isNotNull);
+    expect(jump!.sourceOffset, 13);
+    expect(jump.expectedText.toLowerCase(), 'blue');
+    expect(jump.validatedOffset(
+        'The friendly blue dragon sings at dawn.'), 13);
+
+    final passages = await store.fullTextPassagesForHit(
+        alpha, 'blue dragon', mode: mode);
+    expect(passages, hasLength(1));
+    expect(passages.single.jump.sourceOffset, jump.sourceOffset);
+    expect(passages.single.allTermsNearby, isTrue);
+    expect(store.getBook(alpha)!.progressOffset, 0);
+  });
+
+  test('phrase matching accepts punctuation but not intervening words',
+      () async {
+    final source = 'The blue, dragon flies. A blue happy dragon waits.';
+    await File(store.getBook(alpha)!.localPath).writeAsString(source);
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+
+    const phrase = LibraryFullTextMatchMode.exactPhrase;
+    expect(store.searchIndexedBookContents('blue dragon', mode: phrase)
+        .map((hit) => hit.bookId), contains(alpha));
+    final jump = store.fullTextJumpForHit(alpha, 'blue dragon',
+        mode: phrase);
+    expect(jump?.sourceOffset, source.indexOf('blue'));
+    expect(jump?.validatedOffset(source), source.indexOf('blue'));
+    expect((await store.fullTextPassagesForHit(alpha, 'blue dragon',
+        mode: phrase)).single.excerpt, contains('blue, dragon'));
+    expect(store.searchIndexedBookContents('blue happy dragon', mode: phrase)
+        .map((hit) => hit.bookId), contains(alpha));
+    expect(store.searchIndexedBookContents('dragon happy blue', mode: phrase),
+        isEmpty);
   });
 
   test('opt-out drops private FTS5 table, persists after restart', () async {
