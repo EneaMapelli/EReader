@@ -1061,3 +1061,22 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   minuti dal gesto. I campioni TTS restano distinti.
 - Test unitari SQLite, limite d'inattività e dialoghi UI preparati ma non
   eseguiti. Tracciamento di nuove sessioni ancora automatico.
+
+### M3 — Read-only diagnostics for interrupted manual model imports (2026-10-30)
+
+- Added an explicit **Inspect interrupted local imports** action in the
+  offline neural voice manager. Its read-only summary separates potentially
+  eligible aged workspaces, recent imports, active/locked operations, and
+  unrecognized or suspicious folders. No private file paths, source names,
+  book text, or model contents are displayed or stored.
+- Eligibility requires exact app markers, age, exclusive lease availability,
+  and allowlisted file structure. Inspection handles at most 512 direct
+  entries and 16 candidate sessions, rotates candidates on repeated checks,
+  and flags incomplete sampling instead of claiming exhaustive coverage.
+- The independent destructive cleanup still requires explicit user consent;
+  diagnostic status is a snapshot, not permission or a deletion guarantee.
+- Added Dart and Flutter tests covering lifecycle categories, hard limits
+  and absence of filesystem mutation. Source changes committed, but
+  Flutter/Dart tests and Windows lock acceptance **not yet executed**.
+  No builds or GitHub Actions.
+
