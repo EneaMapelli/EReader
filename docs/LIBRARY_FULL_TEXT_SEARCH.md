@@ -157,41 +157,43 @@ indexed TXT file to verify the closest cluster and the subsequent purge of
 stale indexed text. All locator scans remain deferred until a result is
 selected; queries do not materialize full book bodies.
 
-## All words and Exact phrase query modes
+## All words, Any word and Exact phrase query modes
 
-The search sheet now lets the user choose **All words** (the default,
-backward-compatible behavior) or **Exact phrase**.
+The search sheet now supports three local lexical modes. **All words**
+remains the default, backward-compatible behavior.
 
-- **All words** uses a parameterized FTS5 expression of separately quoted
-  Unicode tokens joined with `AND`. Terms can occur anywhere in a book.
-  Opening a hit favors the closest term cluster, or the first complete
-  matching word if the terms appear only far apart.
-- **Exact phrase** builds a single FTS5 quoted phrase from the same
-  sanitized tokens. The indexed book must contain the words consecutively,
-  in the specified order. SQLite's `unicode61` tokenizer treats punctuation
-  as a separator, so a phrase can match across commas or sentence boundaries;
-  this is **token adjacency**, not exact punctuation or typography.
-- At most **eight tokens** and **120 query characters** are accepted in
-  either mode. User-supplied FTS operators or quotes are not executed:
-  punctuation is discarded before constructing the internal query.
-- For a selected phrase hit, the app locates the first source-verified
-  consecutive word sequence with a bounded UTF-16 span. The alternative
-  passages dialog shows up to six separate matching sequences, in source
-  order, rather than treating scattered words as a phrase. Context is checked
-  again on freshly decoded text before the reader navigates.
-- The existing index and privacy opt-in are unchanged; no additional
-  database content, external dependencies or network calls are required.
-  An indexed hit produced by tokenizer normalization may lack an exact
-  original-source jump; in that case the reader keeps the saved position.
+- **All words** uses separately quoted Unicode terms joined with `AND`.
+  Every term must appear in a book. Opening it favors the shortest
+  local cluster of terms or a clearly identified distant-term fallback.
+- **Any word** uses quoted, parameterized terms joined with `OR`.
+  A book qualifies if **at least one** term occurs. SQLite FTS5's rank
+  orders results by lexical relevance; ties break consistently by title
+  and book ID. Opening a hit chooses the earliest actual matching
+  whole word, even if the first query term is absent. Alternative
+  passages show at most six source-ordered matches, grouping nearby
+  occurrences without falsely claiming all terms were present.
+- **Exact phrase** builds one quoted FTS5 phrase. Words must appear
+  consecutively and in the specified order. SQLite's `unicode61`
+  tokenizer treats punctuation as a separator, so matching can cross
+  commas or sentence boundaries. Phrase matching is **token adjacency**,
+  not verbatim punctuation or semantic similarity.
 
-This feature is a precise **lexical phrase search**, not synonym or
-embedding-based semantic search. Scanned PDFs without a selectable text
-layer are still not searchable without future optional OCR support.
+All three modes accept at most **eight terms / 120 query characters**.
+User-entered FTS5 syntax is never passed through: only sanitized literal
+Unicode tokens are quoted into the internal expression. Queries remain
+parameterized; source text and index contents stay offline. Opening a
+result goes through the existing UTF-16 source-offset and context
+verification in the reader, without changing the saved progress or
+auto-starting TTS. Indexing consent, storage and budgets are unchanged.
 
-Domain, SQLite and widget regression tests cover input quoting, token
-order, repeated tokens, punctuation, UTF-16 anchors, mode selection,
-source navigation and preserving reading progress. These tests are
-authored but **not executed**; no builds or GitHub Actions were started.
+These are **lexical modes**, not model/embedding-based semantic search;
+synonyms or related concepts with no shared words are not inferred.
+
+Domain, SQLite and widget regressions now cover OR syntax, books matched
+by only the second term, bounded previews, source navigation, and the
+All words/Any word/Exact phrase selectors. Tests were authored, but
+**not executed** here (Dart/Flutter SDK unavailable); no Windows/Android
+builds or GitHub Actions were started.
 
 ## Alternative passages within a matching book
 
