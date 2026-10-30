@@ -93,7 +93,7 @@ automaticamente consegnate: sono ampliamenti dello scope.
 | ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
 | ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
 | ER-033 Statistiche/obiettivi | Parziale: catalogo, tempi giornalieri e per libro in SQLite v23/v24, obiettivo globale, storico 7 giorni, cancellazione selettiva/globale e opt-out persistente dal tracciamento. Restano campionamento euristico e QA Windows/Android |
-| ER-034 Libreria massiva/collezioni/FTS | Parziale: metadati avanzati, raccolte manuali/smart (v25), indice FTS5 opt-in (v26), apertura al match UTF-16 verificato e refresh incrementale manuale. Mancano OCR, refresh automatico opzionale, ricerca semantica tra termini distanti e QA nativa/large-library |
+| ER-034 Libreria massiva/collezioni/FTS | Parziale: metadati avanzati, raccolte manuali/smart (v25), FTS5 opt-in (v26), salti UTF-16 validati, refresh manuale e scelta tra passaggi alternativi per libro. Mancano OCR, ricerca semantica/sinonimi, refresh automatico opzionale e QA nativa/large-library |
 
 ## E. Evidenza e priorità
 
@@ -1406,3 +1406,19 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Flutter/Dart tests were **not executed** (SDK unavailable here); no
   Windows/Android builds or GitHub Actions launched.
 
+
+### ER-034 — Passaggi alternativi nel risultato full-text (2026-10-30)
+
+- La lista dei libri trovati include `Show matching passages`. Il contenuto
+  integrale viene letto soltanto per il singolo libro selezionato; ricerca
+  in isolate separato per non bloccare il thread dell'interfaccia.
+- Fino a 6 passaggi contestualizzati per libro (API max 10), ordinati per
+  densità dei termini e posizione. Candidati vicini vengono deduplicati,
+  le occorrenze singole restano separate. Se i termini sono solo lontani,
+  viene esplicitato il fallback alla prima parola.
+- Gli estratti non vengono persistiti come bookmark e ogni scelta passa
+  attraverso la verifica del contesto già prevista dal reader. La funzione
+  è lessicale, non ricerca semantica di sinonimi/concetti.
+- Test dominio, database e UI ampliati; sistemata inoltre la sintassi
+  di alcuni fixture di test che usavano una moltiplicazione di String non
+  supportata da Dart. Test non eseguiti; nessuna build né Actions.
