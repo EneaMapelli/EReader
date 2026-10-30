@@ -156,3 +156,44 @@ word after an adjacent passage changes. Integration coverage uses a real
 indexed TXT file to verify the closest cluster and the subsequent purge of
 stale indexed text. All locator scans remain deferred until a result is
 selected; queries do not materialize full book bodies.
+
+## Alternative passages within a matching book
+
+Each indexed book result now has a **Show matching passages** action. Opening
+it loads only that book's indexed text and searches for alternative source
+locations on a worker isolate. Normal typing and the main search list
+continue using short SQLite FTS5 snippets without scanning the full texts
+of all results.
+
+- Up to **six** passage previews are shown by default (API maximum ten).
+  Each preview consists of a bounded, local-only text excerpt and a
+  source-exact UTF-16 destination. They are **not** stored as bookmarks.
+- For multiple terms, each candidate contains **all distinct words** within
+  320 UTF-16 code units. Candidates are ordered by shortest interval,
+  breaking equal-width ties by original book order. Nearby overlapping
+  candidate windows are collapsed so the same paragraph does not appear
+  repeatedly.
+- For one term, separate matching occurrences remain available.
+  If all terms of a multiword search occur only far apart in the book,
+  the list displays a single clearly identified **first-term fallback**
+  instead of fabricating a passage containing all the terms.
+- Selecting any preview passes a transient source jump to the existing
+  reader. The reader again validates the exact matched text and its bounded
+  surrounding context against a newly decoded document; stale results
+  fall back to saved progress without auto-starting TTS.
+- The preview scanner retains only the most recent occurrence per query
+  word and a fixed-size list of candidates. The file and index budgets
+  remain unchanged. A brief secondary memory copy is made when sending
+  the selected book text to the worker isolate.
+
+This is **lexical proximity ranking**, not embedding-based or semantic
+search. Searching for synonyms or meanings that do not share query words
+is still outside ER-034's implemented scope.
+
+Regression tests: `test/domain/library_full_text_passages_test.dart`
+covers ranking, de-duplication, single-word alternatives, distant fallback,
+UTF-16 boundaries and limits. The SQLite and widget regression suites
+also check selection and opening of an alternative passage.
+
+The tests were **authored but not executed** here: Dart/Flutter SDK is
+unavailable. No Windows/Android builds or GitHub Actions were started.
