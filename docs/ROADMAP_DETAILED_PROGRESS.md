@@ -1157,3 +1157,27 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   potenzialmente opt-in e da qualificare sulle risorse del dispositivo.
 - Test di parsing, catalogo e UI scritti ma non eseguiti;
   nessuna build Windows/Android né GitHub Actions avviata.
+
+### M3 — Session-only offline TTS preview performance diagnostics (2026-10-30)
+
+- Free Windows neural-voice preview now captures monotonic, in-memory
+  per-request timing for verified pack load/SHA-256, voice selection,
+  speech duration (including full playback and WAV cleanup) and Stop
+  through native engine disposal. Cancelled, failed and completed attempts
+  are explicitly distinct. No persistent performance database or logs.
+- Existing Sherpa VITS native diagnostics supply separate **synthesis**
+  and **WAV decoder handoff** timings and a point-in-time **whole-process**
+  RSS snapshot. These only appear when the engine reports real values,
+  never for the generic/system TTS abstraction. None is claimed to be
+  exact acoustic onset or memory attributable to the model alone.
+- The model manager presents the latest demonstration results under their
+  respective local voice cards (up to 12 recent voices in memory).
+  A removed or damaged voice loses stale measurements; explicit full
+  catalog refresh keeps independent SHA-256 verification semantics.
+  Existing preview consent, cancellation and exclusive Stop/dispose remain.
+- New deterministic fake-engine and widget tests cover full preview timing,
+  the native diagnostics seam, Stop and disposed-model cancellation,
+  failure status and private-path exclusion. Tests **not executed**:
+  Dart/Flutter SDK is unavailable in this runtime. No Windows/Android
+  packages, release or GitHub Actions started.
+
