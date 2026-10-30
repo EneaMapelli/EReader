@@ -133,6 +133,37 @@ void main() {
         findsOneWidget);
   });
 
+  testWidgets('Any word chip finds a partial match and selects its source',
+      (tester) async {
+    store.setFullTextIndexEnabled(true);
+    await store.indexNextFullTextBatch();
+    BookRecord? opened;
+    LibraryFullTextJump? destination;
+    await openSheet(tester, onOpenBook: (book, jump) {
+      opened = book;
+      destination = jump;
+    });
+
+    await tester.enterText(find.byKey(const ValueKey('fts-query')),
+        'missing dragon');
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('fts-hit-$firstId')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('fts-mode-any')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('fts-hit-$firstId')), findsOneWidget);
+    await tester.tap(find.byKey(ValueKey('fts-passages-$firstId')));
+    await tester.pumpAndSettle();
+    expect(find.text('Matching word · passage 1'), findsOneWidget);
+    await tester.tap(find.byKey(ValueKey('fts-passage-$firstId-0')));
+    await tester.pumpAndSettle();
+    expect(opened?.id, firstId);
+    expect(destination, isNotNull);
+    expect(destination!.expectedText.toLowerCase(), 'dragon');
+    expect(destination!.sourceOffset, 8);
+    expect(store.getBook(firstId)!.progressOffset, 0);
+  });
+
   testWidgets('Exact phrase chip narrows results and opens phrase passage',
       (tester) async {
     store.setFullTextIndexEnabled(true);
