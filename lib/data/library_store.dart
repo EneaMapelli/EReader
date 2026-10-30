@@ -10,6 +10,7 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/book.dart';
 import '../domain/book_collection.dart';
+import '../domain/reading_activity.dart';
 import 'epub_catalog_metadata.dart';
 import 'library_backup.dart';
 import 'library_backup_restore.dart';
@@ -184,7 +185,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 22) {
+      if (version > 23) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -625,6 +626,40 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           db.execute('PRAGMA user_version = 22');
         });
       }
+      // v23 stores only daily integer totals and a user-set goal. No
+      // individual action timestamps, content, or automatic cloud sync.
+      if (version < 23) {
+        _transaction(db, () {
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS reading_activity_daily (
+              book_id TEXT NOT NULL
+                REFERENCES books(id) ON DELETE CASCADE,
+              local_day TEXT NOT NULL,
+              mode TEXT NOT NULL
+                CHECK(mode IN ('visual', 'tts')),
+              seconds INTEGER NOT NULL DEFAULT 0
+                CHECK(seconds >= 0),
+              PRIMARY KEY(book_id, local_day, mode)
+            )
+          ''');
+          db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_reading_activity_day
+            ON reading_activity_daily(local_day)
+          ''');
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS reading_activity_settings (
+              slot INTEGER PRIMARY KEY CHECK(slot = 1),
+              goal_minutes INTEGER NOT NULL DEFAULT 20
+                CHECK(goal_minutes BETWEEN 0 AND 240)
+            )
+          ''');
+          db.execute('''
+            INSERT OR IGNORE INTO reading_activity_settings(slot, goal_minutes)
+            VALUES (1, 20)
+          ''');
+          db.execute('PRAGMA user_version = 23');
+        });
+      }
       await _migrateLegacyJson(db, support);
       // A marker is stale only on a new process startup. Consume exactly
       // once; reopening a book must NEVER cause the app to auto-synthesize.
@@ -918,6 +953,81 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     return LibraryRestoreResult(
       added: added, skipped: skipped, bookmarksImported: bookmarks,
       collectionsImported: importedCollections,
+    );
+  }
+
+  /// Adds at most one bounded sample interval; never writes text, source
+  /// positions, audio, API data or the individual event timestamp. The
+  /// integer day bucket uses the device's local calendar when sampled.
+  void recordReadingActivity(
+    String bookId, ReadingActivityMode mode, int seconds, {
+    DateTime? at,
+  }) {
+    if (seconds < 1 || seconds > 30) {
+      throw RangeError.range(seconds, 1, 30, 'seconds');
+    }
+    if (getBook(bookId) == null) {
+      throw StateError('Cannot record activity for an unknown book');
+    }
+    final day = readingLocalDate(at ?? DateTime.now());
+    _database.execute('''
+      INSERT INTO reading_activity_daily(book_id, local_day, mode, seconds)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(book_id, local_day, mode)
+      DO UPDATE SET seconds = seconds + excluded.seconds
+    ''', [bookId, day, mode.name, seconds]);
+  }
+
+  int get dailyReadingGoalMinutes =>
+      _database.select(
+        'SELECT goal_minutes FROM reading_activity_settings WHERE slot = 1',
+      ).single['goal_minutes'] as int;
+
+  void saveDailyReadingGoalMinutes(int minutes) {
+    if (minutes < 0 || minutes > 240) {
+      throw RangeError.range(minutes, 0, 240, 'minutes');
+    }
+    _database.execute('''
+      UPDATE reading_activity_settings SET goal_minutes = ? WHERE slot = 1
+    ''', [minutes]);
+  }
+
+  /// Rolling seven LOCAL calendar dates. Uses aggregated row counts, never
+  /// claims a last-opened timestamp is a timed reading session.
+  WeeklyReadingActivity weeklyReadingActivity({DateTime? now}) {
+    final local = (now ?? DateTime.now()).toLocal();
+    final days = [
+      for (var i = 6; i >= 0; i--)
+        readingLocalDate(DateTime(
+          local.year, local.month, local.day - i,
+        )),
+    ];
+    final totals = <String, Map<ReadingActivityMode, int>>{
+      for (final day in days) day: {
+        ReadingActivityMode.visual: 0,
+        ReadingActivityMode.tts: 0,
+      },
+    };
+    for (final row in _database.select('''
+      SELECT local_day, mode, SUM(seconds) AS total_seconds
+      FROM reading_activity_daily
+      WHERE local_day BETWEEN ? AND ?
+      GROUP BY local_day, mode
+    ''', [days.first, days.last])) {
+      final day = row['local_day'] as String;
+      final mode = ReadingActivityMode.values.byName(row['mode'] as String);
+      totals[day]?[mode] = row['total_seconds'] as int;
+    }
+    return WeeklyReadingActivity(
+      goalMinutes: dailyReadingGoalMinutes,
+      days: List.unmodifiable([
+        for (final day in days)
+          ReadingActivityDay(
+            date: day,
+            visualSeconds: totals[day]![ReadingActivityMode.visual]!,
+            ttsSeconds: totals[day]![ReadingActivityMode.tts]!,
+          ),
+      ]),
     );
   }
 

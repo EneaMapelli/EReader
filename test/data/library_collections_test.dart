@@ -28,10 +28,10 @@ void main() {
     return (await store.importFile(file.path)).id;
   }
 
-  test('new SQLite v22 library has separate collection/membership tables',
+  test('new SQLite v23 library has separate collection/membership tables',
       () async {
     final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
-    expect(db.select('PRAGMA user_version').single['user_version'], 22);
+    expect(db.select('PRAGMA user_version').single['user_version'], 23);
     expect(db.select("SELECT name FROM sqlite_master WHERE type = 'table' "
         "AND name = 'book_collections'"), hasLength(1));
     expect(db.select("SELECT name FROM sqlite_master WHERE type = 'table' "
