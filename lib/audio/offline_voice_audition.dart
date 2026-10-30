@@ -299,7 +299,7 @@ class OfflineVoiceAudition {
           final successive = first != null && second != null &&
               second.syntheses == first.syntheses + 1;
           final bool? sameModel = successive && first!.modelLoads > 0
-              ? first.modelLoads == second!.modelLoads : null;
+              ? first!.modelLoads == second!.modelLoads : null;
           comparison = OfflineVoiceColdWarmComparison(
             firstSpeechWallMs: speechWallMs!,
             secondSpeechWallMs: warm.elapsedMilliseconds,
