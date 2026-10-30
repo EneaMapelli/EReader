@@ -1338,6 +1338,13 @@ class _ReaderScreenState extends State<ReaderScreen>
       anchor: explicitSilentAnchor ??
           _document?.anchorAt(widget.book.format, sourceOffset),
     );
+    // Even the SQLite Future can yield to a newer user navigation.
+    // The old selection has already committed its write, but must not
+    // repaint or scroll over the new intent when its Future resolves.
+    if (!mounted || _player != player ||
+        selection != _selectionRevision ||
+        player.currentIndex != index ||
+        player.intendedNavigationIndex != index) return;
     _selectedVisualSpineIdref = visualSpineIdref;
     _visiblePositionIndex = player.segments.isEmpty ? null
         : index.clamp(0, player.segments.length - 1).toInt();
