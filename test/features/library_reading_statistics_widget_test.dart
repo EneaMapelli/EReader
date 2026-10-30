@@ -57,4 +57,25 @@ void main() {
     expect(store.getBook(ids['Alpha']!)!.readingStatus,
         BookReadingStatus.finished);
   });
+  testWidgets('reading goal persists without changing library state',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.tap(find.byKey(const ValueKey('library-stats-open')));
+    await tester.pumpAndSettle();
+    final dropdown = find.byKey(const ValueKey('stats-goal-dropdown'));
+    await tester.ensureVisible(dropdown);
+    await tester.tap(dropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('30 min').last);
+    await tester.pumpAndSettle();
+    expect(store.dailyReadingGoalMinutes, 30);
+    await tester.tap(find.byTooltip('Close reading statistics'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('library-stats-open')));
+    await tester.pumpAndSettle();
+    expect(store.dailyReadingGoalMinutes, 30);
+    expect(find.byKey(const ValueKey('stats-goal-summary')), findsOneWidget);
+    expect(store.books, hasLength(2));
+  });
+
 }

@@ -1,25 +1,38 @@
 import 'package:flutter/material.dart';
 
+import '../../data/library_store.dart';
 import '../../domain/book.dart';
 import '../../domain/library_reading_statistics.dart';
+import '../../domain/reading_activity.dart';
 
-/// Read-only dashboard; does not modify books, anchors, playback or consent.
-class LibraryReadingStatisticsSheet extends StatelessWidget {
+/// Snapshot of local metadata and explicitly recorded activity. Nothing in
+/// this panel sends analytics, changes reading anchors or starts narration.
+class LibraryReadingStatisticsSheet extends StatefulWidget {
   const LibraryReadingStatisticsSheet({
     super.key,
     required this.statistics,
+    required this.store,
   });
 
   final LibraryReadingStatistics statistics;
+  final LibraryStore store;
 
   @override
+  State<LibraryReadingStatisticsSheet> createState() =>
+      _LibraryReadingStatisticsSheetState();
+}
+
+class _LibraryReadingStatisticsSheetState
+    extends State<LibraryReadingStatisticsSheet> {
+  @override
   Widget build(BuildContext context) {
-    final s = statistics;
+    final s = widget.statistics;
+    final week = widget.store.weeklyReadingActivity();
     final color = Theme.of(context).colorScheme;
     return SafeArea(
       child: SizedBox(
         key: const ValueKey('library-stats-sheet'),
-        height: MediaQuery.sizeOf(context).height * 0.68,
+        height: MediaQuery.sizeOf(context).height * 0.76,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
@@ -41,8 +54,7 @@ class LibraryReadingStatisticsSheet extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 20),
             Wrap(
-              spacing: 16,
-              runSpacing: 18,
+              spacing: 16, runSpacing: 18,
               children: [
                 _StatisticNumber(label: 'Total books', value: s.totalBooks,
                     id: 'stats-total'),
@@ -66,7 +78,7 @@ class LibraryReadingStatisticsSheet extends StatelessWidget {
                     value: s.favoriteBooks),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Text('Books marked finished',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
@@ -77,6 +89,54 @@ class LibraryReadingStatisticsSheet extends StatelessWidget {
                 minHeight: 8,
                 borderRadius: BorderRadius.circular(8),
               ),
+            ),
+            const SizedBox(height: 24),
+            Text('Local reading and listening — last 7 days',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 16, runSpacing: 8,
+              children: [
+                _StatisticNumber(
+                  id: 'stats-reading-seconds', label: 'Visual reading (minutes)',
+                  value: week.visualSeconds ~/ 60,
+                ),
+                _StatisticNumber(
+                  id: 'stats-tts-seconds', label: 'TTS activity (minutes)',
+                  value: week.ttsSeconds ~/ 60,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Expanded(child: Text('Daily reading goal')),
+                DropdownButton<int>(
+                  key: const ValueKey('stats-goal-dropdown'),
+                  value: week.goalMinutes,
+                  items: const [0, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240]
+                      .map((minutes) => DropdownMenuItem<int>(
+                            value: minutes,
+                            child: Text(minutes == 0
+                                ? 'Off' : '$minutes min'),
+                          )).toList(),
+                  onChanged: (minutes) {
+                    if (minutes == null) return;
+                    widget.store.saveDailyReadingGoalMinutes(minutes);
+                    setState(() {});
+                  },
+                ),
+              ],
+            ),
+            Text(week.goalMinutes == 0
+                ? 'Daily goal disabled.'
+                : '${week.daysMeetingGoal} of 7 days met the goal.',
+              key: const ValueKey('stats-goal-summary'),
+            ),
+            const SizedBox(height: 12),
+            for (final day in week.days) _ActivityDayRow(
+              day: day,
+              goalMinutes: week.goalMinutes,
             ),
             const SizedBox(height: 24),
             Text('Library by format',
@@ -104,8 +164,7 @@ class LibraryReadingStatisticsSheet extends StatelessWidget {
             else
               for (final book in s.recentBooks)
                 ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
+                  contentPadding: EdgeInsets.zero, dense: true,
                   title: Text(book.title, maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   subtitle: Text(MaterialLocalizations.of(context)
@@ -113,15 +172,48 @@ class LibraryReadingStatisticsSheet extends StatelessWidget {
                 ),
             const SizedBox(height: 12),
             Text(
-              'These figures use only local catalog metadata. Reading and '
-              'Finished are manually chosen shelves. Last opened is a single '
-              'timestamp per book, not an event history; minutes, pages read, '
-              'reading streaks and daily goals are not measured yet.',
+              'The session timer uses conservative elapsed-time sampling. '
+              'Visual reading counts only after recent reader interaction '
+              'and stops after three idle minutes; TTS tracks active playback '
+              'intent, not verified audible speech. Suspended periods may be '
+              'undercounted. Reading and Finished are manual shelves, and '
+              'opening timestamps are not session counts. Data stays local.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: color.onSurfaceVariant),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ActivityDayRow extends StatelessWidget {
+  const _ActivityDayRow({required this.day, required this.goalMinutes});
+  final ReadingActivityDay day;
+  final int goalMinutes;
+
+  @override
+  Widget build(BuildContext context) {
+    final goalSeconds = goalMinutes * 60;
+    final fraction = goalSeconds == 0 ? 0.0 :
+        (day.totalSeconds / goalSeconds).clamp(0.0, 1.0).toDouble();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(day.date)),
+              Text('${day.visualSeconds ~/ 60}m read · '
+                  '${day.ttsSeconds ~/ 60}m TTS',
+                  key: ValueKey('stats-day-${day.date}')),
+            ],
+          ),
+          const SizedBox(height: 4),
+          LinearProgressIndicator(value: fraction, minHeight: 5),
+        ],
       ),
     );
   }

@@ -10,6 +10,8 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../audio/reader_player.dart';
+import '../../audio/reader_activity_tracker.dart';
+import '../../domain/reading_activity.dart';
 import '../../audio/reader_media_handler.dart';
 import '../../audio/narration_recovery_binding.dart';
 import '../../audio/reader_lifecycle_policy.dart';
@@ -69,6 +71,39 @@ class _ReaderScreenState extends State<ReaderScreen>
     with WidgetsBindingObserver {
   final SpeechSecretVault _vault = PlatformSpeechSecretVault();
   ReaderPlayer? _player;
+  ReaderActivityTracker? _readingActivityTracker;
+  bool _readerForeground = true;
+  DateTime? _lastReadingInteraction;
+
+  /// Count visual time only after an explicit reader gesture. A dormant
+  /// screen times out after three minutes; audio is its own exclusive mode.
+  ReadingActivityMode? _currentReadingActivityMode() {
+    if (!mounted) return null;
+    final player = _player;
+    final onReaderRoute = ModalRoute.of(context)?.isCurrent ?? false;
+    final audioVisible = _readerForeground && onReaderRoute;
+    final backgroundMedia = player != null && Platform.isAndroid &&
+        widget.mediaHandler?.ownsPlayer(player) == true;
+    if (player != null && player.isPlaying &&
+        (audioVisible || backgroundMedia)) {
+      return ReadingActivityMode.tts;
+    }
+    final interaction = _lastReadingInteraction;
+    if (!audioVisible || _loading || interaction == null ||
+        DateTime.now().difference(interaction) >
+            const Duration(minutes: 3)) {
+      return null;
+    }
+    return ReadingActivityMode.visual;
+  }
+
+  void _onReadingGesture() {
+    if (!_readerForeground || _loading) return;
+    _readingActivityTracker?.refresh();
+    _lastReadingInteraction = DateTime.now();
+    _readingActivityTracker?.refresh();
+  }
+
   NarrationRecoveryBinding? _recoveryBinding;
   DocumentContent? _document;
   List<EpubChapter> _chapters = const [];
@@ -147,6 +182,16 @@ class _ReaderScreenState extends State<ReaderScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // A route becomes available only after the first frame; do not access
+    // ModalRoute.of(context) from initState.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _readingActivityTracker = ReaderActivityTracker(
+        store: widget.store,
+        bookId: widget.book.id,
+        mode: _currentReadingActivityMode,
+      );
+    });
     _itemPositionsListener.itemPositions.addListener(_onVisiblePositions);
     _readingPrefs = widget.store.getReadingPreferences(bookId: widget.book.id);
     _displayPdfPage = widget.book.format == BookFormat.pdf
@@ -770,6 +815,7 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   void _onPlaybackChanged() {
     if (!mounted) return;
+    _readingActivityTracker?.refresh();
     final player = _player;
      if (player != null && player.lastError != null &&
         !identical(player.lastError, _lastReportedPlaybackError)) {
@@ -1428,6 +1474,10 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _readingActivityTracker?.refresh();
+    _readerForeground = state == AppLifecycleState.resumed;
+    if (!_readerForeground) _lastReadingInteraction = null;
+    _readingActivityTracker?.refresh();
     if (!ReaderLifecyclePolicy.backgroundTransition(state)) return;
     // Do not attribute background, other-app or resume frames to this book.
     _stopFrameCapture(discard: true);
@@ -1453,6 +1503,8 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   @override
   void dispose() {
+    _readingActivityTracker?.dispose();
+    _readingActivityTracker = null;
     _stopFrameCapture(discard: true, notify: false);
     ++_loadEpoch;
     _activeEpubTask?.cancel();
@@ -1645,7 +1697,11 @@ class _ReaderScreenState extends State<ReaderScreen>
   @override
   Widget build(BuildContext context) {
     final player = _player;
-    return ReaderKeyboardShortcuts(
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => _onReadingGesture(),
+      onPointerSignal: (_) => _onReadingGesture(),
+      child: ReaderKeyboardShortcuts(
       enabled: !_loading && player != null &&
           player.segments.isNotEmpty &&
           (widget.book.format != BookFormat.pdf || _pdfTextMode),
@@ -2568,6 +2624,7 @@ class _ReaderScreenState extends State<ReaderScreen>
             ],
           ),
         ),
+      ),
       ),
       ),
     );

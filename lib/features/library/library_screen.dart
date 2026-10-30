@@ -917,7 +917,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => LibraryReadingStatisticsSheet(statistics: stats),
+      builder: (_) => LibraryReadingStatisticsSheet(
+        statistics: stats,
+        store: widget.store,
+      ),
     );
   }
 
