@@ -220,10 +220,11 @@ class ReaderPlayer extends ChangeNotifier {
     String narratorLanguage(SpeechVoice? voice) {
       final system = engineProviderId == 'system' ||
           engineProviderId == 'system-native';
-      return system && selectedVoice != null &&
-              voice?.key == selectedVoice!.key &&
-              voice!.locale != 'multi'
-          ? voice.locale : language;
+      if (system && selectedVoice != null && voice != null &&
+          voice.key == selectedVoice!.key && voice.locale != 'multi') {
+        return voice.locale;
+      }
+      return language;
     }
     // Preserve the historical native selection when no cast resolver is
     // installed. Preview/lookahead still uses the available first/marin
