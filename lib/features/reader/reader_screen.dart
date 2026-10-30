@@ -418,6 +418,10 @@ class _ReaderScreenState extends State<ReaderScreen>
           ? _lastFollowedIndex : null;
       recoveryBinding.attach(player);
       player.addListener(_onPlaybackChanged);
+      final remoteChapterTargets = widget.book.format == BookFormat.epub
+          ? buildEpubMediaChapterTargets(
+              chapters, chunks.length, document.text.length)
+          : const <int, EpubMediaChapterTarget>{};
       widget.mediaHandler?.attach(
         player,
         bookId: widget.book.id,
@@ -434,23 +438,19 @@ class _ReaderScreenState extends State<ReaderScreen>
               chunks.isEmpty) return;
           _cancelPendingVisualSave();
           final speechEnd = index >= chunks.length;
-          final chapterOffset = widget.book.format == BookFormat.epub &&
-                  !speechEnd
-              ? [
-                  for (final chapter in chapters)
-                    if (chapter.hasSpeech && chapter.segmentIndex == index)
-                      chapter.start,
-                ]
-              : const <int>[];
-          final sourceOffset = speechEnd ? document.text.length
-              : chapterOffset.isNotEmpty
-                  ? chapterOffset.first : chunks[index].start;
+          final sourceTarget = remoteChapterTargets[index];
+          final sourceOffset = sourceTarget?.sourceOffset ??
+              (speechEnd ? document.text.length : chunks[index].start);
+          final silentSpineIdref = sourceTarget?.silentSpineIdref;
           _visiblePositionIndex = index;
           if (widget.book.format == BookFormat.epub) {
             _visualCheckpoint.clear();
-            _selectedVisualSpineIdref = null;
+            _selectedVisualSpineIdref = silentSpineIdref;
             _currentEpubVisualSourceOffset = sourceOffset;
-            final block = visualLayout.blockForSourceOffset(sourceOffset);
+            final block = silentSpineIdref == null
+                ? visualLayout.blockForSourceOffset(sourceOffset)
+                : visualLayout.blockForSpine(
+                    silentSpineIdref, sourceOffset);
             _visualCheckpoint.hold(sourceOffset,
                 awaitTarget: true, targetBlockIndex: block);
             _lastVisibleEpubBlockIndex = block;
@@ -476,7 +476,10 @@ class _ReaderScreenState extends State<ReaderScreen>
             // chapter selection; never race an active speech checkpoint.
             unawaited(widget.store.savePosition(
               widget.book.id, sourceOffset,
-              anchor: document.anchorAt(widget.book.format, sourceOffset),
+              anchor: silentSpineIdref == null
+                  ? document.anchorAt(widget.book.format, sourceOffset)
+                  : ReadingAnchor(kind: AnchorKind.epubSpine,
+                      sourceId: silentSpineIdref, localOffset: 0),
             ).catchError((Object _, StackTrace __) {
               // Visual navigation must not turn a storage error into
               // another unsolicited audio or cloud operation.

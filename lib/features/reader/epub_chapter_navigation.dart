@@ -90,6 +90,54 @@ List<EpubChapter> buildEpubChapters(
   return List<EpubChapter>.unmodifiable(chapters);
 }
 
+/// An Android media action targets a spoken chapter *and* the original
+/// visual EPUB section. Silent illustration-only spines may share a UTF-16
+/// source offset, so a source offset alone is not a unique visual bookmark.
+class EpubMediaChapterTarget {
+  const EpubMediaChapterTarget({
+    required this.sourceOffset,
+    this.silentSpineIdref,
+  });
+
+  final int sourceOffset;
+  final String? silentSpineIdref;
+}
+
+/// Build one immutable source lookup when the reader opens, rather than
+/// rescanning every OPF section for each lock-screen Next/Previous.
+/// A completed narration may still have trailing illustrated-only spines;
+/// target the FIRST such section, not the last same-offset illustration.
+Map<int, EpubMediaChapterTarget> buildEpubMediaChapterTargets(
+    List<EpubChapter> chapters, int speechSegmentCount,
+    int sourceLength) {
+  final targets = <int, EpubMediaChapterTarget>{};
+  var lastSpokenChapter = -1;
+  for (var i = 0; i < chapters.length; i++) {
+    final chapter = chapters[i];
+    if (chapter.hasSpeech &&
+        chapter.segmentIndex >= 0 &&
+        chapter.segmentIndex < speechSegmentCount) {
+      lastSpokenChapter = i;
+      targets.putIfAbsent(chapter.segmentIndex, () =>
+          EpubMediaChapterTarget(sourceOffset: chapter.start));
+    }
+  }
+  EpubChapter? trailingSilent;
+  for (var i = lastSpokenChapter + 1; i < chapters.length; i++) {
+    if (!chapters[i].hasSpeech) {
+      trailingSilent = chapters[i];
+      break;
+    }
+  }
+  targets[speechSegmentCount] = trailingSilent == null
+      ? EpubMediaChapterTarget(sourceOffset: sourceLength)
+      : EpubMediaChapterTarget(
+          sourceOffset: trailingSilent.start,
+          silentSpineIdref: trailingSilent.idref,
+        );
+  return Map<int, EpubMediaChapterTarget>.unmodifiable(targets);
+}
+
 /// Resolve a verified EPUB source target to the containing/next playable
 /// TTS segment. Sorted source-aligned segments make fragment jumps O(log N).
 /// The exact target offset itself is persisted separately by the reader.

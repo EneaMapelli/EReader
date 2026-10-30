@@ -773,3 +773,23 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   No Windows/Android build or GitHub Actions started; real device controls
   and visual EPUB behavior remain to be accepted manually.
 
+### M2/EPUB — Source-exact remote chapter/illustration bookmarks (2026-10-30)
+
+- Fixed external-media EOF navigation for books whose last narrated
+  chapter is followed by illustrated-only OPF spine entries. UTF-16
+  offsets can be identical across multiple silent image sections; an
+  offset-only jump could display/save the wrong illustrated appendix.
+- ReaderScreen now builds an immutable per-book map of actual narrated
+  chapter starts to source offsets; at audio EOF it chooses the **first**
+  trailing silent section with its unique spine `idref`. The visual
+  viewport uses blockForSpine and the paused SQLite bookmark stores an
+  EPUB-spine ReadingAnchor, so reopen preserves the correct illustration.
+- Removed per-button O(chapter-count) source scanning in the remote
+  navigation callback. Ordinary narrated chapters and TXT/PDF fallbacks
+  retain their original source positions and completion semantics.
+- Added pure navigation regressions for 20,000 long chapters, two
+  illustration-only appendices at the same source offset, immutable
+  target maps and ordinary book EOF, plus a real illustrated-layout
+  identity test. Tests **written but not run** (Dart/Flutter unavailable).
+  No Windows/Android build or GitHub Actions started.
+

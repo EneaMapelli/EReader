@@ -84,6 +84,31 @@ void main() {
     expect(layout.blockForSegment(0), 2);
   });
 
+  test('remote audio EOF preserves first illustrated appendix identity',
+      () {
+    final document = sample();
+    final chapters = buildEpubChapters(document, clips);
+    final targets = buildEpubMediaChapterTargets(
+        chapters, clips.length, document.text.length);
+    final eof = targets[clips.length]!;
+    final layout = buildProgressiveEpubVisualLayout(
+        document, clips, chapters);
+    expect(eof.sourceOffset, source.length);
+    expect(eof.silentSpineIdref, 'appendix');
+    final targetBlock = layout.blockForSpine(
+        eof.silentSpineIdref!, eof.sourceOffset);
+    expect(targetBlock, 3);
+    final anchor = ReadingAnchor(
+      kind: AnchorKind.epubSpine,
+      sourceId: eof.silentSpineIdref!,
+      localOffset: 0,
+    );
+    expect(document.offsetOf(anchor), source.length);
+    expect(layout.blockForSpine(anchor.sourceId, eof.sourceOffset), 3);
+    // The same source offset is not a sufficient visual section ID.
+    expect(layout.blockForSourceOffset(source.length), isNot(0));
+  });
+
   test('visual checkpoint pin keeps exact empty OPF tile selected', () {
     final document = sample();
     final layout = buildProgressiveEpubVisualLayout(document, clips,

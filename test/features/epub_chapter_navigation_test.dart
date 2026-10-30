@@ -207,6 +207,58 @@ void main() {
     expect(buildEpubChapters(plain, chunks), isEmpty);
   });
 
+  test('media chapters map long narrated spine sections exactly once', () {
+    final chapters = List<EpubChapter>.generate(
+      20000,
+      (index) => EpubChapter(
+        idref: 'section-$index', title: 'Section $index',
+        start: index * 120, end: (index + 1) * 120,
+        segmentIndex: index * 20,
+      ),
+    );
+    final targets = buildEpubMediaChapterTargets(
+        chapters, 400000, 2400000);
+    expect(targets, hasLength(20001)); // 20k chapters plus silent EOF.
+    for (final index in [0, 1, 100, 9999, 19999]) {
+      expect(targets[index * 20]?.sourceOffset, index * 120);
+      expect(targets[index * 20]?.silentSpineIdref, isNull);
+    }
+    expect(targets[1], isNull,
+        reason: 'Sentences within a chapter are not chapter starts');
+    expect(targets[400000]?.sourceOffset, 2400000);
+  });
+
+  test('media EOF selects first trailing silent spine by its exact ID', () {
+    const chapters = [
+      EpubChapter(idref: 'cover', title: 'Cover', start: 0, end: 0,
+          segmentIndex: 0, hasSpeech: false),
+      EpubChapter(idref: 'story', title: 'Story', start: 0, end: 100,
+          segmentIndex: 0),
+      EpubChapter(idref: 'illustration-a', title: 'Art A',
+          start: 100, end: 100, segmentIndex: 1, hasSpeech: false),
+      EpubChapter(idref: 'illustration-b', title: 'Art B',
+          start: 100, end: 100, segmentIndex: 1, hasSpeech: false),
+    ];
+    final targets = buildEpubMediaChapterTargets(chapters, 1, 100);
+    expect(targets[0]?.sourceOffset, 0);
+    expect(targets[1]?.sourceOffset, 100);
+    expect(targets[1]?.silentSpineIdref, 'illustration-a');
+    expect(() => targets[42] = const EpubMediaChapterTarget(
+        sourceOffset: 0), throwsUnsupportedError);
+  });
+
+  test('media EOF is ordinary source end without a silent appendix', () {
+    const chapters = [
+      EpubChapter(idref: 'a', title: 'A', start: 0, end: 40,
+          segmentIndex: 0),
+      EpubChapter(idref: 'b', title: 'B', start: 40, end: 80,
+          segmentIndex: 2),
+    ];
+    final targets = buildEpubMediaChapterTargets(chapters, 4, 80);
+    expect(targets[4]?.sourceOffset, 80);
+    expect(targets[4]?.silentSpineIdref, isNull);
+  });
+
   test('invalid overlapping or out-of-range spine offsets fail closed', () {
     const overlapping = DocumentContent(
       title: 'Book',
