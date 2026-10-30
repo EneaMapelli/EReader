@@ -1423,6 +1423,14 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
         }
         String? text;
         final sourceStamp = await _fullTextSourceStamp(book.localPath);
+        // Even a pending filesystem stat can outlive the old consent.
+        // Do not start a fresh decode after a rapid disable/re-enable.
+        if (!isFullTextIndexEnabled ||
+            revision != _fullTextConsentRevision ||
+            (shouldCancel?.call() ?? false)) {
+          cancelled = true;
+          break;
+        }
         try {
           final file = File(book.localPath);
           // Do not follow a replacement file symlink and avoid oversized
@@ -1605,9 +1613,10 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     ''', [bookId]);
     if (rows.isEmpty) return const [];
     final indexedText = rows.single['body'] as String;
+    final consentRevision = _fullTextConsentRevision;
     // Parse the potentially large local text on a worker isolate instead
     // of blocking the Flutter UI during an explicit passage inspection.
-    return Isolate.run(() =>
+    final passages = await Isolate.run(() =>
       mode == LibraryFullTextMatchMode.exactPhrase
           ? findIndexedExactPhrases(indexedText, tokens, limit: limit)
           : mode == LibraryFullTextMatchMode.anyWord
@@ -1615,6 +1624,12 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
                   indexedText, tokens, limit: limit)
               : findIndexedPassages(indexedText, tokens, limit: limit),
     );
+    // A background preview must not return text fetched under consent that
+    // was later revoked (including rapid disable/re-enable).
+    if (!isFullTextIndexEnabled ||
+        consentRevision != _fullTextConsentRevision ||
+        getBook(bookId) == null) return const [];
+    return passages;
   }
 
   /// Collections are book classifications, never book directories.
