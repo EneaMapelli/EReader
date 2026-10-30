@@ -394,7 +394,9 @@ class _PreparedWave {
 /// Stop requests immediate worker-isolate termination and suppresses delayed
 /// WAV playback. Dart cannot guarantee instantaneous preemption of a native
 /// blocking FFI call; physical device testing remains mandatory.
-class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, OfflineVoiceDiagnosticsProvider {
+class SherpaVitsSpeechEngine implements SpeechEngine,
+    OfflineAheadSpeechEngine, OfflineVoiceDiagnosticsProvider,
+    OfflineVoiceModelPrewarmer {
   static const providerId = 'sherpa-vits';
 
   SherpaVitsSpeechEngine({
@@ -515,6 +517,48 @@ class SherpaVitsSpeechEngine implements SpeechEngine, OfflineAheadSpeechEngine, 
       throw const FormatException('Offline voice not installed');
     }
     _voice = voice;
+  }
+
+  /// Explicit-only ONNX preparation. No model load occurs merely from
+  /// selecting a voice; no text, WAV, network or audio is generated.
+  /// The existing native worker automatically retires after 3 min idle.
+  @override
+  Future<void> prewarmModel() async {
+    if (_disposed || _voice?.key != _packVoice.key) {
+      throw StateError('Offline voice is not ready for model preparation');
+    }
+    if (_synthesizer != null || _useLegacyJobs) {
+      throw UnsupportedError('Model-only warmup requires a persistent VITS worker');
+    }
+    final token = _generation;
+    var session = _nativeSession;
+    if (session == null || session.isClosed) {
+      session = _sessionFactory(VitsSessionModel(
+        modelPath: pack.modelPath,
+        tokensPath: pack.tokensPath,
+        dataDir: dataDir,
+      ));
+      _nativeSession = session;
+      _diagnostics.recordModelLoad();
+    }
+    try {
+      await session.prepare();
+      if (_disposed || token != _generation ||
+          !identical(_nativeSession, session)) {
+        throw const VitsWaveCancelled();
+      }
+      if (!identical(_startupRecordedFor, session)) {
+        _startupRecordedFor = session;
+        _diagnostics.recordModelStartup(
+          workerReadyMs: session.workerReadyMs,
+          nativeModelInitializationMs: session.nativeModelInitializationMs,
+        );
+      }
+    } catch (_) {
+      session.cancel();
+      if (identical(_nativeSession, session)) _nativeSession = null;
+      rethrow;
+    }
   }
 
   void _validateSpeech(String text, String language, double rate,
