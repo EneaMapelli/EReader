@@ -719,6 +719,16 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
               indexed INTEGER NOT NULL CHECK(indexed IN (0, 1))
             )
           ''');
+          // File metadata, never book contents or original paths.
+          // Change detection is explicitly requested by the user.
+          db.execute('''
+            CREATE TABLE IF NOT EXISTS library_fulltext_source_state (
+              book_id TEXT PRIMARY KEY NOT NULL
+                REFERENCES books(id) ON DELETE CASCADE,
+              source_size INTEGER NOT NULL,
+              source_modified_us INTEGER NOT NULL
+            )
+          ''');
           db.execute('PRAGMA user_version = 26');
         });
       }
@@ -1226,6 +1236,15 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     }
     if (enabled) {
       _transaction(_database, () {
+        // Also repair older v26 installs made before incremental refresh.
+        _database.execute('''
+          CREATE TABLE IF NOT EXISTS library_fulltext_source_state (
+            book_id TEXT PRIMARY KEY NOT NULL
+              REFERENCES books(id) ON DELETE CASCADE,
+            source_size INTEGER NOT NULL,
+            source_modified_us INTEGER NOT NULL
+          )
+        ''');
         _database.execute('''
           CREATE VIRTUAL TABLE IF NOT EXISTS library_fulltext_fts
           USING fts5(book_id UNINDEXED, body, tokenize='unicode61 remove_diacritics 2')
@@ -1240,6 +1259,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           UPDATE library_fulltext_settings SET enabled = 0 WHERE slot = 1
         ''');
         _database.execute('DELETE FROM library_fulltext_jobs');
+        _database.execute('DELETE FROM library_fulltext_source_state');
         _database.execute('DROP TABLE IF EXISTS library_fulltext_fts');
       });
     }
@@ -1254,6 +1274,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     _transaction(_database, () {
       _database.execute('DELETE FROM library_fulltext_fts');
       _database.execute('DELETE FROM library_fulltext_jobs');
+      _database.execute('DELETE FROM library_fulltext_source_state');
     });
   }
 
