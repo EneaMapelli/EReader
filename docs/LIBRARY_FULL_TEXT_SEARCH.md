@@ -29,7 +29,9 @@ is used as the destination. This avoids inventing a single "phrase"
 offset when the matching terms occur in different parts of the book.
 
 The offset is computed in **UTF-16 code units** from indexed canonical
-text and checked again against freshly extracted text before opening.
+text **only when a result is selected**: regular search keystrokes return
+short FTS5 snippets without loading every matching book's full text. The
+selected offset is then checked against freshly extracted text before opening.
 TXT and EPUB land at the corresponding visual source/segment; EPUB
 reuses source-exact paragraph highlights. PDF matches enter text mode
 instead of treating the offset as a physical viewer page. If the text
