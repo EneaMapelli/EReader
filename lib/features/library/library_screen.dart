@@ -849,6 +849,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
     if (!mounted) return;
     final exists = widget.store.collections.any(
+        (item) => item.id == _collectionFilterId) ||
+        widget.store.smartCollections.any(
         (item) => item.id == _collectionFilterId);
     setState(() {
       if (!exists) _collectionFilterId = null;
@@ -954,10 +956,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget build(BuildContext context) {
     final allBooks = widget.store.books;
     final collections = widget.store.collections;
+    final smartCollections = widget.store.smartCollections;
     final selectedCollection = collections.where(
         (item) => item.id == _collectionFilterId).toList();
-    final filteredBookIds = selectedCollection.isEmpty
-        ? null : widget.store.collectionBookIds(selectedCollection.single.id);
+    final selectedSmart = smartCollections.where(
+        (item) => item.id == _collectionFilterId).toList();
+    final filteredBookIds = selectedSmart.isNotEmpty
+        ? widget.store.smartCollectionBookIds(selectedSmart.single.id)
+        : selectedCollection.isNotEmpty
+            ? widget.store.collectionBookIds(selectedCollection.single.id)
+            : _collectionFilterId == null
+                ? null : <String>{};
     final books = filterAndSortLibraryBooks(
       allBooks, query: _query, format: _formatFilter,
       activity: _activityFilter, sort: _sortOrder,
@@ -1250,8 +1259,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         child: DropdownButton<String?>(
                           key: const ValueKey('library-collection-filter'),
                           isExpanded: true,
-                          value: selectedCollection.isEmpty
-                              ? null : selectedCollection.single.id,
+                          value: selectedSmart.isNotEmpty
+                              ? selectedSmart.single.id
+                              : selectedCollection.isEmpty
+                                  ? null : selectedCollection.single.id,
                           items: [
                             const DropdownMenuItem<String?>(
                               value: null, child: Text('All collections')),
@@ -1259,6 +1270,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               DropdownMenuItem<String?>(
                                 value: collection.id,
                                 child: Text(collection.name),
+                              ),
+                            for (final smart in smartCollections)
+                              DropdownMenuItem<String?>(
+                                value: smart.id,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.auto_awesome_outlined,
+                                        size: 16),
+                                    const SizedBox(width: 8),
+                                    Flexible(child: Text(smart.name)),
+                                  ],
+                                ),
                               ),
                           ],
                           onChanged: (value) => setState(
