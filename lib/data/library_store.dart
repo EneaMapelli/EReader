@@ -1407,11 +1407,22 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       WHERE library_fulltext_fts MATCH ?
       ORDER BY rank
       LIMIT ?
-    ''', [matchQuery, limit]).map((row) => LibraryFullTextHit(
-      bookId: row['book_id'] as String,
-      title: row['title'] as String,
-      excerpt: row['excerpt'] as String,
-    )));
+    ''', [matchQuery, limit]).map((row) {
+      final original = row['body'] as String;
+      final matches = findSourceTextMatches(
+        original, tokens.first, maxResults: 1, contextChars: 0,
+      );
+      final jump = matches.isEmpty ? null : LibraryFullTextJump(
+        sourceOffset: matches.first.start,
+        expectedText: original.substring(matches.first.start, matches.first.end),
+      );
+      return LibraryFullTextHit(
+        bookId: row['book_id'] as String,
+        title: row['title'] as String,
+        excerpt: row['excerpt'] as String,
+        jump: jump,
+      );
+    }));
   }
 
   /// Collections are book classifications, never book directories.
