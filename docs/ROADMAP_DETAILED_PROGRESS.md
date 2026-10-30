@@ -93,7 +93,7 @@ automaticamente consegnate: sono ampliamenti dello scope.
 | ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
 | ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
 | ER-033 Statistiche/obiettivi | Parziale: catalogo, tempi giornalieri e per libro in SQLite v23/v24, obiettivo globale, storico 7 giorni, cancellazione selettiva/globale e opt-out persistente dal tracciamento. Restano campionamento euristico e QA Windows/Android |
-| ER-034 Libreria massiva/collezioni/FTS | Parziale: metadati avanzati, raccolte manuali/smart (v25), FTS5 opt-in (v26), salti UTF-16 validati, refresh manuale, passaggi alternativi e tre modalità lessicali (All words / Any word / Exact phrase). Mancano OCR, ricerca semantica/sinonimi, refresh automatico opzionale e QA nativa/large-library |
+| ER-034 Libreria massiva/collezioni/FTS | Parziale: collezioni manuali/smart (v25), indice FTS5 opt-in (v26), 3 modalità lessicali, passaggi alternativi, refresh manuale, offset verificati e sicurezza contro reset/consenso concorrenti. Mancano OCR, ricerca semantica/sinonimi, refresh automatico opzionale e QA nativa/large-library |
 
 ## E. Evidenza e priorità
 
@@ -1460,3 +1460,24 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Aggiunti test di dominio, SQLite e widget. Query SQLite OR/AND/frase
   e ordinamento `rank` verificati manualmente con SQLite 3.46.1.
   Nessuna build nativa o GitHub Actions; test Flutter non eseguiti.
+
+### ER-034 — Protezione concorrente degli indici offline (2026-10-30)
+
+- Corretto il rischio di indicizzazione obsoleta dopo `disable → enable`
+  durante la decodifica asincrona del libro. Una revisione locale
+  di sessione è verificata prima/dopo ogni punto asincrono rilevante,
+  impedendo all'operazione precedente di scrivere nell'indice appena
+  ricreato. L'indicizzazione resta cancellabile tra libri e non
+  interrompe forzatamente decoder nativi già avviati.
+- Anche `Check changed books` si arresta quando una nuova sessione
+  invalida quella iniziata. Un cambio di consenso non avvia nuovi
+  task o analisi sul contenuto.
+- Anteprime alternative su isolate: il risultato è consegnato soltanto
+  se sessione e contenuto dell'indice non sono cambiati. La revisione
+  del contenuto si aggiorna per reindicizzazione, invalidazione
+  delle fonti, reset, cambio consenso e rimozione dei libri.
+- Test aggiunti con decoder bloccato tramite `Completer`, riattivazione
+  rapida, reset, rimozione libro e scan interrotto. Nessuna modifica
+  allo schema SQLite o alle dipendenze.
+- Stato: codice e test committati, prove Flutter/Dart non eseguite
+  (SDK assente); nessuna build nativa e nessuna GitHub Actions avviata.
