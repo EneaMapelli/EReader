@@ -183,6 +183,7 @@ class OfflineVoiceAudition {
   String? _preparedId;
   String? _preparedFingerprint;
   Timer? _preparedExpiry;
+  Future<void> _preparedRetirement = Future<void>.value();
 
   bool hasPreparedModel(String packId) =>
       !_disposed && _preparedId == packId && _preparedEngine != null;
@@ -215,7 +216,17 @@ class OfflineVoiceAudition {
     _preparedExpiry = null;
     if (old != null) {
       onPreparedModelChanged?.call();
-      await old.dispose();
+      final retirement = old.dispose();
+      // An expiring warmup must finish releasing native ONNX before another
+      // worker is allowed to allocate native model memory.
+      _preparedRetirement = retirement;
+      try {
+        await retirement;
+      } finally {
+        if (identical(_preparedRetirement, retirement)) {
+          _preparedRetirement = Future<void>.value();
+        }
+      }
     }
   }
 
@@ -232,6 +243,7 @@ class OfflineVoiceAudition {
     SpeechEngine? owned;
     try {
       await _stopping;
+      await _preparedRetirement;
       if (_disposed || token != _epoch) return;
       await _discardPreparedEngine();
       if (_disposed || token != _epoch) return;
@@ -337,6 +349,10 @@ class OfflineVoiceAudition {
           'No verified demonstration text for this language',
         );
       }
+      // An expiry may be retiring an earlier model concurrently with
+      // the SHA read. Never allocate another model before it finishes.
+      await _preparedRetirement;
+      if (_disposed || token != _epoch) return;
       // SHA verification is ALWAYS repeated before using resident ONNX.
       // Never reuse a worker whose manifest, hashes or verified paths changed.
       final prepared = _preparedEngine;
@@ -509,7 +525,9 @@ class OfflineVoiceAudition {
     _active = null;
     // A cancelled SHA verification has no native engine to stop, and
     // cannot block the button on disk IO. The epoch blocks model loading.
-    if (engine == null) return _stopping;
+    if (engine == null) {
+      return _stopping.then((_) => _preparedRetirement);
+    }
     final prior = _stopping;
     final timer = Stopwatch()..start();
     return _stopping = () async {
