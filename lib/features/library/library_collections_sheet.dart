@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/library_store.dart';
 import '../../domain/book_collection.dart';
+import 'smart_collection_editor.dart';
 
 /// Collection changes stay local. They never seek, start TTS, or move files.
 Future<String?> _askCollectionName(
@@ -52,6 +53,7 @@ Future<void> showManageBookCollections({
     builder: (sheet) => StatefulBuilder(
       builder: (sheet, redraw) {
         final items = store.collections;
+        final smartItems = store.smartCollections;
         return SafeArea(
           child: ConstrainedBox(
             constraints: BoxConstraints(
@@ -70,6 +72,22 @@ Future<void> showManageBookCollections({
                         style: TextStyle(
                             fontSize: 20, fontWeight: FontWeight.w600),
                       )),
+                      FilledButton.tonalIcon(
+                        key: const ValueKey('collection-smart-create'),
+                        onPressed: () async {
+                          final input = await showSmartCollectionEditor(sheet);
+                          if (input == null || !sheet.mounted) return;
+                          try {
+                            store.createSmartCollection(input.name, input.rule);
+                            redraw(() {});
+                          } catch (error) {
+                            if (sheet.mounted) _showError(sheet, error);
+                          }
+                        },
+                        icon: const Icon(Icons.auto_awesome_outlined),
+                        label: const Text('Smart'),
+                      ),
+                      const SizedBox(width: 8),
                       FilledButton.icon(
                         key: const ValueKey('collection-create'),
                         onPressed: () async {
@@ -87,7 +105,7 @@ Future<void> showManageBookCollections({
                       ),
                     ],
                   ),
-                  if (items.isEmpty)
+                  if (items.isEmpty && smartItems.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(24),
                       child: Text('No collections yet. Create one to organize your books.'),
@@ -95,8 +113,79 @@ Future<void> showManageBookCollections({
                   Flexible(
                     child: ListView.builder(
                       shrinkWrap: true,
-                      itemCount: items.length,
+                      itemCount: items.length + smartItems.length,
                       itemBuilder: (context, index) {
+                        if (index >= items.length) {
+                          final item = smartItems[index - items.length];
+                          final count =
+                              store.smartCollectionBookIds(item.id).length;
+                          return ListTile(
+                            key: ValueKey('smart-row-${item.id}'),
+                            leading: const Icon(Icons.auto_awesome_outlined),
+                            title: Text(item.name),
+                            subtitle: Text('$count books · dynamic filters'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Edit smart collection',
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () async {
+                                    final input = await showSmartCollectionEditor(
+                                        sheet, existing: item);
+                                    if (input == null || !sheet.mounted) return;
+                                    try {
+                                      store.updateSmartCollection(
+                                          item.id, input.name, input.rule);
+                                      redraw(() {});
+                                    } catch (error) {
+                                      if (sheet.mounted) _showError(sheet, error);
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  tooltip: 'Delete smart collection',
+                                  icon: const Icon(Icons.delete_outline),
+                                  onPressed: () async {
+                                    final approved = await showDialog<bool>(
+                                      context: sheet,
+                                      builder: (dialog) => AlertDialog(
+                                        title: const Text(
+                                            'Delete smart collection?'),
+                                        content: Text(
+                                          'Delete "${item.name}" rules? '
+                                          'Books and manual collections '
+                                          'will not be deleted.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(dialog, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () =>
+                                                Navigator.pop(dialog, true),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (approved != true || !sheet.mounted) {
+                                      return;
+                                    }
+                                    try {
+                                      store.deleteSmartCollection(item.id);
+                                      redraw(() {});
+                                    } catch (error) {
+                                      if (sheet.mounted) _showError(sheet, error);
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }
                         final item = items[index];
                         final count = store.collectionBookIds(item.id).length;
                         return ListTile(
@@ -229,6 +318,12 @@ Future<void> showBookCollectionMembership({
                     const Padding(
                       padding: EdgeInsets.all(24),
                       child: Text('No collections yet.'),
+                    ),
+                  if (store.smartCollections.isNotEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Smart collections assign books '
+                          'automatically and cannot be edited here.'),
                     ),
                   Flexible(
                     child: ListView.builder(
