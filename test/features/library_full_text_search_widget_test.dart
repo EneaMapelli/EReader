@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:ereader/data/library_store.dart';
 import 'package:ereader/domain/book.dart';
+import 'package:ereader/domain/library_full_text.dart';
 import 'package:ereader/features/library/library_full_text_search_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,7 +28,8 @@ void main() {
   });
 
   Future<void> openSheet(
-      WidgetTester tester, {ValueChanged<BookRecord>? onOpenBook}) async {
+      WidgetTester tester, {
+        void Function(BookRecord, LibraryFullTextJump?)? onOpenBook}) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: Builder(builder: (context) => ElevatedButton(
@@ -49,7 +51,11 @@ void main() {
   testWidgets('opt-in, index, literal search, open existing book',
       (tester) async {
     BookRecord? opened;
-    await openSheet(tester, onOpenBook: (book) => opened = book);
+    LibraryFullTextJump? destination;
+    await openSheet(tester, onOpenBook: (book, jump) {
+      opened = book;
+      destination = jump;
+    });
     expect(store.isFullTextIndexEnabled, isFalse);
     expect(find.textContaining('Enable indexing'), findsOneWidget);
 
@@ -68,6 +74,9 @@ void main() {
     await tester.tap(find.byKey(ValueKey('fts-hit-$firstId')));
     await tester.pumpAndSettle();
     expect(opened?.id, firstId);
+    expect(destination, isNotNull);
+    expect(destination!.sourceOffset, 8);
+    expect(destination!.expectedText.toLowerCase(), 'dragon');
     expect(store.getBook(firstId), isNotNull);
   });
 
