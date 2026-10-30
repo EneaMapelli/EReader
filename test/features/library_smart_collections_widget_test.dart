@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:ereader/data/library_store.dart';
 import 'package:ereader/domain/book.dart';
+import 'package:ereader/domain/smart_book_collection.dart';
 import 'package:ereader/features/library/library_collections_sheet.dart';
 import 'package:ereader/features/library/library_screen.dart';
 import 'package:flutter/material.dart';
