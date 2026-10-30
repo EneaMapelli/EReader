@@ -93,7 +93,7 @@ automaticamente consegnate: sono ampliamenti dello scope.
 | ER-031 Audio session evoluta | Parziale: media handler e sleep timer, piattaforme non qualificate |
 | ER-032 Skipping note/struttura | Parziale: preview note e struttura, filtro spoken non completo |
 | ER-033 Statistiche/obiettivi | Parziale: catalogo, tempi giornalieri e per libro in SQLite v23/v24, obiettivo globale, storico 7 giorni, cancellazione selettiva/globale e opt-out persistente dal tracciamento. Restano campionamento euristico e QA Windows/Android |
-| ER-034 Libreria massiva/collezioni/FTS | Parziale: metadati avanzati, raccolte manuali/smart (v25), FTS5 opt-in (v26), salti UTF-16 validati, refresh manuale, passaggi alternativi e ricerca esatta per sequenza di parole. Mancano OCR, ricerca semantica/sinonimi, refresh automatico opzionale e QA nativa/large-library |
+| ER-034 Libreria massiva/collezioni/FTS | Parziale: metadati avanzati, raccolte manuali/smart (v25), FTS5 opt-in (v26), salti UTF-16 validati, refresh manuale, passaggi alternativi e tre modalità lessicali (All words / Any word / Exact phrase). Mancano OCR, ricerca semantica/sinonimi, refresh automatico opzionale e QA nativa/large-library |
 
 ## E. Evidenza e priorità
 
@@ -1440,3 +1440,23 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Nuovi test di dominio, SQLite e widget; corretto un `const` non
   valido nell'input search a testo d'aiuto dinamico. Le prove Flutter
   e native non sono state eseguite, e non sono state avviate Actions.
+
+### ER-034 — Ricerca OR locale e ranking coerente (2026-10-30)
+
+- Aggiunta la modalità `Any word` al selettore accanto ad
+  `All words` e `Exact phrase`. Le query OR sono costruite
+  esclusivamente da token Unicode letterali, con limiti invariati a
+  8 parole / 120 caratteri, mantenendo SQLite `MATCH ?`.
+- I libri sono ordinati per `rank` FTS5, con `title COLLATE NOCASE`
+  e ID come tie-break deterministici. La corrispondenza OR ammette
+  libri con una sola parola cercata; l'apertura sceglie la prima
+  occorrenza verificabile **tra tutte le parole presenti**, non
+  soltanto la prima parola della query.
+- Nei passaggi alternativi OR, fino a sei corrispondenze vengono
+  raggruppate se troppo vicine; il risultato è etichettato come
+  singola parola trovata e non come passaggio contenente tutti i termini.
+  Le ancore visuali mantengono il controllo del contesto esistente;
+  né la selezione né i risultati avviano TTS o scrivono progressi.
+- Aggiunti test di dominio, SQLite e widget. Query SQLite OR/AND/frase
+  e ordinamento `rank` verificati manualmente con SQLite 3.46.1.
+  Nessuna build nativa o GitHub Actions; test Flutter non eseguiti.
