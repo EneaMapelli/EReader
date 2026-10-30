@@ -14,6 +14,18 @@ void main() {
         isNull);
   });
 
+  test('FTS first word uses UTF-16 offsets and never matches word prefixes',
+      () {
+    const source = '🐉 dragonfly and a dragon roam.';
+    final hit = firstExactIndexedWord(source, 'dragon');
+    expect(hit, isNotNull);
+    expect(hit!.sourceOffset, source.lastIndexOf('dragon'));
+    expect(hit.expectedText, 'dragon');
+    expect(hit.validatedOffset(source), hit.sourceOffset);
+    expect(firstExactIndexedWord(source, 'dragonfly')?.sourceOffset, 3);
+    expect(firstExactIndexedWord(source, 'missing'), isNull);
+  });
+
   test('empty or out of range matches reject stale targets', () {
     expect(const LibraryFullTextJump(
       sourceOffset: -1, expectedText: 'a',
