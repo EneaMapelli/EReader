@@ -116,7 +116,8 @@ class _LibraryReadingStatisticsSheetState
                 DropdownButton<int>(
                   key: const ValueKey('stats-goal-dropdown'),
                   value: week.goalMinutes,
-                  items: const [0, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240]
+                  items: (<int>{0, 10, 15, 20, 30, 45, 60, 90, 120,
+                          180, 240, week.goalMinutes}.toList()..sort())
                       .map((minutes) => DropdownMenuItem<int>(
                             value: minutes,
                             child: Text(minutes == 0
