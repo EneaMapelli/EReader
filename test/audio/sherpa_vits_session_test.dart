@@ -158,6 +158,58 @@ void main() {
     legacy.cancel();
   });
 
+  test('explicit prepare loads native model with no WAV or text',
+      () async {
+    final session = VitsPersistentSession.withEntrypoint(
+        model, _timedReusableWorker);
+    final first = session.prepare();
+    final second = session.prepare();
+    await Future.wait([first, second]);
+    expect(session.workerReadyMs, greaterThanOrEqualTo(0));
+    expect(session.nativeModelInitializationMs, 23);
+    expect(session.lastNativeGenerationMs, isNull);
+    expect(await root.list().toList(), isEmpty,
+        reason: 'A model-only warmup must not generate WAV files');
+    await session.synthesize(text: 'later',
+        wavPath: p.join(root.path, 'prepared.wav'), speed: 1);
+    expect(await File(p.join(root.path, 'prepared.wav')).readAsString(),
+        'timed-request=1',
+        reason: 'Preparing does not consume a synthesis slot');
+    session.cancel();
+  });
+
+  test('Stop cancels pending warmup without generating any WAV', () async {
+    final session = VitsPersistentSession.withEntrypoint(
+        model, _neverReadyWorker);
+    final waiting = expectLater(
+        session.prepare(), throwsA(isA<VitsWaveCancelled>()));
+    session.cancel();
+    await waiting;
+    expect(session.isClosed, isTrue);
+    expect(await root.list().toList(), isEmpty);
+    await expectLater(session.prepare(),
+        throwsA(isA<VitsWaveCancelled>()));
+  });
+
+  test('model initialization timeout also rejects explicit warmup',
+      () async {
+    final timers = <_ManualVitsTimer>[];
+    final session = VitsPersistentSession.withEntrypoint(
+      model, _neverReadyWorker,
+      timerScheduler: (delay, action) {
+        final timer = _ManualVitsTimer(delay, action);
+        timers.add(timer);
+        return timer;
+      },
+    );
+    final waiting = expectLater(session.prepare(), throwsStateError);
+    timers.firstWhere((timer) =>
+        timer.delay == const Duration(seconds: 60)).fire();
+    await waiting;
+    expect(session.isClosed, isTrue);
+    expect(await root.list().toList(), isEmpty);
+  });
+
   test('busy persistent worker rejects second request and cancels first',
       () async {
     final session = VitsPersistentSession.withEntrypoint(
@@ -349,6 +401,47 @@ void main() {
         reason: 'Stop must still retire the native resident model');
     expect(engine.offlineVoiceStatistics.modelLoads, 2);
     expect(engine.offlineVoiceStatistics.lastNativeModelInitializationMs, 23);
+    await engine.dispose();
+  });
+
+  test('model-only engine preparation reuses worker on next audible speech',
+      () async {
+    final pack = InstalledOfflineVoicePack(
+      manifest: OfflineVoicePackManifest(
+        id: 'mock-pack', displayName: 'Mock', locale: 'en-US',
+        licenseId: 'MIT', modelSha256: 'a' * 64,
+        tokensSha256: 'b' * 64,
+      ),
+      modelPath: p.join(root.path, 'voice.onnx'),
+      tokensPath: p.join(root.path, 'tokens.txt'),
+    );
+    var created = 0;
+    final output = _StringWaveOutput();
+    final engine = SherpaVitsSpeechEngine(
+      pack: pack, output: output,
+      temporaryDirectory: () async => root,
+      sessionFactory: (cfg) {
+        created++;
+        return VitsPersistentSession.withEntrypoint(
+            cfg, _timedReusableWorker);
+      },
+    );
+    await engine.chooseVoice(
+        const SpeechVoice(name: 'mock-pack', locale: 'en-US'));
+    await engine.prewarmModel();
+    expect(created, 1);
+    expect(engine.offlineVoiceStatistics.modelLoads, 1);
+    expect(engine.offlineVoiceStatistics.syntheses, 0);
+    expect(engine.offlineVoiceStatistics.lastNativeModelInitializationMs, 23);
+    expect(await root.list().toList(), isEmpty);
+    await engine.speak('audible', language: 'en-US',
+        rate: 0.5, pitch: 1);
+    expect(created, 1, reason: 'Do not spawn a second ONNX model');
+    expect(output.played, ['timed-request=1']);
+    expect(engine.offlineVoiceStatistics.syntheses, 1);
+    await engine.stop();
+    await engine.prewarmModel();
+    expect(created, 2, reason: 'Stop must retire the old native model');
     await engine.dispose();
   });
 
