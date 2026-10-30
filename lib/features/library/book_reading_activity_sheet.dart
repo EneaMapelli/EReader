@@ -15,6 +15,33 @@ class BookReadingActivitySheet extends StatelessWidget {
   final LibraryStore store;
   final String bookId;
 
+  Future<void> _confirmClearBook(BuildContext context) async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this book\'s activity?'),
+        content: const Text(
+          'Remove all recorded reading and TTS time for this book, '
+          'including its historical days. This cannot be undone. '
+          'The book, reading position and bookmarks remain unchanged.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete activity'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true || !context.mounted) return;
+    store.clearReadingActivity(bookId: bookId);
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final lifetime = store.bookReadingLifetimeTotals(bookId);
@@ -70,6 +97,14 @@ class BookReadingActivitySheet extends StatelessWidget {
                   key: ValueKey('stats-book-day-${day.date}'),
                 ),
               ),
+            const SizedBox(height: 16),
+            const Divider(),
+            TextButton.icon(
+              key: const ValueKey('stats-clear-book'),
+              onPressed: () => _confirmClearBook(context),
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Clear timed activity for this book'),
+            ),
             const SizedBox(height: 16),
             Text(
               'These totals start when activity tracking was introduced. '
