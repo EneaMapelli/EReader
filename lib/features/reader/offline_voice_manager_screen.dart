@@ -54,6 +54,9 @@ class _OfflineVoiceManagerScreenState
   String? _sampleId;
   bool _stoppingSample = false;
   bool _sampleCancelled = false;
+  // Ephemeral, bounded comparison data; never stored or transmitted.
+  final Map<String, OfflineVoicePreviewReport> _previewMeasurements = {};
+  static const int _maxPreviewMeasurements = 12;
   ManualVoiceStagingHealth? _manualStageHealth;
 
   Future<Directory> _directory() async {
@@ -82,8 +85,21 @@ class _OfflineVoiceManagerScreenState
     super.dispose();
   }
 
+  void _rememberPreviewMeasurement(String packId) {
+    final report = _audition.lastReport;
+    if (!mounted || report == null || report.packId != packId) return;
+    setState(() {
+      _previewMeasurements.remove(packId);
+      if (_previewMeasurements.length >= _maxPreviewMeasurements) {
+        _previewMeasurements.remove(_previewMeasurements.keys.first);
+      }
+      _previewMeasurements[packId] = report;
+    });
+  }
+
   Future<void> _stopSample() async {
     if (_sampleId == null || _stoppingSample) return;
+    final stoppedId = _sampleId!;
     setState(() {
       _stoppingSample = true;
       _sampleCancelled = true;
@@ -99,6 +115,7 @@ class _OfflineVoiceManagerScreenState
             'Do not begin another preview until audio has ended.');
       }
     } finally {
+      _rememberPreviewMeasurement(stoppedId);
       if (mounted) setState(() => _stoppingSample = false);
     }
   }
@@ -153,6 +170,7 @@ class _OfflineVoiceManagerScreenState
             'Windows audio output; no cloud fallback was used.');
       }
     } finally {
+      _rememberPreviewMeasurement(entry.id);
       if (mounted) {
         setState(() {
           _sampleId = null;
@@ -764,12 +782,26 @@ class _OfflineVoiceManagerScreenState
                   ? Icons.verified_outlined
                   : Icons.warning_amber_outlined),
               title: Text(entry.installed?.manifest.displayName ?? entry.id),
-              subtitle: Text(entry.ready
-                  ? 'Verified files · ${entry.installed!.manifest.locale} · '
-                      '${entry.installed!.manifest.licenseId} · '
-                      '${entry.verifiedDiskBytes == null ? "Size unavailable" :
-                          offlineVoiceSizeLabel(entry.verifiedDiskBytes!)}'
-                  : 'Unavailable: missing or damaged voice files'),
+              subtitle: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(entry.ready
+                      ? 'Verified files · ${entry.installed!.manifest.locale} · '
+                          '${entry.installed!.manifest.licenseId} · '
+                          '${entry.verifiedDiskBytes == null ? "Size unavailable" :
+                              offlineVoiceSizeLabel(entry.verifiedDiskBytes!)}'
+                      : 'Unavailable: missing or damaged voice files'),
+                  if (_previewMeasurements[entry.id] != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      formatOfflineVoicePreviewReport(
+                          _previewMeasurements[entry.id]!),
+                      key: ValueKey('offline-preview-metrics-${entry.id}'),
+                    ),
+                  ],
+                ],
+              ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -802,6 +834,15 @@ class _OfflineVoiceManagerScreenState
             ),
           ),
         const SizedBox(height: 12),
+        const Text(
+          'Voice preview metrics are session-only, stored in memory '
+          '(up to 12 voices). Verification measures SHA-256 reading; '
+          'native synthesis excludes playback. Speech wall time '
+          'includes synthesis, audio playback and cleanup. Decoder handoff '
+          'is not acoustic onset. RAM is the whole app process, not the '
+          'model alone. Stop includes native disposal.',
+        ),
+        const SizedBox(height: 8),
         const Text(
           'Model checks use local SHA-256 hashes and may take time for '
           'large files. A checksum stored with a model is not proof of '
