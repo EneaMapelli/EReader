@@ -405,6 +405,20 @@ class _ReaderScreenState extends State<ReaderScreen>
               ? latestBook.progressOffset
               : document.offsetOf(latestBook.progressAnchor!) ??
                   latestBook.progressOffset);
+      // FTS stores extracted UTF-16 positions, not EPUB byte offsets or PDF
+      // page numbers. Verify the exact text on a FRESH decode: the source
+      // may have been rewritten or the extractor updated since indexing.
+      // A valid hit is a visual-only opening location, not a new bookmark.
+      final requestedSearchJump = _initialSearchJumpConsumed
+          ? null : widget.initialSearchJump;
+      final verifiedSearchOffset =
+          requestedSearchJump?.validatedOffset(document.text);
+      if (verifiedSearchOffset != null) saved = verifiedSearchOffset;
+      final searchPdfPage = verifiedSearchOffset != null &&
+              widget.book.format == BookFormat.pdf
+          ? pdfVisualPageForTextOffset(
+              document.pdfPageRanges, verifiedSearchOffset)
+          : null;
       if (widget.book.format == BookFormat.pdf &&
           requestedPdfPage != null) {
         // Only an explicit "Read text aloud" action transfers the current
@@ -445,7 +459,9 @@ class _ReaderScreenState extends State<ReaderScreen>
       final castNames = _configureVoiceCast(
           player, prepared.speakerByStart);
       var recoveryWriteFailed = false;
-      if (epubRecovery?.shouldPersist == true) {
+      if (verifiedSearchOffset == null &&
+          requestedSearchJump == null &&
+          epubRecovery?.shouldPersist == true) {
         // Persist only an unambiguous recovered v2 anchor. Failure to
         // write a checkpoint must not prevent the book from opening.
         try {
@@ -577,6 +593,16 @@ class _ReaderScreenState extends State<ReaderScreen>
         },
       );
       setState(() {
+        _initialSearchJumpConsumed = true;
+        if (searchPdfPage != null) _displayPdfPage = searchPdfPage;
+        _selectedSourceSearchHit = verifiedSearchOffset != null &&
+                widget.book.format == BookFormat.epub
+            ? BookSourceMatch(
+                verifiedSearchOffset,
+                verifiedSearchOffset + requestedSearchJump!.expectedText.length,
+                requestedSearchJump.expectedText,
+              )
+            : null;
         _player = player;
         _recoveryBinding = recoveryBinding;
         _document = document;
@@ -602,6 +628,15 @@ class _ReaderScreenState extends State<ReaderScreen>
         _loading = false;
       });
       adoptedPlayer = true;
+      if (requestedSearchJump != null && verifiedSearchOffset == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || epoch != _loadEpoch) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('The indexed passage has changed. '
+                'Opened at your saved reading position instead.'),
+          ));
+        });
+      }
       if (preflight != null) {
         // Frame-end time is local wall clock from opening attempt, not
         // a frame-duration/FPS estimate or peak memory measurement.
@@ -610,7 +645,8 @@ class _ReaderScreenState extends State<ReaderScreen>
           setState(() => _epubFirstFrameUs = stopwatch.elapsedMicroseconds);
         });
       }
-      if (epubRecovery?.needsReview == true || recoveryWriteFailed) {
+      if (verifiedSearchOffset == null &&
+          (epubRecovery?.needsReview == true || recoveryWriteFailed)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || epoch != _loadEpoch) return;
           ScaffoldMessenger.of(context).showSnackBar(
