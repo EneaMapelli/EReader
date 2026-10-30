@@ -33,7 +33,7 @@ class LibraryFullTextJump {
     final actual = source.substring(
         sourceOffset, sourceOffset + expectedText.length);
     if (actual.toLowerCase() != expectedText.toLowerCase()) return null;
-    if (contextBefore.length > 64 || contextAfter.length > 400 ||
+    if (contextBefore.length > 64 || contextAfter.length > 2112 ||
         sourceOffset < contextBefore.length ||
         sourceOffset + expectedText.length + contextAfter.length >
             source.length) {
