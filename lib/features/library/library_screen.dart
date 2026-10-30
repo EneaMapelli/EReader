@@ -995,12 +995,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
         title: const Text('EReader'),
         actions: [
           IconButton(
-            key: const ValueKey('library-fulltext-open'),
-            tooltip: 'Search inside books offline',
-            icon: const Icon(Icons.manage_search),
-            onPressed: _busy ? null : _showFullTextSearch,
-          ),
-          IconButton(
             tooltip: 'Manage collections',
             icon: const Icon(Icons.folder_open_outlined),
             onPressed: _busy ? null : () => unawaited(_manageCollections()),
@@ -1151,11 +1145,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   alignment: Alignment.centerRight,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: TextButton.icon(
-                      key: const ValueKey('library-stats-open'),
-                      onPressed: _busy ? null : _showReadingStatistics,
-                      icon: const Icon(Icons.insights_outlined),
-                      label: const Text('Reading stats'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          key: const ValueKey('library-fulltext-open'),
+                          tooltip: 'Search inside books offline',
+                          onPressed: _busy ? null : _showFullTextSearch,
+                          icon: const Icon(Icons.manage_search),
+                        ),
+                        TextButton.icon(
+                          key: const ValueKey('library-stats-open'),
+                          onPressed: _busy ? null : _showReadingStatistics,
+                          icon: const Icon(Icons.insights_outlined),
+                          label: const Text('Reading stats'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
