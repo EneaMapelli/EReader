@@ -298,21 +298,20 @@ class OfflineVoiceAudition {
           }
           final successive = first != null && second != null &&
               second.syntheses == first.syntheses + 1;
-          final sameModel = successive &&
-              first.modelLoads > 0 &&
-              first.modelLoads == second.modelLoads;
+          final bool? sameModel = successive && first!.modelLoads > 0
+              ? first.modelLoads == second!.modelLoads : null;
           comparison = OfflineVoiceColdWarmComparison(
             firstSpeechWallMs: speechWallMs!,
             secondSpeechWallMs: warm.elapsedMilliseconds,
             firstSynthesisPathMs: successive
-                ? first.lastSynthesisMs : null,
+                ? first!.lastSynthesisMs : null,
             secondSynthesisPathMs: successive
-                ? second.lastSynthesisMs : null,
+                ? second!.lastSynthesisMs : null,
             firstNativeGenerationMs: successive
-                ? first.lastNativeGenerationMs : null,
+                ? first!.lastNativeGenerationMs : null,
             secondNativeGenerationMs: successive
-                ? second.lastNativeGenerationMs : null,
-            reusedNativeModel: successive ? sameModel : null,
+                ? second!.lastNativeGenerationMs : null,
+            reusedNativeModel: sameModel,
           );
         }
       }
