@@ -18,6 +18,31 @@ String? offlineVoiceSampleText(String locale) =>
 
 enum OfflineVoicePreviewOutcome { completed, cancelled, failed }
 
+/// Same public demonstration phrase, synthesized twice by ONE engine.
+/// Wall times include audio playback and cleanup, so they are NOT
+/// interchangeable with native WAV generation / audible onset.
+class OfflineVoiceColdWarmComparison {
+  const OfflineVoiceColdWarmComparison({
+    required this.firstSpeechWallMs,
+    required this.secondSpeechWallMs,
+    this.firstSynthesisPathMs,
+    this.secondSynthesisPathMs,
+    this.firstNativeGenerationMs,
+    this.secondNativeGenerationMs,
+    this.reusedNativeModel,
+  });
+
+  final int firstSpeechWallMs;
+  final int secondSpeechWallMs;
+  final int? firstSynthesisPathMs;
+  final int? secondSynthesisPathMs;
+  final int? firstNativeGenerationMs;
+  final int? secondNativeGenerationMs;
+  /// Null for non-diagnostic TTS, true only if counter evidence confirms
+  /// one model load across exactly two successive syntheses.
+  final bool? reusedNativeModel;
+}
+
 /// An in-memory, per-preview performance snapshot. Timing is monotonic.
 /// Verification includes a full SHA-256 rehash; voice setup is only the
 /// chooseVoice call (NOT necessarily model load). Speech wall-clock time
@@ -40,6 +65,7 @@ class OfflineVoicePreviewReport {
     this.decoderHandoffMs,
     this.wholeProcessRssMiB,
     this.stopAndDisposeMs,
+    this.coldWarmComparison,
   });
 
   final String packId;
@@ -61,6 +87,7 @@ class OfflineVoicePreviewReport {
   /// Whole app process RSS snapshot, NOT memory attributable to this voice.
   final int? wholeProcessRssMiB;
   final int? stopAndDisposeMs;
+  final OfflineVoiceColdWarmComparison? coldWarmComparison;
 
   OfflineVoicePreviewReport withStopAndDisposeMs(int milliseconds) =>
       OfflineVoicePreviewReport(
@@ -77,6 +104,7 @@ class OfflineVoicePreviewReport {
         decoderHandoffMs: decoderHandoffMs,
         wholeProcessRssMiB: wholeProcessRssMiB,
         stopAndDisposeMs: milliseconds,
+        coldWarmComparison: coldWarmComparison,
       );
 }
 
@@ -110,6 +138,23 @@ String formatOfflineVoicePreviewReport(OfflineVoicePreviewReport report) {
       'Stop + disposal: ${report.stopAndDisposeMs} ms',
     if (report.wholeProcessRssMiB != null)
       'Whole-app RAM snapshot: ${report.wholeProcessRssMiB} MiB',
+    if (report.coldWarmComparison != null) ...[
+      'Cold/warm demo (same phrase twice)',
+      'First incl. playback: ${report.coldWarmComparison!.firstSpeechWallMs} ms',
+      'Second incl. playback: ${report.coldWarmComparison!.secondSpeechWallMs} ms',
+      if (report.coldWarmComparison!.firstSynthesisPathMs != null)
+        'First synthesis path: ${report.coldWarmComparison!.firstSynthesisPathMs} ms',
+      if (report.coldWarmComparison!.secondSynthesisPathMs != null)
+        'Second synthesis path: ${report.coldWarmComparison!.secondSynthesisPathMs} ms',
+      if (report.coldWarmComparison!.firstNativeGenerationMs != null)
+        'First worker WAV: ${report.coldWarmComparison!.firstNativeGenerationMs} ms',
+      if (report.coldWarmComparison!.secondNativeGenerationMs != null)
+        'Second worker WAV: ${report.coldWarmComparison!.secondNativeGenerationMs} ms',
+      if (report.coldWarmComparison!.reusedNativeModel != null)
+        report.coldWarmComparison!.reusedNativeModel!
+            ? 'One native model reused'
+            : 'Model reuse not confirmed',
+    ],
   ];
   return fields.join(' · ');
 }
@@ -144,7 +189,9 @@ class OfflineVoiceAudition {
   /// Last completed/cancelled/failed request, local memory only.
   OfflineVoicePreviewReport? get lastReport => _lastReport;
 
-  Future<void> play(String packId) async {
+  /// compareColdWarm deliberately plays TWO audible public demonstrations.
+  /// Use only after separate user consent; never prewarm while idle.
+  Future<void> play(String packId, {bool compareColdWarm = false}) async {
     if (_disposed) throw StateError('Voice preview is closed');
     if (_running) throw StateError('A voice preview is already running');
     _running = true;
@@ -159,6 +206,7 @@ class OfflineVoiceAudition {
     int? verificationMs;
     int? voiceSetupMs;
     int? speechWallMs;
+    OfflineVoiceColdWarmComparison? comparison;
     var failed = false;
     var cleanupFailed = false;
     var completed = false;
@@ -199,6 +247,8 @@ class OfflineVoiceAudition {
       }
       if (_disposed || token != _epoch) return;
 
+      // Reuse the SAME engine/model for the comparison, and never make
+      // a second request after Stop invalidates the generation epoch.
       final speaking = Stopwatch()..start();
       try {
         await owned.speak(
@@ -211,6 +261,60 @@ class OfflineVoiceAudition {
       } finally {
         speaking.stop();
         speechWallMs = speaking.elapsedMilliseconds;
+      }
+      if (compareColdWarm && completed) {
+        OfflineVoiceStatistics? first;
+        if (owned is OfflineVoiceDiagnosticsProvider) {
+          try {
+            first = (owned as OfflineVoiceDiagnosticsProvider)
+                .offlineVoiceStatistics;
+          } catch (_) {
+            // Compare wall times even when optional native metrics fail.
+          }
+        }
+        completed = false;
+        final warm = Stopwatch()..start();
+        try {
+          if (_disposed || token != _epoch) return;
+          await owned.speak(
+            sample,
+            language: pack.manifest.locale,
+            rate: 0.5,
+            pitch: 1.0,
+          );
+          completed = token == _epoch && !_disposed;
+        } finally {
+          warm.stop();
+        }
+        if (completed) {
+          OfflineVoiceStatistics? second;
+          if (owned is OfflineVoiceDiagnosticsProvider) {
+            try {
+              second = (owned as OfflineVoiceDiagnosticsProvider)
+                  .offlineVoiceStatistics;
+            } catch (_) {
+              // Native comparisons are optional; never fake a result.
+            }
+          }
+          final successive = first != null && second != null &&
+              second.syntheses == first.syntheses + 1;
+          final sameModel = successive &&
+              first.modelLoads > 0 &&
+              first.modelLoads == second.modelLoads;
+          comparison = OfflineVoiceColdWarmComparison(
+            firstSpeechWallMs: speechWallMs!,
+            secondSpeechWallMs: warm.elapsedMilliseconds,
+            firstSynthesisPathMs: successive
+                ? first.lastSynthesisMs : null,
+            secondSynthesisPathMs: successive
+                ? second.lastSynthesisMs : null,
+            firstNativeGenerationMs: successive
+                ? first.lastNativeGenerationMs : null,
+            secondNativeGenerationMs: successive
+                ? second.lastNativeGenerationMs : null,
+            reusedNativeModel: successive ? sameModel : null,
+          );
+        }
       }
     } catch (_) {
       failed = true;
@@ -238,6 +342,8 @@ class OfflineVoiceAudition {
         if (_previewEpoch == token) {
           _lastReport = OfflineVoicePreviewReport(
             packId: packId,
+            coldWarmComparison: failed || cleanupFailed || !completed
+                ? null : comparison,
             outcome: failed || cleanupFailed
                 ? OfflineVoicePreviewOutcome.failed
                 : completed ? OfflineVoicePreviewOutcome.completed
