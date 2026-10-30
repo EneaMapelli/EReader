@@ -104,6 +104,36 @@ void main() {
         isTrue);
   });
 
+  testWidgets('manual import inspection is read-only and reports eligibility',
+      (tester) async {
+    final stage = await models.createTemp(
+        ManualVoiceInstallStaging.prefix);
+    await File(p.join(stage.path, ManualVoiceInstallStaging.leaseName))
+        .create();
+    final marker = File(p.join(
+        stage.path, ManualVoiceInstallStaging.markerName));
+    await marker.writeAsString(ManualVoiceInstallStaging.markerContent);
+    await marker.setLastModified(
+        DateTime.now().subtract(const Duration(days: 3)));
+    final payload = await Directory(p.join(stage.path,
+        ManualVoiceInstallStaging.payloadName)).create();
+    await File(p.join(payload.path, 'tokens.txt')).writeAsBytes([1]);
+
+    await mount(tester);
+    final button = find.byKey(
+        const ValueKey('inspect-manual-model-imports'));
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await letIoSettle(tester);
+    expect(find.byKey(
+        const ValueKey('manual-model-import-health')), findsOneWidget);
+    expect(find.textContaining('eligible 1'), findsOneWidget);
+    expect(await stage.exists(), isTrue,
+        reason: 'A diagnostic cannot implicitly authorize cleanup');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('manual abandoned-import cleanup requires approval and '
       'preserves installed models', (tester) async {
     final installed = await installOfflineVoicePack(
