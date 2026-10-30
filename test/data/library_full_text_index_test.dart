@@ -64,6 +64,13 @@ void main() {
 
     final results = store.searchIndexedBookContents('dragon');
     expect(results.map((hit) => hit.bookId).toSet(), {alpha, beta});
+    for (final result in results) {
+      expect(result.jump, isNotNull);
+      expect(result.jump!.expectedText.toLowerCase(), 'dragon');
+      expect(result.jump!.sourceOffset, greaterThan(0));
+    }
+    expect(store.getBook(alpha)!.progressOffset, 0);
+    expect(store.getBook(beta)!.progressOffset, 0);
     expect(results.first.excerpt.toLowerCase(), contains('dragon'));
     expect(store.searchIndexedBookContents('blue dragon')
         .map((hit) => hit.bookId).toSet(), {alpha});
