@@ -201,6 +201,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('320px enlarged-text layout keeps arrow-selected actions usable',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 420));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    final chosen = ValueNotifier<BookRecord?>(null);
+    addTearDown(chosen.dispose);
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: const TextScaler.linear(1.8),
+        ),
+        child: child!,
+      ),
+      home: Scaffold(body: Builder(builder: (context) => TextButton(
+        onPressed: () async {
+          chosen.value = await showQuickOpenBookDialog(context, books: [
+            _book('alpha', 'Alpha long title'),
+            _book('beta', 'Beta long title'),
+          ]);
+        },
+        child: const Text('Launch'),
+      ))),
+    ));
+    await tester.tap(find.text('Launch'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<AlertDialog>(find.byType(AlertDialog)).scrollable,
+        isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(find.text('Selected 2 of 2: Beta long title'), findsOneWidget);
+    await tester.testTextInput.receiveAction(TextInputAction.go);
+    await tester.pumpAndSettle();
+    expect(chosen.value?.id, 'beta');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('small screen and enlarged font retain a dismissible dialog',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 700));
