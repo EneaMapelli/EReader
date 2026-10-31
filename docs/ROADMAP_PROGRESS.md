@@ -1191,3 +1191,25 @@ Android Activity recreation remains a manual device gate.
 - No Windows/Android builds or GitHub Actions; milestone percentages
   and native release-readiness gates are unchanged.
 - See [LIBRARY_RESPONSIVE_ACCESSIBILITY.md](LIBRARY_RESPONSIVE_ACCESSIBILITY.md).
+
+
+### M1/M6 — Scalable keyboard focus for long libraries (2026-10-31)
+
+- Replaced the screen-level, indefinitely growing per-book FocusNode and
+  GlobalKey maps with stateful LibraryBookRowFocus widgets. Each lazy list
+  row owns/disposes its FocusNode and contextual More menu key as it enters
+  or leaves the viewport/cache area; no eager resources are allocated for
+  every saved book.
+- Kept Shift+F10 and long-press actions using the same protected menu
+  callbacks. Stable book-ID keys and SliverList findChildIndexCallback
+  preserve mounted row focus identity as sorting changes the display order.
+- Applied a stable PageStorageKey for the library results scroller and made
+  the live "Showing X of Y books" result count available to screen readers
+  on desktop as well as compact mobile.
+- Added a 1,000-book lazy list regression and tests for offscreen focus
+  disposal, keyboard menu activation, disabled controls, metadata rebuilds,
+  desktop sorting and result count.
+- Authored and committed only; Flutter/Dart tests and native assistive
+  technology checks have not been executed. No Windows/Android builds or
+  GitHub Actions. Native readiness percentages remain unchanged.
+- See [LIBRARY_RESPONSIVE_ACCESSIBILITY.md](LIBRARY_RESPONSIVE_ACCESSIBILITY.md).
