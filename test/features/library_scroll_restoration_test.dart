@@ -76,7 +76,7 @@ void main() {
     expect(store.books, hasLength(45));
   });
 
-  testWidgets('changing sort and format resets a deep library viewport',
+  testWidgets('changing the format resets a deep library viewport',
       (tester) async {
     final controller = await showLibrary(tester);
     await scrollDeeper(tester);
@@ -91,6 +91,26 @@ void main() {
     expect(store.books, hasLength(45));
     await tester.tap(find.byKey(const ValueKey('library-compact-filters')));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('sorting a long desktop list resets to the first sorted book',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(980, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.pumpAndSettle();
+    final controller = tester.widget<ListView>(
+        find.byType(ListView)).controller!;
+    await scrollDeeper(tester);
+    expect(controller.offset, greaterThan(480));
+
+    await tester.tap(find.byKey(const ValueKey('library-sort')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Title A–Z').last);
+    await tester.pumpAndSettle();
+    expect(controller.offset, closeTo(0, 0.1));
+    expect(find.text('Showing 45 of 45 books'), findsOneWidget);
+    expect(store.books, hasLength(45));
   });
 
   testWidgets('opening and closing a book keeps the current catalog viewport',
