@@ -100,7 +100,7 @@ int? moveQuickOpenSelection({
   required bool down,
 }) {
   if (count == 0) return null;
-  return (current + (down ? 1 : -1)).clamp(0, count - 1);
+  return (current + (down ? 1 : -1)).clamp(0, count - 1).toInt();
 }
 
 /// Returns a chosen existing book. Only the caller may open the reader;
