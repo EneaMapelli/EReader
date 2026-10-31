@@ -36,7 +36,7 @@ gate su dispositivi reali.
 |---|---:|---|
 | **ER-001** Scaffold/build Windows+Android | 65% | Flutter, bootstrap e CI presenti; generazione/build e test nativi su entrambi i target non chiusi |
 | **ER-002** Book/Chapter/Segment/Anchor + DB | 90% | Entità e repository SQLite con evoluzioni/migrazioni; consolidare schema e mapping EPUB/PDF su corpus reali |
-| **ER-003** Import EPUB/TXT, sicurezza, TOC | 85% | Decoder, import picker incluso stream Android, validazioni e navigazione; import da share sheet, EPUB complessi e ZIP stress |
+| **ER-003** Import EPUB/TXT, sicurezza, TOC | 85% | Decoder TXT UTF-8/UTF-16/Windows-1252 (da verificare in ambiente Dart), import picker incluso stream Android, validazioni e navigazione; import da share sheet, EPUB complessi e ZIP stress |
 | **ER-004** PDF rendering/testo/ordine | 55% | Visualizzatore e text layer via pdfrx, progresso visuale; ordine colonne/note e PDF scannerizzati non risolti |
 | **ER-005** Reader UI/progressi | 78% | Layout EPUB/TXT/PDF, ricerca, bookmarks, note, source anchor; gate 20 libri e due piattaforme aperti |
 | **ER-006** Provider contracts/system TTS | 75% | Contratti motori, factory, configurazione e adapter OS; capacità native da certificare per Windows e Android |
@@ -1481,3 +1481,24 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   allo schema SQLite o alle dipendenze.
 - Stato: codice e test committati, prove Flutter/Dart non eseguite
   (SDK assente); nessuna build nativa e nessuna GitHub Actions avviata.
+
+### M1 — Codifiche TXT legacy e protezione del testo (2026-10-31)
+
+- Sostituita la decodifica TXT UTF-8 permissiva con il decoder locale
+  `plain_text_decoder.dart`, condiviso dal reader e dall'indice FTS.
+  UTF-8 e BOM, UTF-16 BE/LE (surrogati validati), euristica prudente
+  per UTF-16 senza BOM e fallback Windows-1252 per TXT legacy.
+- Preservata la punteggiatura tipografica, importante per la
+  segmentazione TTS; nessuna sostituzione silenziosa con U+FFFD
+  quando il BOM identifica espressamente una codifica malformata.
+- Decodifica trasferita a un isolate Dart, senza modelli esterni o
+  rete; limite preesistente di 100 MiB e rifiuto di NUL/controlli
+  non testuali e di unità UTF-16 corrotte. Le posizioni restano
+  offset UTF-16 corrispondenti al testo del lettore e dell'FTS.
+- Aggiunti test del decoder puro, del percorso reale TXT nel
+  `PrototypeDocumentDecoder` e dell'integrazione FTS UTF-16.
+- Rimangono il corpus TXT reale, la misura RAM su Android/Windows e
+  il supporto ad altri charset legacy. I test Dart/Flutter sono
+  **non eseguiti** (SDK assente); nessuna compilazione Windows/Android,
+  nessuna GitHub Actions avviata.
+- [Specifica e test](TXT_CHARACTER_ENCODING.md).
