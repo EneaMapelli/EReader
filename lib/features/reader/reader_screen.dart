@@ -156,6 +156,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   bool _autoFollow = true;
   // Keep the page itself spacious. Playback settings are available on demand.
   bool _advancedControlsExpanded = false;
+  final ScrollController _advancedControlsScroll = ScrollController();
   bool _skipEpubNotes = false;
   EpubSpeechNoteFilter? _epubSpeechNoteFilter;
   final ItemScrollController _itemScrollController = ItemScrollController();
@@ -1590,6 +1591,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // unavailable controller method during book/screen shutdown.
     _itemPositionsListener.itemPositions.removeListener(_onVisiblePositions);
     _visualProgressTick.dispose();
+    _advancedControlsScroll.dispose();
     final player = _player;
     if (player != null) {
       widget.mediaHandler?.detach(player);
@@ -2298,9 +2300,13 @@ class _ReaderScreenState extends State<ReaderScreen>
               ),
               ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: advancedMaxHeight),
-                child: SingleChildScrollView(
-                  key: const ValueKey('reader-advanced-controls-scroll'),
-                  child: Column(
+                child: Scrollbar(
+                  controller: _advancedControlsScroll,
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    key: const ValueKey('reader-advanced-controls-scroll'),
+                    controller: _advancedControlsScroll,
+                    child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (_chapters.isNotEmpty || _authorToc.isNotEmpty) ...[
@@ -2803,6 +2809,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                         ],
                       ),
                     ],
+                    ),
                   ),
                 ),
               ),
