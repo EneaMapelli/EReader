@@ -1645,3 +1645,44 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Windows measurements remain required before selecting a performance
   tuning strategy. No Windows/Android builds or GitHub Actions started.
 
+### M4 — Library and reader navigation/menu consolidation (2026-10-31)
+
+- Reduced the crowded reader top toolbar to high-frequency controls:
+  return from EPUB internal note/link (when available), table of
+  contents, source search and one **Reader tools & settings** launcher.
+  The book title now truncates safely on narrow layouts. All previously
+  exposed actions remain available in a scrollable, grouped tool sheet:
+  **Navigate & find** (contents, source search, bookmarks, PDF page
+  bookmarks, internal-link return, return to PDF pages), **Reading
+  appearance** (font/layout, font size, follow narration, four EPUB
+  color modes with visible selected check), **Speech & characters**
+  (engine/provider settings including cloud consent, cast, dictionary)
+  and **Help & diagnostics** (keyboard help, EPUB open performance and
+  import compatibility warnings).
+- Extracted the reader's format/state-dependent menu rules into the
+  pure `reader_tool_menu_options.dart` catalog. EPUB, PDF page view,
+  PDF selectable-text mode, TXT and loading/empty states expose only
+  available actions. PDF text-to-page switch preserves its existing
+  pause, visual position and original PDF page navigation semantics;
+  reading appearance preferences and auto-follow behavior remain
+  unchanged, and keyboard shortcuts remain active.
+- Simplified the library AppBar to **Import book** and **Library tools**,
+  with a small book-count subtitle. The grouped library tool sheet
+  contains **Organize** (collections/smart shelves), **Discover**
+  (local full-text search and reading statistics), **Data & backups**
+  (export/restore). Existing in-library quick search, reading stats,
+  per-book More menus, collections and floating Import button remain.
+  Backup/restore operations start only after selecting an item, not
+  when the menu opens.
+- Both screens reuse `organized_action_sheet.dart`, an accessible
+  scrollable, height-constrained modal with icons, descriptive labels,
+  selected states, large tap targets and stable widget keys. The
+  interface remains English consistent with the existing application.
+- Added widget tests for menu groups, selected/disabled items,
+  scrolling on narrow screens, library-to-collections routing and
+  non-mutating menu presentation; pure tests cover EPUB, PDF text/page
+  and TXT command availability. No TTS, voice model, checkpoint,
+  database, import/backup format, plugin or cloud behavior was changed.
+  Tests **written but not executed** (Dart/Flutter SDK unavailable).
+  No Windows/Android build or GitHub Actions were started.
+
