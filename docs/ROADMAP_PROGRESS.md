@@ -1232,3 +1232,23 @@ Android Activity recreation remains a manual device gate.
 - No Windows/Android builds or GitHub Actions. Native validation and
   release readiness estimates remain unchanged.
 - See [LIBRARY_SCROLL_BEHAVIOR.md](LIBRARY_SCROLL_BEHAVIOR.md).
+
+
+### M1/M6 — Quick open for large book collections (2026-10-31)
+
+- Added an offline, keyboard-accessible Quick open dialog: Ctrl/Cmd+J or the
+  new catalog toolbar icon searches all saved books by title, author and
+  series, regardless of active catalog filters. Blank queries show recent
+  reads first, and typed queries rank title prefixes ahead of other matches.
+- All results are counted, with a maximum of 40 visible at a time and
+  live screen-reader result counts. Clicking a result enters the existing
+  reader; Cancel and Escape leave the catalog, filters and scroll alone.
+  The dialog validates current book identity before reopening.
+- On narrow screens the reading-stats toolbar control becomes an icon to
+  preserve book search, quick open and statistics access; the dialog is
+  scrollable with enlarged text and the mobile keyboard.
+- Authored pure ranking/1,000-book, palette UI, keyboard modifier/route,
+  cancel/filter isolation and reader-selection regression tests. Tests
+  NOT EXECUTED (Flutter/Dart SDK unavailable), no Windows or Android build,
+  no GitHub Actions. Overall readiness remains unchanged.
+- See [LIBRARY_QUICK_OPEN.md](LIBRARY_QUICK_OPEN.md).
