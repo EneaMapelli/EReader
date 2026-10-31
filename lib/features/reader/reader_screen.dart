@@ -10,6 +10,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../audio/reader_player.dart';
+import '../../audio/narration_transition_diagnostics.dart';
 import '../../audio/reader_activity_tracker.dart';
 import '../../domain/reading_activity.dart';
 import '../../audio/reader_media_handler.dart';
@@ -369,6 +370,10 @@ class _ReaderScreenState extends State<ReaderScreen>
           store: widget.store,
         ),
         segments: chunks,
+        chapterStartIndices: {
+          for (final chapter in chapters)
+            if (chapter.hasSpeech) chapter.segmentIndex,
+        },
         onSegmentStarted: recoveryBinding.onSegmentStarted,
         onSegmentCompleted: recoveryBinding.onSegmentCompleted,
       );
@@ -2408,6 +2413,13 @@ class _ReaderScreenState extends State<ReaderScreen>
                           'Handoff is not audible onset; '
                           'RSS is not model-only memory.',
                         ),
+                      ),
+                      ListTile(
+                        key: const ValueKey('reader-narration-transition-timing'),
+                        dense: true,
+                        title: const Text('Real-reading narration timing'),
+                        subtitle: Text(formatNarrationTransitionDiagnostics(
+                            player.narrationTimings)),
                       ),
                     ],
                   );
