@@ -69,6 +69,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   String? _collectionFilterId;
   LibraryActivityFilter _activityFilter = LibraryActivityFilter.all;
   LibrarySortOrder _sortOrder = LibrarySortOrder.recentlyImported;
+  bool _smallFiltersExpanded = false;
 
   void _clearFilters() {
     _searchController.clear();
@@ -1070,6 +1071,189 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
     final lastOpened = widget.store.lastOpenedBook;
     final interrupted = widget.store.interruptedNarrationBook;
+    final compactLayout = MediaQuery.sizeOf(context).width < 600;
+    final activeFilterCount =
+        (_formatFilter != null ? 1 : 0) +
+        (_readingStatusFilter != null ? 1 : 0) +
+        (_collectionFilterId != null ? 1 : 0) +
+        (_favoritesOnly ? 1 : 0) +
+        (_activityFilter != LibraryActivityFilter.all ? 1 : 0) +
+        (_sortOrder != LibrarySortOrder.recentlyImported ? 1 : 0);
+    final filterControls = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Row(
+                    children: [
+                      const Text('Sort'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButton<LibrarySortOrder>(
+                          key: const ValueKey('library-sort'),
+                          value: _sortOrder,
+                          isExpanded: true,
+                          items: const [
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.recentlyImported,
+                              child: Text('Recently imported')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.recentlyOpened,
+                              child: Text('Recently opened')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.titleAscending,
+                              child: Text('Title A–Z')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.titleDescending,
+                              child: Text('Title Z–A')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.authorAscending,
+                              child: Text('Author A–Z')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.seriesAscending,
+                              child: Text('Series A–Z')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.format,
+                              child: Text('File format')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.favoritesFirst,
+                              child: Text('Favorites first')),
+                            DropdownMenuItem(
+                              value: LibrarySortOrder.readingStatus,
+                              child: Text('Reading shelf')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) setState(() => _sortOrder = value);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Row(
+                    children: [
+                      const Text('Shelf'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButton<BookReadingStatus?>(
+                          key: const ValueKey('library-reading-shelf-filter'),
+                          isExpanded: true,
+                          hint: const Text('All shelves'),
+                          value: _readingStatusFilter,
+                          items: [
+                            const DropdownMenuItem<BookReadingStatus?>(
+                              value: null, child: Text('All shelves')),
+                            for (final status in BookReadingStatus.values)
+                              DropdownMenuItem<BookReadingStatus?>(
+                                value: status,
+                                child: Text(status.label),
+                              ),
+                          ],
+                          onChanged: (value) => setState(
+                              () => _readingStatusFilter = value),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Row(
+                    children: [
+                      const Text('Collection'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButton<String?>(
+                          key: const ValueKey('library-collection-filter'),
+                          isExpanded: true,
+                          value: selectedSmart.isNotEmpty
+                              ? selectedSmart.single.id
+                              : selectedCollection.isEmpty
+                                  ? null : selectedCollection.single.id,
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null, child: Text('All collections')),
+                            for (final collection in collections)
+                              DropdownMenuItem<String?>(
+                                value: collection.id,
+                                child: Text(collection.name),
+                              ),
+                            for (final smart in smartCollections)
+                              DropdownMenuItem<String?>(
+                                value: smart.id,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.auto_awesome_outlined,
+                                        size: 16),
+                                    const SizedBox(width: 8),
+                                    Flexible(child: Text(smart.name)),
+                                  ],
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) => setState(
+                              () => _collectionFilterId = value),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Row(
+                    children: [
+                      for (final format in <BookFormat?>[
+                        null, BookFormat.epub, BookFormat.pdf, BookFormat.txt,
+                      ]) ...[
+                        ChoiceChip(
+                          key: ValueKey('library-filter-${format?.name ?? 'all'}'),
+                          label: Text(format?.name.toUpperCase() ?? 'All'),
+                          selected: _formatFilter == format,
+                          onSelected: (_) =>
+                              setState(() => _formatFilter = format),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ],
+                  ),
+                ),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    children: [
+                      FilterChip(
+                        key: const ValueKey('library-favorites-only'),
+                        avatar: const Icon(Icons.star, size: 18),
+                        label: const Text('Favorites'),
+                        selected: _favoritesOnly,
+                        onSelected: (value) =>
+                            setState(() => _favoritesOnly = value),
+                      ),
+                      const SizedBox(width: 8),
+                      for (final activity in LibraryActivityFilter.values) ...[
+                        ChoiceChip(
+                          key: ValueKey('library-activity-${activity.name}'),
+                          label: Text(switch (activity) {
+                            LibraryActivityFilter.all => 'All activity',
+                            LibraryActivityFilter.opened => 'Opened',
+                            LibraryActivityFilter.neverOpened => 'Never opened',
+                          }),
+                          selected: _activityFilter == activity,
+                          onSelected: (_) =>
+                              setState(() => _activityFilter = activity),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ],
+                  ),
+                ),
+      ],
+    );
     final scaffold = Scaffold(
       appBar: AppBar(
         title: Column(
@@ -1282,176 +1466,61 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                  child: Row(
-                    children: [
-                      const Text('Sort'),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButton<LibrarySortOrder>(
-                          key: const ValueKey('library-sort'),
-                          value: _sortOrder,
-                          isExpanded: true,
-                          items: const [
-                            DropdownMenuItem(
-                              value: LibrarySortOrder.recentlyImported,
-                              child: Text('Recently imported')),
-                            DropdownMenuItem(
-                              value: LibrarySortOrder.recentlyOpened,
-                              child: Text('Recently opened')),
-                            DropdownMenuItem(
-                              value: LibrarySortOrder.titleAscending,
-                              child: Text('Title A–Z')),
-                            DropdownMenuItem(
-                              value: LibrarySortOrder.titleDescending,
-                              child: Text('Title Z–A')),
-                            DropdownMenuItem(
-                              value: LibrarySortOrder.authorAscending,
-                              child: Text('Author A–Z')),
-                            DropdownMenuItem(
-                              value: LibrarySortOrder.seriesAscending,
-                              child: Text('Series A–Z')),
-                            DropdownMenuItem(
-                              value: LibrarySortOrder.format,
-                              child: Text('File format')),
-                            DropdownMenuItem(
-                              value: LibrarySortOrder.favoritesFirst,
-                              child: Text('Favorites first')),
-                            DropdownMenuItem(
-                              value: LibrarySortOrder.readingStatus,
-                              child: Text('Reading shelf')),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) setState(() => _sortOrder = value);
-                          },
+                if (compactLayout)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.tonalIcon(
+                            key: const ValueKey('library-compact-filters'),
+                            onPressed: () => setState(() =>
+                                _smallFiltersExpanded = !_smallFiltersExpanded),
+                            icon: Icon(_smallFiltersExpanded
+                                ? Icons.expand_less : Icons.tune),
+                            label: Text(activeFilterCount == 0
+                                ? 'Filters & sort'
+                                : 'Filters & sort ($activeFilterCount)'),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                  child: Row(
-                    children: [
-                      const Text('Shelf'),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButton<BookReadingStatus?>(
-                          key: const ValueKey('library-reading-shelf-filter'),
-                          isExpanded: true,
-                          hint: const Text('All shelves'),
-                          value: _readingStatusFilter,
-                          items: [
-                            const DropdownMenuItem<BookReadingStatus?>(
-                              value: null, child: Text('All shelves')),
-                            for (final status in BookReadingStatus.values)
-                              DropdownMenuItem<BookReadingStatus?>(
-                                value: status,
-                                child: Text(status.label),
-                              ),
-                          ],
-                          onChanged: (value) => setState(
-                              () => _readingStatusFilter = value),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                  child: Row(
-                    children: [
-                      const Text('Collection'),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButton<String?>(
-                          key: const ValueKey('library-collection-filter'),
-                          isExpanded: true,
-                          value: selectedSmart.isNotEmpty
-                              ? selectedSmart.single.id
-                              : selectedCollection.isEmpty
-                                  ? null : selectedCollection.single.id,
-                          items: [
-                            const DropdownMenuItem<String?>(
-                              value: null, child: Text('All collections')),
-                            for (final collection in collections)
-                              DropdownMenuItem<String?>(
-                                value: collection.id,
-                                child: Text(collection.name),
-                              ),
-                            for (final smart in smartCollections)
-                              DropdownMenuItem<String?>(
-                                value: smart.id,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.auto_awesome_outlined,
-                                        size: 16),
-                                    const SizedBox(width: 8),
-                                    Flexible(child: Text(smart.name)),
-                                  ],
-                                ),
-                              ),
-                          ],
-                          onChanged: (value) => setState(
-                              () => _collectionFilterId = value),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                  child: Row(
-                    children: [
-                      for (final format in <BookFormat?>[
-                        null, BookFormat.epub, BookFormat.pdf, BookFormat.txt,
-                      ]) ...[
-                        ChoiceChip(
-                          key: ValueKey('library-filter-${format?.name ?? 'all'}'),
-                          label: Text(format?.name.toUpperCase() ?? 'All'),
-                          selected: _formatFilter == format,
-                          onSelected: (_) =>
-                              setState(() => _formatFilter = format),
-                        ),
-                        const SizedBox(width: 8),
+                        if (activeFilterCount > 0)
+                          IconButton(
+                            key: const ValueKey('library-reset-filters'),
+                            tooltip: 'Reset library filters and sorting',
+                            onPressed: _clearFilters,
+                            icon: const Icon(Icons.filter_alt_off_outlined),
+                          ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Row(
-                    children: [
-                      FilterChip(
-                        key: const ValueKey('library-favorites-only'),
-                        avatar: const Icon(Icons.star, size: 18),
-                        label: const Text('Favorites'),
-                        selected: _favoritesOnly,
-                        onSelected: (value) =>
-                            setState(() => _favoritesOnly = value),
-                      ),
-                      const SizedBox(width: 8),
-                      for (final activity in LibraryActivityFilter.values) ...[
-                        ChoiceChip(
-                          key: ValueKey('library-activity-${activity.name}'),
-                          label: Text(switch (activity) {
-                            LibraryActivityFilter.all => 'All activity',
-                            LibraryActivityFilter.opened => 'Opened',
-                            LibraryActivityFilter.neverOpened => 'Never opened',
-                          }),
-                          selected: _activityFilter == activity,
-                          onSelected: (_) =>
-                              setState(() => _activityFilter = activity),
+                if (compactLayout)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          'Showing ${books.length} of ${allBooks.length} books',
+                          key: const ValueKey('library-result-count'),
+                          style: Theme.of(context).textTheme.labelSmall,
                         ),
-                        const SizedBox(width: 8),
-                      ],
-                    ],
+                      ),
+                    ),
                   ),
-                ),
+                if (!compactLayout)
+                  filterControls
+                else if (_smallFiltersExpanded)
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: (MediaQuery.sizeOf(context).height * 0.40)
+                          .clamp(130.0, 260.0).toDouble(),
+                    ),
+                    child: SingleChildScrollView(
+                      key: const ValueKey('library-compact-filter-scroll'),
+                      child: filterControls,
+                    ),
+                  ),
                 Expanded(
                   child: books.isEmpty
                       ? Center(
