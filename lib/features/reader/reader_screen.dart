@@ -55,6 +55,7 @@ import 'epub_diagnostics_sheet.dart';
 import 'epub_opening_performance_sheet.dart';
 import 'epub_frame_sampler.dart';
 import 'reader_keyboard_shortcuts.dart';
+import 'reader_compact_controls.dart';
 import '../shared/organized_action_sheet.dart';
 import 'reader_tool_menu_options.dart';
 import 'reading_progress_bar.dart';
@@ -153,6 +154,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       EpubReadingPalette.values.byName(_readingPrefs.palette);
   bool _pdfTextMode = false;
   bool _autoFollow = true;
+  // Keep the page itself spacious. Playback settings are available on demand.
+  bool _advancedControlsExpanded = false;
   bool _skipEpubNotes = false;
   EpubSpeechNoteFilter? _epubSpeechNoteFilter;
   final ItemScrollController _itemScrollController = ItemScrollController();
@@ -2228,6 +2231,52 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   Widget _controls(ReaderPlayer player) {
     final count = player.segments.length;
+    if (!_advancedControlsExpanded) {
+      return SafeArea(
+        top: false,
+        child: Material(
+          elevation: 3,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 5, 12, 5),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_document?.text.isNotEmpty ?? false)
+                  ValueListenableBuilder<int>(
+                    valueListenable: _visualProgressTick,
+                    builder: (context, revision, child) => ReadingProgressBar(
+                      sourceOffset: _visibleProgressOffset(
+                          player, _document!.text.length),
+                      sourceLength: _document!.text.length,
+                      onSeekToOffset: _jumpToSourceProgress,
+                    ),
+                  ),
+                ReaderCompactControls(
+                  segmentLabel: player.currentIndex >= count
+                      ? 'Reading complete — Play to restart'
+                      : 'Segment ' + (player.currentIndex + 1).toString() +
+                          ' of ' + count.toString(),
+                  isPlaying: player.isPlaying,
+                  sleepTimerActive: player.sleepTimerEndsAt != null,
+                  onPrevious: () => unawaited(_move(-1)),
+                  onPlayPause: () => unawaited(_playOrPause()),
+                  onNext: () => unawaited(_move(1)),
+                  onExpand: () => setState(
+                      () => _advancedControlsExpanded = true),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Advanced controls are deliberately bounded and separately scrollable:
+    // voice diagnostics and large accessibility text must not consume the
+    // entire book viewport or overflow a small Android display.
+    final advancedMaxHeight =
+        (MediaQuery.sizeOf(context).height * 0.52)
+            .clamp(130.0, 420.0).toDouble();
     return SafeArea(
       top: false,
       child: Material(
@@ -2237,6 +2286,24 @@ class _ReaderScreenState extends State<ReaderScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  key: const ValueKey('reader-collapse-controls'),
+                  tooltip: 'Show fewer reading controls',
+                  onPressed: () => setState(
+                      () => _advancedControlsExpanded = false),
+                  icon: const Icon(Icons.expand_more),
+                  label: const Text('Less controls'),
+                ),
+              ),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: advancedMaxHeight),
+                child: SingleChildScrollView(
+                  key: const ValueKey('reader-advanced-controls-scroll'),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
               if (_chapters.isNotEmpty || _authorToc.isNotEmpty) ...[
                 Builder(builder: (context) {
                   final index = _currentDirectoryIndex;
@@ -2296,8 +2363,10 @@ class _ReaderScreenState extends State<ReaderScreen>
                 Text('Speaker: ' +
                     (_castNames[player.activeSpeakerId] ?? 'Unknown')
                   , style: Theme.of(context).textTheme.labelSmall),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 6,
+                runSpacing: 2,
                 children: [
                   IconButton(
                     tooltip: 'Previous segment (Left arrow)',
@@ -2733,6 +2802,10 @@ class _ReaderScreenState extends State<ReaderScreen>
                     },
                   ),
                 ],
+              ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
