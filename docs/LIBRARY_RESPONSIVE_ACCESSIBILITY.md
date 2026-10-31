@@ -13,8 +13,9 @@ Branch: feature/m0-flutter-foundation.
 - A separate reset control appears when filters/sorting are active. It calls
   the existing view-only _clearFilters implementation, not SQLite deletion.
   Clearing filters does not unstar books, change shelf status or membership.
-- The result count reads "Showing X of Y books", as a live semantic region.
-  Searching still queries only local catalog metadata, not book contents.
+- The result count reads "Showing X of Y books", as a live semantic region
+  on both compact and desktop screens. Searching still queries only local
+  catalog metadata, not book contents.
 - The expanded filter panel is independently vertically scrollable and
   height-bounded to 32% of the screen (105–235 logical pixels). Book results
   keep their own scroll area, avoiding filter rows consuming the whole phone.
@@ -41,8 +42,14 @@ Branch: feature/m0-flutter-foundation.
   the selected book through its existing onTap. Shift+F10 on a focused
   row or a long press on touch opens the same More action menu, never audio.
   Focused rows receive a visible, theme-aware highlight.
-- Popup menu keys are stable by book ID and all focus nodes are disposed
-  with the library screen, without introducing background listeners.
+- Per-book FocusNodes and PopupMenu GlobalKeys are now owned by
+  LibraryBookRowFocus states and released as their lazily built rows leave
+  the ListView's cache area. They are **not** stored in an unbounded
+  screen-wide map; a 1,000-book catalog creates focus resources only for
+  visible/cached items. The keyed row wrapper and ListView's
+  findChildIndexCallback preserve the same focus state when a visible
+  book moves after sorting. Offscreen rows are reconstructed on demand.
+  No background listeners are used.
 - Book title and metadata text expose full accessible labels even when
   visually truncated. Each row has a stable key for regression testing.
 - Compact More tooltips include the book title and mention shelf controls.
@@ -58,7 +65,11 @@ New tests in test/features/library_responsive_layout_test.dart cover:
 - 390-pixel layout with 150% text scaling and no widget overflow;
 - 390-pixel layout at 200% text, two-line book titles and favorite toggling
   with checked-state accessibility through the More menu;
-- Shift+F10 and long-press context-menu activation without opening a book.
+- Shift+F10 and long-press context-menu activation without opening a book;
+- existing focus identity when the visible book list is re-sorted;
+- the desktop result-count announcement and 1,000-book lazy-list focus
+  allocation/disposal regression cases in
+  test/features/library_book_row_focus_test.dart.
 
 **Validation status:** source changes and tests authored and committed;
 Dart/Flutter is unavailable in this execution environment. No test run,
