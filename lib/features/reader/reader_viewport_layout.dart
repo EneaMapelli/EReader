@@ -18,3 +18,14 @@ EdgeInsets readerViewportPadding({
     focusMode ? 104 : 18,
   );
 }
+
+/// Preserve the reader title and route-back affordance on small screens.
+///
+/// Search, EPUB contents and internal-link return are still available in
+/// the Reader tools menu, but their direct AppBar icons would squeeze the
+/// book title at mobile widths or enlarged accessibility font scales.
+bool useCompactReaderToolbar({
+  required double width,
+  required double scaledBaseTextSize,
+}) =>
+    width < 420 || scaledBaseTextSize >= 26;
