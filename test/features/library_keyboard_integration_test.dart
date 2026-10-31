@@ -74,7 +74,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('library-tools-menu')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('organized-action-filter')), findsNothing);
-    await tester.tap(find.text('Keyboard shortcuts'));
+    final help = find.byKey(const ValueKey('organized-action-keyboard-help'));
+    await tester.scrollUntilVisible(
+        help, 180, scrollable: find.byType(Scrollable).last);
+    await tester.tap(help);
     await tester.pumpAndSettle();
     expect(find.text('Library keyboard shortcuts'), findsOneWidget);
     expect(find.textContaining('Ctrl/Cmd + O'), findsOneWidget);
