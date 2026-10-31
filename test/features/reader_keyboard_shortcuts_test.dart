@@ -293,6 +293,36 @@ void main() {
     expect(played, 0);
   });
 
+  testWidgets('shortcut help remains scrollable on a small screen',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 420));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: const TextScaler.linear(1.8),
+        ),
+        child: child!,
+      ),
+      home: Scaffold(body: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () => showReaderKeyboardHelp(context),
+          child: const Text('Open help'),
+        ),
+      )),
+    ));
+    await tester.tap(find.text('Open help'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reader keyboard shortcuts'), findsOneWidget);
+    final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
+    expect(dialog.scrollable, isTrue);
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text('Close'));
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shortcut help is accessible and closes without side effects',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
