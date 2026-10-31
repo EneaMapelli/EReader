@@ -1491,7 +1491,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         IconButton(
                           key: const ValueKey('library-quick-open'),
                           tooltip: 'Quick open a book (Ctrl+J)',
-                          onPressed: _busy ? null : _quickOpenBook,
+                          onPressed: _busy || _recoveringInterruptedPick
+                              ? null : _quickOpenBook,
                           icon: const Icon(Icons.bolt_outlined),
                         ),
                         IconButton(
@@ -1878,7 +1879,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         onSearch: !_busy && hasBooks
             ? () => _librarySearchFocus.requestFocus()
             : null,
-        onQuickOpen: !_busy && hasBooks
+        onQuickOpen: !_busy && !_recoveringInterruptedPick && hasBooks
             ? () => unawaited(_quickOpenBook())
             : null,
         onTools: _busy
