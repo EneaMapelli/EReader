@@ -50,7 +50,7 @@ void main() {
       final file = File(p.join(root.path,
           littleEndian ? 'utf16-le.txt' : 'utf16-be.txt'));
       await file.writeAsBytes(<int>[
-        ...littleEndian ? [0xff, 0xfe] : [0xfe, 0xff],
+        ...(littleEndian ? [0xff, 0xfe] : [0xfe, 0xff]),
         for (final unit in source.codeUnits) ...[
           if (littleEndian) unit & 0xff else unit >> 8,
           if (littleEndian) unit >> 8 else unit & 0xff,
