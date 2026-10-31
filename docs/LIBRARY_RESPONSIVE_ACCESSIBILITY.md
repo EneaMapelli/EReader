@@ -16,7 +16,7 @@ Branch: feature/m0-flutter-foundation.
 - The result count reads "Showing X of Y books", as a live semantic region.
   Searching still queries only local catalog metadata, not book contents.
 - The expanded filter panel is independently vertically scrollable and
-  height-bounded to 40% of the screen (130–260 logical pixels). Book results
+  height-bounded to 32% of the screen (105–235 logical pixels). Book results
   keep their own scroll area, avoiding filter rows consuming the whole phone.
 - At 600 pixels and above, existing sort dropdowns, status/collection selectors
   and filter chips remain visible exactly as in the prior desktop design.
