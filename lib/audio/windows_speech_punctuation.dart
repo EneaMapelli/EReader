@@ -1,12 +1,13 @@
 import '../domain/speech_abbreviation.dart';
 
-/// Windows system TTS input is not the displayed/source text.
+/// Interpreted system TTS input is not the displayed/source text.
 ///
-/// Some Windows voices pronounce punctuation *names* literally. Instead of
+/// Some system voices pronounce punctuation *names* literally. Instead of
 /// hoping that a backend interprets every decorative symbol, prepare short
 /// utterances with no standalone sentence/quote marks and pause between
-/// them at the original source punctuation. This applies ONLY to the Windows
-/// system-voice adapter: cloud and local VITS model inputs stay unchanged.
+/// them at the original source punctuation. Windows enables this by default;
+/// Android provides opt-in interpreted mode. Native OS, cloud and VITS
+/// input remains unchanged.
 ///
 /// UTF-16 source positions / speech segments / anchors are NEVER changed.
 /// The parts are speech-only and cannot be used as reading positions.
@@ -112,14 +113,29 @@ class WindowsSpeechPunctuation {
                 : code == 0x3a ? mediumPause : fullStopPause);
           }
         case 0x3b: // ;
+        case 0x061b: // ؛ Arabic semicolon
+        case 0xff1a: // ： fullwidth colon
+        case 0xff1b: // ； fullwidth semicolon
         case 0x2014: // em dash — (narrative pause)
         case 0x2013: // en dash – (narrative pause)
           flush(mediumPause);
         case 0x21: // !
         case 0x3f: // ?
+        case 0x061f: // ؟ Arabic question
+        case 0xff01: // ！ fullwidth exclamation
+        case 0xff1f: // ？ fullwidth question
           flush(questionPause);
+        case 0x00a1: // ¡ inverted Spanish exclamation (opening)
+        case 0x00bf: // ¿ inverted Spanish question (opening)
+          // Opening marks cue a dialogue clause, NOT a sentence end.
+          flush(shortPause);
         case 0x2026: // … (ellipsis)
+        case 0x3002: // 。 CJK full stop
           flush(fullStopPause);
+        case 0x060c: // ، Arabic comma
+        case 0x3001: // 、 Japanese enumeration comma
+        case 0xff0c: // ， fullwidth comma
+          flush(shortPause);
         case 0x22: // " (plain paired quotations)
         case 0x00ab: // «
         case 0x00bb: // »
@@ -132,6 +148,14 @@ class WindowsSpeechPunctuation {
         case 0x201b: // ‛
         case 0x2039: // ‹
         case 0x203a: // ›
+        case 0x300c: // 「 Japanese open
+        case 0x300d: // 」 Japanese close
+        case 0x300e: // 『 nested open
+        case 0x300f: // 』 nested close
+        case 0x3008: // 〈
+        case 0x3009: // 〉
+        case 0x300a: // 《
+        case 0x300b: // 》
           // Single curly/guillemet quotes around words are distinct from
           // apostrophes inside words; none should be pronounced literally.
           // Distinguish quoted speech from a following dialogue tag:
