@@ -121,7 +121,6 @@ class _ReaderScreenState extends State<ReaderScreen>
     // An explicit opt-out also avoids capturing the last gesture in memory.
     if (!_readerForeground || _loading ||
         !widget.store.isReadingActivityTrackingEnabled) return;
-    _readingActivityTracker?.refresh();
     _lastReadingInteraction = DateTime.now();
     _readingActivityTracker?.refresh();
   }
@@ -1598,6 +1597,16 @@ class _ReaderScreenState extends State<ReaderScreen>
     super.dispose();
   }
 
+  void _adjustReaderTextSize(int delta) {
+    if (_loading || _error != null ||
+        (widget.book.format == BookFormat.pdf && !_pdfTextMode)) {
+      return;
+    }
+    final next = (_fontSize + delta).clamp(14.0, 32.0).toDouble();
+    if (next == _fontSize) return; // no redundant SQLite save at bounds
+    _setReadingPreferences(_readingPrefs.copyWith(fontSize: next));
+  }
+
   void _setReadingPreferences(ReadingPreferences preferences) {
     preferences.validate();
     // Synchronous SQLite write first: failed persistence must not leave the
@@ -1817,12 +1826,10 @@ class _ReaderScreenState extends State<ReaderScreen>
         await _openReadingAppearance();
         return;
       case 'font-plus':
-        _setReadingPreferences(_readingPrefs.copyWith(
-            fontSize: (_fontSize + 2).clamp(14.0, 32.0).toDouble()));
+        _adjustReaderTextSize(2);
         return;
       case 'font-minus':
-        _setReadingPreferences(_readingPrefs.copyWith(
-            fontSize: (_fontSize - 2).clamp(14.0, 32.0).toDouble()));
+        _adjustReaderTextSize(-2);
         return;
       case 'auto-follow':
         setState(() => _autoFollow = !_autoFollow);
@@ -1920,6 +1927,12 @@ class _ReaderScreenState extends State<ReaderScreen>
       onHelp: () => unawaited(showReaderKeyboardHelp(context)),
       onTools: _loading || _error != null ? null
           : () => unawaited(_openReaderTools(autofocusSearch: true)),
+      onIncreaseTextSize: !_loading && _error == null &&
+              (widget.book.format != BookFormat.pdf || _pdfTextMode)
+          ? () => _adjustReaderTextSize(2) : null,
+      onDecreaseTextSize: !_loading && _error == null &&
+              (widget.book.format != BookFormat.pdf || _pdfTextMode)
+          ? () => _adjustReaderTextSize(-2) : null,
       child: Scaffold(
       appBar: AppBar(
         title: Text(widget.book.title,
