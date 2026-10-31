@@ -109,7 +109,7 @@ String formatNarrationTransitionDiagnostics(
   String label(int? value) => value == null ? 'n/a' : '${value} ms';
   return 'Last ${diagnostics.completedUtterances} completed utterances '
       '(max ${NarrationTransitionDiagnostics.maxRecent}): '
-      'sentence transition median ${label(diagnostics.medianRegularGapMs)} '
+      'segment transition median ${label(diagnostics.medianRegularGapMs)} '
       '(${diagnostics.observedGaps - diagnostics.chapterTransitions} samples); '
       'chapter transition median ${label(diagnostics.medianChapterGapMs)} '
       '(${diagnostics.chapterTransitions} samples); '
