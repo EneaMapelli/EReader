@@ -1602,7 +1602,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         (widget.book.format == BookFormat.pdf && !_pdfTextMode)) {
       return;
     }
-    final next = (_fontSize + delta).clamp(14.0, 32.0).toDouble();
+    final next = steppedReaderFontSize(_fontSize, delta);
     if (next == _fontSize) return; // no redundant SQLite save at bounds
     _setReadingPreferences(_readingPrefs.copyWith(fontSize: next));
   }
