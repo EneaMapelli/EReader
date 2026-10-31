@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
@@ -8,6 +7,7 @@ import '../domain/book.dart';
 import '../domain/reading_anchor.dart';
 import '../domain/epub_anchor_context.dart';
 import 'epub_text_extractor.dart';
+import 'plain_text_decoder.dart';
 import 'epub_bounded_file.dart';
 import 'epub_inline_style.dart';
 import 'epub_embedded_content.dart';
@@ -218,12 +218,14 @@ class PrototypeDocumentDecoder implements DocumentDecoder {
     }
     switch (record.format) {
       case BookFormat.txt:
-        final bytes = await file.readAsBytes();
-        final text = utf8.decode(bytes, allowMalformed: true);
-        return DocumentContent(
-          title: record.title,
-          text: text.startsWith('\uFEFF') ? text.substring(1) : text,
+        // Decode in a worker instead of allocating a potentially large
+        // TXT buffer on the UI isolate. Reader and FTS indexer share this
+        // exact canonical text/UTF-16 offset representation.
+        final text = await Isolate.run(
+          () => decodePlainTextFile(record.localPath),
+          debugName: 'EReader TXT decode',
         );
+        return DocumentContent(title: record.title, text: text);
       case BookFormat.epub:
         // EPUB ZIP decompression, XHTML parsing and source annotation are
         // CPU-heavy. Keep them off the Flutter UI isolate. The worker reads
