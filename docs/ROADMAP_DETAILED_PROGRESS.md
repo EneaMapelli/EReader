@@ -1579,3 +1579,38 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   (SDK assente); nessuna build o GitHub Actions avviata.
 - [Documentazione](WINDOWS_TTS_PUNCTUATION.md).
 
+### M3 — Real-book TTS inter-segment and chapter timing (2026-10-31)
+
+- `ReaderPlayer` now collects actual monotonic local playback metrics
+  for the last **32 completed, audible** book segments (never cancelled
+  speech or skipped EPUB footnotes). The real EPUB chapter start indices
+  from `buildEpubChapters()` distinguish chapter changes from ordinary
+  adjacent speech segments. PDF/TXT runs still collect segment data but
+  do not invent chapter boundaries.
+- The elapsed interval from the previous completed native speech Future
+  to the next `speak()` dispatch is separated from the actual `speak()`
+  Future duration. The inter-segment interval includes persisted
+  checkpoint acknowledgement, voice selection, cast/punctuation pauses,
+  skipped source passages and onSegmentStarted. A separate checkpoint
+  stopwatch helps distinguish slow SQLite writes from voice setup and
+  deliberate speech pauses.
+- Local VITS exposes its verified native synthesis path and decoder
+  handoff counters alongside reader-level speech wall time, with a
+  clearly labelled **post-handoff playback + cleanup** approximation
+  when both clocks are comparable. This does **not** claim to measure
+  first audible sample, exclusive device playback duration or exact
+  ONNX memory. Speculative next-WAV lookahead is not misattributed to
+  the just-finished current segment.
+- The existing **Offline voice performance** expansion shows rolling
+  medians for normal segment and EPUB chapter transitions, checkpoint
+  time, remaining after-checkpoint gap, total speak+audio, native
+  synthesis path and post-handoff playback/cleanup. No extra UI route,
+  network call, cloud billing, persistent schema, telemetry or model
+  policy change; no text, titles, source offsets or voice identifiers
+  are retained by these metrics.
+- Added pure diagnostics and ReaderPlayer regression tests covering the
+  32-sample bound, immutable snapshots, chapter boundaries, slow
+  checkpoint barriers, skipped source chunks, speculative WAV lookahead
+  and cancelled speech. Tests **not executed** due to missing
+  Dart/Flutter SDK; no Windows or Android packages or GitHub Actions.
+
