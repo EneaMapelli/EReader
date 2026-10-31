@@ -143,6 +143,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
     expect(find.byKey(const ValueKey('library-compact-filters')), findsNothing);
     expect(find.byKey(const ValueKey('library-sort')), findsOneWidget);
+    expect(find.text('Showing 3 of 3 books'), findsOneWidget);
     expect(find.byKey(ValueKey('library-shelf-' + ids['Beta']!)), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -221,6 +222,25 @@ void main() {
     expect(find.text('Shelf: Reading'), findsOneWidget);
     expect(find.text('Book collections'), findsOneWidget);
     expect(store.getBook(id)!.lastOpenedAt, isNull);
+  });
+
+  testWidgets('sorting a visible desktop catalog preserves book row FocusNode',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(980, 720));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    final alphaKey = ValueKey('library-book-row-' + ids['Alpha']!);
+    final originalFocus =
+        tester.widget<ListTile>(find.byKey(alphaKey)).focusNode!;
+    await tester.tap(find.byKey(const ValueKey('library-sort')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Title A–Z').last);
+    await tester.pumpAndSettle();
+    final reorderedFocus =
+        tester.widget<ListTile>(find.byKey(alphaKey)).focusNode!;
+    expect(identical(originalFocus, reorderedFocus), isTrue,
+        reason: 'Resorting a catalog must not dispose focused visible rows');
+    expect(store.books, hasLength(3));
   });
 
   testWidgets('narrow screen with larger accessibility text does not overflow',
