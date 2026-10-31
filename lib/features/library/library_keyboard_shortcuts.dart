@@ -112,6 +112,11 @@ Future<void> showLibraryKeyboardHelp(BuildContext context) =>
             Text('Ctrl/Cmd + O — Import EPUB, PDF or TXT books'),
             Text('F1 — Show this help'),
             SizedBox(height: 12),
+            Text('When a book row is focused:'),
+            Text('Enter — Open this book'),
+            Text('Shift + F10 — More actions for this book'),
+            Text('Long press a book — Same menu on touchscreens'),
+            SizedBox(height: 12),
             Text('Shortcuts are ignored while typing in a text field or '
                 'working inside a dialog. Import never starts narration. '
                 'Search filters your local catalog; searching inside '
