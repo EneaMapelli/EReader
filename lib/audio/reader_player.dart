@@ -803,6 +803,14 @@ class ReaderPlayer extends ChangeNotifier {
             neuralAfter != null &&
             neuralAfter.syntheses == neuralBefore.syntheses + 1 &&
             neuralAfter.aheadSyntheses == neuralBefore.aheadSyntheses;
+        // A matching prepared WAV may have been synthesized during the
+        // previous phrase (no fresh synthesis) but its decoder handoff
+        // happens NOW. Require exactly one handoff in this speak() call;
+        // otherwise an older timing must not be attributed to the clip.
+        final freshDecoderHandoff = neuralBefore != null &&
+            neuralAfter != null &&
+            neuralAfter.decoderHandoffs ==
+                neuralBefore.decoderHandoffs + 1;
         narrationTimings.record(NarrationTransitionSample(
           isFirstUtterance: !hadAudibleSegment,
           isChapterTransition: hadAudibleSegment &&
@@ -812,7 +820,8 @@ class ReaderPlayer extends ChangeNotifier {
           checkpointMs: hadAudibleSegment ? previousCheckpointMs : null,
           neuralSynthesisMs: freshSynthesis
               ? neuralAfter?.lastSynthesisMs : null,
-          decoderHandoffMs: neuralAfter?.lastDecoderHandoffMs,
+          decoderHandoffMs: freshDecoderHandoff
+              ? neuralAfter?.lastDecoderHandoffMs : null,
         ));
         sinceLastAudibleEnd = Stopwatch()..start();
         previousCheckpointMs = null;
