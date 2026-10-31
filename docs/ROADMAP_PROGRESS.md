@@ -1277,3 +1277,26 @@ Android Activity recreation remains a manual device gate.
 - No Windows builds and no GitHub Actions were started; release readiness
   and milestone percentages remain unchanged.
 - See [LIBRARY_QUICK_OPEN.md](LIBRARY_QUICK_OPEN.md).
+
+
+### M2/M6 — Keyboard-controlled reading text size (2026-10-31)
+
+- Added Ctrl/Cmd+= to increase and Ctrl/Cmd+- to decrease reading text
+  by two logical pixels. Shift+= is accepted for keyboard layouts where
+  the plus sign requires Shift. The foreground-only key resolver still
+  rejects active text editors, modal dialogs, hidden routes, extra Alt
+  modifiers and repeated key events.
+- Size changes use the same persisted, book-specific ReadingPreferences
+  pathway as Reader tools' Increase/Decrease text size actions; a shared
+  pure step helper clamps the font to 14–32 and suppresses redundant writes
+  when already at the minimum or maximum.
+- Shortcuts are available only for loaded text rendering (EPUB, TXT or PDF
+  text layer). PDF visual page mode is unchanged, and no keyboard command
+  starts or seeks TTS. A duplicate read-activity refresh during pointer
+  interaction was removed.
+- Added pure mapping/guard tests, Focus dispatch checks without audio
+  transport and exact font-size boundary tests. F1 reader help and
+  docs/READER_KEYBOARD_SHORTCUTS.md updated.
+- Authored and committed; Flutter SDK is unavailable here, so tests are
+  NOT EXECUTED. No Windows/Android build or GitHub Action was launched.
+  Existing readiness estimates remain unchanged.
