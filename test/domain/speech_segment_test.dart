@@ -13,19 +13,19 @@ void main() {
   });
 
   test('does not split utf16 surrogate pairs at a hard limit', () {
-    final input = 'a' * 18 + '😀' + 'b' * 20;
+    final input = List.filled(18, 'a').join() + '😀' + List.filled(20, 'b').join();
     final chunks = segmentSpeech(input, maxChars: 19);
-    expect(chunks.first.text, 'a' * 18);
-    expect(chunks.skip(1).map((s) => s.text).join(), '😀' + 'b' * 20);
+    expect(chunks.first.text, List.filled(18, 'a').join());
+    expect(chunks.skip(1).map((s) => s.text).join(), '😀' + List.filled(20, 'b').join());
   });
 
   test('hard TTS boundaries do not cut decomposed accents or ZWJ emoji',
       () {
     final samples = [
-      'a' * 17 + 'e\u0301' + 'b' * 36,
-      'a' * 15 + '👩‍🚀' + 'b' * 36,
-      'a' * 16 + '🇮🇹' + 'b' * 36,
-      'a' * 15 + '👍🏽' + 'b' * 36,
+      List.filled(17, 'a').join() + 'e\u0301' + List.filled(36, 'b').join(),
+      List.filled(15, 'a').join() + '👩‍🚀' + List.filled(36, 'b').join(),
+      List.filled(16, 'a').join() + '🇮🇹' + List.filled(36, 'b').join(),
+      List.filled(15, 'a').join() + '👍🏽' + List.filled(36, 'b').join(),
     ];
     for (final source in samples) {
       final chunks = segmentSpeech(source, maxChars: 18);
@@ -213,6 +213,64 @@ void main() {
         start: start, end: start + 1), throwsFormatException);
     expect(() => segmentSpeechRange(content,
         start: -1, end: end), throwsRangeError);
+  });
+
+  test('CJK sentences without spaces keep closing quotation marks',
+      () {
+    const source = '彼は言った。「こんにちは！」次の文。終わり。';
+    final parts = segmentSpeech(source, maxChars: 100);
+    expect(parts.map((s) => s.text), [
+      '彼は言った。',
+      '「こんにちは！」',
+      '次の文。',
+      '終わり。',
+    ]);
+    for (final part in parts) {
+      expect(source.substring(part.start, part.end), part.text);
+    }
+  });
+
+  test('consecutive CJK terminal marks stay inside the same source span',
+      () {
+    const source = '中文第一句。第二句？！第三句。';
+    final parts = segmentSpeech(source, maxChars: 100);
+    expect(parts.map((s) => s.text),
+        ['中文第一句。', '第二句？！', '第三句。']);
+    expect(parts.map((s) => s.text).join(), source);
+  });
+
+  test('Arabic unspaced question marks allow exact segment boundaries',
+      () {
+    const source = 'قال: هل أنت بخير؟ثم ذهب.';
+    final chunks = segmentSpeech(source, maxChars: 100);
+    expect(chunks.map((part) => part.text),
+        ['قال: هل أنت بخير؟', 'ثم ذهب.']);
+    for (final part in chunks) {
+      expect(part.text, source.substring(part.start, part.end));
+    }
+  });
+
+  test('unspaced CJK segmentation retains global EPUB chapter offsets',
+      () {
+    const source = 'Intro.\n\n「今日は良い日！」次の文。\n\nAfter.';
+    final start = source.indexOf('「');
+    final end = source.indexOf('\n\nAfter.');
+    final chunks = segmentSpeechRange(
+        source, start: start, end: end, maxChars: 100);
+    expect(chunks.map((part) => part.text),
+        ['「今日は良い日！」', '次の文。']);
+    expect(chunks.first.start, start);
+    expect(chunks.last.end, end);
+    for (final part in chunks) {
+      expect(part.text, source.substring(part.start, part.end));
+    }
+  });
+
+  test('Latin punctuation without spaces keeps existing chunk behavior',
+      () {
+    const source = 'Hello!Again today.';
+    expect(segmentSpeech(source, maxChars: 100)
+        .map((part) => part.text), ['Hello!Again today.']);
   });
 
   test('large single chapter yields exact globally indexed TTS spans', () {
