@@ -57,6 +57,7 @@ import 'epub_frame_sampler.dart';
 import 'reader_keyboard_shortcuts.dart';
 import 'reader_compact_controls.dart';
 import 'reader_focus_restore_button.dart';
+import 'reader_viewport_layout.dart';
 import '../shared/organized_action_sheet.dart';
 import 'reader_tool_menu_options.dart';
 import 'reading_progress_bar.dart';
@@ -2074,8 +2075,9 @@ class _ReaderScreenState extends State<ReaderScreen>
                                   // restored anchor after the user edits voices.
                                   key: widget.book.format == BookFormat.epub
                                       ? ObjectKey(_epubLayout) : null,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 18, horizontal: 24,
+                                  padding: readerViewportPadding(
+                                    width: MediaQuery.sizeOf(context).width,
+                                    focusMode: _readerFocusMode,
                                   ),
                                   itemCount: widget.book.format == BookFormat.epub
                                       ? _epubLayout.blocks.length
