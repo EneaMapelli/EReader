@@ -43,6 +43,52 @@ void main() {
     expect(data.pdfPageRanges, isEmpty);
   });
 
+  test('TXT UTF-16 LE and BE open through the normal reader decoder',
+      () async {
+    const source = 'Capitolo 📖: “Pronto?”\nSì, disse Maria.';
+    for (final littleEndian in [true, false]) {
+      final file = File(p.join(root.path,
+          littleEndian ? 'utf16-le.txt' : 'utf16-be.txt'));
+      await file.writeAsBytes(<int>[
+        ...littleEndian ? [0xff, 0xfe] : [0xfe, 0xff],
+        for (final unit in source.codeUnits) ...[
+          if (littleEndian) unit & 0xff else unit >> 8,
+          if (littleEndian) unit >> 8 else unit & 0xff,
+        ],
+      ]);
+      final result = await PrototypeDocumentDecoder().read(
+          record(file.path, BookFormat.txt));
+      expect(result.text, source);
+      final bookmark = result.anchorAt(BookFormat.txt, source.indexOf('Sì'));
+      expect(bookmark.localOffset, source.indexOf('Sì'));
+      expect(result.offsetOf(bookmark), source.indexOf('Sì'));
+    }
+  });
+
+  test('TXT Windows-1252 opens with exact punctuation and apostrophes',
+      () async {
+    final file = File(p.join(root.path, 'legacy-win.txt'));
+    await file.writeAsBytes(<int>[
+      0x93, 0x43, 0x69, 0x61, 0x6f, 0x94,
+      0x20, 0x97, 0x20, 0x6c, 0x92, 0x61, 0x6d, 0x69, 0x63, 0x6f,
+    ]);
+    final result = await PrototypeDocumentDecoder().read(
+        record(file.path, BookFormat.txt));
+    expect(result.text, '“Ciao” — l’amico');
+    expect(result.epubSpineRanges, isEmpty);
+    expect(result.pdfPageRanges, isEmpty);
+  });
+
+  test('TXT binary content is rejected before reader or TTS can speak it',
+      () async {
+    final file = File(p.join(root.path, 'binary.txt'));
+    await file.writeAsBytes(List.filled(64, 0));
+    await expectLater(
+      PrototypeDocumentDecoder().read(record(file.path, BookFormat.txt)),
+      throwsFormatException,
+    );
+  });
+
   test('background EPUB decoding preserves the direct extractor model',
       () async {
     final archive = Archive()
