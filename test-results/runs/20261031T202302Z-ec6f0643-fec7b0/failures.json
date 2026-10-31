@@ -1,0 +1,373 @@
+[
+    {
+        "file":  "test/audio/free_tts_selection_test.dart",
+        "name":  "opt-in interpreted punctuation is a free system engine on Android",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0004"
+    },
+    {
+        "file":  "test/audio/free_tts_selection_test.dart",
+        "name":  "free system voices expose interpreted and native punctuation modes",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0004"
+    },
+    {
+        "file":  "test/audio/offline_voice_audition_test.dart",
+        "name":  "advice requires three independently measured native comparisons",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/offline_voice_audition_test.dart",
+        "name":  "Stop captures elapsed disposal and labels cancellation, not success",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/offline_voice_audition_test.dart",
+        "name":  "cancelled SHA verification has no invented native timing",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0009"
+    },
+    {
+        "file":  "test/audio/pre_segment_speech_pause_test.dart",
+        "name":  "completed breath still waits for slow voice before checkpoint",
+        "status":  "error",
+        "issue":  "timeout",
+        "run":  "individual-0015"
+    },
+    {
+        "file":  "test/audio/pre_segment_speech_pause_test.dart",
+        "name":  "speaker pause and native selection overlap without early checkpoint",
+        "status":  "error",
+        "issue":  "timeout",
+        "run":  "individual-0015"
+    },
+    {
+        "file":  "test/audio/reader_media_handler_test.dart",
+        "name":  "Previous at source EOF selects last audible segment",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0018"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_factory_gate_test.dart",
+        "name":  "offline engine remains hidden until native device qualification",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0022"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_session_test.dart",
+        "name":  "loading \u003crepo\u003e/test/audio/sherpa_vits_session_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0023"
+    },
+    {
+        "file":  "test/audio/sherpa_vits_worker_test.dart",
+        "name":  "Reader Stop and Dispose with real cancellable worker contract Dispose cancels active worker without playing late sound",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0024"
+    },
+    {
+        "file":  "test/config/android_share_receiver_contract_test.dart",
+        "name":  "share entrypoint keeps audio_service and bounded document streaming",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0034"
+    },
+    {
+        "file":  "test/config/offline_voice_qualification_tool_test.dart",
+        "name":  "real-model benchmark does not expose neural TTS in production",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0037"
+    },
+    {
+        "file":  "test/config/offline_voice_qualification_tool_test.dart",
+        "name":  "native benchmark only runs with explicit opt-in and local pack",
+        "status":  "failure",
+        "issue":  "timeout",
+        "run":  "individual-0037"
+    },
+    {
+        "file":  "test/data/epub_catalog_metadata_test.dart",
+        "name":  "SQLite book import integration explicit recovery fills blanks without overwriting manual edits",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/data/epub_catalog_metadata_test.dart",
+        "name":  "SQLite book import integration import fills author, series, locale and title from OPF",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0047"
+    },
+    {
+        "file":  "test/data/epub_cover_test.dart",
+        "name":  "SQLite private covers explicit recovery restores a missing cover file",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/data/epub_cover_test.dart",
+        "name":  "SQLite private covers deleting one book removes only its derived cover",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/data/epub_cover_test.dart",
+        "name":  "bad raster and remote URLs are rejected without losing OPF title",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/data/epub_cover_test.dart",
+        "name":  "SQLite private covers import persists cover and reading offset across restart",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0048"
+    },
+    {
+        "file":  "test/data/epub_embedded_content_test.dart",
+        "name":  "figcaption uses exact source interval, never copied alt text",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0049"
+    },
+    {
+        "file":  "test/data/epub_reader_preflight_test.dart",
+        "name":  "independent preflights cannot cancel each other",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0056"
+    },
+    {
+        "file":  "test/data/epub_speech_note_filter_test.dart",
+        "name":  "paid cloud prefetch never prepares the next skipped note",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0057"
+    },
+    {
+        "file":  "test/data/epub_text_extractor_test.dart",
+        "name":  "unterminated head without body skips hidden spine prose",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0059"
+    },
+    {
+        "file":  "test/data/library_backup_restore_test.dart",
+        "name":  "v22 portable backup restores collections with new books only",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0060"
+    },
+    {
+        "file":  "test/data/pdf_visual_bookmarks_test.dart",
+        "name":  "fresh v22 libraries retain the v19 PDF visual page bookmark table",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0074"
+    },
+    {
+        "file":  "test/data/pdf_visual_resume_test.dart",
+        "name":  "v13 upgrades through v14 and v15 without losing legacy anchors",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0075"
+    },
+    {
+        "file":  "test/data/reading_preferences_store_test.dart",
+        "name":  "fresh v22 library retains the visual preferences table and defaults",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0081"
+    },
+    {
+        "file":  "test/data/recent_book_resume_test.dart",
+        "name":  "SQLite v13 migration preserves reading anchors and adds resume field",
+        "status":  "error",
+        "issue":  "assertion",
+        "run":  "individual-0082"
+    },
+    {
+        "file":  "test/domain/library_full_text_phrase_test.dart",
+        "name":  "exact phrase requires consecutive whole tokens in source order",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0100"
+    },
+    {
+        "file":  "test/domain/library_full_text_phrase_test.dart",
+        "name":  "phrase results and source spans are capped and fail closed",
+        "status":  "failure",
+        "issue":  "assertion",
+        "run":  "individual-0100"
+    },
+    {
+        "file":  "test/features/android_lost_picker_recovery_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/android_lost_picker_recovery_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0113"
+    },
+    {
+        "file":  "test/features/android_shared_book_widget_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/android_shared_book_widget_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0114"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB search dialog has a bounded scrollable results viewport",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0115"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB source search navigates to silent caption source offset",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0115"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB search begins near reading position before wrapping",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0115"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "changing EPUB search query resets the result page",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0115"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "EPUB full-source search can open page three and return",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0115"
+    },
+    {
+        "file":  "test/features/book_source_search_widget_test.dart",
+        "name":  "closed search dialog never navigates or starts playback",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0115"
+    },
+    {
+        "file":  "test/features/library_book_row_focus_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/library_book_row_focus_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0125"
+    },
+    {
+        "file":  "test/features/library_catalog_widget_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/library_catalog_widget_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0126"
+    },
+    {
+        "file":  "test/features/library_collections_widget_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/library_collections_widget_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0127"
+    },
+    {
+        "file":  "test/features/library_cover_widget_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/library_cover_widget_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0128"
+    },
+    {
+        "file":  "test/features/library_full_text_search_widget_test.dart",
+        "name":  "opt-in, index, literal search, open existing book",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0129"
+    },
+    {
+        "file":  "test/features/library_full_text_search_widget_test.dart",
+        "name":  "passage dialog opens a selected alternative without saving",
+        "status":  "incomplete",
+        "issue":  "",
+        "run":  "individual-0129"
+    },
+    {
+        "file":  "test/features/library_keyboard_integration_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/library_keyboard_integration_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0130"
+    },
+    {
+        "file":  "test/features/library_quick_open_widget_test.dart",
+        "name":  "blank Enter does nothing until a result is chosen with arrows",
+        "status":  "error",
+        "issue":  "runtime",
+        "run":  "individual-0133"
+    },
+    {
+        "file":  "test/features/library_reading_statistics_widget_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/library_reading_statistics_widget_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0134"
+    },
+    {
+        "file":  "test/features/library_responsive_layout_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/library_responsive_layout_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0135"
+    },
+    {
+        "file":  "test/features/library_scroll_restoration_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/library_scroll_restoration_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0136"
+    },
+    {
+        "file":  "test/features/library_smart_collections_widget_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/library_smart_collections_widget_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0137"
+    },
+    {
+        "file":  "test/features/offline_voice_audition_widget_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/offline_voice_audition_widget_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0138"
+    },
+    {
+        "file":  "test/features/offline_voice_manager_widget_test.dart",
+        "name":  "loading \u003crepo\u003e/test/features/offline_voice_manager_widget_test.dart",
+        "status":  "error",
+        "issue":  "compile_or_runtime",
+        "run":  "individual-0139"
+    }
+]

@@ -1,27 +1,24 @@
 {
-    "runId": "20261027T182621Z-individual",
-    "sourceCommit": "6c269f0",
+    "runId": "20261031T202302Z-ec6f0643-fec7b0",
+    "sourceCommit": "fadcf16",
     "branch": "feature/m0-flutter-foundation",
-    "startedUtc": "2026-10-27T18:26:21Z",
+    "startedUtc": "2026-10-31T20:23:02Z",
     "result": "FAIL",
     "totals": {
-        "passed": 0,
-        "failed": 0,
-        "errors": 107,
-        "skipped": 0
+        "passed": 1321,
+        "failed": 18,
+        "errors": 35,
+        "skipped": 1
     },
     "stages": {
         "flutter_pub_get": "PASS",
         "flutter_analyze": "PASS",
-        "flutter_test_individual": "107_test_files_executed_individually_all_exit_code_1_compilation_errors_expected",
-        "flutter_test_widget_timeout": "SKIPPED_individual_mode",
-        "soak_test_500": "PASS_previous_run"
+        "flutter_test_individual": "160_test_files_executed_individually",
+        "flutter_test_combined": "TIMEOUT_301s_fallback_to_individual",
+        "flutter_version": "PASS",
+        "dart_version": "PASS"
     },
-    "detailed_logs": {
-        "directory": "test-results/runs/20261027T182621Z-individual/",
-        "count": 430,
-        "files_per_test": "individual-NNNN.cmd, individual-NNNN.exit-code, individual-NNNN.stdout.log, individual-NNNN.stderr.log",
-        "summary": "cases.json, failures.json"
-    },
-    "notes": "Eseguiti tutti i 107 file di test singolarmente con flutter test --reporter json. Ogni test esce con codice 1 (errori di compilazione attesi su test isolati: file_picker.platform, desktop_drop API, costanti mancanti). I log dettagliati stdout/stderr sono salvati per ogni test in test-results/runs/20261027T182621Z-individual/. Nessun test è andato in timeout grazie al timeout di 1 minuto per test individuale. Il problema del lock di Windows (PathAccessException) è mitigato perché ogni test gira in processo isolato."
+    "detailed_logs_directory": "test-results/runs/20261031T202302Z-ec6f0643-fec7b0/",
+    "detailed_logs_count": 645,
+    "notes": "Tutti i 160 file di test in test/ eseguiti singolarmente con flutter test --reporter json. Ogni test ha i propri log (stdout/stderr/exit-code/cmd). 1321 test case passati, 18 falliti, 35 errori (compilazione/timeout in isolamento), 1 saltato. Nessun test ha bloccato l'intera suite grazie al timeout per-test individuale. Il run combinato (flutter-test-all) è andato in timeout dopo 301s e lo script è passato correttamente all'esecuzione individuale per ogni file. Codici di errore 1 su alcuni test sono attesi (WidgetsFlutterBinding, file_picker.platform, desktop_drop API non disponibili in isolamento senza il binding Flutter completo della suite)."
 }
