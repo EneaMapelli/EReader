@@ -1097,3 +1097,19 @@ Android Activity recreation remains a manual device gate.
   Actions, and no release readiness claim.
 - [LIBRARY_COLLECTIONS.md](LIBRARY_COLLECTIONS.md).
 
+
+### M1/M6 — Searchable tools in reader and library menus (2026-10-31)
+
+- Shared reader/library action sheets now offer local, multi-word, case-insensitive
+  tool search for menus with eight or more commands; shorter menus keep
+  their prior compact format.
+- Matches category, command label and subtitle. Empty groups are hidden,
+  disabled/selected item properties survive filtering, and actions run only
+  after an explicit tap. A clear control and empty state handle no results.
+- The search does not autofocus on Android; the list remains scrollable
+  and keyboard-inset-aware. It does not change reading position, TTS,
+  consent, storage or network activity.
+- Pure filtering and widget regression tests authored but not executed.
+  No native builds or GitHub Actions were triggered. Native verification
+  and release readiness remain open.
+- See [SEARCHABLE_TOOL_MENUS.md](SEARCHABLE_TOOL_MENUS.md).
