@@ -101,6 +101,12 @@ class DelayedReleasePreparedEngine extends PreparedVoiceFakeEngine {
   }
 }
 
+class _PreparedBenchmarkEngine extends BenchmarkFakeOfflineEngine
+    implements OfflineVoiceModelPrewarmer {
+  @override
+  Future<void> prewarmModel() async {}
+}
+
 class _FakePreparedExpiry implements Timer {
   _FakePreparedExpiry(this.delay, this.action);
   final Duration delay;
@@ -506,6 +512,29 @@ void main() {
     expect(engine.speaks, 0);
     expect(engine.disposals, 1);
     expect(audition.hasPreparedModel('italian'), isFalse);
+    await audition.dispose();
+  });
+
+  test('cold/warm comparison discards earlier prepared ONNX first',
+      () async {
+    final prepared = _PreparedBenchmarkEngine();
+    final cold = BenchmarkFakeOfflineEngine();
+    var factories = 0;
+    final audition = OfflineVoiceAudition(
+      loadPack: (_) async => samplePack(),
+      createEngine: (_) => ++factories == 1 ? prepared : cold,
+    );
+    await audition.prewarm('italian');
+    expect(audition.hasPreparedModel('italian'), isTrue);
+    expect(prepared.speaks, 0);
+    await audition.play('italian', compareColdWarm: true);
+    expect(factories, 2,
+        reason: 'The first paired run starts with a new model worker');
+    expect(prepared.disposals, 1);
+    expect(prepared.speaks, 0);
+    expect(cold.speaks, 2);
+    expect(audition.lastReport?.coldWarmComparison?.reusedNativeModel,
+        isTrue);
     await audition.dispose();
   });
 
