@@ -28,6 +28,26 @@ void main() {
     // No native platform channel calls in pure selection tests.
   });
 
+  test('opt-in interpreted punctuation is a free system engine on Android',
+      () {
+    expect(SpeechEngineFactory.availableProviders,
+        contains('system-interpreted'));
+    final selected = const SpeechPreferences(
+      providerId: 'system-interpreted',
+      language: 'it-IT',
+      dialogueTurnPauseMs: 260,
+    );
+    final interpreted = factory.create(
+      preferences: selected, bookId: 'test', store: store,
+    );
+    expect(interpreted, isA<SystemSpeechEngine>());
+    final restored = SpeechPreferences.fromJson(selected.toJson());
+    expect(restored.providerId, 'system-interpreted');
+    expect(restored.dialogueTurnPauseMs, 260);
+    // Merely creating the adapter makes no native TTS calls, triggers
+    // no cloud requests and never downloads a voice model.
+  });
+
   test('Piper/VITS cannot be enabled without a selected verified pack', () {
     const preferences = SpeechPreferences(
         providerId: 'sherpa-vits', modelId: 'piper-it-paola',
