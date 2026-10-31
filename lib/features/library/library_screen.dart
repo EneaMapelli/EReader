@@ -22,6 +22,7 @@ import '../reader/reader_screen.dart';
 import 'library_collections_sheet.dart';
 import 'library_full_text_search_sheet.dart';
 import 'library_keyboard_shortcuts.dart';
+import 'library_quick_open.dart';
 import 'library_book_row_focus.dart';
 import '../shared/organized_action_sheet.dart';
 
@@ -1066,6 +1067,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
+  Future<void> _quickOpenBook() async {
+    if (_busy || _recoveringInterruptedPick || !mounted ||
+        widget.store.books.isEmpty) return;
+    // Search the entire catalog, not only currently visible filters.
+    // A cancel or empty result must not alter filters or the list scroll.
+    final selected = await showQuickOpenBookDialog(
+      context,
+      books: List<BookRecord>.of(widget.store.books),
+    );
+    if (!mounted || _busy || selected == null) return;
+    // The dialog holds a snapshot, so validate the selected ID in the
+    // current store before navigating. Never reopen a deleted record.
+    final current = widget.store.getBook(selected.id);
+    if (current != null) await _open(current);
+  }
+
   Future<void> _showReadingStatistics() async {
     // Use every stored book, never the current filter selection.
     final stats = LibraryReadingStatistics.fromBooks(widget.store.books);
@@ -1472,17 +1489,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
+                          key: const ValueKey('library-quick-open'),
+                          tooltip: 'Quick open a book (Ctrl+J)',
+                          onPressed: _busy ? null : _quickOpenBook,
+                          icon: const Icon(Icons.bolt_outlined),
+                        ),
+                        IconButton(
                           key: const ValueKey('library-fulltext-open'),
                           tooltip: 'Search inside books offline',
                           onPressed: _busy ? null : _showFullTextSearch,
                           icon: const Icon(Icons.manage_search),
                         ),
-                        TextButton.icon(
-                          key: const ValueKey('library-stats-open'),
-                          onPressed: _busy ? null : _showReadingStatistics,
-                          icon: const Icon(Icons.insights_outlined),
-                          label: const Text('Reading stats'),
-                        ),
+                        if (compactLayout)
+                          IconButton(
+                            key: const ValueKey('library-stats-open'),
+                            tooltip: 'Reading stats',
+                            onPressed: _busy ? null : _showReadingStatistics,
+                            icon: const Icon(Icons.insights_outlined),
+                          )
+                        else
+                          TextButton.icon(
+                            key: const ValueKey('library-stats-open'),
+                            onPressed: _busy ? null : _showReadingStatistics,
+                            icon: const Icon(Icons.insights_outlined),
+                            label: const Text('Reading stats'),
+                          ),
                       ],
                     ),
                   ),
@@ -1846,6 +1877,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
       LibraryKeyboardShortcuts(
         onSearch: !_busy && hasBooks
             ? () => _librarySearchFocus.requestFocus()
+            : null,
+        onQuickOpen: !_busy && hasBooks
+            ? () => unawaited(_quickOpenBook())
             : null,
         onTools: _busy
             ? null
