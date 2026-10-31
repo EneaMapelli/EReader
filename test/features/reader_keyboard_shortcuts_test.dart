@@ -37,6 +37,16 @@ ReaderKeyboardAction? action(
     );
 
 void main() {
+  test('font stepping clamps at reading preference limits', () {
+    expect(steppedReaderFontSize(18, 2), 20);
+    expect(steppedReaderFontSize(18, -2), 16);
+    expect(steppedReaderFontSize(31, 2), 32);
+    expect(steppedReaderFontSize(32, 2), 32);
+    expect(steppedReaderFontSize(15, -2), 14);
+    expect(steppedReaderFontSize(14, -2), 14);
+    expect(steppedReaderFontSize(20, 0), 20);
+  });
+
   test('Ctrl/Cmd+K opens tools only when explicitly available', () {
     for (final useMeta in [false, true]) {
       expect(action(down(LogicalKeyboardKey.keyK),
