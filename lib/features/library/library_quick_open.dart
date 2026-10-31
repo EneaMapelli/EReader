@@ -107,8 +107,8 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
     final matches = findQuickOpenBooks(widget.books, _query);
     final screen = MediaQuery.sizeOf(context);
     final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
-    final listHeight = (screen.height - keyboardHeight - 230)
-        .clamp(96.0, 320.0).toDouble();
+    final listHeight = (screen.height - keyboardHeight - 300)
+        .clamp(64.0, 320.0).toDouble();
     final countText = matches.truncated
         ? 'Showing ' + matches.books.length.toString() + ' of ' +
             matches.total.toString() + ' books'
@@ -116,6 +116,9 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
             (matches.total == 1 ? ' book found' : ' books found');
 
     return AlertDialog(
+      // The outer content can scroll above a mobile keyboard or when
+      // accessibility fonts make even the bounded result list too tall.
+      scrollable: true,
       title: const Text('Quick open book'),
       content: SizedBox(
         width: 480,
