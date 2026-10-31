@@ -218,8 +218,8 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
       title: const Text('Quick open book'),
       content: SizedBox(
         width: 480,
-        height: listHeight + 115,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextField(
@@ -278,7 +278,8 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
             const Text('Up / Down to select · Enter to open · Esc to close',
                 style: TextStyle(fontSize: 12)),
             const SizedBox(height: 6),
-            Expanded(
+            SizedBox(
+              height: listHeight,
               child: matches.books.isEmpty
                   ? const Center(
                       child: Text('No matching books. Try another title or author.'),
