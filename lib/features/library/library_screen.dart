@@ -1070,6 +1070,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
       readingStatus: _readingStatusFilter,
       collectionBookIds: filteredBookIds,
     );
+    // Reorder keyed rows without retaining offscreen FocusNodes or menu keys.
+    final bookIndexByKey = <String, int>{
+      for (var i = 0; i < books.length; i++)
+        'library-book-focus-${books[i].id}': i,
+    };
     final lastOpened = widget.store.lastOpenedBook;
     final interrupted = widget.store.interruptedNarrationBook;
     final compactLayout = MediaQuery.sizeOf(context).width < 600;
@@ -1503,8 +1508,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ],
                     ),
                   ),
-                if (compactLayout)
-                  Padding(
+                Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
                     child: Align(
                       alignment: Alignment.centerLeft,
@@ -1547,7 +1551,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           ),
                         )
                       : ListView.builder(
+                    key: const PageStorageKey<String>('library-book-list'),
                     itemCount: books.length,
+                    findChildIndexCallback: (key) => key is ValueKey<String>
+                        ? bookIndexByKey[key.value]
+                        : null,
                     itemBuilder: (context, index) {
                       final book = books[index];
                       return LibraryBookRowFocus(
