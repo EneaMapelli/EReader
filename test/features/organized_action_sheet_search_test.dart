@@ -26,6 +26,36 @@ const sections = [
 ];
 
 void main() {
+  testWidgets('keyboard palette focuses search for immediate typing',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Scaffold(
+      body: Builder(builder: (context) => TextButton(
+        onPressed: () => showOrganizedActionSheet(
+          context,
+          title: 'Keyboard tools',
+          sections: sections,
+          autofocusSearch: true,
+        ),
+        child: const Text('Keyboard palette'),
+      )),
+    )));
+    await tester.tap(find.text('Keyboard palette'));
+    await tester.pumpAndSettle();
+    final filter = tester.widget<TextField>(
+        find.byKey(const ValueKey('organized-action-filter')));
+    expect(filter.autofocus, isTrue);
+    expect(tester.widget<EditableText>(
+        find.byType(EditableText)).focusNode.hasFocus, isTrue);
+    await tester.enterText(
+        find.byKey(const ValueKey('organized-action-filter')), 'consent');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('organized-action-cloud')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('organized-action-offline')),
+        findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   test('filter matches unordered words across title, subtitle and group', () {
     final matches = filterOrganizedActionSections(
         sections, '  VoIcEs  CONSENT  ');
