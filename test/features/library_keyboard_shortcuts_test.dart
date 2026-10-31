@@ -18,6 +18,7 @@ LibraryKeyboardAction? action(
   bool alt = false,
   bool shift = false,
   bool search = true,
+  bool quickOpen = true,
   bool tools = true,
   bool importBooks = true,
 }) => resolveLibraryKeyboardAction(
@@ -29,15 +30,18 @@ LibraryKeyboardAction? action(
   altPressed: alt,
   shiftPressed: shift,
   searchAvailable: search,
+  quickOpenAvailable: quickOpen,
   toolsAvailable: tools,
   importAvailable: importBooks,
 );
 
 void main() {
-  test('Ctrl/Cmd+F, K, O and F1 are deterministic', () {
+  test('Ctrl/Cmd+F, J, K, O and F1 are deterministic', () {
     for (final useMeta in [false, true]) {
       expect(action(down(LogicalKeyboardKey.keyF),
           ctrl: !useMeta, meta: useMeta), LibraryKeyboardAction.search);
+      expect(action(down(LogicalKeyboardKey.keyJ),
+          ctrl: !useMeta, meta: useMeta), LibraryKeyboardAction.quickOpen);
       expect(action(down(LogicalKeyboardKey.keyK),
           ctrl: !useMeta, meta: useMeta), LibraryKeyboardAction.tools);
       expect(action(down(LogicalKeyboardKey.keyO),
@@ -52,6 +56,7 @@ void main() {
       () {
     for (final key in [
       LogicalKeyboardKey.keyF,
+      LogicalKeyboardKey.keyJ,
       LogicalKeyboardKey.keyK,
       LogicalKeyboardKey.keyO,
     ]) {
@@ -63,6 +68,8 @@ void main() {
     }
     expect(action(down(LogicalKeyboardKey.keyF),
         search: false, ctrl: true), isNull);
+    expect(action(down(LogicalKeyboardKey.keyJ),
+        quickOpen: false, ctrl: true), isNull);
     expect(action(down(LogicalKeyboardKey.keyK),
         tools: false, ctrl: true), isNull);
     expect(action(down(LogicalKeyboardKey.keyO),
@@ -82,12 +89,14 @@ void main() {
 
   testWidgets('focused library route dispatches commands once', (tester) async {
     var searched = 0;
+    var quickOpened = 0;
     var opened = 0;
     var imported = 0;
     var helped = 0;
     await tester.pumpWidget(MaterialApp(
       home: LibraryKeyboardShortcuts(
         onSearch: () => searched++,
+        onQuickOpen: () => quickOpened++,
         onTools: () => opened++,
         onImport: () => imported++,
         onHelp: () => helped++,
@@ -97,21 +106,25 @@ void main() {
     await tester.pump();
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyO);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f1);
-    expect([searched, opened, imported, helped], [1, 1, 1, 1]);
+    expect([searched, quickOpened, opened, imported, helped],
+        [1, 1, 1, 1, 1]);
   });
 
   testWidgets('typing does not open menus or native file pickers',
       (tester) async {
     var tools = 0;
+    var quickOpens = 0;
     var imports = 0;
     var searches = 0;
     await tester.pumpWidget(MaterialApp(
       home: LibraryKeyboardShortcuts(
         onSearch: () => searches++,
+        onQuickOpen: () => quickOpens++,
         onTools: () => tools++,
         onImport: () => imports++,
         onHelp: () {},
@@ -122,10 +135,11 @@ void main() {
     await tester.pump();
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyO);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-    expect([searches, tools, imports], [0, 0, 0]);
+    expect([searches, quickOpens, tools, imports], [0, 0, 0, 0]);
     expect(tester.takeException(), isNull);
   });
 
