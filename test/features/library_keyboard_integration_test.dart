@@ -125,4 +125,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('quick-open selection enters reader and returns to active filter',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    final filter = find.byKey(const ValueKey('library-search'));
+    await tester.enterText(filter, 'not-found');
+    await tester.pumpAndSettle();
+    expect(find.text('No books match your filters.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('library-quick-open')));
+    await tester.pumpAndSettle();
+    final query = find.byKey(const ValueKey('quick-open-query'));
+    await tester.enterText(query, 'quiet');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quiet Book'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('library-search')), findsNothing);
+    expect(store.books.single.lastOpenedAt, isNotNull,
+        reason: 'Opening a selected book uses normal reader navigation');
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('library-search')), findsOneWidget);
+    expect(tester.widget<TextField>(filter).controller!.text, 'not-found');
+    expect(find.text('No books match your filters.'), findsOneWidget);
+    expect(store.books, hasLength(1));
+  });
+
 }
