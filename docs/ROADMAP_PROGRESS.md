@@ -1169,3 +1169,25 @@ Android Activity recreation remains a manual device gate.
   Authored but NOT RUN: Flutter/Dart SDK unavailable here. No Windows
   builds or GitHub Actions; milestone estimates and release gates unchanged.
 - See [LIBRARY_RESPONSIVE_ACCESSIBILITY.md](LIBRARY_RESPONSIVE_ACCESSIBILITY.md).
+
+
+### M1/M6 — Large-text library reading and accessible book actions (2026-10-31)
+
+- On phone-width layouts with effective accessibility text scaling above ~170%,
+  book titles expand to two lines, metadata to three, row spacing grows and
+  the redundant second app-bar line is suppressed. Existing compact result
+  counts remain visible and search/sort filtering is untouched.
+- The favorite star moves inside each row's More actions as a checked item
+  when fonts are large, retaining the same store callback. Compact shelf
+  selectors and edit/collection/remove commands stay available.
+- Book-row focus nodes are stable across catalog rebuilds; long pressing a
+  row or Shift+F10 while a row has keyboard focus opens its existing More
+  menu without opening the reader or beginning narration. Row focus
+  highlights and accessible full title/metadata labels remain intact.
+- F1 library shortcut help documents row Enter, Shift+F10 and touch long
+  press. Authored widget tests cover 200% text, contextual menu opening
+  and favorite checked states; not executed because Flutter/Dart is not
+  installed in this environment.
+- No Windows/Android builds or GitHub Actions; milestone percentages
+  and native release-readiness gates are unchanged.
+- See [LIBRARY_RESPONSIVE_ACCESSIBILITY.md](LIBRARY_RESPONSIVE_ACCESSIBILITY.md).
