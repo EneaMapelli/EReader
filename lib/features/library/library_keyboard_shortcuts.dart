@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 /// Foreground-only library commands. Never override an active text editor,
 /// OS-modified combinations, or another route/dialog.
-enum LibraryKeyboardAction { search, tools, importBooks, help }
+enum LibraryKeyboardAction { search, quickOpen, tools, importBooks, help }
 
 LibraryKeyboardAction? resolveLibraryKeyboardAction(
   KeyEvent event, {
@@ -14,6 +14,7 @@ LibraryKeyboardAction? resolveLibraryKeyboardAction(
   required bool altPressed,
   required bool shiftPressed,
   required bool searchAvailable,
+  bool quickOpenAvailable = false,
   required bool toolsAvailable,
   required bool importAvailable,
 }) {
@@ -25,6 +26,9 @@ LibraryKeyboardAction? resolveLibraryKeyboardAction(
   if (controlPressed || metaPressed) {
     if (key == LogicalKeyboardKey.keyF && searchAvailable) {
       return LibraryKeyboardAction.search;
+    }
+    if (key == LogicalKeyboardKey.keyJ && quickOpenAvailable) {
+      return LibraryKeyboardAction.quickOpen;
     }
     if (key == LogicalKeyboardKey.keyK && toolsAvailable) {
       return LibraryKeyboardAction.tools;
@@ -48,11 +52,13 @@ class LibraryKeyboardShortcuts extends StatelessWidget {
     required this.onHelp,
     required this.child,
     this.onSearch,
+    this.onQuickOpen,
     this.onTools,
     this.onImport,
   });
 
   final VoidCallback? onSearch;
+  final VoidCallback? onQuickOpen;
   final VoidCallback? onTools;
   final VoidCallback? onImport;
   final VoidCallback onHelp;
@@ -75,6 +81,7 @@ class LibraryKeyboardShortcuts extends StatelessWidget {
         altPressed: keyboard.isAltPressed,
         shiftPressed: keyboard.isShiftPressed,
         searchAvailable: onSearch != null,
+        quickOpenAvailable: onQuickOpen != null,
         toolsAvailable: onTools != null,
         importAvailable: onImport != null,
       );
@@ -82,6 +89,8 @@ class LibraryKeyboardShortcuts extends StatelessWidget {
       switch (action) {
         case LibraryKeyboardAction.search:
           onSearch?.call();
+        case LibraryKeyboardAction.quickOpen:
+          onQuickOpen?.call();
         case LibraryKeyboardAction.tools:
           onTools?.call();
         case LibraryKeyboardAction.importBooks:
@@ -108,6 +117,7 @@ Future<void> showLibraryKeyboardHelp(BuildContext context) =>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Ctrl/Cmd + F — Search your library'),
+            Text('Ctrl/Cmd + J — Quickly open any library book'),
             Text('Ctrl/Cmd + K — Find library tools'),
             Text('Ctrl/Cmd + O — Import EPUB, PDF or TXT books'),
             Text('F1 — Show this help'),
