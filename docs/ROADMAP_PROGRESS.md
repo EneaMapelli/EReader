@@ -1340,9 +1340,14 @@ Android Activity recreation remains a manual device gate.
 - Readers narrower than 380 px use 14 px horizontal text insets (rather
   than 24 px). Focus mode adds 104 px bottom scroll clearance so the last
   page remains reachable above the floating restore button.
+- On widths below 420 px or high system font scaling, the AppBar keeps
+  Back, the book title and Reader tools visible and relocates the direct
+  EPUB contents/internal-link return/in-book search icons into Reader
+  tools. The underlying features and keyboard shortcuts remain intact.
 - Authored tests for context-sensitive tool visibility and selected state,
-  restore callback under 200% text at 320 px, and deterministic phone
-  margins/overlay clearance. Code and docs committed.
+  restore callback under 200% text at 320 px, deterministic phone
+  margins/overlay clearance and mobile AppBar text-scaling thresholds.
+  Code and docs committed.
 - Flutter/Dart tests NOT EXECUTED (SDK absent). No Windows/Android
   executable build, CI or GitHub Actions were started. Native accessibility
   acceptance and milestone estimates remain unchanged.
