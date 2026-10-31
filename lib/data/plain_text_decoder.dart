@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 /// Local, deterministic TXT decoding shared by the visual reader and TTS.
 /// Never uploads text, attempts network charset detection or silently replaces
@@ -89,31 +90,32 @@ String _decodeUtf16(List<int> bytes, {
   if ((bytes.length - start).isOdd) {
     throw const FormatException('Odd byte count in UTF-16 TXT');
   }
-  final units = <int>[];
-  for (var i = start; i < bytes.length; i += 2) {
+  // A typed 16-bit buffer uses substantially less transient memory than
+  // List<int> for large TXT books. It is built inside a worker isolate.
+  final units = Uint16List((bytes.length - start) ~/ 2);
+  var pendingHighSurrogate = false;
+  for (var unitIndex = 0; unitIndex < units.length; unitIndex++) {
+    final offset = start + unitIndex * 2;
     final code = littleEndian
-        ? bytes[i] | (bytes[i + 1] << 8)
-        : (bytes[i] << 8) | bytes[i + 1];
+        ? bytes[offset] | (bytes[offset + 1] << 8)
+        : (bytes[offset] << 8) | bytes[offset + 1];
     if (code >= 0xd800 && code <= 0xdbff) {
-      if (i + 3 >= bytes.length) {
-        throw const FormatException('Incomplete UTF-16 surrogate pair');
-      }
-      final next = littleEndian
-          ? bytes[i + 2] | (bytes[i + 3] << 8)
-          : (bytes[i + 2] << 8) | bytes[i + 3];
-      if (next < 0xdc00 || next > 0xdfff) {
+      if (pendingHighSurrogate) {
         throw const FormatException('Invalid UTF-16 surrogate pair');
       }
-      units..add(code)..add(next);
-      i += 2;
+      pendingHighSurrogate = true;
     } else if (code >= 0xdc00 && code <= 0xdfff) {
-      throw const FormatException('Unexpected UTF-16 low surrogate');
-    } else if (code == 0xfeff && i != start) {
-      // Interior BOMs are not independently decoded as a second file.
-      units.add(code);
-    } else {
-      units.add(code);
+      if (!pendingHighSurrogate) {
+        throw const FormatException('Unexpected UTF-16 low surrogate');
+      }
+      pendingHighSurrogate = false;
+    } else if (pendingHighSurrogate) {
+      throw const FormatException('Invalid UTF-16 surrogate pair');
     }
+    units[unitIndex] = code;
+  }
+  if (pendingHighSurrogate) {
+    throw const FormatException('Incomplete UTF-16 surrogate pair');
   }
   return String.fromCharCodes(units);
 }
