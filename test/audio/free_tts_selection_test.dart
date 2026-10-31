@@ -41,6 +41,18 @@ void main() {
       preferences: selected, bookId: 'test', store: store,
     );
     expect(interpreted, isA<SystemSpeechEngine>());
+    expect((interpreted as SystemSpeechEngine).interpretsPunctuation, isTrue);
+    final normal = factory.create(
+      preferences: const SpeechPreferences(providerId: 'system'),
+      bookId: 'test', store: store,
+    ) as SystemSpeechEngine;
+    expect(normal.interpretsPunctuation, Platform.isWindows,
+        reason: 'Android keeps its native TTS punctuation by default');
+    final native = factory.create(
+      preferences: const SpeechPreferences(providerId: 'system-native'),
+      bookId: 'test', store: store,
+    ) as SystemSpeechEngine;
+    expect(native.interpretsPunctuation, isFalse);
     final restored = SpeechPreferences.fromJson(selected.toJson());
     expect(restored.providerId, 'system-interpreted');
     expect(restored.dialogueTurnPauseMs, 260);
