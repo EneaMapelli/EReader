@@ -205,6 +205,45 @@ void main() {
     expect(words('Mr. Darcy. Ancora.'), ['Mr Darcy', 'Ancora']);
   });
 
+  test('Spanish inverted punctuation is never spoken literally', () {
+    const source = 'Dijo: ¿Vienes? ¡Sí, ahora!';
+    expect(words(source), ['Dijo', 'Vienes', 'Sí', 'ahora']);
+    expect(pauses(source), [260, 420, 140, 420]);
+    expect(words('¿Qué tal? ¡Bien!'), ['Qué tal', 'Bien']);
+    expect(pauses('¿Qué tal? ¡Bien!'), [420, 420]);
+    expect(source, contains('¿'),
+        reason: 'Narrated punctuation must not alter the source');
+  });
+
+  test('Arabic comma semicolon and question mark create bounded pauses',
+      () {
+    const source = 'قال: «مرحبا، كيف حالك؟» ثم ذهب.';
+    expect(words(source), ['قال', 'مرحبا', 'كيف حالك', 'ثم ذهب']);
+    expect(pauses(source), [260, 140, 420, 360]);
+    expect(words('مرحبا؛ ثم نبدأ.'), ['مرحبا', 'ثم نبدأ']);
+    expect(pauses('مرحبا؛ ثم نبدأ.'), [260, 360]);
+  });
+
+  test('Japanese and Chinese punctuation works without spaces', () {
+    const source = '「こんにちは、世界！」彼は答えた。次の文？';
+    expect(words(source), ['こんにちは', '世界', '彼は答えた', '次の文']);
+    expect(pauses(source), [140, 420, 360, 420]);
+    expect(words('第一句，第二句：第三句；終わり。'),
+        ['第一句', '第二句', '第三句', '終わり']);
+    expect(pauses('第一句，第二句：第三句；終わり。'),
+        [140, 260, 260, 360]);
+  });
+
+  test('nested East Asian quotes and repeated punctuation do not emit '
+      'punctuation-only speech', () {
+    expect(words('彼は『はい！』と答えた。'),
+        ['彼は', 'はい', 'と答えた']);
+    expect(pauses('彼は『はい！』と答えた。'), [140, 420, 360]);
+    expect(words('¿?¡!،؛。？！「」『』'), isEmpty);
+    expect(words('本当？！'), ['本当']);
+    expect(pauses('本当？！'), [420]);
+  });
+
   test('empty or punctuation-only input produces no native utterance',
       () {
     expect(interpreter.plan(''), isEmpty);
