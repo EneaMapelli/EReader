@@ -1525,3 +1525,35 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   sono ancora **da eseguire** (SDK assente); nessuna build Windows/
   Android né GitHub Actions avviata.
 - [Specifiche e limiti](WINDOWS_TTS_PUNCTUATION.md).
+
+### M3 — Evidence-gated native startup guidance (2026-10-31)
+
+- Corrected the manual **Compare cold/warm** flow to dispose any
+  already-prepared resident ONNX worker before the first paired request.
+  This guarantees a **new worker process** for the first local comparison
+  (not a cold OS disk cache), followed by the same-worker second request.
+  Existing SHA re-verification, cancellation and Stop barriers remain.
+- Added a pure, bounded local evidence aggregator for **up to 5** recent
+  valid comparisons per voice (within the existing 12-voice in-memory LRU).
+  Only complete native diagnostic pairs with verified single-worker reuse
+  and two positive synthesis-path timings count; generic speech engines,
+  cancelled runs and playback-only measurements never support advice.
+- A suggestion is available only after **3 or more independent manual**
+  comparisons. The deliberately conservative heuristic requires at
+  least 80% of pairs with faster warm runs, median synthesis-path saving
+  >=250 ms and median first-path duration >=1.5x warm-path duration.
+  Both medians, observed difference, sample counts and limitations are
+  displayed; this is a convenience heuristic, **not a statistical
+  significance test or a platform performance guarantee**.
+- An optional whole-app resident-memory snapshot is displayed with an
+  explicit warning that it is **not** ONNX-specific memory. No model
+  settings, RAM expiration limit, TTS selection or automatic warmup are
+  changed by a recommendation. No extra benchmark runs or downloads
+  occur without a fresh user action and its separate consent.
+- Tests cover gating, rejected native/generic/incomplete measurements,
+  inconsistent or small gains, bounded history, no playback-time
+  substitution, new-worker cold baseline even after manual Prepare,
+  and widget display after three verified manual pairs.
+  Flutter/Dart tests **not executed** in this environment; no Windows/
+  Android builds or GitHub Actions were launched.
+
