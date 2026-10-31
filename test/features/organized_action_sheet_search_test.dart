@@ -127,6 +127,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('keyboard search remains available in short PDF-like menus',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Scaffold(
+      body: Builder(builder: (context) => TextButton(
+        onPressed: () => showOrganizedActionSheet(context,
+            title: 'PDF page tools', sections: [sections.first],
+            autofocusSearch: true),
+        child: const Text('Open PDF palette'),
+      )),
+    )));
+    await tester.tap(find.text('Open PDF palette'));
+    await tester.pumpAndSettle();
+    final search = find.byKey(const ValueKey('organized-action-filter'));
+    expect(search, findsOneWidget);
+    expect(tester.widget<EditableText>(
+        find.byType(EditableText)).focusNode.hasFocus, isTrue);
+    await tester.enterText(search, 'chapters');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('organized-action-chapters')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('organized-action-search')),
+        findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('short menus keep the compact sheet without search',
       (tester) async {
     await tester.pumpWidget(MaterialApp(home: Scaffold(
