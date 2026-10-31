@@ -98,6 +98,32 @@ void main() {
     expect(store.books, hasLength(2));
   });
 
+  test('UTF-16 TXT indexes the same canonical source as the reader',
+      () async {
+    const source = '🐉 Il drago risponde: “Buongiorno.”';
+    final importedPath = File(p.join(root.path, 'utf16-source.txt'));
+    await importedPath.writeAsBytes(<int>[
+      0xff, 0xfe,
+      for (final unit in source.codeUnits) ...[
+        unit & 0xff,
+        unit >> 8,
+      ],
+    ]);
+    final added = await store.importFile(importedPath.path);
+    store.setFullTextIndexEnabled(true);
+    final result = await store.indexNextFullTextBatch();
+    expect(result.indexed, 3);
+    final hits = store.searchIndexedBookContents('drago');
+    expect(hits.map((hit) => hit.bookId), [added.id]);
+    final jump = store.fullTextJumpForHit(added.id, 'drago');
+    expect(jump, isNotNull);
+    expect(jump!.sourceOffset, source.indexOf('drago'));
+    final fresh = await PrototypeDocumentDecoder().read(added);
+    expect(fresh.text, source);
+    expect(jump.validatedOffset(fresh.text), source.indexOf('drago'));
+    expect(store.getBook(added.id)!.progressOffset, 0);
+  });
+
   test('full-text hit picks nearest multiword passage on selected book',
       () async {
     final path = store.getBook(alpha)!.localPath;
