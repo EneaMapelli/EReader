@@ -1768,7 +1768,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   /// Book actions are grouped by intent, not displayed as an overflowing
   /// row of 10+ icon-only controls. Every operation is invoked only after
   /// this accessible, scrollable sheet has closed.
-  Future<void> _openReaderTools() async {
+  Future<void> _openReaderTools({bool autofocusSearch = false}) async {
     final epub = widget.book.format == BookFormat.epub;
     final pdf = widget.book.format == BookFormat.pdf;
     final textMode = !pdf || _pdfTextMode;
@@ -1778,6 +1778,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     final action = await showOrganizedActionSheet(
       context,
       title: 'Reader tools',
+      autofocusSearch: autofocusSearch,
       sections: buildReaderToolSections(ReaderToolMenuAvailability(
         isEpub: epub,
         isPdf: pdf,
@@ -1917,6 +1918,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       onSearch: () => unawaited(_searchInBook()),
       onBookmarks: () => unawaited(_openBookmarks()),
       onHelp: () => unawaited(showReaderKeyboardHelp(context)),
+      onTools: _loading || _error != null ? null
+          : () => unawaited(_openReaderTools(autofocusSearch: true)),
       child: Scaffold(
       appBar: AppBar(
         title: Text(widget.book.title,
@@ -1949,7 +1952,7 @@ class _ReaderScreenState extends State<ReaderScreen>
           IconButton(
             key: const ValueKey('reader-tools-menu'),
             icon: const Icon(Icons.more_vert),
-            tooltip: 'Reader tools & settings',
+            tooltip: 'Reader tools & settings (Ctrl+K)',
             onPressed: _openReaderTools,
           ),
         ],
