@@ -499,7 +499,7 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
             value: _providerId,
             decoration: const InputDecoration(labelText: 'TTS protocol / engine'),
             items: [
-              const DropdownMenuItem(
+              DropdownMenuItem(
                 value: 'system',
                 child: Text(Platform.isWindows
                      ? 'Free system voices — interpreted pauses'
