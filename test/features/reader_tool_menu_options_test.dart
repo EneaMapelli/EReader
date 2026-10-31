@@ -13,6 +13,7 @@ ReaderToolMenuAvailability options({
   bool perf = false,
   bool warnings = false,
   bool autoFollow = true,
+  bool focus = false,
   String palette = 'system',
 }) => ReaderToolMenuAvailability(
   isEpub: epub, isPdf: pdf, textMode: text,
@@ -20,7 +21,7 @@ ReaderToolMenuAvailability options({
   hasContents: toc, canReturnFromLink: returnLink,
   hasPdfPageBookmarks: pdfBookmarks,
   hasEpubPerformance: perf, hasEpubWarnings: warnings,
-  autoFollow: autoFollow, paletteName: palette,
+  autoFollow: autoFollow, focusMode: focus, paletteName: palette,
 );
 
 List<String> ids(List<OrganizedActionSection> sections) =>
@@ -42,6 +43,7 @@ void main() {
     for (final action in [
       'contents', 'return-link', 'search', 'bookmarks',
       'appearance', 'font-plus', 'font-minus', 'auto-follow',
+      'reading-focus',
       'palette-system', 'palette-sepia', 'palette-night',
       'palette-contrast', 'speech', 'cast', 'pronunciation',
       'keyboard-help', 'epub-performance', 'epub-compat',
@@ -65,6 +67,7 @@ void main() {
     expect(items, isNot(contains('search')));
     expect(items, isNot(contains('bookmarks')));
     expect(items, isNot(contains('appearance')));
+    expect(items, isNot(contains('reading-focus')));
     expect(items, isNot(contains('auto-follow')));
     expect(items, isNot(contains('pdf-pages')));
     expect(items, isNot(contains('palette-night')));
@@ -77,7 +80,7 @@ void main() {
       pdf: true, text: true, playable: true, pdfBookmarks: true,
     )));
     expect(items, containsAll(['pdf-pages', 'search', 'bookmarks',
-      'appearance', 'font-plus', 'auto-follow']));
+      'appearance', 'font-plus', 'auto-follow', 'reading-focus']));
     expect(items, isNot(contains('pdf-bookmarks')));
     expect(items, isNot(contains('contents')));
     expect(items, isNot(contains('epub-compat')));
@@ -97,6 +100,32 @@ void main() {
     final follow = sections.expand((s) => s.items)
         .singleWhere((i) => i.id == 'auto-follow');
     expect(follow.selected, isFalse);
+  });
+
+  test('focus reading mode is selectable only with readable text', () {
+    final normal = buildReaderToolSections(options(epub: true));
+    final focusOff = normal.expand((s) => s.items)
+        .singleWhere((item) => item.id == 'reading-focus');
+    expect(focusOff.title, 'Hide narration controls');
+    expect(focusOff.selected, isFalse);
+
+    final focused = buildReaderToolSections(options(epub: true, focus: true));
+    final focusOn = focused.expand((s) => s.items)
+        .singleWhere((item) => item.id == 'reading-focus');
+    expect(focusOn.title, 'Show narration controls');
+    expect(focusOn.selected, isTrue);
+
+    final missingText = ids(buildReaderToolSections(
+        options(epub: true, playable: false)));
+    expect(missingText, isNot(contains('reading-focus')));
+
+    final visualPdf = ids(buildReaderToolSections(
+        options(pdf: true, text: false, playable: true)));
+    expect(visualPdf, isNot(contains('reading-focus')));
+
+    final textPdf = ids(buildReaderToolSections(
+        options(pdf: true, text: true, playable: true)));
+    expect(textPdf, contains('reading-focus'));
   });
 
   test('loading or incompatible EPUB never invents unavailable actions',
