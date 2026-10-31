@@ -157,3 +157,50 @@ resta disponibile il confronto già esistente `system-native`.
 Dart/Flutter o dispositivi Android/Windows* in questo incremento.
 Non sono state avviate build né GitHub Actions. La qualità prosodica
 non è stata misurata né dichiarata superiore alla modalità nativa.
+
+## Punteggiatura multilingue e segmenti CJK (2026-10-31)
+
+La modalità **interpreted punctuation** delle voci di sistema ora
+riconosce ulteriori segni nelle lingue già compatibili con i profili
+TTS del dispositivo:
+
+- Spagnolo: `¿` e `¡` aprono un'incisa senza essere pronunciati come
+  nomi di simboli; il corrispondente `?` o `!` terminale conserva
+  la pausa più lunga della domanda o esclamazione.
+- Arabo: virgola `،`, punto e virgola `؛` e domanda `؟` producono
+  pause rispettivamente brevi, medie e di fine domanda.
+- Giapponese/cinese: `、`, `，`, `。`, `？`, `！`,
+  `：`, `；` e alcune coppie di virgolette `「」`, `『』`,
+  `〈〉`, `《》` separano le frasi senza inviare alla sintesi
+  il nome letterale dei segni. Segni terminali adiacenti non producono
+  clip di sole punteggiature.
+
+A livello di segmentazione sorgente, `segmentSpeechRange` ora
+riconosce come fine frase anche `。`, `！`, `？` e `؟`,
+**anche senza spazi** prima della frase successiva. Include le
+virgolette di chiusura giapponesi nel segmento precedente e accorpa
+coppie terminali come `？！`. I confini restano offset UTF-16
+del testo originale: non sono trasformazioni del libro.
+
+Questi due livelli sono distinti: la segmentazione sorgente serve
+alla navigazione TTS con qualunque provider, mentre le pause e la
+rimozione dei glifi si applicano **solo** alle voci gratuite con
+interpretazione locale attiva. Le voci Android native, il cloud e
+VITS continuano a ricevere la punteggiatura originale.
+
+Le regole non sono un modello prosodico linguistico completo e
+non garantiscono una pronuncia naturale di cinese, giapponese o arabo
+con una voce installata non adatta. Alcuni documenti tecnici possono
+beneficiare di lettura nativa dei simboli; su Android è possibile
+tornare alla modalità `system`.
+
+Sono stati aggiunti test sui segni multilingue, sui segmenti senza
+spazi, sulle coppie di segni terminali, sugli offset EPUB globali e
+sull'assenza di alterazioni della fonte. Sistemate inoltre alcune
+vecchie fixture in `test/domain/speech_segment_test.dart` che
+usavano la moltiplicazione di stringhe, non valida in Dart.
+
+**Verifica:** codice e test presenti nel repository, ma test
+Dart/Flutter e prove audio native **non eseguiti** in questa sessione.
+Nessuna build Windows/Android e nessuna GitHub Actions avviata.
+
