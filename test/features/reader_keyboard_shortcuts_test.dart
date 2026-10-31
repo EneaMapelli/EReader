@@ -19,6 +19,7 @@ ReaderKeyboardAction? action(
   bool alt = false,
   bool shift = false,
   bool tools = false,
+  bool textSize = false,
   bool interactive = false,
 }) =>
     resolveReaderKeyboardAction(
@@ -28,6 +29,7 @@ ReaderKeyboardAction? action(
       editingText: editing,
       interactiveControlFocused: interactive,
       toolsAvailable: tools,
+      textSizeAvailable: textSize,
       controlPressed: ctrl,
       metaPressed: meta,
       altPressed: alt,
@@ -61,6 +63,66 @@ void main() {
       physicalKey: PhysicalKeyboardKey.keyK,
       timeStamp: Duration.zero,
     ), tools: true, ctrl: true), isNull);
+  });
+
+  test('Ctrl/Cmd+= and - adjust reading text only when available', () {
+    for (final meta in [false, true]) {
+      expect(action(down(LogicalKeyboardKey.equal), textSize: true,
+          ready: false, ctrl: !meta, meta: meta),
+          ReaderKeyboardAction.increaseTextSize);
+      expect(action(down(LogicalKeyboardKey.equal), textSize: true,
+          ctrl: !meta, meta: meta, shift: true),
+          ReaderKeyboardAction.increaseTextSize);
+      expect(action(down(LogicalKeyboardKey.minus), textSize: true,
+          ctrl: !meta, meta: meta),
+          ReaderKeyboardAction.decreaseTextSize);
+      expect(action(down(LogicalKeyboardKey.equal),
+          ctrl: !meta, meta: meta), isNull);
+      expect(action(down(LogicalKeyboardKey.minus),
+          ctrl: !meta, meta: meta), isNull);
+      expect(action(down(LogicalKeyboardKey.minus), textSize: true,
+          ctrl: !meta, meta: meta, shift: true), isNull);
+      expect(action(down(LogicalKeyboardKey.equal), textSize: true,
+          ctrl: !meta, meta: meta, alt: true), isNull);
+      expect(action(down(LogicalKeyboardKey.equal), textSize: true,
+          ctrl: !meta, meta: meta, editing: true), isNull);
+      expect(action(down(LogicalKeyboardKey.minus), textSize: true,
+          ctrl: !meta, meta: meta, routeActive: false), isNull);
+    }
+    expect(action(down(LogicalKeyboardKey.equal), textSize: true), isNull);
+    expect(action(down(LogicalKeyboardKey.minus), textSize: true), isNull);
+    expect(action(KeyRepeatEvent(
+      logicalKey: LogicalKeyboardKey.equal,
+      physicalKey: PhysicalKeyboardKey.equal,
+      timeStamp: Duration.zero,
+    ), ctrl: true, textSize: true), isNull);
+  });
+
+  testWidgets('font-size callbacks run once without starting transport',
+      (tester) async {
+    var increased = 0;
+    var decreased = 0;
+    var played = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderKeyboardShortcuts(
+        enabled: false, // PDF text mode can have no TTS player.
+        onPlayPause: () => played++,
+        onPreviousSegment: () {},
+        onNextSegment: () {},
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        onIncreaseTextSize: () => increased++,
+        onDecreaseTextSize: () => decreased++,
+        child: const Scaffold(body: Text('Reading text')),
+      ),
+    ));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.equal);
+    await tester.sendKeyEvent(LogicalKeyboardKey.minus);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    expect([increased, decreased, played], [1, 1, 0]);
   });
 
   test('focused interactive controls keep Space and arrow keys', () {
@@ -339,6 +401,7 @@ void main() {
     expect(find.textContaining('Space — Play or pause'), findsOneWidget);
     expect(find.textContaining('text field'), findsOneWidget);
     expect(find.textContaining('Ctrl/Cmd + K'), findsOneWidget);
+    expect(find.textContaining('Increase reading text size'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(find.text('Reader keyboard shortcuts'), findsNothing);
