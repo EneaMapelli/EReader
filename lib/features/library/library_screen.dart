@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../data/library_store.dart';
 import '../../data/batch_book_import.dart';
@@ -23,6 +22,7 @@ import '../reader/reader_screen.dart';
 import 'library_collections_sheet.dart';
 import 'library_full_text_search_sheet.dart';
 import 'library_keyboard_shortcuts.dart';
+import 'library_book_row_focus.dart';
 import '../shared/organized_action_sheet.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -63,11 +63,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
   bool _cancelRemainingImports = false;
   final _searchController = TextEditingController();
   final _librarySearchFocus = FocusNode(debugLabel: 'Library search');
-  // Stable across filtered catalog rebuilds: focusing a book by Tab must
-  // not jump back to the first row when its metadata changes.
-  final _bookRowFocusNodes = <String, FocusNode>{};
-  final _bookMenuKeys =
-      <String, GlobalKey<PopupMenuButtonState<String>>>{};
   String _query = '';
   BookFormat? _formatFilter;
   bool _favoritesOnly = false;
@@ -115,9 +110,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _sharedInbox?.dispose();
     _searchController.dispose();
     _librarySearchFocus.dispose();
-    for (final node in _bookRowFocusNodes.values) {
-      node.dispose();
-    }
     super.dispose();
   }
 
@@ -1558,23 +1550,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     itemCount: books.length,
                     itemBuilder: (context, index) {
                       final book = books[index];
-                      final rowFocus = _bookRowFocusNodes.putIfAbsent(
-                        book.id,
-                        () => FocusNode(debugLabel: 'Book: ${book.title}'),
-                      );
-                      final menuKey = _bookMenuKeys.putIfAbsent(
-                        book.id,
-                        () => GlobalKey<PopupMenuButtonState<String>>(),
-                      );
-                      void openBookMenu() {
-                        if (!_busy) menuKey.currentState?.showButtonMenu();
-                      }
-                      return CallbackShortcuts(
-                        bindings: {
-                          const SingleActivator(LogicalKeyboardKey.f10,
-                              shift: true): openBookMenu,
-                        },
-                        child: ListTile(
+                      return LibraryBookRowFocus(
+                        key: ValueKey('library-book-focus-${book.id}'),
+                        bookTitle: book.title,
+                        enabled: !_busy,
+                        builder: (rowFocus, menuKey, openBookMenu) => ListTile(
                         key: ValueKey('library-book-row-${book.id}'),
                         focusNode: rowFocus,
                         focusColor: Theme.of(context).colorScheme.primary
@@ -1719,7 +1699,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               ),
                             ),
                           ],
-                        ),
                         ),
                       );
                     },
