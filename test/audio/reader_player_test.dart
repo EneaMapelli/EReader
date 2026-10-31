@@ -60,6 +60,15 @@ class FakeSpeechEngine implements SpeechEngine {
 class MeasuredFakeSpeechEngine extends FakeSpeechEngine
     implements OfflineVoiceDiagnosticsProvider {
   final OfflineVoiceDiagnostics diagnostics = OfflineVoiceDiagnostics();
+  bool simulateAhead = false;
+  @override
+  void finish() {
+    if (simulateAhead) {
+      diagnostics.recordSynthesis(const Duration(milliseconds: 75),
+          ahead: true, wholeProcessRssBytes: 100 * 1024 * 1024);
+    }
+    super.finish();
+  }
   @override
   OfflineVoiceStatistics get offlineVoiceStatistics => diagnostics.snapshot;
 
@@ -119,9 +128,13 @@ void main() {
     expect(diag.medianRegularGapMs, isNotNull);
     expect(diag.medianNeuralSynthesisMs, 20);
     expect(diag.medianPostHandoffMs, isNotNull);
+    expect(diag.medianCheckpointMs, 1);
+    expect(diag.medianAfterCheckpointGapMs, isNotNull);
     expect(() => diag.recent.clear(), throwsUnsupportedError);
     final view = formatNarrationTransitionDiagnostics(diag);
     expect(view, contains('chapter transition median'));
+    expect(view, contains('checkpoint wait median'));
+    expect(view, contains('after-checkpoint gap median'));
     expect(view, contains('post-handoff audio/cleanup'));
     expect(view, isNot(contains('speech source')));
     expect(() => diag.record(const NarrationTransitionSample(
@@ -180,6 +193,59 @@ void main() {
         anyOf(isNull, greaterThanOrEqualTo(0)),
         reason: 'Cannot invent post-handoff time if clocks are inconsistent');
     expect(player.narrationTimings.chapterTransitions, 1);
+    player.dispose();
+  });
+
+  test('skipped segment is not treated as an audible phrase or chapter',
+      () async {
+    final engine = FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine, chapterStartIndices: const {2},
+      segments: const [
+        SpeechSegment(0, 3, 'one'),
+        SpeechSegment(4, 10, 'SKIPPED'),
+        SpeechSegment(11, 16, 'three'),
+      ],
+      onSegmentStarted: (_) async {},
+    );
+    player.shouldSkipSegment = (segment) => segment.start == 4;
+    final reading = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['one']);
+    engine.finish();
+    for (var i = 0; i < 40 && engine.spoken.length < 2; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(engine.spoken, ['one', 'three']);
+    engine.finish();
+    await reading;
+    expect(player.narrationTimings.completedUtterances, 2);
+    expect(player.narrationTimings.observedGaps, 1);
+    expect(player.narrationTimings.chapterTransitions, 1);
+    expect(player.narrationTimings.recent.last.isChapterTransition, isTrue);
+    expect(formatNarrationTransitionDiagnostics(player.narrationTimings),
+        isNot(contains('SKIPPED')));
+    player.dispose();
+  });
+
+  test('native lookahead synthesis is not attributed to current audio',
+      () async {
+    final engine = MeasuredFakeSpeechEngine()..simulateAhead = true;
+    final player = ReaderPlayer(
+      engineProviderId: 'sherpa-vits',
+      engine: engine,
+      segments: const [SpeechSegment(0, 3, 'one')],
+      onSegmentStarted: (_) async {},
+    );
+    final reading = player.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.finish();
+    await reading;
+    expect(engine.diagnostics.snapshot.aheadSyntheses, 1);
+    expect(player.narrationTimings.completedUtterances, 1);
+    expect(player.narrationTimings.recent.single.neuralSynthesisMs, isNull,
+        reason: 'The most recent synthesis is next-chunk lookahead');
+    expect(player.narrationTimings.recent.single.decoderHandoffMs, 8);
     player.dispose();
   });
 
