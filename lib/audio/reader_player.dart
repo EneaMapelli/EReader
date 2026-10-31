@@ -6,6 +6,7 @@ import '../domain/speech_segment.dart';
 import '../domain/speech_preferences.dart';
 import 'speech_engine.dart';
 import 'offline_voice_diagnostics.dart';
+import 'narration_transition_diagnostics.dart';
 
 typedef SegmentStarted = Future<void> Function(SpeechSegment segment);
 
@@ -46,15 +47,21 @@ class ReaderPlayer extends ChangeNotifier {
     SleepTimerScheduler? timerScheduler,
     this.nativeStopTimeout = const Duration(seconds: 8),
     Duration dialogueTurnPause = Duration.zero,
+    Set<int> chapterStartIndices = const {},
   }) : assert(nativeStopTimeout > Duration.zero),
        assert(dialogueTurnPause >= Duration.zero),
        _dialogueTurnPause = dialogueTurnPause,
        _engine = engine,
        _segments = segments,
+       _chapterStartIndices = Set<int>.unmodifiable(chapterStartIndices),
        _timerScheduler = timerScheduler ?? Timer.new;
 
   final SpeechEngine _engine;
   final List<SpeechSegment> _segments;
+  /// Verified chapter boundaries, with no chapter titles kept in metrics.
+  final Set<int> _chapterStartIndices;
+  final NarrationTransitionDiagnostics narrationTimings =
+      NarrationTransitionDiagnostics();
   final SegmentStarted onSegmentStarted;
   final SegmentCompleted? onSegmentCompleted;
   final String engineProviderId;
@@ -637,6 +644,8 @@ class ReaderPlayer extends ChangeNotifier {
     String? previousAudibleSpeaker;
     String? previousAudibleVoiceKey;
     var hadAudibleSegment = false;
+    Stopwatch? sinceLastAudibleEnd;
+    int? previousCheckpointMs;
     try {
       // A rapid pause/play must not synthesize before the old native
       // utterance has fully stopped, otherwise voices overlap.
@@ -708,6 +717,11 @@ class ReaderPlayer extends ChangeNotifier {
         _notify();
         final spokenText =
             speechTextTransform?.call(segment.text) ?? segment.text;
+        final gapMs = sinceLastAudibleEnd?.elapsedMilliseconds;
+        sinceLastAudibleEnd?.stop();
+        sinceLastAudibleEnd = null;
+        final neuralBefore = offlineVoiceStatistics;
+        final spokenClock = Stopwatch()..start();
         final playing = _engine.speak(spokenText,
             language: spokenLanguage, rate: rate, pitch: pitch);
         // Only the NEXT actually audible chunk is eligible. Skippable
@@ -776,7 +790,28 @@ class ReaderPlayer extends ChangeNotifier {
           }
         }
         await playing;
+        spokenClock.stop();
         if (token != _session) return;
+        // Completion includes synthesis, native WAV handoff, playback and
+        // cleanup. Separately expose genuine native synthesis/decoder data
+        // where this specific engine supplies fresh counters.
+        final neuralAfter = offlineVoiceStatistics;
+        final freshSynthesis = neuralBefore != null &&
+            neuralAfter != null &&
+            neuralAfter.syntheses > neuralBefore.syntheses;
+        narrationTimings.record(NarrationTransitionSample(
+          isFirstUtterance: !hadAudibleSegment,
+          isChapterTransition: hadAudibleSegment &&
+              _chapterStartIndices.contains(currentIndex),
+          speechWallMs: spokenClock.elapsedMilliseconds,
+          interSegmentGapMs: hadAudibleSegment ? gapMs : null,
+          checkpointMs: hadAudibleSegment ? previousCheckpointMs : null,
+          neuralSynthesisMs: freshSynthesis
+              ? neuralAfter.lastSynthesisMs : null,
+          decoderHandoffMs: neuralAfter?.lastDecoderHandoffMs,
+        ));
+        sinceLastAudibleEnd = Stopwatch()..start();
+        previousCheckpointMs = null;
         // Commit the next AUDIBLE source anchor only after native playback
         // really finishes. On interruption/cancellation, retaining this
         // segment's starting anchor is safer than skipping unheard audio.
@@ -793,6 +828,7 @@ class ReaderPlayer extends ChangeNotifier {
           // than replaying speech already heard in full. Seek/voice changes
           // wait for this barrier before changing the cursor or resuming.
           _pendingSegmentCompletions++;
+          final checkpointClock = Stopwatch()..start();
           final completion = () async {
             await onSegmentCompleted!(
               segment,
@@ -807,6 +843,8 @@ class ReaderPlayer extends ChangeNotifier {
           try {
             await completion;
           } finally {
+            checkpointClock.stop();
+            previousCheckpointMs = checkpointClock.elapsedMilliseconds;
             _pendingSegmentCompletions--;
             _notify();
           }
