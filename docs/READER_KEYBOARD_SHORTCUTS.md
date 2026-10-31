@@ -14,6 +14,8 @@ Scope: **M1/M2/M6 — desktop accessibility and reader navigation**
 | Ctrl+F (Windows), Cmd+F (macOS keyboards) | Search in the current book |
 | Ctrl+B / Cmd+B | Open this book's bookmarks |
 | Ctrl+K / Cmd+K | Open searchable reader tools; focus its search field |
+| Ctrl/Cmd+= (also Ctrl/Cmd+Shift+=) | Increase book text size by 2, up to 32 |
+| Ctrl/Cmd+- | Decrease book text size by 2, down to 14 |
 | F1 | Open an in-app keyboard-shortcut guide |
 
 These commands call the **existing ReaderScreen actions**: playback still
@@ -43,6 +45,11 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
   arrows and Ctrl/Cmd combinations without moving the book.
 - Focused interactive controls (slider, button, action row) retain Space and
   arrow-key semantics; these keys do not accidentally seek narration.
+- Ctrl/Cmd+= and Ctrl/Cmd+- call the *same* per-book preference saving
+  pathway as the Reading appearance menu, with identical 14–32 font
+  bounds. They do not start or seek narration. These commands work in
+  TXT/EPUB and PDF text-layer mode; faithful PDF pages are not scaled
+  by the text font setting. No redundant database save occurs at bounds.
 - Ctrl/Cmd+K opens the existing tool sheet and focuses its local search
   field, even if a short PDF menu contains fewer than eight actions. Tapping
   the ordinary toolbar menu never autofocuses or forces Android's keyboard.
@@ -74,6 +81,8 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
    enlarged on narrow screens.
 10. Ctrl/Cmd+K availability, modifiers/repeat suppression and visual-only PDF
     support; interactive-focus transport guards.
+12. Ctrl/Cmd font size shortcuts for supported reader modes, modifier guards,
+    no playback side effects, font bounds and callback delivery.
 11. Shortcut-initiated search autofocus, including compact tool menus
     (see organized_action_sheet_search_test.dart).
 
