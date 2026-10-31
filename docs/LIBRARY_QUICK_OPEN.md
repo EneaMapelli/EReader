@@ -14,7 +14,9 @@ Branch: feature/m0-flutter-foundation. Scope: M1 library usability and M6 keyboa
   author/series matches. With no query, recently opened books appear
   first, then the remaining titles alphabetically.
 - The catalog is scanned fully but only the first 40 ranked items are
-  shown. The exact match count is announced in a live accessible label.
+  shown. Search retains only the 40 best matches in memory (bounded top-K
+  insertion) while still counting all matches. The exact match count is
+  announced in a live accessible label.
   A book excluded from those 40 can still be found by refining its query.
 - Select a result, or press Enter on a **nonempty** query to open the
   first matching title. Blank Enter does not open a book. Cancel/Escape
