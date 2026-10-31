@@ -2488,9 +2488,13 @@ class _ReaderScreenState extends State<ReaderScreen>
                   Expanded(
                     child: Text(
                       player.currentPreferences.providerId == 'system'
-                          ? 'Engine: Windows/Android system voice (pauses)'
-                          : player.currentPreferences.providerId == 'system-native'
-                              ? 'Engine: system voice (native punctuation)'
+                          ? Platform.isWindows
+                              ? 'Engine: system voice (interpreted pauses)'
+                              : 'Engine: Android voice (native punctuation)'
+                          : player.currentPreferences.providerId == 'system-interpreted'
+                              ? 'Engine: system voice (interpreted punctuation)'
+                              : player.currentPreferences.providerId == 'system-native'
+                                  ? 'Engine: system voice (native punctuation)'
                               : player.currentPreferences.providerId ==
                                       SherpaVitsSpeechEngine.providerId
                                   ? 'Engine: local neural VITS (experimental)'
@@ -2551,7 +2555,8 @@ class _ReaderScreenState extends State<ReaderScreen>
               Row(
                 children: [
                   Text((player.currentPreferences.providerId == 'system' ||
-                      player.currentPreferences.providerId == 'system-native')
+                      player.currentPreferences.providerId == 'system-native' ||
+                           player.currentPreferences.providerId == 'system-interpreted')
                       ? 'Pitch' : 'Pitch unavailable'),
                   Expanded(
                     child: Slider(
@@ -2560,13 +2565,15 @@ class _ReaderScreenState extends State<ReaderScreen>
                       divisions: 10,
                       value: player.pitch,
                       onChanged: (player.currentPreferences.providerId == 'system' ||
-                          player.currentPreferences.providerId == 'system-native')
+                          player.currentPreferences.providerId == 'system-native' ||
+                           player.currentPreferences.providerId == 'system-interpreted')
                           ? (value) {
                               player.setPitch(value);
                             }
                           : null,
                       onChangeEnd: (player.currentPreferences.providerId == 'system' ||
-                          player.currentPreferences.providerId == 'system-native')
+                          player.currentPreferences.providerId == 'system-native' ||
+                           player.currentPreferences.providerId == 'system-interpreted')
                           ? (_) {
                               unawaited(player.restartAfterSettingsChange());
                               unawaited(_saveVoiceSettings());
@@ -2578,7 +2585,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                 ],
               ),
               if (player.engineProviderId == 'system' ||
-                  player.engineProviderId == 'system-native')
+                  player.engineProviderId == 'system-native' ||
+                   player.engineProviderId == 'system-interpreted')
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Column(
