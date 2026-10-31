@@ -124,6 +124,37 @@ void main() {
     expect(store.listBookCollections(firstId), hasLength(1));
   });
 
+  testWidgets('top-level library tools groups collections and backups',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    expect(find.byKey(const ValueKey('library-import-action')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('library-tools-menu')),
+        findsOneWidget);
+    expect(find.text('2 books in library'), findsOneWidget);
+    expect(find.byTooltip('Export private library backup'), findsNothing,
+        reason: 'Rare backup operations should not crowd the AppBar');
+
+    await tester.tap(find.byKey(const ValueKey('library-tools-menu')));
+    await tester.pumpAndSettle();
+    expect(find.text('Organize'), findsOneWidget);
+    expect(find.text('Discover'), findsOneWidget);
+    expect(find.text('Data & backups'), findsOneWidget);
+    expect(find.byKey(const ValueKey('organized-action-backup')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('organized-action-restore')),
+        findsOneWidget);
+    expect(store.books, hasLength(2),
+        reason: 'Opening the menu must never start a backup or import');
+    await tester.tap(
+        find.byKey(const ValueKey('organized-action-collections')));
+    await tester.pumpAndSettle();
+    expect(find.text('No collections yet. Create one to organize your books.'),
+        findsOneWidget);
+    expect(store.books, hasLength(2));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('library More menu exposes collection assignments',
       (tester) async {
     await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
