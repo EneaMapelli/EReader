@@ -109,7 +109,9 @@ class _OrganizedActionSheetBodyState extends State<_OrganizedActionSheetBody> {
     final screen = MediaQuery.sizeOf(context);
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final theme = Theme.of(context);
-    final showFilter = widget.sections.fold<int>(
+    // Keyboard palettes always provide a search target, even when
+    // a visual-only PDF exposes fewer than eight actions.
+    final showFilter = widget.autofocusSearch || widget.sections.fold<int>(
       0, (count, section) => count + section.items.length,
     ) >= 8;
     final filtered = filterOrganizedActionSections(
