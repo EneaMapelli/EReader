@@ -104,6 +104,96 @@ class NarrationTransitionDiagnostics {
   }
 }
 
+/// Evidence-based diagnostic only: never delays a segment, modifies
+/// checkpoint durability, enables cloud work or changes speech preferences.
+/// A long transition is a >=200ms gap. Three or more recent long gaps
+/// AND five measured gaps are required before identifying a likely area.
+enum NarrationDelayFocus {
+  insufficientEvidence,
+  noRepeatedSlowGap,
+  checkpoints,
+  afterCheckpoint,
+  mixed,
+}
+
+class NarrationDelayAssessment {
+  const NarrationDelayAssessment({
+    required this.focus,
+    required this.observedGaps,
+    required this.longGaps,
+    required this.checkpointHeavy,
+    required this.afterCheckpointHeavy,
+  });
+
+  final NarrationDelayFocus focus;
+  final int observedGaps;
+  final int longGaps;
+  final int checkpointHeavy;
+  final int afterCheckpointHeavy;
+}
+
+NarrationDelayAssessment assessNarrationDelays(
+    NarrationTransitionDiagnostics diagnostics) {
+  final pairs = diagnostics.recent.where((sample) =>
+      sample.interSegmentGapMs != null &&
+      sample.checkpointMs != null &&
+      sample.afterCheckpointGapMs != null).toList();
+  final slow = pairs.where(
+      (sample) => sample.interSegmentGapMs! >= 200).toList();
+  // Checkpoint and after-checkpoint partition each single observed gap.
+  // Classify as dominated only if >=80% of slow gaps have a >=60% share
+  // on one side, with >=100ms absolute contribution in every such gap.
+  final checkpointHeavy = slow.where((sample) =>
+      sample.checkpointMs! >= 100 &&
+      sample.checkpointMs! * 5 >=
+          sample.interSegmentGapMs! * 3).length;
+  final afterCheckpointHeavy = slow.where((sample) =>
+      sample.afterCheckpointGapMs! >= 100 &&
+      sample.afterCheckpointGapMs! * 5 >=
+          sample.interSegmentGapMs! * 3).length;
+  final threshold = (slow.length * 4 + 4) ~/ 5;
+  final focus = pairs.length < 5
+      ? NarrationDelayFocus.insufficientEvidence
+      : slow.length < 3
+          ? NarrationDelayFocus.noRepeatedSlowGap
+          : checkpointHeavy >= threshold
+              ? NarrationDelayFocus.checkpoints
+              : afterCheckpointHeavy >= threshold
+                  ? NarrationDelayFocus.afterCheckpoint
+                  : NarrationDelayFocus.mixed;
+  return NarrationDelayAssessment(
+    focus: focus, observedGaps: pairs.length,
+    longGaps: slow.length, checkpointHeavy: checkpointHeavy,
+    afterCheckpointHeavy: afterCheckpointHeavy,
+  );
+}
+
+String formatNarrationDelayAssessment(
+    NarrationTransitionDiagnostics diagnostics) {
+  final assessment = assessNarrationDelays(diagnostics);
+  final explanation = switch (assessment.focus) {
+    NarrationDelayFocus.insufficientEvidence =>
+      'Not enough measured transitions to identify a delay source '
+      '(at least 5 required).',
+    NarrationDelayFocus.noRepeatedSlowGap =>
+      'No repeated >=200ms transition delays among recent samples.',
+    NarrationDelayFocus.checkpoints =>
+      'Repeated delays were mainly in checkpoint acknowledgment; '
+      'investigate local persistence before tuning ONNX.',
+    NarrationDelayFocus.afterCheckpoint =>
+      'Repeated delays were mainly after checkpoint acknowledgment; '
+      'inspect voice switching, local preparation and deliberate pauses.',
+    NarrationDelayFocus.mixed =>
+      'Repeated delays have mixed causes; no dominant stage established.',
+  };
+  return 'Transition analysis: ${assessment.observedGaps} measured gaps, '
+      '${assessment.longGaps} >=200ms; ${assessment.checkpointHeavy} '
+      'checkpoint-heavy and ${assessment.afterCheckpointHeavy} '
+      'other-work-heavy. $explanation '
+      'This is a session-only screening heuristic, not an audio-onset '
+      'measurement or automatic performance setting.';
+}
+
 String formatNarrationTransitionDiagnostics(
     NarrationTransitionDiagnostics diagnostics) {
   String label(int? value) => value == null ? 'n/a' : '${value} ms';
