@@ -63,6 +63,36 @@ class _LibraryScreenState extends State<LibraryScreen> {
   bool _cancelRemainingImports = false;
   final _searchController = TextEditingController();
   final _librarySearchFocus = FocusNode(debugLabel: 'Library search');
+  // Remains attached when opening a book, but is never restored across runs.
+  final ScrollController _bookScrollController =
+      ScrollController(keepScrollOffset: false);
+  bool _showScrollToTop = false;
+
+  void _onBookScroll() {
+    if (!_bookScrollController.hasClients || !mounted) return;
+    final visible = _bookScrollController.offset > 480;
+    if (visible != _showScrollToTop) {
+      setState(() => _showScrollToTop = visible);
+    }
+  }
+
+  void _changeCatalogView(VoidCallback change) {
+    // Filtering/sorting begins with the first match, never a stale
+    // scroll offset from a larger list. If detached it starts at zero.
+    if (_bookScrollController.hasClients) {
+      _bookScrollController.jumpTo(0);
+    }
+    setState(change);
+  }
+
+  void _scrollBooksToTop() {
+    if (!_bookScrollController.hasClients) return;
+    _bookScrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
+  }
   String _query = '';
   BookFormat? _formatFilter;
   bool _favoritesOnly = false;
@@ -74,7 +104,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _clearFilters() {
     _searchController.clear();
-    setState(() {
+    _changeCatalogView(() {
       _query = '';
       _formatFilter = null;
       _favoritesOnly = false;
@@ -88,6 +118,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   void initState() {
     super.initState();
+    _bookScrollController.addListener(_onBookScroll);
     _sharedInbox = widget.sharedBookInbox ??
         (Platform.isAndroid ? MethodChannelAndroidSharedBookInbox() : null);
     _sharedInbox?.listen(() => unawaited(_consumeSharedBooks()));
@@ -110,6 +141,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _sharedInbox?.dispose();
     _searchController.dispose();
     _librarySearchFocus.dispose();
+    _bookScrollController.dispose();
     super.dispose();
   }
 
@@ -1133,7 +1165,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               child: Text('Reading shelf')),
                           ],
                           onChanged: (value) {
-                            if (value != null) setState(() => _sortOrder = value);
+                            if (value != null && value != _sortOrder) {
+                              _changeCatalogView(() => _sortOrder = value);
+                            }
                           },
                         ),
                       ),
@@ -1161,8 +1195,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 child: Text(status.label),
                               ),
                           ],
-                          onChanged: (value) => setState(
-                              () => _readingStatusFilter = value),
+                          onChanged: (value) {
+                            if (value != _readingStatusFilter) {
+                              _changeCatalogView(
+                                  () => _readingStatusFilter = value);
+                            }
+                          },
                         ),
                       ),
                     ],
@@ -1204,8 +1242,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 ),
                               ),
                           ],
-                          onChanged: (value) => setState(
-                              () => _collectionFilterId = value),
+                          onChanged: (value) {
+                            if (value != _collectionFilterId) {
+                              _changeCatalogView(
+                                  () => _collectionFilterId = value);
+                            }
+                          },
                         ),
                       ),
                     ],
@@ -1224,7 +1266,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           label: Text(format?.name.toUpperCase() ?? 'All'),
                           selected: _formatFilter == format,
                           onSelected: (_) =>
-                              setState(() => _formatFilter = format),
+                              _changeCatalogView(() => _formatFilter = format),
                         ),
                         const SizedBox(width: 8),
                       ],
@@ -1242,7 +1284,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         label: const Text('Favorites'),
                         selected: _favoritesOnly,
                         onSelected: (value) =>
-                            setState(() => _favoritesOnly = value),
+                            _changeCatalogView(() => _favoritesOnly = value),
                       ),
                       const SizedBox(width: 8),
                       for (final activity in LibraryActivityFilter.values) ...[
@@ -1255,7 +1297,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           }),
                           selected: _activityFilter == activity,
                           onSelected: (_) =>
-                              setState(() => _activityFilter = activity),
+                              _changeCatalogView(() => _activityFilter = activity),
                         ),
                         const SizedBox(width: 8),
                       ],
@@ -1451,7 +1493,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     key: const ValueKey('library-search'),
                     controller: _searchController,
                     focusNode: _librarySearchFocus,
-                    onChanged: (value) => setState(() => _query = value),
+                    onChanged: (value) {
+                      if (value != _query) {
+                        _changeCatalogView(() => _query = value);
+                      }
+                    },
                     decoration: InputDecoration(
                       labelText: 'Search library',
                       hintText: 'title:Atlas author:"Ada Writer"',
@@ -1472,7 +1518,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               icon: const Icon(Icons.clear),
                               onPressed: () {
                                 _searchController.clear();
-                                setState(() => _query = '');
+                                _changeCatalogView(() => _query = '');
                               },
                             ),
                         ],
@@ -1552,6 +1598,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         )
                       : ListView.builder(
                     key: const PageStorageKey<String>('library-book-list'),
+                    controller: _bookScrollController,
                     itemCount: books.length,
                     findChildIndexCallback: (key) => key is ValueKey<String>
                         ? bookIndexByKey[key.value]
