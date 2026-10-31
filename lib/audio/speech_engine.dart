@@ -117,6 +117,10 @@ class SystemSpeechEngine
 
   final FlutterTts _tts = FlutterTts();
   final bool _interpretWindowsPunctuation;
+  /// Read-only policy of this specific OS voice adapter. The legacy
+  /// constructor parameter name predates the optional Android A/B mode.
+  /// No microphone, audio session or native engine access is required.
+  bool get interpretsPunctuation => _interpretWindowsPunctuation;
   static const WindowsSpeechPunctuation _punctuation =
       WindowsSpeechPunctuation();
   final WindowsSpeechPauseCarry _punctuationTail =
@@ -153,7 +157,7 @@ class SystemSpeechEngine
 
   @override
   Future<void> waitBeforeSegment({required Duration voiceTurnPause}) async {
-    // Only the Windows interpreted-punctuation adapter has a carried
+    // Only interpreted-punctuation system adapters have a carried
     // terminal punctuation breath. Native punctuation/Android only need
     // the user-configured speaker-change breath.
     final duration = _interpretWindowsPunctuation
@@ -257,7 +261,7 @@ class SystemSpeechEngine
       return;
     }
 
-    // On Windows, don't pass standalone quote/punctuation glyphs to
+    // In interpreted mode, never pass standalone punctuation glyphs to
     // voices which speak their NAMES literally. Speak actual text spans
     // and model punctuation by short, cancellable pauses instead.
     // This remains ONE ReaderPlayer segment and ONE recovery checkpoint.
