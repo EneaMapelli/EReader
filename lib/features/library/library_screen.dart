@@ -1608,7 +1608,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             // than squeezing the book title at phone widths.
                             PopupMenuButton<String>(
                               key: ValueKey('library-more-${book.id}'),
-                              tooltip: 'More book actions',
+                              tooltip: compactLayout
+                                  ? 'More actions for ${book.title}, including shelf'
+                                  : 'More book actions',
                               enabled: !_busy,
                               icon: const Icon(Icons.more_vert),
                               onSelected: (action) {
@@ -1627,17 +1629,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               itemBuilder: (_) => [
                                 if (compactLayout)
                                   for (final status in BookReadingStatus.values)
-                                    PopupMenuItem<String>(
+                                    CheckedPopupMenuItem<String>(
                                       value: 'shelf:${status.name}',
-                                      child: Row(
-                                        children: [
-                                          Icon(status == book.readingStatus
-                                              ? Icons.check_circle
-                                              : Icons.circle_outlined, size: 20),
-                                          const SizedBox(width: 12),
-                                          Text('Shelf: ${status.label}'),
-                                        ],
-                                      ),
+                                      checked: status == book.readingStatus,
+                                      child: Text('Shelf: ${status.label}'),
                                     ),
                                 const PopupMenuItem(
                                   value: 'collections',
