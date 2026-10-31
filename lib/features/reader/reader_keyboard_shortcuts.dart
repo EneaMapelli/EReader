@@ -15,6 +15,11 @@ enum ReaderKeyboardAction {
   decreaseTextSize,
 }
 
+/// Shared with the in-reader text-size menu: never write a preference
+/// outside the supported reading font range (14–32 logical pixels).
+double steppedReaderFontSize(double current, int delta) =>
+    (current + delta).clamp(14.0, 32.0).toDouble();
+
 /// Pure, predictable key mapping, independent of the TTS engine.
 ///
 /// Never steal text editing (including Ctrl/Cmd+F), repeated key-downs,
