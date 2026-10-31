@@ -85,4 +85,44 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+  testWidgets('Ctrl+J opens quick search without changing the library query',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(find.text('Quick open book'), findsOneWidget);
+    expect(find.byKey(const ValueKey('quick-open-query')), findsOneWidget);
+    expect(find.text('1 book found'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('library-search')), findsOneWidget);
+    expect(store.books.single.lastOpenedAt, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('quick-open can find filtered-out books without clearing filters',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    final search = find.byKey(const ValueKey('library-search'));
+    await tester.enterText(search, 'not-found');
+    await tester.pumpAndSettle();
+    expect(find.text('No books match your filters.'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('library-quick-open')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byKey(const ValueKey('quick-open-query')), 'quiet');
+    await tester.pumpAndSettle();
+    expect(find.text('Quiet Book'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('No books match your filters.'), findsOneWidget);
+    expect(tester.widget<TextField>(search).controller!.text, 'not-found');
+    expect(store.books, hasLength(1));
+    expect(store.books.single.lastOpenedAt, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
 }
