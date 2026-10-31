@@ -1935,6 +1935,10 @@ class _ReaderScreenState extends State<ReaderScreen>
   @override
   Widget build(BuildContext context) {
     final player = _player;
+    final compactReaderToolbar = useCompactReaderToolbar(
+      width: MediaQuery.sizeOf(context).width,
+      scaledBaseTextSize: MediaQuery.textScalerOf(context).scale(16),
+    );
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => _onReadingGesture(),
@@ -1970,7 +1974,8 @@ class _ReaderScreenState extends State<ReaderScreen>
         title: Text(widget.book.title,
             maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          if (widget.book.format == BookFormat.epub &&
+          if (!compactReaderToolbar &&
+              widget.book.format == BookFormat.epub &&
               _linkHistory.canReturn)
             IconButton(
               key: const ValueKey('reader-return-link'),
@@ -1978,7 +1983,8 @@ class _ReaderScreenState extends State<ReaderScreen>
               icon: const Icon(Icons.keyboard_return),
               onPressed: _returnFromEpubLink,
             ),
-          if (widget.book.format == BookFormat.epub &&
+          if (!compactReaderToolbar &&
+              widget.book.format == BookFormat.epub &&
               (_chapters.isNotEmpty || _authorToc.isNotEmpty))
             IconButton(
               key: const ValueKey('reader-contents-action'),
@@ -1987,7 +1993,8 @@ class _ReaderScreenState extends State<ReaderScreen>
               icon: const Icon(Icons.view_list),
               onPressed: _openChapterDirectory,
             ),
-          if (_player != null && _player!.segments.isNotEmpty)
+          if (!compactReaderToolbar &&
+              _player != null && _player!.segments.isNotEmpty)
             IconButton(
               key: const ValueKey('reader-search-action'),
               icon: const Icon(Icons.search),
