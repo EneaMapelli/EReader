@@ -13,6 +13,7 @@ Scope: **M1/M2/M6 — desktop accessibility and reader navigation**
 | Right arrow | Next source-aligned spoken segment |
 | Ctrl+F (Windows), Cmd+F (macOS keyboards) | Search in the current book |
 | Ctrl+B / Cmd+B | Open this book's bookmarks |
+| Ctrl+K / Cmd+K | Open searchable reader tools; focus its search field |
 | F1 | Open an in-app keyboard-shortcut guide |
 
 These commands call the **existing ReaderScreen actions**: playback still
@@ -32,12 +33,19 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
 
 - Only a **KeyDownEvent** triggers an action; key-up and repeated key
   events never start repeated navigation or toggle playback.
-- No shortcut runs until the reader is loaded and has actual speech
-  segments; PDF's faithful page viewer remains outside this feature.
-  Keyboard transport is enabled only in PDF **text-layer reading mode**.
+- Narration/segment shortcuts require a loaded reader with actual speech
+  segments; keyboard transport is enabled in PDF **text-layer reading mode**,
+  not faithful visual PDF page mode. Ctrl/Cmd+K is a separate tool-menu
+  shortcut available in any loaded EPUB/TXT/PDF reader, including the faithful
+  PDF page viewer, without enabling TTS.
 - Shortcuts never intercept an `EditableText` focus. A text search,
   pronunciation field, title edit or voice editor can still type spaces,
   arrows and Ctrl/Cmd combinations without moving the book.
+- Focused interactive controls (slider, button, action row) retain Space and
+  arrow-key semantics; these keys do not accidentally seek narration.
+- Ctrl/Cmd+K opens the existing tool sheet and focuses its local search
+  field, even if a short PDF menu contains fewer than eight actions. Tapping
+  the ordinary toolbar menu never autofocuses or forces Android's keyboard.
 - Inactive routes and modal dialogs do not handle reader commands.
 - Shift+arrow, Alt+arrow and unrelated modifier combinations remain
   available to operating system / accessibility / selection controls.
@@ -62,7 +70,12 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
 6. Search-field typing remains protected.
 7. Modal dialog focus isolation.
 8. No shortcuts while loading.
-9. Accessible help dialog opens and closes.
+9. Accessible help dialog opens and closes, and can scroll when text is
+   enlarged on narrow screens.
+10. Ctrl/Cmd+K availability, modifiers/repeat suppression and visual-only PDF
+    support; interactive-focus transport guards.
+11. Shortcut-initiated search autofocus, including compact tool menus
+    (see organized_action_sheet_search_test.dart).
 
 **Tests authored, not executed.** Flutter/Dart is not installed in this
 connected environment. A manual keyboard, focus, screen-reader and
