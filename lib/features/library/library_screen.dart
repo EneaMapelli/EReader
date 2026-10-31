@@ -21,6 +21,7 @@ import 'library_reading_statistics_sheet.dart';
 import '../reader/reader_screen.dart';
 import 'library_collections_sheet.dart';
 import 'library_full_text_search_sheet.dart';
+import 'library_keyboard_shortcuts.dart';
 import '../shared/organized_action_sheet.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -60,6 +61,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   int _restoreDone = 0;
   bool _cancelRemainingImports = false;
   final _searchController = TextEditingController();
+  final _librarySearchFocus = FocusNode(debugLabel: 'Library search');
   String _query = '';
   BookFormat? _formatFilter;
   bool _favoritesOnly = false;
@@ -105,6 +107,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void dispose() {
     _sharedInbox?.dispose();
     _searchController.dispose();
+    _librarySearchFocus.dispose();
     super.dispose();
   }
 
@@ -958,11 +961,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Future<void> _openLibraryTools() async {
+  Future<void> _openLibraryTools({bool autofocusSearch = false}) async {
     if (_busy) return;
     final selection = await showOrganizedActionSheet(
       context,
       title: 'Library tools',
+      autofocusSearch: autofocusSearch,
       sections: const [
         OrganizedActionSection(title: 'Organize', items: [
           OrganizedActionItem(
@@ -996,6 +1000,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
             subtitle: 'Review a backup before restoring',
           ),
         ]),
+        OrganizedActionSection(title: 'Help', items: [
+          OrganizedActionItem(
+            id: 'keyboard-help', icon: Icons.keyboard_outlined,
+            title: 'Keyboard shortcuts',
+            subtitle: 'Search, tools and import from the keyboard',
+          ),
+        ]),
       ],
     );
     if (!mounted || _busy || selection == null) return;
@@ -1014,6 +1025,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
         return;
       case 'restore':
         await _restoreBackup();
+        return;
+      case 'keyboard-help':
+        await showLibraryKeyboardHelp(context);
         return;
     }
   }
@@ -1073,14 +1087,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
         actions: [
           IconButton(
             key: const ValueKey('library-import-action'),
-            tooltip: 'Import book',
+            tooltip: 'Import book (Ctrl+O)',
             onPressed: _busy ? null : _import,
             icon: const Icon(Icons.add_circle_outline),
           ),
           IconButton(
             key: const ValueKey('library-tools-menu'),
-            tooltip: 'Library tools',
-            onPressed: _busy ? null : _openLibraryTools,
+            tooltip: 'Library tools (Ctrl+K)',
+            onPressed: _busy ? null : () => _openLibraryTools(),
             icon: const Icon(Icons.more_vert),
           ),
         ],
@@ -1238,6 +1252,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   child: TextField(
                     key: const ValueKey('library-search'),
                     controller: _searchController,
+                    focusNode: _librarySearchFocus,
                     onChanged: (value) => setState(() => _query = value),
                     decoration: InputDecoration(
                       labelText: 'Search library',
@@ -1566,8 +1581,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
     // Keep Android entirely on the existing SAF picker path. The native
     // Windows receiver is active only while the library is idle.
-    if (!Platform.isWindows) return scaffold;
-    return DropTarget(
+    if (!Platform.isWindows) {
+      return _withLibraryKeyboard(scaffold, hasBooks: allBooks.isNotEmpty);
+    }
+    return _withLibraryKeyboard(DropTarget(
       key: const ValueKey('library-desktop-drop-target'),
       acceptedKinds: const {DropItemKind.file},
       enabled: !_busy,
@@ -1622,8 +1639,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
         ],
       ),
-    );
+    ), hasBooks: allBooks.isNotEmpty);
   }
+
+  Widget _withLibraryKeyboard(Widget content, {required bool hasBooks}) =>
+      LibraryKeyboardShortcuts(
+        onSearch: !_busy && hasBooks
+            ? () => _librarySearchFocus.requestFocus()
+            : null,
+        onTools: _busy
+            ? null
+            : () => unawaited(_openLibraryTools(autofocusSearch: true)),
+        onImport: _busy || _recoveringInterruptedPick
+            ? null
+            : () => unawaited(_import()),
+        onHelp: () => unawaited(showLibraryKeyboardHelp(context)),
+        child: content,
+      );
 }
 
 /// EPUB covers are read from the existing cache synchronously. PDF previews
