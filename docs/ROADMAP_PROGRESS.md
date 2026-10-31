@@ -1322,3 +1322,28 @@ Android Activity recreation remains a manual device gate.
   unavailable in this environment. No manual native builds or GitHub
   Actions were launched; existing milestone estimates remain unchanged.
 - See [READER_COMPACT_CONTROLS.md](READER_COMPACT_CONTROLS.md).
+
+
+### M2/M6 — Focus reading mode and narrow phone viewport (2026-10-31)
+
+- Reader tools > Reading appearance now includes a contextual Hide/Show
+  narration controls toggle in loaded text readers (TXT, EPUB, PDF text
+  layer). The bottom transport/progress panel can be hidden to maximize
+  reading space, while a small accessible restore FAB remains visible.
+  The AppBar, reader tools, keyboard and hardware media controls remain
+  accessible. Native PDF page viewing is unchanged.
+- The focus state is not persisted; each reader opens with transport
+  visible. Returning from PDF text-layer mode to original PDF pages clears
+  focus. Entering focus mode collapses the advanced settings panel.
+  No explicit TTS action, seek, book save or consent request is triggered
+  by this purely visual toggle.
+- Readers narrower than 380 px use 14 px horizontal text insets (rather
+  than 24 px). Focus mode adds 104 px bottom scroll clearance so the last
+  page remains reachable above the floating restore button.
+- Authored tests for context-sensitive tool visibility and selected state,
+  restore callback under 200% text at 320 px, and deterministic phone
+  margins/overlay clearance. Code and docs committed.
+- Flutter/Dart tests NOT EXECUTED (SDK absent). No Windows/Android
+  executable build, CI or GitHub Actions were started. Native accessibility
+  acceptance and milestone estimates remain unchanged.
+- See [READER_COMPACT_CONTROLS.md](READER_COMPACT_CONTROLS.md).
