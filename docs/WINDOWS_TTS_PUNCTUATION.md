@@ -38,8 +38,10 @@ rende la narrazione innaturale.
 
 ## Compatibilità e limiti
 
-- I motori TTS Android, OpenAI e Sherpa non sono stati modificati:
-  usano già i propri parser di punteggiatura e prosodia.
+- Android mantiene per default il proprio motore di punteggiatura nativo;
+  dal 2026-10-31 offre anche una scelta locale facoltativa per usare
+  lo stesso pianificatore di pause di Windows. I provider OpenAI e Sherpa
+  non vengono modificati.
 - Separare le frasi evita la pronuncia letterale della punteggiatura,
   ma **non garantisce** da solo una perfetta intonazione crescente
   nelle domande, perché l'informazione del punto interrogativo non è
@@ -118,3 +120,40 @@ l'opzione TTS già esistente.
 Aggiunti test Dart puri sulle abbreviazioni italiane e inglesi, le
 iniziali, gli acronimi, la punteggiatura normale e i casi di termine
 frase. **Test scritti ma non eseguiti**, nessuna build/Action avviata.
+
+## Android: confronto opzionale della punteggiatura (2026-10-31)
+
+La modalità gratuita `system` resta compatibile con la configurazione
+storica: **Windows** interpreta i segni di frase con il pianificatore
+locale, **Android** lascia che sia il sintetizzatore installato a
+interpretarli. Il nuovo provider interno **`system-interpreted`** è
+selezionabile su Android dalla schermata *Speech engines* e abilita
+esplicitamente anche qui lo stesso pianificatore offline. Su Windows
+resta disponibile il confronto già esistente `system-native`.
+
+- Nella pagina di configurazione, scegliere **Free system voices —
+  interpreted punctuation (trial)** e ascoltare la stessa voce tramite
+  *Preview free installed voices* prima di salvare.
+- Il planner conserva apostrofi lessicali, abbreviazioni riconosciute,
+  numeri, valori decimali e interruzioni semantiche; virgole e punti
+  causano piccoli intervalli senza pronuncia letterale dei relativi nomi.
+  Le parti di un segmento non creano ulteriori checkpoint o salti nella
+  posizione sorgente.
+- La voce e le preferenze del libro sono conservate in SQLite; il
+  nuovo provider ID riutilizza **solo il motore TTS di sistema**. Nessun
+  modello, plugin, servizio cloud, permesso o nuovo costo.
+- Su Android la modalità interpretata può richiedere più chiamate native
+  per segmento e può risultare **meno fluida o più lenta** della lettura
+  nativa. Per questo è *opt-in*, non un nuovo default universale.
+  Dopo un test di ascolto, tornare a `system` se la voce nativa è migliore.
+- Lo Stop e il Seek invalidano le pause e i frammenti residui come già
+  previsto dall'adapter; restano aperti i test su dispositivi e con
+  sintesi interrotta da chiamate telefoniche o audio focus.
+- I test aggiunti verificano **senza invocare Android TTS** la policy
+  selezionata dal factory, l'anteprima offline controllata e il
+  salvataggio/riapertura delle preferenze vocali.
+
+**Stato:** codice e test committati ma *non validati tramite SDK
+Dart/Flutter o dispositivi Android/Windows* in questo incremento.
+Non sono state avviate build né GitHub Actions. La qualità prosodica
+non è stata misurata né dichiarata superiore alla modalità nativa.
