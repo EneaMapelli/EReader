@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:ereader/audio/reader_player.dart';
+import 'package:ereader/audio/narration_transition_diagnostics.dart';
+import 'package:ereader/audio/offline_voice_diagnostics.dart';
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/domain/speech_segment.dart';
 import 'package:ereader/domain/dialogue_segmenter.dart';
@@ -55,6 +57,22 @@ class FakeSpeechEngine implements SpeechEngine {
   }
 }
 
+class MeasuredFakeSpeechEngine extends FakeSpeechEngine
+    implements OfflineVoiceDiagnosticsProvider {
+  final OfflineVoiceDiagnostics diagnostics = OfflineVoiceDiagnostics();
+  @override
+  OfflineVoiceStatistics get offlineVoiceStatistics => diagnostics.snapshot;
+
+  @override
+  Future<void> speak(String text, {required String language,
+      required double rate, required double pitch}) {
+    diagnostics.recordSynthesis(const Duration(milliseconds: 31),
+        ahead: false, wholeProcessRssBytes: 100 * 1024 * 1024);
+    diagnostics.recordHandoff(const Duration(milliseconds: 8));
+    return super.speak(text, language: language, rate: rate, pitch: pitch);
+  }
+}
+
 class VolumeFakeSpeechEngine extends FakeSpeechEngine
     implements SpeechVolumeEngine {
   final configured = <double>[];
@@ -79,6 +97,110 @@ class VolumeFakeSpeechEngine extends FakeSpeechEngine
 }
 
 void main() {
+  test('bounded transition metrics keep chapter and ordinary gaps separate',
+      () {
+    final diag = NarrationTransitionDiagnostics();
+    expect(diag.medianChapterGapMs, isNull);
+    for (var i = 0; i < 40; i++) {
+      diag.record(NarrationTransitionSample(
+        isFirstUtterance: i == 0,
+        isChapterTransition: i % 5 == 0,
+        speechWallMs: 100 + i,
+        interSegmentGapMs: i == 0 ? null : i,
+        checkpointMs: i == 0 ? null : 1,
+        neuralSynthesisMs: 20,
+        decoderHandoffMs: 15,
+      ));
+    }
+    expect(diag.completedUtterances, 32);
+    expect(diag.observedGaps, 32);
+    expect(diag.chapterTransitions, 6);
+    expect(diag.medianChapterGapMs, isNotNull);
+    expect(diag.medianRegularGapMs, isNotNull);
+    expect(diag.medianNeuralSynthesisMs, 20);
+    expect(diag.medianPostHandoffMs, isNotNull);
+    expect(() => diag.recent.clear(), throwsUnsupportedError);
+    final view = formatNarrationTransitionDiagnostics(diag);
+    expect(view, contains('chapter transition median'));
+    expect(view, contains('post-handoff audio/cleanup'));
+    expect(view, isNot(contains('speech source')));
+    expect(() => diag.record(const NarrationTransitionSample(
+      isFirstUtterance: false, isChapterTransition: false,
+      speechWallMs: -1)), throwsArgumentError);
+  });
+
+  test('reader measures real gap across completed checkpoint and chapter',
+      () async {
+    final engine = MeasuredFakeSpeechEngine();
+    final checkpointStarted = Completer<void>();
+    final allowCheckpoint = Completer<void>();
+    final player = ReaderPlayer(
+      engineProviderId: 'sherpa-vits',
+      engine: engine,
+      chapterStartIndices: const {1},
+      segments: const [
+        SpeechSegment(0, 5, 'first'),
+        SpeechSegment(100, 106, 'second'),
+      ],
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (segment, next) async {
+        if (segment.start == 0) {
+          checkpointStarted.complete();
+          await allowCheckpoint.future;
+        }
+      },
+    );
+    final reading = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['first']);
+    engine.finish();
+    await checkpointStarted.future;
+    expect(engine.spoken, ['first'],
+        reason: 'Next audio may not start before a durable checkpoint');
+    allowCheckpoint.complete();
+    for (var i = 0; i < 40 && engine.spoken.length < 2; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(engine.spoken, ['first', 'second']);
+    engine.finish();
+    await reading;
+
+    final samples = player.narrationTimings.recent;
+    expect(samples, hasLength(2));
+    expect(samples.first.isFirstUtterance, isTrue);
+    expect(samples.first.interSegmentGapMs, isNull);
+    expect(samples.last.isChapterTransition, isTrue);
+    expect(samples.last.interSegmentGapMs, greaterThanOrEqualTo(0));
+    expect(samples.last.checkpointMs, greaterThanOrEqualTo(0));
+    expect(samples.last.interSegmentGapMs!,
+        greaterThanOrEqualTo(samples.last.checkpointMs!));
+    expect(samples.last.neuralSynthesisMs, 31);
+    expect(samples.last.decoderHandoffMs, 8);
+    expect(samples.last.postHandoffMs,
+        anyOf(isNull, greaterThanOrEqualTo(0)),
+        reason: 'Cannot invent post-handoff time if clocks are inconsistent');
+    expect(player.narrationTimings.chapterTransitions, 1);
+    player.dispose();
+  });
+
+  test('cancelled speech is not counted as completed narration',
+      () async {
+    final engine = FakeSpeechEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [SpeechSegment(0, 6, 'secret')],
+      onSegmentStarted: (_) async {},
+    );
+    final playing = player.play();
+    await Future<void>.delayed(Duration.zero);
+    await player.pause();
+    await playing;
+    expect(player.narrationTimings.completedUtterances, 0);
+    expect(formatNarrationTransitionDiagnostics(player.narrationTimings),
+        isNot(contains('secret')));
+    player.dispose();
+  });
+
   test('volume capability applies saved choice before native speech',
       () async {
     final engine = VolumeFakeSpeechEngine();
