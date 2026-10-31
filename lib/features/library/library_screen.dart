@@ -1649,14 +1649,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             // Compact rows keep star and More as separate touch
                             // targets. Shelf commands move into More rather
                             // than squeezing the book title at phone widths.
-                            PopupMenuButton<String>(
+                            KeyedSubtree(
+                              key: ValueKey('library-more-${book.id}'),
+                              child: PopupMenuButton<String>(
                               key: menuKey,
-                              child: IconButton(
-                                key: ValueKey('library-more-${book.id}'),
-                                icon: const Icon(Icons.more_vert),
-                                tooltip: 'More book actions',
-                                onPressed: null,
-                              ),
                               tooltip: largeTextLayout
                                   ? 'More actions for ${book.title}, favorite and shelf'
                                   : compactLayout
@@ -1720,6 +1716,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   ),
                                 ),
                               ],
+                              ),
                             ),
                           ],
                         ),
