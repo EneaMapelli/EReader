@@ -26,7 +26,24 @@ QuickOpenBookResults findQuickOpenBooks(
   final normalized = query.trim().toLowerCase();
   final terms = normalized.split(RegExp(r'\s+'))
       .where((term) => term.isNotEmpty).toList();
+  // Maintain only the top K items rather than storing and sorting every
+  // matching book. Memory stays O(K) as the local catalog grows.
   final ranked = <(int, BookRecord)>[];
+  var total = 0;
+
+  int compareMatches((int, BookRecord) a, (int, BookRecord) b) {
+    final rankOrder = a.$1.compareTo(b.$1);
+    if (rankOrder != 0) return rankOrder;
+    if (normalized.isEmpty && a.$1 == 0) {
+      final recent = b.$2.lastOpenedAt!.compareTo(a.$2.lastOpenedAt!);
+      if (recent != 0) return recent;
+    }
+    final titleOrder = a.$2.title.toLowerCase()
+        .compareTo(b.$2.title.toLowerCase());
+    if (titleOrder != 0) return titleOrder;
+    return a.$2.id.compareTo(b.$2.id);
+  }
+
   for (final book in books) {
     final title = book.title.toLowerCase();
     final author = (book.author ?? '').toLowerCase();
@@ -49,25 +66,28 @@ QuickOpenBookResults findQuickOpenBooks(
                         series.startsWith(normalized)
                     ? 2
                     : 3;
-    ranked.add((rank, book));
-  }
-  ranked.sort((a, b) {
-    final rankOrder = a.$1.compareTo(b.$1);
-    if (rankOrder != 0) return rankOrder;
-    if (normalized.isEmpty && a.$1 == 0) {
-      final recent = b.$2.lastOpenedAt!.compareTo(a.$2.lastOpenedAt!);
-      if (recent != 0) return recent;
+    total++;
+    final candidate = (rank, book);
+    var low = 0;
+    var high = ranked.length;
+    while (low < high) {
+      final mid = (low + high) ~/ 2;
+      if (compareMatches(candidate, ranked[mid]) > 0) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
     }
-    final titleOrder = a.$2.title.toLowerCase()
-        .compareTo(b.$2.title.toLowerCase());
-    if (titleOrder != 0) return titleOrder;
-    return a.$2.id.compareTo(b.$2.id);
-  });
+    if (low < limit) {
+      ranked.insert(low, candidate);
+      if (ranked.length > limit) ranked.removeLast();
+    }
+  }
   return QuickOpenBookResults(
     books: List<BookRecord>.unmodifiable(
-      ranked.take(limit).map((match) => match.$2),
+      ranked.map((match) => match.$2),
     ),
-    total: ranked.length,
+    total: total,
   );
 }
 
