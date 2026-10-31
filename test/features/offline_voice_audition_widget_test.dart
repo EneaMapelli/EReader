@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:ereader/audio/offline_voice_audition.dart';
+import 'package:ereader/audio/offline_voice_diagnostics.dart';
 import 'package:ereader/audio/speech_engine.dart';
 import 'package:ereader/data/offline_voice_pack.dart';
 import 'package:ereader/features/reader/offline_voice_manager_screen.dart';
@@ -42,6 +43,32 @@ class _AuditionFakeEngine
   @override
   Future<void> dispose() async {
     disposals++;
+  }
+}
+
+class _EvidenceFakeEngine extends _AuditionFakeEngine
+    implements OfflineVoiceDiagnosticsProvider {
+  final OfflineVoiceDiagnostics _diagnostics = OfflineVoiceDiagnostics();
+
+  @override
+  OfflineVoiceStatistics get offlineVoiceStatistics => _diagnostics.snapshot;
+
+  @override
+  Future<void> speak(String text, {required String language,
+      required double rate, required double pitch}) async {
+    final cold = starts == 0;
+    if (cold) {
+      _diagnostics.recordModelLoad();
+      _diagnostics.recordModelStartup(
+          workerReadyMs: 840, nativeModelInitializationMs: 550);
+    }
+    _diagnostics.recordNativeGeneration(
+        Duration(milliseconds: cold ? 600 : 180));
+    _diagnostics.recordSynthesis(
+        Duration(milliseconds: cold ? 1250 : 300),
+        ahead: false,
+        wholeProcessRssBytes: 256 * 1024 * 1024);
+    await super.speak(text, language: language, rate: rate, pitch: pitch);
   }
 }
 
@@ -220,6 +247,71 @@ void main() {
     expect(fake.starts, 0);
     expect(find.byTooltip('Prepare model silently preview-it'),
         findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('native startup advice appears only after three valid runs',
+      (tester) async {
+    final phonemes = [11, 22, 33];
+    await Directory(p.join(source.path, 'espeak-ng-data')).create();
+    await File(p.join(source.path, 'espeak-ng-data', 'phonemes'))
+        .writeAsBytes(phonemes);
+    manifest = OfflineVoicePackManifest(
+      id: manifest.id, displayName: manifest.displayName,
+      locale: manifest.locale, licenseId: manifest.licenseId,
+      modelSha256: manifest.modelSha256,
+      tokensSha256: manifest.tokensSha256,
+      phonemizerResources: [
+        OfflineVoiceResource(
+          relativePath: 'espeak-ng-data/phonemes',
+          sha256: sha256.convert(phonemes).toString(),
+        ),
+      ],
+    );
+    await installOfflineVoicePack(
+        manifest: manifest, sourceDirectory: source,
+        modelsDirectory: models);
+    final engines = <_EvidenceFakeEngine>[];
+    final audition = OfflineVoiceAudition(
+      loadPack: (id) => loadInstalledOfflineVoicePack(
+          packId: id, modelsDirectory: models),
+      createEngine: (_) {
+        final engine = _EvidenceFakeEngine();
+        engine.finish.complete();
+        engines.add(engine);
+        return engine;
+      },
+    );
+    await tester.pumpWidget(MaterialApp(home: OfflineVoiceManagerScreen(
+        modelsDirectory: () async => models, audition: audition)));
+    await settle(tester);
+    final compare = find.byKey(
+        const ValueKey('offline-voice-compare-preview-it'));
+
+    for (var index = 1; index <= 3; index++) {
+      await tester.ensureVisible(compare);
+      await tester.pumpAndSettle();
+      await tester.tap(compare);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Play twice and compare'));
+      await settle(tester);
+      expect(engines, hasLength(index));
+      expect(engines.last.starts, 2);
+      expect(engines.last.disposals, 1);
+      final advisory = find.byKey(
+          const ValueKey('offline-startup-advice-preview-it'));
+      expect(advisory, findsOneWidget);
+      if (index < 3) {
+        expect(find.textContaining('Startup evidence: $index/3 valid'),
+            findsOneWidget);
+        expect(find.textContaining('manually preparing'), findsNothing);
+      } else {
+        expect(find.textContaining('Startup evidence (3 local pairs)'),
+            findsOneWidget);
+        expect(find.textContaining('manually preparing'), findsOneWidget);
+      }
+    }
+    expect(audition.hasPreparedModel('preview-it'), isFalse);
     expect(tester.takeException(), isNull);
   });
 
