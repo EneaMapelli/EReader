@@ -1614,3 +1614,34 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   and cancelled speech. Tests **not executed** due to missing
   Dart/Flutter SDK; no Windows or Android packages or GitHub Actions.
 
+### M3 — Verified decoder handoff attribution and evidence-gated narration delay triage (2026-10-31)
+
+- Fixed a concrete attribution error in live book narration telemetry:
+  a decoder-handoff stopwatch from a **previous utterance** could be
+  reused when the current clip did not emit a new handoff event. The
+  diagnostics now expose a monotonic `decoderHandoffs` counter; the
+  ReaderPlayer records a per-utterance decoder latency only after a
+  **new, unique handoff** inside that utterance. Pre-synthesized
+  (lookahead) WAV playback may have a fresh handoff with **no new
+  synthesis**; these measurements remain independent. Invalid/negative
+  handoff durations do not advance the counter.
+- Added a bounded, fully local interpretation of the last 32 audible
+  utterances, with a conservative screening threshold: at least five
+  valid checkpoint/gap pairs, at least three gaps >=200 ms, and >=80%
+  dominance by one stage (>=60% of individual gap and >=100 ms absolute)
+  before suggesting where to investigate. Categories are checkpoint
+  acknowledgment, remaining after-checkpoint preparation, no repeated
+  long gap, inconclusive/mixed, and insufficient data. Explanatory
+  labels are visible in the existing Offline voice performance panel.
+  This is a transparent **heuristic only**; no speech timing, speech
+  preference, cloud request, prefetch or checkpoint durability policy
+  is automatically modified.
+- Unit tests cover genuine versus stale handoff events, a reused
+  prepared WAV, speculative synthesis, invalid handoff durations,
+  limited/inconsistent timing evidence, checkpoint-heavy waits and
+  after-checkpoint/voice-preparation delays. No content, book titles,
+  source offsets, WAV filenames or model paths are retained.
+- Flutter/Dart tests **not executed** here (SDK unavailable); native
+  Windows measurements remain required before selecting a performance
+  tuning strategy. No Windows/Android builds or GitHub Actions started.
+
