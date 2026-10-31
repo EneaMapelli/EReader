@@ -1300,3 +1300,25 @@ Android Activity recreation remains a manual device gate.
 - Authored and committed; Flutter SDK is unavailable here, so tests are
   NOT EXECUTED. No Windows/Android build or GitHub Action was launched.
   Existing readiness estimates remain unchanged.
+
+
+### M2/M6 — Compact default reader playback controls (2026-10-31)
+
+- Text reader now defaults to a short, always-visible narration bar:
+  whole-source progress/seek, segment status, Previous, Play/Pause, Next
+  and More narration controls. The transport uses a wrapping icon-button
+  layout on narrow screens and exposes keyboard hints in tooltips.
+- All existing voice, speed, pitch, volume, provider/engine, timer,
+  diagnostics, prebuffer and EPUB note options remain available behind
+  More narration controls. The full panel is separately scrollable, has
+  a visible scrollbar and a bounded height (52% of viewport, 130–420 px),
+  with Less controls returning immediately to the spacious reading view.
+- Opening the panel is a local UI operation; no audio queue, TTS provider,
+  privacy/consent setting, book checkpoint or cloud request is altered.
+  The native visual PDF page mode retains its original controls.
+- Authored widget tests verify compact Previous/Play/Next/expand callbacks,
+  playing/paused state, sleep-timer discoverability and 200% text at 320 px.
+- Test and native accessibility execution still pending: Flutter/Dart SDK
+  unavailable in this environment. No manual native builds or GitHub
+  Actions were launched; existing milestone estimates remain unchanged.
+- See [READER_COMPACT_CONTROLS.md](READER_COMPACT_CONTROLS.md).
