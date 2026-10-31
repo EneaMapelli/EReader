@@ -1557,3 +1557,25 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Flutter/Dart tests **not executed** in this environment; no Windows/
   Android builds or GitHub Actions were launched.
 
+
+### M2 — Punteggiatura multilingue e fine frase senza spazi (2026-10-31)
+
+- Esteso il planner della modalità TTS **interpreted punctuation**:
+  segni d'apertura spagnoli `¿¡`, virgola/punto e virgola/domanda
+  arabi `،؛؟`, punteggiatura CJK `。、，！？：；` e
+  virgolette annidate `「」『』〈〉《》`. Le pause restano
+  limitate e cancellabili, senza introdurre parole artificiali.
+- Migliorata la segmentazione `segmentSpeechRange` per frasi cinesi,
+  giapponesi e domande arabe prive di uno spazio dopo il segno
+  conclusivo. Chiusure di citazione e segni terminali ripetuti
+  restano nel segmento precedente; offset UTF-16/ancore non mutati.
+- I provider non interpretati mantengono il testo sorgente (cloud,
+  VITS, Android `system` predefinito); nessuna modifica a rate,
+  quote, consenso, preferenze o SQLite.
+- Test di piano parlato e di segmentazione multilingue aggiunti;
+  corrette 12 espressioni non valide di moltiplicazione stringhe
+  nelle fixture Dart del segmentatore.
+- Test Dart/Flutter e qualità audio su dispositivi **non eseguiti**
+  (SDK assente); nessuna build o GitHub Actions avviata.
+- [Documentazione](WINDOWS_TTS_PUNCTUATION.md).
+
