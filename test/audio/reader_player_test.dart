@@ -150,6 +150,83 @@ void main() {
       speechWallMs: -1)), throwsArgumentError);
   });
 
+  test('delay diagnosis requires repeated evidence, not one slow sample',
+      () {
+    NarrationTransitionSample sample(int gap, int checkpoint) =>
+        NarrationTransitionSample(
+          isFirstUtterance: false, isChapterTransition: false,
+          speechWallMs: 100, interSegmentGapMs: gap,
+          checkpointMs: checkpoint,
+        );
+
+    final diagnostics = NarrationTransitionDiagnostics();
+    diagnostics.record(sample(5000, 4800));
+    expect(assessNarrationDelays(diagnostics).focus,
+        NarrationDelayFocus.insufficientEvidence);
+    for (var i = 0; i < 4; i++) {
+      diagnostics.record(sample(40, 10));
+    }
+    expect(assessNarrationDelays(diagnostics).focus,
+        NarrationDelayFocus.noRepeatedSlowGap);
+    expect(formatNarrationDelayAssessment(diagnostics),
+        contains('No repeated >=200ms'));
+
+    final checkpoint = NarrationTransitionDiagnostics();
+    for (var i = 0; i < 3; i++) {
+      checkpoint.record(sample(300, 220));
+    }
+    for (var i = 0; i < 2; i++) {
+      checkpoint.record(sample(60, 25));
+    }
+    expect(assessNarrationDelays(checkpoint).focus,
+        NarrationDelayFocus.checkpoints);
+    expect(assessNarrationDelays(checkpoint).checkpointHeavy, 3);
+    expect(formatNarrationDelayAssessment(checkpoint),
+        contains('investigate local persistence'));
+
+    final voice = NarrationTransitionDiagnostics();
+    for (var i = 0; i < 3; i++) {
+      voice.record(sample(320, 35));
+    }
+    for (var i = 0; i < 2; i++) {
+      voice.record(sample(40, 10));
+    }
+    expect(assessNarrationDelays(voice).focus,
+        NarrationDelayFocus.afterCheckpoint);
+    expect(formatNarrationDelayAssessment(voice),
+        contains('voice switching'));
+
+    final mixed = NarrationTransitionDiagnostics();
+    mixed.record(sample(300, 230));
+    mixed.record(sample(300, 230));
+    mixed.record(sample(320, 35));
+    mixed.record(sample(320, 35));
+    mixed.record(sample(50, 15));
+    expect(assessNarrationDelays(mixed).focus,
+        NarrationDelayFocus.mixed);
+    expect(formatNarrationDelayAssessment(mixed),
+        contains('no dominant stage'));
+    expect(formatNarrationDelayAssessment(mixed),
+        isNot(contains('secret text')));
+  });
+
+  test('invalid or unrelated timing pairs cannot influence delay triage',
+      () {
+    final diag = NarrationTransitionDiagnostics();
+    for (var i = 0; i < 5; i++) {
+      diag.record(const NarrationTransitionSample(
+        isFirstUtterance: false, isChapterTransition: true,
+        speechWallMs: 100, interSegmentGapMs: 220,
+        checkpointMs: 250,
+      ));
+    }
+    expect(assessNarrationDelays(diag).focus,
+        NarrationDelayFocus.insufficientEvidence);
+    expect(diag.medianAfterCheckpointGapMs, isNull);
+    expect(formatNarrationDelayAssessment(diag),
+        contains('Not enough measured transitions'));
+  });
+
   test('reader measures real gap across completed checkpoint and chapter',
       () async {
     final engine = MeasuredFakeSpeechEngine();
