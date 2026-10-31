@@ -12,6 +12,7 @@ import '../../data/piper_paola_installer.dart';
 import '../../data/curated_voice_staging.dart';
 import '../../data/manual_voice_install_staging.dart';
 import '../../audio/offline_voice_audition.dart';
+import '../../audio/offline_voice_benchmark_evidence.dart';
 
 /// Model management is deliberately separate from provider activation.
 /// This screen lists verified on-device assets, can uninstall them and
@@ -57,6 +58,7 @@ class _OfflineVoiceManagerScreenState
   String? _preparingModelId;
   // Ephemeral, bounded comparison data; never stored or transmitted.
   final Map<String, OfflineVoicePreviewReport> _previewMeasurements = {};
+  final Map<String, OfflineVoiceBenchmarkEvidence> _benchmarkEvidence = {};
   static const int _maxPreviewMeasurements = 12;
   ManualVoiceStagingHealth? _manualStageHealth;
 
@@ -91,13 +93,23 @@ class _OfflineVoiceManagerScreenState
 
   void _rememberPreviewMeasurement(String packId) {
     final report = _audition.lastReport;
-    if (!mounted || report == null || report.packId != packId) return;
+    if (!mounted || report == null || report.packId != packId ||
+        identical(_previewMeasurements[packId], report)) return;
     setState(() {
       _previewMeasurements.remove(packId);
       if (_previewMeasurements.length >= _maxPreviewMeasurements) {
-        _previewMeasurements.remove(_previewMeasurements.keys.first);
+        final evictedId = _previewMeasurements.keys.first;
+        _previewMeasurements.remove(evictedId);
+        _benchmarkEvidence.remove(evictedId);
       }
       _previewMeasurements[packId] = report;
+      if (report.coldWarmComparison != null) {
+        final evidence = _benchmarkEvidence.putIfAbsent(
+            packId, OfflineVoiceBenchmarkEvidence.new);
+        if (!evidence.add(report) && evidence.samples == 0) {
+          _benchmarkEvidence.remove(packId);
+        }
+      }
     });
   }
 
@@ -307,6 +319,8 @@ class _OfflineVoiceManagerScreenState
               .map((entry) => entry.id).toSet();
           _previewMeasurements.removeWhere(
               (id, _) => !validIds.contains(id));
+          _benchmarkEvidence.removeWhere(
+              (id, _) => !validIds.contains(id));
           if (_languageFilter != null &&
               !installedOfflineVoiceLanguages(result)
                   .contains(_languageFilter)) {
@@ -344,6 +358,7 @@ class _OfflineVoiceManagerScreenState
             _packs, packId, inspected);
         if (inspected == null || !inspected.ready) {
           _previewMeasurements.remove(packId);
+          _benchmarkEvidence.remove(packId);
         }
         if (_languageFilter != null &&
             !installedOfflineVoiceLanguages(_packs)
@@ -925,6 +940,14 @@ class _OfflineVoiceManagerScreenState
                       key: ValueKey('offline-preview-metrics-${entry.id}'),
                     ),
                   ],
+                  if (_benchmarkEvidence[entry.id] != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      formatOfflineVoiceBenchmarkAdvice(
+                          _benchmarkEvidence[entry.id]!),
+                      key: ValueKey('offline-startup-advice-${entry.id}'),
+                    ),
+                  ],
                 ],
               ),
               trailing: Row(
@@ -1001,7 +1024,10 @@ class _OfflineVoiceManagerScreenState
           'first/second wall times include playback and cannot be '
           'interpreted as native synthesis latency. Silent model '
           'preparation is opt-in and automatically expires after 3 '
-          'minutes or on Stop; no WAV or audio is created.',
+          'minutes or on Stop; no WAV or audio is created. '
+          'Evidence requires at least three completed cold/warm tests '
+          'on the same device. Any suggestion is informational only; '
+          'prewarming remains manual and consumes RAM.',
         ),
         const SizedBox(height: 8),
         const Text(
