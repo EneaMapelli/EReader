@@ -352,6 +352,13 @@ class OfflineVoiceAudition {
       // the SHA read. Never allocate another model before it finishes.
       await _preparedRetirement;
       if (_disposed || token != _epoch) return;
+      if (compareColdWarm) {
+        // A comparison must start with a NEW native worker, not consume a
+        // previously prepared ONNX model. This is still a process-local
+        // cold start, not proof that OS disk caches are cold.
+        await _discardPreparedEngine();
+        if (_disposed || token != _epoch) return;
+      }
       // SHA verification is ALWAYS repeated before using resident ONNX.
       // Never reuse a worker whose manifest, hashes or verified paths changed.
       final prepared = _preparedEngine;
