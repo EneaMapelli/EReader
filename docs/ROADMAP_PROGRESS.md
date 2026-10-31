@@ -1252,3 +1252,28 @@ Android Activity recreation remains a manual device gate.
   NOT EXECUTED (Flutter/Dart SDK unavailable), no Windows or Android build,
   no GitHub Actions. Overall readiness remains unchanged.
 - See [LIBRARY_QUICK_OPEN.md](LIBRARY_QUICK_OPEN.md).
+
+
+### M1/M6 — Keyboard navigation inside Quick open (2026-10-31)
+
+- Quick open supports Up/Down selection with visual and semantic selected
+  status, automatically scrolling its bounded 40-row result list to expose
+  the focused selection. Selection clamps at both edges.
+- Enter opens the highlighted result rather than always opening the first
+  match. Blank Enter does nothing unless the user deliberately navigated
+  with arrows. Escape cancels, and repeat Escape cannot close a route beneath
+  the palette.
+- Changing search terms resets the selection and result-list scroll offset.
+  Quick open retains query results in dialog state: arrow movement is
+  constant-time state work plus bounded-list scrolling and does not rescan
+  the entire local catalog.
+- Dialog dimensions adapt to system text scale, screen size and soft
+  keyboard; accessibility instructions and live selected-title feedback
+  are visible without losing local-only/no-auto-narration safeguards.
+- Added unit and widget regressions for selection bounds, Up/Down/Enter,
+  blank queries, Escape, offscreen auto-scroll, query reset, 320px screens
+  with enlarged text and >40 matches. Tests authored only: Flutter/Dart SDK
+  not installed here, so no native test pass is claimed.
+- No Windows builds and no GitHub Actions were started; release readiness
+  and milestone percentages remain unchanged.
+- See [LIBRARY_QUICK_OPEN.md](LIBRARY_QUICK_OPEN.md).
