@@ -11,6 +11,8 @@ enum ReaderKeyboardAction {
   bookmarks,
   help,
   tools,
+  increaseTextSize,
+  decreaseTextSize,
 }
 
 /// Pure, predictable key mapping, independent of the TTS engine.
@@ -25,6 +27,7 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
   required bool editingText,
   bool interactiveControlFocused = false,
   bool toolsAvailable = false,
+  bool textSizeAvailable = false,
   required bool controlPressed,
   required bool metaPressed,
   required bool altPressed,
@@ -40,6 +43,17 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
   if (command && !altPressed && !shiftPressed &&
       key == LogicalKeyboardKey.keyK && toolsAvailable) {
     return ReaderKeyboardAction.tools;
+  }
+  // Text layout adjustments do not require playable narration (e.g. PDF
+  // text mode), but never run during loading or on hidden/editor routes.
+  if (command && !altPressed && textSizeAvailable) {
+    if (key == LogicalKeyboardKey.equal) {
+      // Ctrl/Cmd+=, or Ctrl/Cmd+Shift+= on keyboards requiring Shift for +.
+      return ReaderKeyboardAction.increaseTextSize;
+    }
+    if (key == LogicalKeyboardKey.minus && !shiftPressed) {
+      return ReaderKeyboardAction.decreaseTextSize;
+    }
   }
   if (!readerReady) return null;
   if (interactiveControlFocused &&
@@ -86,6 +100,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
     required this.onBookmarks,
     required this.onHelp,
     this.onTools,
+    this.onIncreaseTextSize,
+    this.onDecreaseTextSize,
     required this.child,
   });
 
@@ -97,6 +113,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
   final VoidCallback onBookmarks;
   final VoidCallback onHelp;
   final VoidCallback? onTools;
+  final VoidCallback? onIncreaseTextSize;
+  final VoidCallback? onDecreaseTextSize;
   final Widget child;
 
   @override
@@ -122,6 +140,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
           editingText: editing,
           interactiveControlFocused: interactive,
           toolsAvailable: onTools != null,
+          textSizeAvailable: onIncreaseTextSize != null &&
+              onDecreaseTextSize != null,
           controlPressed: keyboard.isControlPressed,
           metaPressed: keyboard.isMetaPressed,
           altPressed: keyboard.isAltPressed,
@@ -143,6 +163,10 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
             onHelp();
           case ReaderKeyboardAction.tools:
             onTools?.call();
+          case ReaderKeyboardAction.increaseTextSize:
+            onIncreaseTextSize?.call();
+          case ReaderKeyboardAction.decreaseTextSize:
+            onDecreaseTextSize?.call();
         }
         return KeyEventResult.handled;
       },
@@ -169,6 +193,8 @@ Future<void> showReaderKeyboardHelp(BuildContext context) =>
             Text('Ctrl/Cmd + F — Search in this book'),
             Text('Ctrl/Cmd + B — Bookmarks'),
             Text('Ctrl/Cmd + K — Find reader tools'),
+            Text('Ctrl/Cmd + = — Increase reading text size'),
+            Text('Ctrl/Cmd + - — Decrease reading text size'),
             Text('F1 — Show this help'),
             SizedBox(height: 12),
             Text('Shortcuts do not run while typing in a text field. '
