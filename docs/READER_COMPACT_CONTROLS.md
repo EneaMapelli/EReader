@@ -54,6 +54,13 @@ explicitly save a new reading position, TTS preference, or cloud-consent
 value. Returning from PDF text-layer mode to the native PDF page viewer
 automatically resets focus mode so the PDF page controls are unchanged.
 
+On AppBars narrower than 420 px, or when the system scales a 16 px
+label to at least 26 px, the reader keeps its Back/title and Reader tools
+actions visible while moving the direct EPUB contents, internal-link return
+and in-book search icons into the existing organized Reader tools menu.
+Those actions remain available in that menu, and their foreground keyboard
+shortcuts continue to work. Wider screens retain the original direct icons.
+
 On viewports narrower than 380 logical pixels, left/right reading margins
 shrink from 24 px to 14 px. Wider layouts retain their existing 24 px.
 While focus mode is active the scrollable book receives 104 px of bottom
@@ -70,7 +77,7 @@ EPUB sections are unaffected by these insets.
 - lib/features/reader/reader_focus_restore_button.dart — accessible
   always-visible restore action when the lower controls are hidden.
 - lib/features/reader/reader_viewport_layout.dart — deterministic
-  small-phone horizontal margins and bottom FAB clearance.
+  small-phone horizontal margins, AppBar compactness and bottom FAB clearance.
 - lib/features/reader/reader_tool_menu_options.dart — contextual
   focus-mode toggle, never shown for the native PDF page viewer.
 - test/features/reader_compact_controls_test.dart — callback isolation,
@@ -109,6 +116,9 @@ Android build, CI job or GitHub Action was intentionally started.
    the final words must remain accessible above the restore button.
 9. Toggle focus mode after opening a PDF's text layer, return to native
    PDF pages and verify focus mode is cleared and page navigation works.
+10. At 320 px and 200% text scaling, confirm the book title and Reader
+    tools icon remain visible; open tools to reach EPUB contents/search/link
+    return actions hidden from the compact AppBar.
 
 This increment does not claim a native test pass or change milestone
 completion / release readiness estimates.
