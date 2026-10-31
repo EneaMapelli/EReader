@@ -1213,3 +1213,22 @@ Android Activity recreation remains a manual device gate.
   technology checks have not been executed. No Windows/Android builds or
   GitHub Actions. Native readiness percentages remain unchanged.
 - See [LIBRARY_RESPONSIVE_ACCESSIBILITY.md](LIBRARY_RESPONSIVE_ACCESSIBILITY.md).
+
+
+### M1/M6 — Deterministic library scrolling and reader return (2026-10-31)
+
+- Library now owns one session-lifetime result-list ScrollController.
+  Opening/closing a reader preserves the current catalog viewport; changing
+  query, filters or sort order deliberately returns to the first book.
+- Search with zero results no longer resurrects a stale PageStorage scroll
+  offset after clearing the query. A back-to-top button appears once scrolled
+  more than 480 logical pixels and animates up without modifying saved books.
+- The result count and back-to-top action remain accessible on compact and
+  desktop layouts. Filtering/resetting preserves the existing on-disk book
+  metadata and does not trigger narration, file copies or cloud traffic.
+- Authored regression tests with 45 imported TXT books for deep scrolling,
+  zero-result/clear flows, format and sort changes, back-to-top and
+  reader-navigation round trips; NOT EXECUTED here (Flutter SDK absent).
+- No Windows/Android builds or GitHub Actions. Native validation and
+  release readiness estimates remain unchanged.
+- See [LIBRARY_SCROLL_BEHAVIOR.md](LIBRARY_SCROLL_BEHAVIOR.md).
