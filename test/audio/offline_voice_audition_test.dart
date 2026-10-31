@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:ereader/audio/offline_voice_audition.dart';
+import 'package:ereader/audio/offline_voice_benchmark_evidence.dart';
 import 'package:ereader/audio/offline_voice_diagnostics.dart';
 import 'package:ereader/audio/system_voice_audition.dart';
 import 'package:ereader/audio/speech_engine.dart';
@@ -212,7 +213,105 @@ Future<void> until(bool Function() ready) async {
   fail('Offline preview operation did not reach expected state');
 }
 
+OfflineVoicePreviewReport measuredColdWarm({
+  required int first, required int warm,
+  bool? reused = true,
+  OfflineVoicePreviewOutcome outcome = OfflineVoicePreviewOutcome.completed,
+  int? processMiB,
+}) => OfflineVoicePreviewReport(
+  packId: 'italian',
+  outcome: outcome,
+  totalMs: 9000,
+  wholeProcessRssMiB: processMiB,
+  coldWarmComparison: OfflineVoiceColdWarmComparison(
+    firstSpeechWallMs: 8000, secondSpeechWallMs: 6000,
+    firstSynthesisPathMs: first, secondSynthesisPathMs: warm,
+    reusedNativeModel: reused,
+  ),
+);
+
 void main() {
+  test('advice requires three independently measured native comparisons',
+      () {
+    final evidence = OfflineVoiceBenchmarkEvidence();
+    expect(evidence.add(measuredColdWarm(
+        first: 1600, warm: 350, processMiB: 888)), isTrue);
+    expect(evidence.enoughEvidence, isFalse);
+    expect(evidence.manualPrewarmWorthTrying, isFalse);
+    expect(formatOfflineVoiceBenchmarkAdvice(evidence),
+        contains('1/3 valid'));
+    evidence.add(measuredColdWarm(first: 1500, warm: 400,
+        processMiB: 888));
+    evidence.add(measuredColdWarm(first: 1700, warm: 450,
+        processMiB: 888));
+    expect(evidence.enoughEvidence, isTrue);
+    expect(evidence.fasterWarmRuns, 3);
+    expect(evidence.medianFirstPathMs, 1600);
+    expect(evidence.medianWarmPathMs, 400);
+    expect(evidence.medianStartupDifferenceMs, 1200);
+    expect(evidence.manualPrewarmWorthTrying, isTrue);
+    final summary = formatOfflineVoiceBenchmarkAdvice(evidence);
+    expect(summary, contains('manually preparing'));
+    expect(summary, contains('No setting was changed'));
+    expect(summary, contains('Whole-app RAM snapshot: 888 MiB'));
+  });
+
+  test('incomplete, unverified reuse and playback-only metrics are rejected',
+      () {
+    final evidence = OfflineVoiceBenchmarkEvidence();
+    expect(evidence.add(measuredColdWarm(first: 1500, warm: 100,
+        reused: null)), isFalse);
+    expect(evidence.add(measuredColdWarm(first: 1500, warm: 100,
+        reused: false)), isFalse);
+    expect(evidence.add(measuredColdWarm(first: 1500, warm: 100,
+        outcome: OfflineVoicePreviewOutcome.cancelled)), isFalse);
+    expect(evidence.add(measuredColdWarm(first: 1500, warm: 100,
+        outcome: OfflineVoicePreviewOutcome.failed)), isFalse);
+    expect(evidence.add(measuredColdWarm(first: 0, warm: 100)), isFalse);
+    expect(evidence.add(measuredColdWarm(first: 1500, warm: 0)), isFalse);
+    expect(evidence.add(const OfflineVoicePreviewReport(
+      packId: 'italian', outcome: OfflineVoicePreviewOutcome.completed,
+      totalMs: 1, coldWarmComparison: OfflineVoiceColdWarmComparison(
+        firstSpeechWallMs: 90000, secondSpeechWallMs: 1,
+        reusedNativeModel: true,
+      ),
+    )), isFalse);
+    expect(evidence.samples, 0);
+    expect(evidence.manualPrewarmWorthTrying, isFalse);
+  });
+
+  test('uncertain or small latency differences preserve on-demand default',
+      () {
+    final variable = OfflineVoiceBenchmarkEvidence();
+    variable.add(measuredColdWarm(first: 900, warm: 400));
+    variable.add(measuredColdWarm(first: 370, warm: 430));
+    variable.add(measuredColdWarm(first: 1050, warm: 500));
+    expect(variable.fasterWarmRuns, 2);
+    expect(variable.manualPrewarmWorthTrying, isFalse);
+    expect(formatOfflineVoiceBenchmarkAdvice(variable),
+        contains('keep on-demand Play'));
+    final tiny = OfflineVoiceBenchmarkEvidence();
+    for (var i = 0; i < 3; i++) {
+      tiny.add(measuredColdWarm(first: 310, warm: 290));
+    }
+    expect(tiny.manualPrewarmWorthTrying, isFalse);
+  });
+
+  test('only last five valid native pairs persist in RAM and are immutable',
+      () {
+    final evidence = OfflineVoiceBenchmarkEvidence();
+    for (var i = 0; i < 9; i++) {
+      evidence.add(measuredColdWarm(first: 300 + i * 100,
+          warm: 200, processMiB: 100 + i));
+    }
+    expect(evidence.samples, 5);
+    expect(evidence.pairs.first.firstPathMs, 700);
+    expect(evidence.pairs.last.firstPathMs, 1100);
+    expect(evidence.medianFirstPathMs, 900);
+    expect(evidence.wholeProcessRssMiB, 108);
+    expect(() => evidence.pairs.clear(), throwsUnsupportedError);
+  });
+
   test('explicit silent warmup is reused only after another verification',
       () async {
     final engine = PreparedVoiceFakeEngine();
