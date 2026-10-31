@@ -148,7 +148,9 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
       return KeyEventResult.ignored;
     }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
-      Navigator.of(context).pop();
+      // Ignore auto-repeat so holding Escape cannot close the library route
+      // underneath the dialog before the removal animation finishes.
+      if (event is KeyDownEvent) Navigator.of(context).pop();
       return KeyEventResult.handled;
     }
     final down = event.logicalKey == LogicalKeyboardKey.arrowDown;
