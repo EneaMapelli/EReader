@@ -1002,14 +1002,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
     switch (selection) {
       case 'collections':
         await _manageCollections();
+        return;
       case 'fulltext':
         await _showFullTextSearch();
+        return;
       case 'statistics':
         await _showReadingStatistics();
+        return;
       case 'backup':
         await _exportBackup();
+        return;
       case 'restore':
         await _restoreBackup();
+        return;
     }
   }
 
