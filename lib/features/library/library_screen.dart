@@ -1541,12 +1541,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     itemBuilder: (context, index) {
                       final book = books[index];
                       return ListTile(
+                        key: ValueKey('library-book-row-${book.id}'),
+                        dense: compactLayout,
+                        minVerticalPadding: 10,
                         leading: LibraryBookCover(
                           key: ValueKey('cover-tile-${book.id}'),
                           store: widget.store,
                           book: book,
                         ),
-                        title: Text(book.title),
+                        title: Text(book.title,
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            semanticsLabel: book.title),
                         subtitle: Text(
                           [
                             if (book.author != null) book.author!,
@@ -1558,12 +1563,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           ].join(' · '),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
+                          semanticsLabel: [
+                            if (book.author != null) 'Author ${book.author}',
+                            if (book.series != null) 'Series ${book.series}',
+                            if (book.language != null) 'Language ${book.language}',
+                            'Format ${book.format.name.toUpperCase()}',
+                            'Shelf ${book.readingStatus.label}',
+                            'Saved source position ${book.progressOffset}',
+                          ].join(', '),
                         ),
                         onTap: _busy ? null : () => _open(book),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            PopupMenuButton<BookReadingStatus>(
+                            if (!compactLayout)
+                              PopupMenuButton<BookReadingStatus>(
                               key: ValueKey('library-shelf-${book.id}'),
                               tooltip: 'Reading shelf: ${book.readingStatus.label}',
                               icon: const Icon(Icons.library_books_outlined),
@@ -1589,15 +1603,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               onPressed: _busy
                                   ? null : () => _toggleFavorite(book),
                             ),
-                            // Keep three accessible touch targets even on
-                            // narrow Android screens: shelf, star, and More.
+                            // Compact rows keep star and More as separate touch
+                            // targets. Shelf commands move into More rather
+                            // than squeezing the book title at phone widths.
                             PopupMenuButton<String>(
                               key: ValueKey('library-more-${book.id}'),
                               tooltip: 'More book actions',
                               enabled: !_busy,
                               icon: const Icon(Icons.more_vert),
                               onSelected: (action) {
-                                if (action == 'edit') {
+                                if (action.startsWith('shelf:')) {
+                                  _setReadingStatus(book,
+                                      BookReadingStatus.values.byName(
+                                          action.substring('shelf:'.length)));
+                                } else if (action == 'edit') {
                                   unawaited(_editMetadata(book));
                                 } else if (action == 'remove') {
                                   unawaited(_remove(book));
@@ -1605,8 +1624,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   unawaited(_assignCollections(book));
                                 }
                               },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
+                              itemBuilder: (_) => [
+                                if (compactLayout)
+                                  for (final status in BookReadingStatus.values)
+                                    PopupMenuItem<String>(
+                                      value: 'shelf:${status.name}',
+                                      child: Row(
+                                        children: [
+                                          Icon(status == book.readingStatus
+                                              ? Icons.check_circle
+                                              : Icons.circle_outlined, size: 20),
+                                          const SizedBox(width: 12),
+                                          Text('Shelf: ${status.label}'),
+                                        ],
+                                      ),
+                                    ),
+                                const PopupMenuItem(
                                   value: 'collections',
                                   child: ListTile(
                                     leading: Icon(Icons.folder_outlined),
@@ -1614,7 +1647,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
-                                PopupMenuItem(
+                                const PopupMenuItem(
                                   value: 'edit',
                                   child: ListTile(
                                     leading: Icon(Icons.edit_outlined),
@@ -1622,7 +1655,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
-                                PopupMenuItem(
+                                const PopupMenuItem(
                                   value: 'remove',
                                   child: ListTile(
                                     leading: Icon(Icons.delete_outline),
