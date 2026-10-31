@@ -2421,6 +2421,13 @@ class _ReaderScreenState extends State<ReaderScreen>
                         subtitle: Text(formatNarrationTransitionDiagnostics(
                             player.narrationTimings)),
                       ),
+                      ListTile(
+                        key: const ValueKey('reader-narration-delay-analysis'),
+                        dense: true,
+                        title: const Text('Where transition time is spent'),
+                        subtitle: Text(formatNarrationDelayAssessment(
+                            player.narrationTimings)),
+                      ),
                     ],
                   );
                 }),
