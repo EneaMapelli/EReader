@@ -12,6 +12,7 @@ class OfflineVoiceStatistics {
     required this.syntheses,
     required this.aheadSyntheses,
     required this.warmedWaveReuses,
+    this.decoderHandoffs = 0,
     required this.failures,
     required this.cancelledSyntheses,
     required this.lastSynthesisMs,
@@ -35,6 +36,10 @@ class OfflineVoiceStatistics {
   final int syntheses;
   final int aheadSyntheses;
   final int warmedWaveReuses;
+  /// Monotonic handoff counter: the last decoder duration is meaningful for
+  /// an individual utterance only if THIS counter advanced during speak().
+  /// This includes a reused, pre-synthesized WAV handed to the decoder.
+  final int decoderHandoffs;
   final int failures;
   final int cancelledSyntheses;
   final int lastSynthesisMs;
@@ -62,6 +67,7 @@ class OfflineVoiceDiagnostics {
   int _syntheses = 0;
   int _aheadSyntheses = 0;
   int _reused = 0;
+  int _handoffs = 0;
   int _failures = 0;
   int _cancelled = 0;
   int _lastMs = 0;
@@ -124,8 +130,9 @@ class OfflineVoiceDiagnostics {
   void recordCancellation() => _cancelled++;
   void recordReuse() => _reused++;
   void recordHandoff(Duration elapsed) {
-    _lastHandoffMs =
-        elapsed.inMilliseconds < 0 ? 0 : elapsed.inMilliseconds;
+    if (elapsed.isNegative) return;
+    _lastHandoffMs = elapsed.inMilliseconds;
+    _handoffs++;
   }
 
   OfflineVoiceStatistics get snapshot {
@@ -140,6 +147,7 @@ class OfflineVoiceDiagnostics {
       syntheses: _syntheses,
       aheadSyntheses: _aheadSyntheses,
       warmedWaveReuses: _reused,
+      decoderHandoffs: _handoffs,
       failures: _failures,
       cancelledSyntheses: _cancelled,
       lastSynthesisMs: _lastMs,
