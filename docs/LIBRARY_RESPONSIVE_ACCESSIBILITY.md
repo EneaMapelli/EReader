@@ -31,6 +31,18 @@ Branch: feature/m0-flutter-foundation.
   These invoke the same existing guarded callbacks and confirmation flow.
 - On wider layouts, the preexisting shelf button, favorite star and More
   remain three independent actions.
+- Under 600 pixels with accessibility text at roughly 170% or larger,
+  the app bar omits its redundant second-line count (the result count stays
+  visible), title may span two lines and metadata up to three. The row is
+  taller and not marked dense. Favorite moves into More as a checked menu
+  action, retaining the same persistence callback but leaving room for text.
+- Library book rows preserve stable FocusNodes across catalog rebuilds.
+  Tab/Shift+Tab reaches the row and accessible controls; Enter activates
+  the selected book through its existing onTap. Shift+F10 on a focused
+  row or a long press on touch opens the same More action menu, never audio.
+  Focused rows receive a visible, theme-aware highlight.
+- Popup menu keys are stable by book ID and all focus nodes are disposed
+  with the library screen, without introducing background listeners.
 - Book title and metadata text expose full accessible labels even when
   visually truncated. Each row has a stable key for regression testing.
 - Compact More tooltips include the book title and mention shelf controls.
@@ -43,7 +55,10 @@ New tests in test/features/library_responsive_layout_test.dart cover:
 - compact More shelf selection and marked state, favorite star and actions;
 - catalog search result count and clearing without affecting stored records;
 - wide desktop layout unchanged;
-- 390-pixel layout with 150% text scaling and no widget overflow.
+- 390-pixel layout with 150% text scaling and no widget overflow;
+- 390-pixel layout at 200% text, two-line book titles and favorite toggling
+  with checked-state accessibility through the More menu;
+- Shift+F10 and long-press context-menu activation without opening a book.
 
 **Validation status:** source changes and tests authored and committed;
 Dart/Flutter is unavailable in this execution environment. No test run,
@@ -54,3 +69,6 @@ Manual QA: Android 360x640/390x700, enlarged system text, Windows resized
 below/above 600 px; toggle filters with existing selections, change shelf
 from More, star/unstar and verify collections, edit and remove confirmation.
 Use a real keyboard/screen reader to inspect labels and checked selections.
+On Windows verify row focus with Tab, Enter to open a book and Shift+F10
+for actions; on Android verify long press and the checked Favorite action.
+Test fonts at 170%, 200% and 250%, including a 320-pixel screen.
