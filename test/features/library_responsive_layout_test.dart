@@ -4,6 +4,7 @@ import 'package:ereader/data/library_store.dart';
 import 'package:ereader/domain/book.dart';
 import 'package:ereader/features/library/library_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -144,6 +145,82 @@ void main() {
     expect(find.byKey(const ValueKey('library-sort')), findsOneWidget);
     expect(find.byKey(ValueKey('library-shelf-' + ids['Beta']!)), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('200 percent text keeps title legible and favorite in More',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 700));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: const TextScaler.linear(2),
+        ),
+        child: child!,
+      ),
+      home: LibraryScreen(store: store),
+    ));
+    await tester.pumpAndSettle();
+    final id = ids['Alpha']!;
+    final row = find.byKey(ValueKey('library-book-row-' + id));
+    final tile = tester.widget<ListTile>(row);
+    expect(tile.isThreeLine, isTrue);
+    expect((tile.title! as Text).maxLines, 2);
+    expect(find.byKey(ValueKey('library-favorite-' + id)), findsNothing);
+    expect(find.byKey(ValueKey('library-more-' + id)), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(ValueKey('library-more-' + id)));
+    await tester.pumpAndSettle();
+    expect(find.text('Add to favorites'), findsOneWidget);
+    await tester.tap(find.text('Add to favorites'));
+    await tester.pumpAndSettle();
+    expect(store.getBook(id)!.isFavorite, isTrue);
+    expect(store.getBook(id)!.readingStatus, BookReadingStatus.toRead);
+    await tester.tap(find.byKey(ValueKey('library-more-' + id)));
+    await tester.pumpAndSettle();
+    final checked = tester.widget<CheckedPopupMenuItem<String>>(
+      find.ancestor(
+        of: find.text('Remove from favorites'),
+        matching: find.byType(CheckedPopupMenuItem<String>),
+      ),
+    );
+    expect(checked.checked, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Shift+F10 opens row actions without opening the book',
+      (tester) async {
+    await showNarrow(tester);
+    final id = ids['Alpha']!;
+    final row = find.byKey(ValueKey('library-book-row-' + id));
+    final focus = tester.widget<ListTile>(row).focusNode!;
+    focus.requestFocus();
+    await tester.pump();
+    expect(focus.hasFocus, isTrue);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+    expect(find.text('Book collections'), findsOneWidget);
+    expect(store.getBook(id)!.lastOpenedAt, isNull,
+        reason: 'Context menu must not open the reader or begin narration');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Book collections'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('long press offers the same safe row context menu',
+      (tester) async {
+    await showNarrow(tester);
+    final id = ids['Beta']!;
+    await tester.longPress(
+        find.byKey(ValueKey('library-book-row-' + id)));
+    await tester.pumpAndSettle();
+    expect(find.text('Shelf: Reading'), findsOneWidget);
+    expect(find.text('Book collections'), findsOneWidget);
+    expect(store.getBook(id)!.lastOpenedAt, isNull);
   });
 
   testWidgets('narrow screen with larger accessibility text does not overflow',
