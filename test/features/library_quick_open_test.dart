@@ -80,6 +80,21 @@ void main() {
     expect(all, hasLength(1000));
   });
 
+  test('late high-relevance matches displace lower-ranked top-40 results', () {
+    final many = [
+      for (var i = 0; i < 200; i++)
+        book('generic-' + i.toString(), 'The Atlas Volume ' + i.toString()),
+      book('precise', 'Atlas Prime', author: 'The last import'),
+    ];
+    final results = findQuickOpenBooks(many, 'atlas');
+    expect(results.total, 201);
+    expect(results.books, hasLength(40));
+    expect(results.books.first.id, 'precise',
+        reason: 'A late title prefix must outrank earlier substrings');
+    expect(results.truncated, isTrue);
+    expect(many, hasLength(201));
+  });
+
   test('rejects invalid cap rather than hiding all results silently', () {
     expect(() => findQuickOpenBooks([], 'anything', limit: 0),
         throwsRangeError);
