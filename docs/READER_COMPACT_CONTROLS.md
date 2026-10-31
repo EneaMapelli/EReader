@@ -37,14 +37,50 @@ continue using their own page navigation and zoom controls. The reader AppBar,
 search, chapter directory, bookmarks, F1 keyboard help and existing audio
 shortcuts also remain unchanged.
 
+## Focus reading mode and small-screen text viewport
+
+Reader tools > Reading appearance now offers **Hide narration controls**
+when the book has playable text (EPUB, TXT or the PDF text layer).
+The lower transport/progress panel disappears to give the reading content
+more vertical space, but the normal reader AppBar stays available for
+navigation and settings. A small, accessible **Show narration controls**
+floating button remains visible at the lower edge, including with large
+system fonts. The same reader-tools action also reverses the mode.
+
+This focus setting is intentionally **session-only** and starts off for
+each newly opened reader. Activating it collapses any previously expanded
+advanced-control panel. It does not press Play/Pause or seek, and does not
+explicitly save a new reading position, TTS preference, or cloud-consent
+value. Returning from PDF text-layer mode to the native PDF page viewer
+automatically resets focus mode so the PDF page controls are unchanged.
+
+On viewports narrower than 380 logical pixels, left/right reading margins
+shrink from 24 px to 14 px. Wider layouts retain their existing 24 px.
+While focus mode is active the scrollable book receives 104 px of bottom
+clearance, so the final paragraph can scroll above the floating restore
+button without being obscured. The source positions and author-defined
+EPUB sections are unaffected by these insets.
+
 ## Files and verification
 
 - lib/features/reader/reader_compact_controls.dart — independent compact
   transport UI, live segment status, readable tooltips, wrapping buttons.
 - lib/features/reader/reader_screen.dart — defaults to compact, retains
   source-progress slider, bounded scrollable advanced view and callbacks.
+- lib/features/reader/reader_focus_restore_button.dart — accessible
+  always-visible restore action when the lower controls are hidden.
+- lib/features/reader/reader_viewport_layout.dart — deterministic
+  small-phone horizontal margins and bottom FAB clearance.
+- lib/features/reader/reader_tool_menu_options.dart — contextual
+  focus-mode toggle, never shown for the native PDF page viewer.
 - test/features/reader_compact_controls_test.dart — callback isolation,
   Play/Pause state, sleep timer hint and 320x420 screen with 200% text.
+- test/features/reader_focus_restore_button_test.dart — actionable
+  accessible restore FAB, including a narrow large-text smartphone.
+- test/features/reader_viewport_layout_test.dart — small-screen margins,
+  380 px breakpoint, and bottom clearance.
+- test/features/reader_tool_menu_options_test.dart — focus toggle
+  selected state and PDF/empty-text exclusions.
 
 The code and tests are committed but Flutter/Dart is unavailable in this
 environment: **tests have not been executed**. No Windows executable,
@@ -65,6 +101,14 @@ Android build, CI job or GitHub Action was intentionally started.
 6. Check TalkBack/Narrator semantics and keyboard focus; Ctrl/Cmd commands
    must still reach the reader, and focus in the settings controls must not
    trigger narration navigation.
+
+7. Open focus mode from Reader tools, restore it with the floating button,
+   then repeat with an active sleep timer and while TTS is playing; the
+   underlying player state must not be changed by display toggling.
+8. On a 320 px viewport, scroll to the last paragraph in focus mode:
+   the final words must remain accessible above the restore button.
+9. Toggle focus mode after opening a PDF's text layer, return to native
+   PDF pages and verify focus mode is cleared and page navigation works.
 
 This increment does not claim a native test pass or change milestone
 completion / release readiness estimates.
