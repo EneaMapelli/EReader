@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../domain/book.dart';
 
@@ -91,6 +92,17 @@ QuickOpenBookResults findQuickOpenBooks(
   );
 }
 
+/// Clamp an arrow-key selection to the current visible result window.
+/// Returning null avoids accidentally selecting a hidden previous result.
+int? moveQuickOpenSelection({
+  required int current,
+  required int count,
+  required bool down,
+}) {
+  if (count == 0) return null;
+  return (current + (down ? 1 : -1)).clamp(0, count - 1);
+}
+
 /// Returns a chosen existing book. Only the caller may open the reader;
 /// typing or dismissing this dialog cannot mutate books or play TTS.
 Future<BookRecord?> showQuickOpenBookDialog(
@@ -114,11 +126,74 @@ class _QuickOpenBookDialog extends StatefulWidget {
 
 class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
   final TextEditingController _queryController = TextEditingController();
+  late final FocusNode _queryFocus =
+      FocusNode(debugLabel: 'Quick open query', onKeyEvent: _onQueryKey);
+  final ScrollController _resultsScroll = ScrollController();
   String _query = '';
+  int _selectedIndex = 0;
+  bool _usedArrowNavigation = false;
+  double _rowExtent = 92;
+
+  KeyEventResult _onQueryKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      Navigator.of(context).pop();
+      return KeyEventResult.handled;
+    }
+    final down = event.logicalKey == LogicalKeyboardKey.arrowDown;
+    final up = event.logicalKey == LogicalKeyboardKey.arrowUp;
+    if (!down && !up) return KeyEventResult.ignored;
+
+    final count = findQuickOpenBooks(widget.books, _query).books.length;
+    final next = moveQuickOpenSelection(
+      current: _selectedIndex, count: count, down: down);
+    if (next != null) {
+      setState(() {
+        _selectedIndex = next;
+        _usedArrowNavigation = true;
+      });
+      _revealSelection();
+    }
+    return KeyEventResult.handled;
+  }
+
+  void _revealSelection() {
+    if (!_resultsScroll.hasClients) return;
+    final position = _resultsScroll.position;
+    final top = _selectedIndex * _rowExtent;
+    final bottom = top + _rowExtent;
+    final current = position.pixels;
+    final viewport = position.viewportDimension;
+    final target = top < current
+        ? top
+        : bottom > current + viewport
+            ? bottom - viewport
+            : current;
+    if ((target - current).abs() < 0.5) return;
+    _resultsScroll.animateTo(
+      target.clamp(0.0, position.maxScrollExtent).toDouble(),
+      duration: const Duration(milliseconds: 110),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _changeQuery(String value) {
+    // New result sets must not inherit an offscreen selection or scroll.
+    if (_resultsScroll.hasClients) _resultsScroll.jumpTo(0);
+    setState(() {
+      _query = value;
+      _selectedIndex = 0;
+      _usedArrowNavigation = false;
+    });
+  }
 
   @override
   void dispose() {
     _queryController.dispose();
+    _queryFocus.dispose();
+    _resultsScroll.dispose();
     super.dispose();
   }
 
@@ -129,6 +204,7 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
     final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
     final listHeight = (screen.height - keyboardHeight - 300)
         .clamp(64.0, 320.0).toDouble();
+    _rowExtent = MediaQuery.textScalerOf(context).scale(68) + 24;
     final countText = matches.truncated
         ? 'Showing ' + matches.books.length.toString() + ' of ' +
             matches.total.toString() + ' books'
@@ -149,12 +225,15 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
             TextField(
               key: const ValueKey('quick-open-query'),
               controller: _queryController,
+              focusNode: _queryFocus,
               autofocus: true,
-              onChanged: (value) => setState(() => _query = value),
+              textInputAction: TextInputAction.go,
+              onChanged: _changeQuery,
               onSubmitted: (value) {
                 // Blank Enter must not unexpectedly open the first book.
-                if (value.trim().isNotEmpty && matches.books.isNotEmpty) {
-                  Navigator.pop(context, matches.books.first);
+                if ((value.trim().isNotEmpty || _usedArrowNavigation) &&
+                    _selectedIndex < matches.books.length) {
+                  Navigator.pop(context, matches.books[_selectedIndex]);
                 }
               },
               decoration: InputDecoration(
@@ -169,7 +248,7 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _queryController.clear();
-                          setState(() => _query = '');
+                          _changeQuery('');
                         },
                       ),
               ),
@@ -184,6 +263,21 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
               ),
             ),
             const SizedBox(height: 6),
+            if (matches.books.isNotEmpty)
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  'Selected ${_selectedIndex + 1} of ${matches.books.length}: '
+                  '${matches.books[_selectedIndex].title}',
+                  key: const ValueKey('quick-open-selection'),
+                  style: Theme.of(context).textTheme.labelSmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            const Text('Up / Down to select · Enter to open · Esc to close',
+                style: TextStyle(fontSize: 12)),
+            const SizedBox(height: 6),
             Expanded(
               child: matches.books.isEmpty
                   ? const Center(
@@ -191,11 +285,16 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
                     )
                   : ListView.builder(
                       key: const ValueKey('quick-open-results'),
+                      controller: _resultsScroll,
+                      itemExtent: _rowExtent,
                       itemCount: matches.books.length,
                       itemBuilder: (context, index) {
                         final book = matches.books[index];
-                        return ListTile(
+                        return Semantics(
+                          selected: index == _selectedIndex,
+                          child: ListTile(
                           key: ValueKey('quick-open-book-' + book.id),
+                          selected: index == _selectedIndex,
                           dense: true,
                           leading: Icon(switch (book.format) {
                             BookFormat.epub => Icons.auto_stories_outlined,
@@ -214,6 +313,7 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           onTap: () => Navigator.pop(context, book),
+                          ),
                         );
                       },
                     ),
