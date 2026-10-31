@@ -104,12 +104,15 @@ void main() {
         findsOneWidget);
     expect(find.byKey(const ValueKey('organized-action-cloud')),
         findsNothing);
+    expect(find.text('1 tool found'), findsOneWidget);
     expect(selected, isNull);
 
     await tester.enterText(field, 'xyz999');
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('organized-action-empty')),
         findsOneWidget);
+    expect(find.byKey(const ValueKey('organized-action-count')),
+        findsNothing);
     await tester.tap(find.byKey(const ValueKey('organized-action-clear')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('organized-action-empty')),
