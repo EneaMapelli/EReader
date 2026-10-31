@@ -22,6 +22,14 @@ class NarrationTransitionSample {
   final int? interSegmentGapMs;
   /// Part of that gap spent awaiting the previous completed checkpoint.
   final int? checkpointMs;
+  /// Remaining time after the prior checkpoint: next voice selection,
+  /// sentence punctuation breath, next onSegmentStarted and skip scanning.
+  /// These parts may overlap; never claim this is pure engine latency.
+  int? get afterCheckpointGapMs {
+    if (interSegmentGapMs == null || checkpointMs == null ||
+        checkpointMs! > interSegmentGapMs!) return null;
+    return interSegmentGapMs! - checkpointMs!;
+  }
   /// Separately reported native synthesis path, only if a new measured
   /// synthesis took place for this utterance.
   final int? neuralSynthesisMs;
@@ -62,6 +70,13 @@ class NarrationTransitionDiagnostics {
       .where((s) => !s.isChapterTransition &&
           s.interSegmentGapMs != null)
       .map((s) => s.interSegmentGapMs!));
+  int? get medianCheckpointMs => _median(_recent
+      .where((s) => s.checkpointMs != null &&
+          s.interSegmentGapMs != null)
+      .map((s) => s.checkpointMs!));
+  int? get medianAfterCheckpointGapMs => _median(_recent
+      .where((s) => s.afterCheckpointGapMs != null)
+      .map((s) => s.afterCheckpointGapMs!));
   int? get medianSpeechWallMs =>
       _median(_recent.map((s) => s.speechWallMs));
   int? get medianNeuralSynthesisMs => _median(_recent
@@ -98,6 +113,9 @@ String formatNarrationTransitionDiagnostics(
       '(${diagnostics.observedGaps - diagnostics.chapterTransitions} samples); '
       'chapter transition median ${label(diagnostics.medianChapterGapMs)} '
       '(${diagnostics.chapterTransitions} samples); '
+      'checkpoint wait median ${label(diagnostics.medianCheckpointMs)}; '
+      'after-checkpoint gap median '
+      '${label(diagnostics.medianAfterCheckpointGapMs)}; '
       'speak() incl. audio median ${label(diagnostics.medianSpeechWallMs)}; '
       'native synthesis path median '
       '${label(diagnostics.medianNeuralSynthesisMs)}; '
