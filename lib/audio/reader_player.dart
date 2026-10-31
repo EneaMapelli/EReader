@@ -219,7 +219,8 @@ class ReaderPlayer extends ChangeNotifier {
     // Unpinned automatic voices still use the book metadata language.
     String narratorLanguage(SpeechVoice? voice) {
       final system = engineProviderId == 'system' ||
-          engineProviderId == 'system-native';
+          engineProviderId == 'system-native' ||
+                engineProviderId == 'system-interpreted';
       if (system && selectedVoice != null && voice != null &&
           voice.key == selectedVoice!.key && voice.locale != 'multi') {
         return voice.locale;
@@ -241,7 +242,8 @@ class ReaderPlayer extends ChangeNotifier {
       // could silently pronounce an English book with another locale.
       // First prefer an exact match, then the same primary language.
       if (engineProviderId == 'system' ||
-          engineProviderId == 'system-native') {
+          engineProviderId == 'system-native' ||
+                engineProviderId == 'system-interpreted') {
         final desired = language.toLowerCase().replaceAll('_', '-');
         for (final voice in availableVoices) {
           if (voice.locale.toLowerCase().replaceAll('_', '-') == desired) {
@@ -669,7 +671,8 @@ class ReaderPlayer extends ChangeNotifier {
             (speaker != null || previousAudibleSpeaker != null) &&
             (installed?.key != previousAudibleVoiceKey) &&
             (engineProviderId == 'system' ||
-                engineProviderId == 'system-native');
+                engineProviderId == 'system-native' ||
+                engineProviderId == 'system-interpreted');
         final requestedBreath = isNewAudibleVoiceTurn
             ? _dialogueTurnPause : Duration.zero;
         final freeSystemVoice = engineProviderId == 'system' ||
