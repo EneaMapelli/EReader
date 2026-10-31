@@ -811,7 +811,7 @@ class ReaderPlayer extends ChangeNotifier {
           interSegmentGapMs: hadAudibleSegment ? gapMs : null,
           checkpointMs: hadAudibleSegment ? previousCheckpointMs : null,
           neuralSynthesisMs: freshSynthesis
-              ? neuralAfter.lastSynthesisMs : null,
+              ? neuralAfter?.lastSynthesisMs : null,
           decoderHandoffMs: neuralAfter?.lastDecoderHandoffMs,
         ));
         sinceLastAudibleEnd = Stopwatch()..start();
