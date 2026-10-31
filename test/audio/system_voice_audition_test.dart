@@ -180,6 +180,27 @@ void main() {
     await audition.dispose();
   });
 
+  test('native vs interpreted mode audition uses only local fixed sample',
+      () async {
+    final modes = <bool>[];
+    final engines = <_FakeSystemEngine>[];
+    final audition = SystemVoiceAudition(createEngine: (interpret) {
+      modes.add(interpret);
+      final engine = _FakeSystemEngine();
+      engines.add(engine);
+      return engine;
+    });
+
+    await audition.play(italian, interpretWindowsPunctuation: false);
+    await audition.play(italian, interpretWindowsPunctuation: true);
+    expect(modes, [false, true]);
+    expect(engines, hasLength(2));
+    expect(engines.every((engine) =>
+        engine.text == systemVoiceSampleText(italian.locale)), isTrue);
+    expect(engines.every((engine) => engine.disposals == 1), isTrue);
+    await audition.dispose();
+  });
+
   test('missing OS voice fails before any speech', () async {
     final fake = _FakeSystemEngine(voices: const [english]);
     final audition = SystemVoiceAudition(createEngine: (_) => fake);
