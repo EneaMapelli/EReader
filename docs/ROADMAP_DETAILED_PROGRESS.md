@@ -39,7 +39,7 @@ gate su dispositivi reali.
 | **ER-003** Import EPUB/TXT, sicurezza, TOC | 85% | Decoder TXT UTF-8/UTF-16/Windows-1252 (da verificare in ambiente Dart), import picker incluso stream Android, validazioni e navigazione; import da share sheet, EPUB complessi e ZIP stress |
 | **ER-004** PDF rendering/testo/ordine | 55% | Visualizzatore e text layer via pdfrx, progresso visuale; ordine colonne/note e PDF scannerizzati non risolti |
 | **ER-005** Reader UI/progressi | 78% | Layout EPUB/TXT/PDF, ricerca, bookmarks, note, source anchor; gate 20 libri e due piattaforme aperti |
-| **ER-006** Provider contracts/system TTS | 75% | Contratti motori, factory, configurazione e adapter OS; capacità native da certificare per Windows e Android |
+| **ER-006** Provider contracts/system TTS | 75% | Contratti motori, factory, configurazione, modalità Windows interpretata/nativa e Android nativa/interpretata opt-in; capacità native e qualità prosodica da certificare |
 | **ER-007** Player e sincronizzazione | 70% | Player, segmenti, offset, Stop/seek/recovery; passaggi di timing e flusso continuo reali da validare |
 | **ER-008** Background Android/Windows hotkeys | 45% | Handler/media manifest/audio session e policy nel codice; prove lock-screen, cuffie, chiamate, tasti Windows mancanti |
 | **ER-009** sherpa-onnx e model manager | 48% | Import, integrità, modello locale, FFI isolate, gestione UI e benchmark opt-in; nessun test riuscito con ONNX reale, provider ancora nascosto |
@@ -1502,3 +1502,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   **non eseguiti** (SDK assente); nessuna compilazione Windows/Android,
   nessuna GitHub Actions avviata.
 - [Specifica e test](TXT_CHARACTER_ENCODING.md).
+
+### M2 — Interpretazione punteggiatura Android opzionale (2026-10-31)
+
+- Il provider `system` mantiene il comportamento preesistente: su
+  Windows pause interpretate, su Android punteggiatura delegata
+  al sintetizzatore TTS nativo. La nuova modalità
+  `system-interpreted` (visibile su Android) usa il planner locale
+  delle pause, senza sostituire la voce di sistema e senza alcun cloud.
+- La stessa modalità viene considerata sistema da `ReaderPlayer`
+  per selezione delle voci installate, lingua del narratore, cast,
+  attesa pre-segmento, pitch e intervallo fra i dialoghi.
+- La pagina di configurazione distingue le modalità e consente una
+  prova su testo fisso locale prima di salvare la preferenza. Un
+  avviso esplicita il compromesso su fluidità e latenza e raccomanda
+  il ritorno al motore nativo se l'ascolto risulta peggiore.
+- Nuovi test puri di selezione factory/policy, A/B preview senza
+  chiamate al TTS nativo e persistenza SQLite della preferenza.
+  La trasformazione **non cambia** testo/offset del libro e non
+  tocca provider OpenAI/Sherpa.
+- I test Dart/Flutter e i test di ascolto su Android e Windows
+  sono ancora **da eseguire** (SDK assente); nessuna build Windows/
+  Android né GitHub Actions avviata.
+- [Specifiche e limiti](WINDOWS_TTS_PUNCTUATION.md).
