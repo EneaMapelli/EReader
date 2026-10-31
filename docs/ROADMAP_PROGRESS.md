@@ -1150,3 +1150,22 @@ Android Activity recreation remains a manual device gate.
 - See [LIBRARY_KEYBOARD_NAVIGATION.md](LIBRARY_KEYBOARD_NAVIGATION.md).
   Native acceptance and release readiness remain open; milestone
   completion estimates do not change.
+
+
+### M1/M6 — Responsive library filters and accessible compact book rows (2026-10-31)
+
+- On screens narrower than 600 logical pixels the library keeps search
+  visible and collapses filter/sort rows into a bounded, independently
+  scrollable panel. The button counts active filter dimensions; collapsing
+  does not reset choices. A local live result count exposes X of Y matches.
+- The compact book row retains Favorite + More as separate touch targets;
+  the shelf status picker moves into More with a checked current choice.
+  Collections/edit/remove and all existing callback guards are preserved.
+  Wider desktop layout continues to show the original direct shelf picker.
+- Full book title/metadata descriptions remain available to screen readers
+  even when truncated in the visual row.
+- Added responsive/widget regression cases for mobile, large fonts, search,
+  filter persistence/reset, shelf selection/checked semantics and desktop.
+  Authored but NOT RUN: Flutter/Dart SDK unavailable here. No Windows
+  builds or GitHub Actions; milestone estimates and release gates unchanged.
+- See [LIBRARY_RESPONSIVE_ACCESSIBILITY.md](LIBRARY_RESPONSIVE_ACCESSIBILITY.md).
