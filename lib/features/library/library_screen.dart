@@ -1072,6 +1072,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final lastOpened = widget.store.lastOpenedBook;
     final interrupted = widget.store.interruptedNarrationBook;
     final compactLayout = MediaQuery.sizeOf(context).width < 600;
+    // Leave usable title width when Android accessibility font scaling
+    // approaches 200%; the actions remain available in the More menu.
+    final largeTextLayout = compactLayout &&
+        MediaQuery.textScalerOf(context).scale(16) >= 27;
     final activeFilterCount =
         (_formatFilter != null ? 1 : 0) +
         (_readingStatusFilter != null ? 1 : 0) +
@@ -1260,12 +1264,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('EReader'),
-            Text(
-              '${allBooks.length} ${allBooks.length == 1 ? 'book' : 'books'} '
-              'in library',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
+            const Text('EReader',
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            if (!compactLayout)
+              Text(
+                '${allBooks.length} ${allBooks.length == 1 ? 'book' : 'books'} '
+                'in library',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
           ],
         ),
         actions: [
@@ -1480,7 +1488,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 ? Icons.expand_less : Icons.tune),
                             label: Text(activeFilterCount == 0
                                 ? 'Filters & sort'
-                                : 'Filters & sort ($activeFilterCount)'),
+                                : 'Filters & sort ($activeFilterCount)',
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                         ),
                         if (activeFilterCount > 0)
@@ -1542,15 +1551,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       final book = books[index];
                       return ListTile(
                         key: ValueKey('library-book-row-${book.id}'),
-                        dense: compactLayout,
-                        minVerticalPadding: 10,
+                        dense: compactLayout && !largeTextLayout,
+                        isThreeLine: largeTextLayout,
+                        minVerticalPadding: largeTextLayout ? 16 : 10,
                         leading: LibraryBookCover(
                           key: ValueKey('cover-tile-${book.id}'),
                           store: widget.store,
                           book: book,
                         ),
                         title: Text(book.title,
-                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            maxLines: largeTextLayout ? 2 : 1,
+                            overflow: TextOverflow.ellipsis,
                             semanticsLabel: book.title),
                         subtitle: Text(
                           [
@@ -1561,7 +1572,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             book.readingStatus.label,
                             'saved at character ${book.progressOffset}',
                           ].join(' · '),
-                          maxLines: 2,
+                          maxLines: largeTextLayout ? 3 : 2,
                           overflow: TextOverflow.ellipsis,
                           semanticsLabel: [
                             if (book.author != null) 'Author ${book.author}',
@@ -1593,7 +1604,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   ),
                               ],
                             ),
-                            IconButton(
+                            if (!largeTextLayout)
+                              IconButton(
                               key: ValueKey('library-favorite-${book.id}'),
                               icon: Icon(book.isFavorite
                                   ? Icons.star : Icons.star_border),
@@ -1608,13 +1620,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             // than squeezing the book title at phone widths.
                             PopupMenuButton<String>(
                               key: ValueKey('library-more-${book.id}'),
-                              tooltip: compactLayout
-                                  ? 'More actions for ${book.title}, including shelf'
-                                  : 'More book actions',
+                              tooltip: largeTextLayout
+                                  ? 'More actions for ${book.title}, favorite and shelf'
+                                  : compactLayout
+                                      ? 'More actions for ${book.title}, including shelf'
+                                      : 'More book actions',
                               enabled: !_busy,
                               icon: const Icon(Icons.more_vert),
                               onSelected: (action) {
-                                if (action.startsWith('shelf:')) {
+                                if (action == 'favorite') {
+                                  _toggleFavorite(book);
+                                } else if (action.startsWith('shelf:')) {
                                   _setReadingStatus(book,
                                       BookReadingStatus.values.byName(
                                           action.substring('shelf:'.length)));
@@ -1627,6 +1643,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 }
                               },
                               itemBuilder: (_) => [
+                                if (largeTextLayout)
+                                  CheckedPopupMenuItem<String>(
+                                    value: 'favorite',
+                                    checked: book.isFavorite,
+                                    child: Text(book.isFavorite
+                                        ? 'Remove from favorites'
+                                        : 'Add to favorites'),
+                                  ),
                                 if (compactLayout)
                                   for (final status in BookReadingStatus.values)
                                     CheckedPopupMenuItem<String>(
