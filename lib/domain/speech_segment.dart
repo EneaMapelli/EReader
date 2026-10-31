@@ -87,10 +87,17 @@ List<SpeechSegment> segmentSpeechRange(
         // beyond maxChars or cut a surrogate pair.
         var next = i + 1;
         while (next < limit &&
-            _isSentenceClosingDelimiter(source.codeUnitAt(next))) {
+            (_isSentenceClosingDelimiter(source.codeUnitAt(next)) ||
+             // Chinese/Japanese text may repeat ！？ with no space. Keep
+             // the punctuation run and closing bracket in ONE source span.
+             (_isUnspacedSentencePunctuation(ch) &&
+              _isUnspacedSentencePunctuation(source.codeUnitAt(next))))) {
           next++;
         }
-        if (next >= end || _isWhitespace(source.codeUnitAt(next))) {
+        if (next >= end || _isWhitespace(source.codeUnitAt(next)) ||
+            // CJK full stops and fullwidth question/exclamation marks
+            // terminate sentences even when the next glyph has no space.
+            _isUnspacedSentencePunctuation(ch)) {
           firstSentenceEnd = next;
           break;
         }
@@ -159,7 +166,16 @@ int backtrackCommonGraphemeBoundary(String source, {
 bool _isWhitespace(int c) =>
     c == 32 || c == 9 || c == 10 || c == 13 || c == 0xA0;
 bool _isPunctuation(int c) => c == 46 || c == 33 ||
-    c == 63 || c == 0x2026;
+    c == 63 || c == 0x2026 ||
+    _isUnspacedSentencePunctuation(c);
+
+/// Sentence punctuation used by scripts without mandatory word spaces.
+/// This is a segmentation rule only; source text is never rewritten.
+bool _isUnspacedSentencePunctuation(int c) =>
+    c == 0x3002 || // 。 ideographic full stop
+    c == 0xff01 || // ！ fullwidth exclamation
+    c == 0xff1f || // ？ fullwidth question
+    c == 0x061f;   // ؟ Arabic question mark
 // Common quotation and parenthetical closing marks only. Apostrophes
 // within words are unaffected: this is used solely AFTER punctuation.
 bool _isSentenceClosingDelimiter(int c) =>
@@ -171,7 +187,15 @@ bool _isSentenceClosingDelimiter(int c) =>
     c == 0x0022 || // "
     c == 0x0027 || // '
     c == 0x0029 || // )
-    c == 0x005D;   // ]
+    c == 0x005D || // ]
+    c == 0x300D || // 」 Japanese quote
+    c == 0x300F || // 』 nested Japanese quote
+    c == 0x3009 || // 〉
+    c == 0x300B || // 》
+    c == 0x3011 || // 】
+    c == 0x3015 || // 〕
+    c == 0xFF09 || // ） fullwidth closing parenthesis
+    c == 0xFF3D;   // ］ fullwidth closing bracket
 bool _isDigit(int c) => c >= 48 && c <= 57;
 bool _isHighSurrogate(int c) => c >= 0xD800 && c <= 0xDBFF;
 bool _isLowSurrogate(int c) => c >= 0xDC00 && c <= 0xDFFF;
