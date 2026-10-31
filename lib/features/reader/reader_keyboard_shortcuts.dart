@@ -10,6 +10,7 @@ enum ReaderKeyboardAction {
   search,
   bookmarks,
   help,
+  tools,
 }
 
 /// Pure, predictable key mapping, independent of the TTS engine.
@@ -22,17 +23,32 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
   required bool readerReady,
   required bool routeActive,
   required bool editingText,
+  bool interactiveControlFocused = false,
+  bool toolsAvailable = false,
   required bool controlPressed,
   required bool metaPressed,
   required bool altPressed,
   required bool shiftPressed,
 }) {
-  if (!readerReady || !routeActive || editingText ||
-      event is! KeyDownEvent) {
+  if (!routeActive || editingText || event is! KeyDownEvent) {
     return null;
   }
   final key = event.logicalKey;
   final command = controlPressed || metaPressed;
+  // Tools remain accessible when a PDF is displayed as native pages,
+  // where spoken-segment commands intentionally stay disabled.
+  if (command && !altPressed && !shiftPressed &&
+      key == LogicalKeyboardKey.keyK && toolsAvailable) {
+    return ReaderKeyboardAction.tools;
+  }
+  if (!readerReady) return null;
+  if (interactiveControlFocused &&
+      (key == LogicalKeyboardKey.space ||
+          key == LogicalKeyboardKey.arrowLeft ||
+          key == LogicalKeyboardKey.arrowRight)) {
+    // A focused slider/button owns transport keys, even if it bubbles them.
+    return null;
+  }
   if (command && !altPressed && !shiftPressed) {
     if (key == LogicalKeyboardKey.keyF) {
       return ReaderKeyboardAction.search;
@@ -69,6 +85,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
     required this.onSearch,
     required this.onBookmarks,
     required this.onHelp,
+    this.onTools,
     required this.child,
   });
 
@@ -79,6 +96,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
   final VoidCallback onSearch;
   final VoidCallback onBookmarks;
   final VoidCallback onHelp;
+  final VoidCallback? onTools;
   final Widget child;
 
   @override
@@ -89,12 +107,21 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
         final focused = FocusManager.instance.primaryFocus?.context;
         final editing = focused?.widget is EditableText ||
             focused?.findAncestorWidgetOfExactType<EditableText>() != null;
+        // When a controls' FocusNode has the primary focus, let the
+        // control handle Space and arrows instead of seeking narration.
+        final interactive = focused?.findAncestorWidgetOfExactType<Slider>() != null ||
+            focused?.findAncestorWidgetOfExactType<ButtonStyleButton>() != null ||
+            focused?.findAncestorWidgetOfExactType<IconButton>() != null ||
+            focused?.findAncestorWidgetOfExactType<ListTile>() != null ||
+            focused?.findAncestorWidgetOfExactType<InkWell>() != null;
         final keyboard = HardwareKeyboard.instance;
         final action = resolveReaderKeyboardAction(
           event,
           readerReady: enabled,
           routeActive: ModalRoute.of(context)?.isCurrent ?? true,
           editingText: editing,
+          interactiveControlFocused: interactive,
+          toolsAvailable: onTools != null,
           controlPressed: keyboard.isControlPressed,
           metaPressed: keyboard.isMetaPressed,
           altPressed: keyboard.isAltPressed,
@@ -114,6 +141,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
             onBookmarks();
           case ReaderKeyboardAction.help:
             onHelp();
+          case ReaderKeyboardAction.tools:
+            onTools?.call();
         }
         return KeyEventResult.handled;
       },
@@ -138,9 +167,11 @@ Future<void> showReaderKeyboardHelp(BuildContext context) =>
             Text('Right arrow — Next spoken segment'),
             Text('Ctrl/Cmd + F — Search in this book'),
             Text('Ctrl/Cmd + B — Bookmarks'),
+            Text('Ctrl/Cmd + K — Find reader tools'),
             Text('F1 — Show this help'),
             SizedBox(height: 12),
             Text('Shortcuts do not run while typing in a text field. '
+                'Space and arrows belong to focused buttons/sliders. '
                 'Navigation follows TTS segment boundaries, not visual '
                 'pages or words.'),
           ],
