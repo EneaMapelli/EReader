@@ -51,6 +51,23 @@ void main() {
       expect(store.getSpeechPreferences(bookId: bookId).providerId,
           'system-native');
 
+      // Android's optional punctuation interpreter uses the exact
+      // same installed narrator. It is an ordinary book preference and
+      // must survive closing and reopening the local SQLite library.
+      final interpreted = native.copyWith(
+        providerId: 'system-interpreted',
+        dialogueTurnPauseMs: 260,
+      );
+      await store.saveSpeechPreferences(interpreted, bookId: bookId);
+      store.dispose();
+      store = LibraryStore(homeDirectory: root);
+      await store.initialize();
+      final reopenedInterpreted = store.getSpeechPreferences(bookId: bookId);
+      expect(reopenedInterpreted.providerId, 'system-interpreted');
+      expect(reopenedInterpreted.voiceName, 'Italian voice A');
+      expect(reopenedInterpreted.voiceLocale, 'it-IT');
+      expect(reopenedInterpreted.dialogueTurnPauseMs, 260);
+
       // A real user can select Automatic in the free system voice picker.
       // It removes the explicit choice and remains that way across reopen;
       // merely inspecting the OS catalog must not re-pin a different voice.
