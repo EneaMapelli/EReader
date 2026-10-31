@@ -91,14 +91,16 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
     // Inspect the OS voice catalog only when the user is considering
     // system TTS. Cloud/VITS settings must not initialize a native
     // audition engine or interrupt any unrelated platform audio.
-    if (_providerId == 'system' || _providerId == 'system-native') {
+    if (_providerId == 'system' || _providerId == 'system-native' ||
+            _providerId == 'system-interpreted') {
       _inspectSystemVoices();
     }
   }
 
   Future<void> _inspectSystemVoices() async {
     if ((!Platform.isWindows && !Platform.isAndroid) ||
-        (_providerId != 'system' && _providerId != 'system-native') ||
+        (_providerId != 'system' && _providerId != 'system-native' &&
+            _providerId != 'system-interpreted') ||
         _checkingSystem || _systemSamplePlaying) return;
     setState(() => _checkingSystem = true);
     try {
@@ -151,7 +153,8 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
       await _systemAudition.play(
         voice,
         interpretWindowsPunctuation:
-            Platform.isWindows && _providerId == 'system',
+            _providerId == 'system-interpreted' ||
+                (Platform.isWindows && _providerId == 'system'),
         rate: _current.rate,
         pitch: _current.pitch,
       );
@@ -292,7 +295,8 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
               (entry) => entry.id == modelForProvider).installed
           : null;
       final usingSystem =
-          _providerId == 'system' || _providerId == 'system-native';
+          _providerId == 'system' || _providerId == 'system-native' ||
+            _providerId == 'system-interpreted';
       final systemVoice = usingSystem ? _selectedSystemVoice : null;
       final selected = _current.copyWith(
         providerId: _providerId,
@@ -468,7 +472,8 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
   Widget build(BuildContext context) {
     final cloud = _providerId == OpenAiSpeechEngine.providerId;
     final freeSystem =
-        _providerId == 'system' || _providerId == 'system-native';
+        _providerId == 'system' || _providerId == 'system-native' ||
+            _providerId == 'system-interpreted';
     final systemVoiceLanguages =
         systemVoiceCatalogLanguages(_installedSystemVoices);
     final filteredSystemVoices = filterSystemVoiceCatalog(
@@ -496,7 +501,14 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
             items: [
               const DropdownMenuItem(
                 value: 'system',
-                child: Text('Free system voices — interpreted pauses')),
+                child: Text(Platform.isWindows
+                     ? 'Free system voices — interpreted pauses'
+                     : 'Free Android voices — native punctuation')),
+              if (Platform.isAndroid ||
+                  _providerId == 'system-interpreted')
+                const DropdownMenuItem(
+                  value: 'system-interpreted',
+                  child: Text('Free system voices — interpreted punctuation (trial)')),
               if (Platform.isWindows)
                 const DropdownMenuItem(
                   value: 'system-native',
@@ -517,7 +529,8 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
               if (_systemSamplePlaying) await _stopSystemSample();
               if (!mounted) return;
               setState(() => _providerId = id);
-              if ((id == 'system' || id == 'system-native') &&
+              if ((id == 'system' || id == 'system-native' ||
+                   id == 'system-interpreted') &&
                   _installedSystemVoices.isEmpty) {
                 await _inspectSystemVoices();
               }
