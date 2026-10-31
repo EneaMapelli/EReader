@@ -796,9 +796,13 @@ class ReaderPlayer extends ChangeNotifier {
         // cleanup. Separately expose genuine native synthesis/decoder data
         // where this specific engine supplies fresh counters.
         final neuralAfter = offlineVoiceStatistics;
+        // The VITS lookahead may synthesize the NEXT WAV while this
+        // utterance plays. Do not misattribute that next clip's native
+        // stopwatch to the currently completed audio segment.
         final freshSynthesis = neuralBefore != null &&
             neuralAfter != null &&
-            neuralAfter.syntheses > neuralBefore.syntheses;
+            neuralAfter.syntheses == neuralBefore.syntheses + 1 &&
+            neuralAfter.aheadSyntheses == neuralBefore.aheadSyntheses;
         narrationTimings.record(NarrationTransitionSample(
           isFirstUtterance: !hadAudibleSegment,
           isChapterTransition: hadAudibleSegment &&
