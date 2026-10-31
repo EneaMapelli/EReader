@@ -31,7 +31,13 @@ class SpeechEngineFactory {
     preferences.validate();
     switch (preferences.providerId) {
       case 'system':
+        // Keep existing platform defaults: Windows interprets punctuation,
+        // Android lets its native TTS engine handle prosody.
         return SystemSpeechEngine();
+      case 'system-interpreted':
+        // Optional on-device A/B mode, especially useful on Android voices
+        // that announce punctuation glyphs. No new audio provider or cloud.
+        return SystemSpeechEngine(interpretWindowsPunctuation: true);
       case 'system-native':
         // A/B mode on Windows: let the OS TTS parse punctuation itself.
         // No network, installation or new voices, unlike neural engines.
@@ -84,6 +90,7 @@ class SpeechEngineFactory {
 
   static const availableProviders = [
     'system',
+    'system-interpreted',
     'system-native',
     SherpaVitsSpeechEngine.providerId,
     OpenAiSpeechEngine.providerId,
