@@ -1513,8 +1513,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 else if (_smallFiltersExpanded)
                   ConstrainedBox(
                     constraints: BoxConstraints(
-                      maxHeight: (MediaQuery.sizeOf(context).height * 0.40)
-                          .clamp(130.0, 260.0).toDouble(),
+                      maxHeight: (MediaQuery.sizeOf(context).height * 0.32)
+                          .clamp(105.0, 235.0).toDouble(),
                     ),
                     child: SingleChildScrollView(
                       key: const ValueKey('library-compact-filter-scroll'),
