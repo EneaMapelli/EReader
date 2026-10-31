@@ -17,6 +17,7 @@ class ReaderToolMenuAvailability {
     required this.hasEpubWarnings,
     required this.autoFollow,
     required this.paletteName,
+    this.focusMode = false,
   });
 
   final bool isEpub;
@@ -30,6 +31,7 @@ class ReaderToolMenuAvailability {
   final bool hasEpubWarnings;
   final bool autoFollow;
   final String paletteName;
+  final bool focusMode;
 }
 
 List<OrganizedActionSection> buildReaderToolSections(
@@ -71,6 +73,16 @@ List<OrganizedActionSection> buildReaderToolSections(
       ),
   ]),
   OrganizedActionSection(title: 'Reading appearance', items: [
+    if (options.textMode && options.hasPlayableSegments)
+      OrganizedActionItem(
+        id: 'reading-focus',
+        title: options.focusMode
+            ? 'Show narration controls' : 'Hide narration controls',
+        icon: options.focusMode
+            ? Icons.expand_less : Icons.chrome_reader_mode_outlined,
+        subtitle: 'Give the text more space; restore controls anytime',
+        selected: options.focusMode,
+      ),
     if (options.textMode)
       const OrganizedActionItem(
         id: 'appearance', title: 'Font & layout',
