@@ -6,6 +6,7 @@ void main() {
     final stats = OfflineVoiceDiagnostics().snapshot;
     expect(stats.modelLoads, 0);
     expect(stats.syntheses, 0);
+    expect(stats.decoderHandoffs, 0);
     expect(stats.averageSynthesisMs, 0);
     expect(stats.p95SynthesisMs, 0);
     expect(stats.lastWholeProcessRssMiB, 0);
@@ -40,7 +41,30 @@ void main() {
     expect(stats.averageSynthesisMs, 50);
     expect(stats.p95SynthesisMs, 68);
     expect(stats.lastDecoderHandoffMs, 17);
+    expect(stats.decoderHandoffs, 1);
     expect(stats.lastWholeProcessRssMiB, 104);
+  });
+
+  test('decoder handoff counter changes only for real nonnegative events', () {
+    final log = OfflineVoiceDiagnostics();
+    final before = log.snapshot;
+    log.recordHandoff(const Duration(milliseconds: 41));
+    final afterFirst = log.snapshot;
+    expect(before.decoderHandoffs, 0);
+    expect(afterFirst.decoderHandoffs, 1);
+    expect(afterFirst.lastDecoderHandoffMs, 41);
+    log.recordSynthesis(const Duration(milliseconds: 90),
+        ahead: true, wholeProcessRssBytes: 0);
+    expect(log.snapshot.decoderHandoffs, 1,
+        reason: 'Speculative ONNX generation is not an audible handoff');
+    log.recordHandoff(const Duration(microseconds: -1));
+    expect(log.snapshot.decoderHandoffs, 1);
+    expect(log.snapshot.lastDecoderHandoffMs, 41);
+    log.recordHandoff(const Duration(milliseconds: 8));
+    expect(log.snapshot.decoderHandoffs, 2);
+    expect(log.snapshot.lastDecoderHandoffMs, 8);
+    expect(afterFirst.lastDecoderHandoffMs, 41,
+        reason: 'Earlier numeric snapshots remain immutable');
   });
 
   test('startup metrics reset on a new native model load', () {
