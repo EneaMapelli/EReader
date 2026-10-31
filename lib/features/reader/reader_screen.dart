@@ -56,6 +56,7 @@ import 'epub_opening_performance_sheet.dart';
 import 'epub_frame_sampler.dart';
 import 'reader_keyboard_shortcuts.dart';
 import 'reader_compact_controls.dart';
+import 'reader_focus_restore_button.dart';
 import '../shared/organized_action_sheet.dart';
 import 'reader_tool_menu_options.dart';
 import 'reading_progress_bar.dart';
@@ -156,6 +157,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   bool _autoFollow = true;
   // Keep the page itself spacious. Playback settings are available on demand.
   bool _advancedControlsExpanded = false;
+  bool _readerFocusMode = false;
   final ScrollController _advancedControlsScroll = ScrollController();
   bool _skipEpubNotes = false;
   EpubSpeechNoteFilter? _epubSpeechNoteFilter;
@@ -1602,6 +1604,15 @@ class _ReaderScreenState extends State<ReaderScreen>
     super.dispose();
   }
 
+  void _setReaderFocusMode(bool enabled) {
+    if (_readerFocusMode == enabled) return;
+    setState(() {
+      _readerFocusMode = enabled;
+      // A hidden panel must not reappear expanded on restore.
+      if (enabled) _advancedControlsExpanded = false;
+    });
+  }
+
   void _adjustReaderTextSize(int delta) {
     if (_loading || _error != null ||
         (widget.book.format == BookFormat.pdf && !_pdfTextMode)) {
@@ -1805,6 +1816,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         hasEpubWarnings: _document?.epubDiagnostics.isNotEmpty ?? false,
         autoFollow: _autoFollow,
         paletteName: _epubPalette.name,
+        focusMode: _readerFocusMode,
       )),
     );
     if (!mounted || action == null) return;
@@ -1826,6 +1838,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         return;
       case 'pdf-pages':
         await _returnToPdfPages();
+        return;
+      case 'reading-focus':
+        _setReaderFocusMode(!_readerFocusMode);
         return;
       case 'appearance':
         await _openReadingAppearance();
@@ -1909,7 +1924,10 @@ class _ReaderScreenState extends State<ReaderScreen>
       );
       if (page != null) _displayPdfPage = page;
     }
-    setState(() => _pdfTextMode = false);
+    setState(() {
+      _pdfTextMode = false;
+      _readerFocusMode = false;
+    });
     _onPdfPageChanged(_displayPdfPage);
   }
 
@@ -1939,6 +1957,14 @@ class _ReaderScreenState extends State<ReaderScreen>
               (widget.book.format != BookFormat.pdf || _pdfTextMode)
           ? () => _adjustReaderTextSize(-2) : null,
       child: Scaffold(
+      floatingActionButton: _readerFocusMode && !_loading &&
+              _error == null && player != null &&
+              player.segments.isNotEmpty &&
+              (widget.book.format != BookFormat.pdf || _pdfTextMode)
+          ? ReaderFocusRestoreButton(
+              onRestore: () => _setReaderFocusMode(false),
+            )
+          : null,
       appBar: AppBar(
         title: Text(widget.book.title,
             maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -2151,7 +2177,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                 ),
                               ),
                             ),
-                            _controls(player),
+                            if (!_readerFocusMode) _controls(player),
                           ],
                         ),
       ),
