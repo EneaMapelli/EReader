@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../data/library_store.dart';
 import '../../data/batch_book_import.dart';
@@ -62,6 +63,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
   bool _cancelRemainingImports = false;
   final _searchController = TextEditingController();
   final _librarySearchFocus = FocusNode(debugLabel: 'Library search');
+  // Stable across filtered catalog rebuilds: focusing a book by Tab must
+  // not jump back to the first row when its metadata changes.
+  final _bookRowFocusNodes = <String, FocusNode>{};
+  final _bookMenuKeys =
+      <String, GlobalKey<PopupMenuButtonState<String>>>{};
   String _query = '';
   BookFormat? _formatFilter;
   bool _favoritesOnly = false;
@@ -109,6 +115,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _sharedInbox?.dispose();
     _searchController.dispose();
     _librarySearchFocus.dispose();
+    for (final node in _bookRowFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -1549,8 +1558,27 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     itemCount: books.length,
                     itemBuilder: (context, index) {
                       final book = books[index];
-                      return ListTile(
+                      final rowFocus = _bookRowFocusNodes.putIfAbsent(
+                        book.id,
+                        () => FocusNode(debugLabel: 'Book: ${book.title}'),
+                      );
+                      final menuKey = _bookMenuKeys.putIfAbsent(
+                        book.id,
+                        () => GlobalKey<PopupMenuButtonState<String>>(),
+                      );
+                      void openBookMenu() {
+                        if (!_busy) menuKey.currentState?.showButtonMenu();
+                      }
+                      return CallbackShortcuts(
+                        bindings: {
+                          const SingleActivator(LogicalKeyboardKey.f10,
+                              shift: true): openBookMenu,
+                        },
+                        child: ListTile(
                         key: ValueKey('library-book-row-${book.id}'),
+                        focusNode: rowFocus,
+                        focusColor: Theme.of(context).colorScheme.primary
+                            .withValues(alpha: 0.10),
                         dense: compactLayout && !largeTextLayout,
                         isThreeLine: largeTextLayout,
                         minVerticalPadding: largeTextLayout ? 16 : 10,
@@ -1584,6 +1612,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           ].join(', '),
                         ),
                         onTap: _busy ? null : () => _open(book),
+                        // Android long-press and Windows Shift+F10 share
+                        // the exact menu used by the visible More button.
+                        onLongPress: _busy ? null : openBookMenu,
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1619,7 +1650,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             // targets. Shelf commands move into More rather
                             // than squeezing the book title at phone widths.
                             PopupMenuButton<String>(
-                              key: ValueKey('library-more-${book.id}'),
+                              key: menuKey,
+                              child: IconButton(
+                                key: ValueKey('library-more-${book.id}'),
+                                icon: const Icon(Icons.more_vert),
+                                tooltip: 'More book actions',
+                                onPressed: null,
+                              ),
                               tooltip: largeTextLayout
                                   ? 'More actions for ${book.title}, favorite and shelf'
                                   : compactLayout
@@ -1685,6 +1722,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               ],
                             ),
                           ],
+                        ),
                         ),
                       );
                     },
