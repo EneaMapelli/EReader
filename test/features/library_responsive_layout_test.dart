@@ -82,6 +82,14 @@ void main() {
     expect(find.text('Shelf: To read'), findsOneWidget);
     expect(find.text('Shelf: Reading'), findsOneWidget);
     expect(find.text('Shelf: Finished'), findsOneWidget);
+    final selectedShelf = tester.widget<CheckedPopupMenuItem<String>>(
+      find.ancestor(
+        of: find.text('Shelf: To read'),
+        matching: find.byType(CheckedPopupMenuItem<String>),
+      ),
+    );
+    expect(selectedShelf.checked, isTrue,
+        reason: 'Screen readers must expose the current shelf choice');
     expect(find.text('Book collections'), findsOneWidget);
     expect(find.text('Edit book details'), findsOneWidget);
     expect(find.text('Remove book'), findsOneWidget);
@@ -93,6 +101,23 @@ void main() {
     await tester.pump();
     expect(store.getBook(id)!.isFavorite, isTrue);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('compact catalog search preserves full records on clear',
+      (tester) async {
+    await showNarrow(tester);
+    final search = find.byKey(const ValueKey('library-search'));
+    await tester.enterText(search, 'alpha');
+    await tester.pumpAndSettle();
+    expect(find.text('Showing 1 of 3 books'), findsOneWidget);
+    expect(find.byKey(ValueKey('library-book-row-' + ids['Alpha']!)),
+        findsOneWidget);
+    expect(find.byKey(ValueKey('library-book-row-' + ids['Beta']!)),
+        findsNothing);
+    await tester.enterText(search, '');
+    await tester.pumpAndSettle();
+    expect(find.text('Showing 3 of 3 books'), findsOneWidget);
+    expect(store.books, hasLength(3));
   });
 
   testWidgets('wide catalog keeps direct shelf controls without compact toggle',
