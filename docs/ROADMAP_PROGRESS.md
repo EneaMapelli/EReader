@@ -1113,3 +1113,22 @@ Android Activity recreation remains a manual device gate.
   No native builds or GitHub Actions were triggered. Native verification
   and release readiness remain open.
 - See [SEARCHABLE_TOOL_MENUS.md](SEARCHABLE_TOOL_MENUS.md).
+
+
+### M1/M6 — Reader keyboard command palette and screen-reader clarity (2026-10-31)
+
+- Ctrl/Cmd+K opens the existing reader tools menu and focuses its local
+  search field immediately, including visual PDF page view without a
+  speech player. Touch-opened menus retain their original focus behavior.
+- Keyboard-initiated short menus remain searchable; grouped tool headings
+  are accessible, filtered matches report a live result count, and
+  zero-result searches have an explicit empty state.
+- Focused buttons/action tiles/sliders keep Space and left/right keys,
+  preventing unintended speech transport. Editable text, hidden routes
+  and repeat/key-up events continue to reject shortcuts.
+- Help documents Ctrl/Cmd+K and scrolls for large text on small screens.
+  Added mapper, widget and narrow-screen regression tests but **not run**.
+- No Windows or Android builds, GitHub Actions, network TTS calls or
+  percentage increase. Native and screen-reader acceptance is still open.
+- See [READER_KEYBOARD_SHORTCUTS.md](READER_KEYBOARD_SHORTCUTS.md) and
+  [SEARCHABLE_TOOL_MENUS.md](SEARCHABLE_TOOL_MENUS.md).
