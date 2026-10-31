@@ -21,6 +21,7 @@ import 'library_reading_statistics_sheet.dart';
 import '../reader/reader_screen.dart';
 import 'library_collections_sheet.dart';
 import 'library_full_text_search_sheet.dart';
+import '../shared/organized_action_sheet.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({
@@ -957,6 +958,61 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
+  Future<void> _openLibraryTools() async {
+    if (_busy) return;
+    final selection = await showOrganizedActionSheet(
+      context,
+      title: 'Library tools',
+      sections: const [
+        OrganizedActionSection(title: 'Organize', items: [
+          OrganizedActionItem(
+            id: 'collections',
+            icon: Icons.folder_open_outlined,
+            title: 'Collections & smart shelves',
+            subtitle: 'Organize books and saved filters',
+          ),
+        ]),
+        OrganizedActionSection(title: 'Discover', items: [
+          OrganizedActionItem(
+            id: 'fulltext', icon: Icons.manage_search,
+            title: 'Search inside books',
+            subtitle: 'Find passages offline',
+          ),
+          OrganizedActionItem(
+            id: 'statistics', icon: Icons.insights_outlined,
+            title: 'Reading statistics',
+            subtitle: 'Your reading history and progress',
+          ),
+        ]),
+        OrganizedActionSection(title: 'Data & backups', items: [
+          OrganizedActionItem(
+            id: 'backup', icon: Icons.backup_outlined,
+            title: 'Export private library backup',
+            subtitle: 'Create a portable backup of your books',
+          ),
+          OrganizedActionItem(
+            id: 'restore', icon: Icons.restore,
+            title: 'Restore library backup',
+            subtitle: 'Review a backup before restoring',
+          ),
+        ]),
+      ],
+    );
+    if (!mounted || _busy || selection == null) return;
+    switch (selection) {
+      case 'collections':
+        await _manageCollections();
+      case 'fulltext':
+        await _showFullTextSearch();
+      case 'statistics':
+        await _showReadingStatistics();
+      case 'backup':
+        await _exportBackup();
+      case 'restore':
+        await _restoreBackup();
+    }
+  }
+
   Future<void> _showReadingStatistics() async {
     // Use every stored book, never the current filter selection.
     final stats = LibraryReadingStatistics.fromBooks(widget.store.books);
@@ -997,27 +1053,30 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final interrupted = widget.store.interruptedNarrationBook;
     final scaffold = Scaffold(
       appBar: AppBar(
-        title: const Text('EReader'),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('EReader'),
+            Text(
+              '${allBooks.length} ${allBooks.length == 1 ? 'book' : 'books'} '
+              'in library',
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            tooltip: 'Manage collections',
-            icon: const Icon(Icons.folder_open_outlined),
-            onPressed: _busy ? null : () => unawaited(_manageCollections()),
-          ),
-          IconButton(
-            tooltip: 'Restore books from library backup',
-            onPressed: _busy ? null : _restoreBackup,
-            icon: const Icon(Icons.restore),
-          ),
-          IconButton(
-            tooltip: 'Export private library backup',
-            onPressed: _busy ? null : _exportBackup,
-            icon: const Icon(Icons.backup_outlined),
-          ),
-          IconButton(
+            key: const ValueKey('library-import-action'),
             tooltip: 'Import book',
             onPressed: _busy ? null : _import,
-            icon: const Icon(Icons.file_upload_outlined),
+            icon: const Icon(Icons.add_circle_outline),
+          ),
+          IconButton(
+            key: const ValueKey('library-tools-menu'),
+            tooltip: 'Library tools',
+            onPressed: _busy ? null : _openLibraryTools,
+            icon: const Icon(Icons.more_vert),
           ),
         ],
       ),
