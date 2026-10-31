@@ -115,6 +115,10 @@ class _OrganizedActionSheetBodyState extends State<_OrganizedActionSheetBody> {
     final filtered = filterOrganizedActionSections(
       widget.sections, _filterController.text,
     );
+    final isSearching = _filterController.text.trim().isNotEmpty;
+    final resultCount = filtered.fold<int>(
+      0, (count, section) => count + section.items.length,
+    );
 
     return Padding(
       padding: EdgeInsets.only(bottom: keyboardInset),
@@ -165,6 +169,22 @@ class _OrganizedActionSheetBodyState extends State<_OrganizedActionSheetBody> {
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
+              if (showFilter && isSearching && resultCount > 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        resultCount == 1 ? '1 tool found' :
+                            '$resultCount tools found',
+                        key: const ValueKey('organized-action-count'),
+                        style: theme.textTheme.labelSmall,
+                      ),
+                    ),
+                  ),
+                ),
               Flexible(
                 child: ListView(
                   shrinkWrap: true,
@@ -183,10 +203,13 @@ class _OrganizedActionSheetBodyState extends State<_OrganizedActionSheetBody> {
                       const Divider(),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-                        child: Text(
-                          section.title,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.primary,
+                        child: Semantics(
+                          header: true,
+                          child: Text(
+                            section.title,
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: theme.colorScheme.primary,
+                            ),
                           ),
                         ),
                       ),
