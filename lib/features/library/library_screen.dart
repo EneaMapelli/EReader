@@ -1555,19 +1555,29 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     ),
                   ),
                 Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          'Showing ${books.length} of ${allBooks.length} books',
-                          key: const ValueKey('library-result-count'),
-                          style: Theme.of(context).textTheme.labelSmall,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            'Showing ${books.length} of ${allBooks.length} books',
+                            key: const ValueKey('library-result-count'),
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
                         ),
                       ),
-                    ),
+                      if (_showScrollToTop)
+                        IconButton(
+                          key: const ValueKey('library-scroll-to-top'),
+                          tooltip: 'Back to top of library',
+                          onPressed: _scrollBooksToTop,
+                          icon: const Icon(Icons.vertical_align_top),
+                        ),
+                    ],
                   ),
+                ),
                 if (!compactLayout)
                   filterControls
                 else if (_smallFiltersExpanded)
