@@ -157,6 +157,7 @@ Future<void> showReaderKeyboardHelp(BuildContext context) =>
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: const Text('Reader keyboard shortcuts'),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
