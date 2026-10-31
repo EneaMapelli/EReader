@@ -3,6 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('reader toolbar prioritizes title on narrow and magnified layouts',
+      () {
+    expect(useCompactReaderToolbar(width: 320, scaledBaseTextSize: 16), isTrue);
+    expect(useCompactReaderToolbar(width: 419, scaledBaseTextSize: 16), isTrue);
+    expect(useCompactReaderToolbar(width: 420, scaledBaseTextSize: 16), isFalse);
+    expect(useCompactReaderToolbar(width: 800, scaledBaseTextSize: 25), isFalse);
+    expect(useCompactReaderToolbar(width: 800, scaledBaseTextSize: 26), isTrue);
+    expect(useCompactReaderToolbar(width: 420, scaledBaseTextSize: 30), isTrue);
+  });
+
   test('narrow phone uses 14 logical-pixel horizontal reading margins', () {
     final padding = readerViewportPadding(width: 320, focusMode: false);
     expect(padding, const EdgeInsets.fromLTRB(14, 18, 14, 18));
