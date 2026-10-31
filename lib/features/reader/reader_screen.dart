@@ -2290,7 +2290,6 @@ class _ReaderScreenState extends State<ReaderScreen>
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   key: const ValueKey('reader-collapse-controls'),
-                  tooltip: 'Show fewer reading controls',
                   onPressed: () => setState(
                       () => _advancedControlsExpanded = false),
                   icon: const Icon(Icons.expand_more),
