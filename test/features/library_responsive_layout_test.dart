@@ -120,6 +120,21 @@ void main() {
     expect(store.books, hasLength(3));
   });
 
+  testWidgets('short phone retains an independently scrollable filter panel',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 480));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(home: LibraryScreen(store: store)));
+    await tester.tap(find.byKey(const ValueKey('library-compact-filters')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('library-compact-filter-scroll')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('library-result-count')), findsOneWidget);
+    expect(find.byType(ListView), findsWidgets,
+        reason: 'Book list must remain separately scrollable');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('wide catalog keeps direct shelf controls without compact toggle',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(980, 720));
