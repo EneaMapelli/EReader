@@ -95,6 +95,18 @@ void main() {
     expect(many, hasLength(201));
   });
 
+  test('arrow selection clamps at boundaries and never selects empty results', () {
+    expect(moveQuickOpenSelection(current: 0, count: 0, down: true), isNull);
+    expect(moveQuickOpenSelection(current: 0, count: 0, down: false), isNull);
+    expect(moveQuickOpenSelection(current: 0, count: 3, down: false), 0);
+    expect(moveQuickOpenSelection(current: 0, count: 3, down: true), 1);
+    expect(moveQuickOpenSelection(current: 1, count: 3, down: true), 2);
+    expect(moveQuickOpenSelection(current: 2, count: 3, down: true), 2);
+    expect(moveQuickOpenSelection(current: 2, count: 3, down: false), 1);
+    expect(moveQuickOpenSelection(current: 0, count: 1, down: true), 0);
+    expect(moveQuickOpenSelection(current: 0, count: 1, down: false), 0);
+  });
+
   test('rejects invalid cap rather than hiding all results silently', () {
     expect(() => findQuickOpenBooks([], 'anything', limit: 0),
         throwsRangeError);
