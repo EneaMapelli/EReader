@@ -61,6 +61,8 @@ class MeasuredFakeSpeechEngine extends FakeSpeechEngine
     implements OfflineVoiceDiagnosticsProvider {
   final OfflineVoiceDiagnostics diagnostics = OfflineVoiceDiagnostics();
   bool simulateAhead = false;
+  bool omitNextHandoff = false;
+  bool reusePreSynthesizedWave = false;
   @override
   void finish() {
     if (simulateAhead) {
@@ -75,9 +77,15 @@ class MeasuredFakeSpeechEngine extends FakeSpeechEngine
   @override
   Future<void> speak(String text, {required String language,
       required double rate, required double pitch}) {
-    diagnostics.recordSynthesis(const Duration(milliseconds: 31),
-        ahead: false, wholeProcessRssBytes: 100 * 1024 * 1024);
-    diagnostics.recordHandoff(const Duration(milliseconds: 8));
+    if (!reusePreSynthesizedWave) {
+      diagnostics.recordSynthesis(const Duration(milliseconds: 31),
+          ahead: false, wholeProcessRssBytes: 100 * 1024 * 1024);
+    }
+    if (omitNextHandoff) {
+      omitNextHandoff = false;
+    } else {
+      diagnostics.recordHandoff(const Duration(milliseconds: 8));
+    }
     return super.speak(text, language: language, rate: rate, pitch: pitch);
   }
 }
@@ -246,6 +254,69 @@ void main() {
     expect(player.narrationTimings.recent.single.neuralSynthesisMs, isNull,
         reason: 'The most recent synthesis is next-chunk lookahead');
     expect(player.narrationTimings.recent.single.decoderHandoffMs, 8);
+    player.dispose();
+  });
+
+  test('old decoder handoff is never reused when next clip has none',
+      () async {
+    final engine = MeasuredFakeSpeechEngine();
+    final player = ReaderPlayer(
+      engineProviderId: 'sherpa-vits',
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 3, 'one'),
+        SpeechSegment(4, 7, 'two'),
+      ],
+      onSegmentStarted: (_) async {},
+    );
+    final reading = player.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, ['one']);
+    engine.finish();
+    engine.omitNextHandoff = true;
+    for (var i = 0; i < 40 && engine.spoken.length < 2; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(engine.spoken, ['one', 'two']);
+    engine.finish();
+    await reading;
+    final samples = player.narrationTimings.recent;
+    expect(samples, hasLength(2));
+    expect(samples.first.decoderHandoffMs, 8);
+    expect(samples.last.decoderHandoffMs, isNull,
+        reason: 'A prior WAV handoff is not a measured event for this clip');
+    expect(samples.last.postHandoffMs, isNull);
+    expect(engine.diagnostics.snapshot.decoderHandoffs, 1);
+    player.dispose();
+  });
+
+  test('reused prepared WAV has a fresh handoff but no new synthesis',
+      () async {
+    final engine = MeasuredFakeSpeechEngine();
+    final player = ReaderPlayer(
+      engineProviderId: 'sherpa-vits', engine: engine,
+      segments: const [
+        SpeechSegment(0, 3, 'one'),
+        SpeechSegment(4, 7, 'two'),
+      ],
+      onSegmentStarted: (_) async {},
+    );
+    final reading = player.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.finish();
+    engine.reusePreSynthesizedWave = true;
+    for (var i = 0; i < 40 && engine.spoken.length < 2; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    engine.finish();
+    await reading;
+    final samples = player.narrationTimings.recent;
+    expect(samples, hasLength(2));
+    expect(samples.last.neuralSynthesisMs, isNull,
+        reason: 'A pre-synthesized WAV is not newly synthesized here');
+    expect(samples.last.decoderHandoffMs, 8,
+        reason: 'The prepared WAV is handed to playback NOW');
+    expect(engine.diagnostics.snapshot.decoderHandoffs, 2);
     player.dispose();
   });
 
