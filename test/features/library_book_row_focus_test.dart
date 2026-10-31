@@ -7,17 +7,18 @@ import 'package:flutter_test/flutter_test.dart';
 /// the real library, without filesystem, TTS, network, or database operations.
 Widget _row({
   required String id,
+  String? displayName,
   bool enabled = true,
   VoidCallback? onOpen,
   ValueChanged<String>? onMenu,
 }) => LibraryBookRowFocus(
   key: ValueKey('library-book-focus-' + id),
-  bookTitle: id,
+  bookTitle: displayName ?? id,
   enabled: enabled,
   builder: (rowFocus, menuKey, openMenu) => ListTile(
     key: ValueKey('row-' + id),
     focusNode: rowFocus,
-    title: Text(id),
+    title: Text(displayName ?? id),
     onTap: onOpen,
     onLongPress: enabled ? openMenu : null,
     trailing: PopupMenuButton<String>(
@@ -103,27 +104,26 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('keyed row preserves focus object through a local metadata edit',
+  testWidgets('book title edits reuse focus without leaking a second node',
       (tester) async {
     var name = 'Atlas';
     late StateSetter setHost;
     await tester.pumpWidget(MaterialApp(
       home: StatefulBuilder(builder: (_, setState) {
         setHost = setState;
-        return Scaffold(body: _row(id: name));
+        return Scaffold(body: _row(id: 'atlas-identity', displayName: name));
       }),
     ));
     final first = tester.widget<ListTile>(
-      find.byKey(const ValueKey('row-Atlas')),
+      find.byKey(const ValueKey('row-atlas-identity')),
     ).focusNode!;
-    // Update title with same book identity: a new label but no duplicated
-    // focus resource. This is the same ownership pattern as LibraryScreen.
-    setHost(() {});
+    setHost(() => name = 'Renamed Atlas');
     await tester.pump();
     final second = tester.widget<ListTile>(
-      find.byKey(const ValueKey('row-Atlas')),
+      find.byKey(const ValueKey('row-atlas-identity')),
     ).focusNode!;
     expect(identical(first, second), isTrue);
+    expect(find.text('Renamed Atlas'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
