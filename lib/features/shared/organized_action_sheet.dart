@@ -67,6 +67,7 @@ Future<String?> showOrganizedActionSheet(
   BuildContext context, {
   required String title,
   required List<OrganizedActionSection> sections,
+  bool autofocusSearch = false,
 }) => showModalBottomSheet<String>(
   context: context,
   isScrollControlled: true,
@@ -74,6 +75,7 @@ Future<String?> showOrganizedActionSheet(
   builder: (sheetContext) => _OrganizedActionSheetBody(
     title: title,
     sections: sections,
+    autofocusSearch: autofocusSearch,
   ),
 );
 
@@ -81,10 +83,12 @@ class _OrganizedActionSheetBody extends StatefulWidget {
   const _OrganizedActionSheetBody({
     required this.title,
     required this.sections,
+    required this.autofocusSearch,
   });
 
   final String title;
   final List<OrganizedActionSection> sections;
+  final bool autofocusSearch;
 
   @override
   State<_OrganizedActionSheetBody> createState() =>
@@ -137,7 +141,9 @@ class _OrganizedActionSheetBodyState extends State<_OrganizedActionSheetBody> {
                   child: TextField(
                     key: const ValueKey('organized-action-filter'),
                     controller: _filterController,
-                    autofocus: false,
+                    // Only keyboard-invoked menus request text focus. Tapping
+                    // the toolbar never opens the Android keyboard eagerly.
+                    autofocus: widget.autofocusSearch,
                     textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       labelText: 'Find a tool',
