@@ -129,7 +129,16 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
   late final FocusNode _queryFocus =
       FocusNode(debugLabel: 'Quick open query', onKeyEvent: _onQueryKey);
   final ScrollController _resultsScroll = ScrollController();
+  late QuickOpenBookResults _matches;
   String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // Arrow navigation only changes an index: never rescan thousands of
+    // books for every keypress or for each highlight rebuild.
+    _matches = findQuickOpenBooks(widget.books, '');
+  }
   int _selectedIndex = 0;
   bool _usedArrowNavigation = false;
   double _rowExtent = 92;
@@ -146,7 +155,7 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
     final up = event.logicalKey == LogicalKeyboardKey.arrowUp;
     if (!down && !up) return KeyEventResult.ignored;
 
-    final count = findQuickOpenBooks(widget.books, _query).books.length;
+    final count = _matches.books.length;
     final next = moveQuickOpenSelection(
       current: _selectedIndex, count: count, down: down);
     if (next != null) {
@@ -184,6 +193,7 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
     if (_resultsScroll.hasClients) _resultsScroll.jumpTo(0);
     setState(() {
       _query = value;
+      _matches = findQuickOpenBooks(widget.books, value);
       _selectedIndex = 0;
       _usedArrowNavigation = false;
     });
@@ -199,7 +209,7 @@ class _QuickOpenBookDialogState extends State<_QuickOpenBookDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final matches = findQuickOpenBooks(widget.books, _query);
+    final matches = _matches;
     final screen = MediaQuery.sizeOf(context);
     final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
     final listHeight = (screen.height - keyboardHeight - 300)
