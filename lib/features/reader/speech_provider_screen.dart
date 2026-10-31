@@ -537,6 +537,19 @@ class _SpeechProviderScreenState extends State<SpeechProviderScreen> {
             },
           ),
           if (freeSystem) ...[
+            if (_providerId == 'system-interpreted')
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text(
+                  'Experimental offline punctuation interpretation: '
+                  'quotes and sentence marks become short cancellable '
+                  'pauses instead of being passed to the voice as glyphs. '
+                  'This can stop voices announcing punctuation names, '
+                  'but may sound less fluid or react more slowly. '
+                  'Preview a voice before saving; switch back to the '
+                  'regular system mode if you prefer native prosody.',
+                ),
+              ),
             const SizedBox(height: 16),
             Text('Preview free installed voices',
                 style: Theme.of(context).textTheme.titleMedium),
