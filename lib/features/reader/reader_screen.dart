@@ -2303,505 +2303,505 @@ class _ReaderScreenState extends State<ReaderScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-              if (_chapters.isNotEmpty || _authorToc.isNotEmpty) ...[
-                Builder(builder: (context) {
-                  final index = _currentDirectoryIndex;
-                  final authorial = _authorToc.isNotEmpty;
-                  final total = authorial
-                      ? _authorToc.length : _chapters.length;
-                  if (index < 0 || index >= total) {
-                    return const SizedBox.shrink();
-                  }
-                  final label = authorial
-                      ? _authorToc[index].label : _chapters[index].title;
-                  return Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Previous EPUB section',
-                        onPressed: index > 0
-                            ? () => _jumpDirectoryIndex(index - 1) : null,
-                        icon: const Icon(Icons.first_page),
-                      ),
-                      Expanded(
-                        child: Text(
-                          '$label (${index + 1}/$total)',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Next EPUB section',
-                        onPressed: index + 1 < total
-                            ? () => _jumpDirectoryIndex(index + 1) : null,
-                        icon: const Icon(Icons.last_page),
-                      ),
-                    ],
-                  );
-                }),
-              ],
-              if ((_document?.text.isNotEmpty ?? false))
-                ValueListenableBuilder<int>(
-                  valueListenable: _visualProgressTick,
-                  builder: (context, revision, child) =>
-                      ReadingProgressBar(
-                    sourceOffset: _visibleProgressOffset(
-                        player, _document!.text.length),
-                    sourceLength: _document!.text.length,
-                    onSeekToOffset: _jumpToSourceProgress,
-                  ),
-                ),
-              Text(
-                player.currentIndex >= count
-                    ? 'Reading complete — Play to restart'
-                    : 'Segment ${player.currentIndex + 1} of $count',
-                style: Theme.of(context).textTheme.labelMedium,
-              ),
-              if (player.activeSpeakerId != null)
-                Text('Speaker: ' +
-                    (_castNames[player.activeSpeakerId] ?? 'Unknown')
-                  , style: Theme.of(context).textTheme.labelSmall),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 6,
-                runSpacing: 2,
-                children: [
-                  IconButton(
-                    tooltip: 'Previous segment (Left arrow)',
-                    icon: const Icon(Icons.skip_previous),
-                    onPressed: () => _move(-1),
-                  ),
-                  FilledButton.tonalIcon(
-                    onPressed: _playOrPause,
-                    icon: Icon(
-                      player.isPlaying ? Icons.pause : Icons.play_arrow,
-                    ),
-                    label: Text(player.isPlaying ? 'Pause' : 'Play'),
-                  ),
-                  IconButton(
-                    tooltip: 'Next segment (Right arrow)',
-                    icon: const Icon(Icons.skip_next),
-                    onPressed: () => _move(1),
-                  ),
-                  IconButton(
-                    tooltip: 'Keyboard shortcuts (F1)',
-                    icon: const Icon(Icons.keyboard_outlined),
-                    onPressed: () => unawaited(
-                        showReaderKeyboardHelp(context)),
-                  ),
-                  PopupMenuButton<int>(
-                    tooltip: 'Sleep timer',
-                    icon: Icon(player.sleepTimerEndsAt == null
-                        ? Icons.bedtime_outlined : Icons.bedtime),
-                    onSelected: (minutes) {
-                      if (minutes == 0) {
-                        player.cancelSleepTimer();
-                      } else {
-                        player.setSleepTimer(Duration(minutes: minutes));
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      if (player.sleepTimerEndsAt != null)
-                        const PopupMenuItem(
-                          value: 0, child: Text('Turn off sleep timer'),
-                        ),
-                      for (final minutes in [10, 15, 30, 45, 60])
-                        PopupMenuItem(
-                          value: minutes,
-                          child: Text('Stop after $minutes minutes'),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-              if (player.sleepTimerEndsAt != null)
-                Text(
-                  'Sleep timer: stops at ${TimeOfDay.fromDateTime(player.sleepTimerEndsAt!).format(context)}'
-                  ' (continues while paused)',
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-              if (_epubSpeechNoteFilter?.hasNotes ?? false)
-                CheckboxListTile(
-                  key: const ValueKey('epub-skip-spoken-notes'),
-                  dense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  title: const Text('Skip EPUB footnotes in narration'),
-                  subtitle: const Text(
-                    'Optional, off by default. Skips only fully contained '
-                    'verified note passages. Notes remain visible and '
-                    'searchable; mixed passages are spoken to avoid '
-                    'losing main text. Already sent cloud prebuffers cannot '
-                    'be recalled.',
-                  ),
-                  value: _skipEpubNotes,
-                  onChanged: (value) =>
-                      setState(() => _skipEpubNotes = value ?? false),
-                ),
-              if (player.engineProviderId == 'sherpa-vits')
-                CheckboxListTile(
-                  key: const ValueKey('offline-next-wav-warmup'),
-                  dense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  title: const Text('Prepare next offline voice clip'),
-                  subtitle: const Text(
-                    'On by default for the selected local VITS voice. '
-                    'Prepares only one future WAV, using local CPU and '
-                    'temporary disk but no network or provider fees. '
-                    'Stop, pause and seek cancel pending synthesis.',
-                  ),
-                  value: player.warmNextOfflineChunk,
-                  onChanged: (enabled) =>
-                      player.setOfflineWarmup(enabled ?? false),
-                ),
-              if (player.engineProviderId == 'sherpa-vits' &&
-                  player.offlineVoiceStatistics != null)
-                Builder(builder: (context) {
-                  final d = player.offlineVoiceStatistics!;
-                  return ExpansionTile(
-                    key: const ValueKey('offline-vits-performance'),
-                    title: const Text('Offline voice performance'),
-                    subtitle: const Text(
-                      'This session only. No book text or audio logged; '
-                      'RAM reflects the entire app, not just ONNX.',
-                    ),
-                    children: [
-                      ListTile(
-                        dense: true,
-                        title: Text(
-                          'Model loads: ${d.modelLoads} · '
-                          'Syntheses: ${d.syntheses} · '
-                          'Prepared in advance: ${d.aheadSyntheses} · '
-                          'WAVs reused: ${d.warmedWaveReuses}',
-                        ),
-                      ),
-                      ListTile(
-                        dense: true,
-                        title: Text(
-                          'Last synthesis: ${d.lastSynthesisMs} ms · '
-                          'Average: ${d.averageSynthesisMs} ms · '
-                          'P95 of last 64: ${d.p95SynthesisMs} ms',
-                        ),
-                        subtitle: const Text(
-                          'Native/model synthesis duration; '
-                          'P95 is a rolling sample statistic.',
-                        ),
-                      ),
-                      ListTile(
-                        dense: true,
-                        title: Text(
-                          'Decoder handoff: ${d.lastDecoderHandoffMs} ms · '
-                          'Whole-process RSS: '
-                          '${d.lastWholeProcessRssMiB} MiB',
-                        ),
-                        subtitle: Text(
-                          'Failed: ${d.failures} · '
-                          'Cancelled: ${d.cancelledSyntheses} · '
-                          'Pending WAV cleanup: ${d.pendingWaveFolders}. '
-                          'Handoff is not audible onset; '
-                          'RSS is not model-only memory.',
-                        ),
-                      ),
-                      ListTile(
-                        key: const ValueKey('reader-narration-transition-timing'),
-                        dense: true,
-                        title: const Text('Real-reading narration timing'),
-                        subtitle: Text(formatNarrationTransitionDiagnostics(
-                            player.narrationTimings)),
-                      ),
-                      ListTile(
-                        key: const ValueKey('reader-narration-delay-analysis'),
-                        dense: true,
-                        title: const Text('Where transition time is spent'),
-                        subtitle: Text(formatNarrationDelayAssessment(
-                            player.narrationTimings)),
-                      ),
-                    ],
-                  );
-                }),
-              if (player.engineProviderId ==
-                  OpenAiSpeechEngine.providerId)
-                CheckboxListTile(
-                  key: const ValueKey('cloud-cache-only-warmup'),
-                  dense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  title: const Text('Warm already cached cloud audio'),
-                  subtitle: const Text(
-                    'On by default. Only reads a previously generated '
-                    'private MP3 and prepares the next decoder locally. '
-                    'Never makes an extra network request or reserves '
-                    'provider characters. Disable to compare playback.',
-                  ),
-                  value: player.warmCachedCloudChunk,
-                  onChanged: (enabled) =>
-                      player.setCachedCloudWarmup(enabled ?? false),
-                ),
-              if (player.engineProviderId ==
-                  OpenAiSpeechEngine.providerId)
-                CheckboxListTile(
-                  dense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  title: const Text('Prebuffer one cloud audio chunk'),
-                  subtitle: const Text(
-                    'Optional, off by default. The next chunk may be '
-                    'sent to OpenAI and charged while the current one '
-                    'plays, even if you pause or skip before hearing it. '
-                    'Only one future chunk is prepared.',
-                  ),
-                  value: player.prefetchNextCloudChunk,
-                  onChanged: (enabled) => player.setCloudPrefetch(
-                      enabled ?? false),
-                ),
-              if (player.availableVoices.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    children: [
-                      const Text('Voice'),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButton<SpeechVoice>(
-                          isExpanded: true,
-                          hint: const Text('Default system voice'),
-                          value: player.selectedVoice,
-                          items: player.availableVoices.map((voice) {
-                            return DropdownMenuItem(
-                              value: voice,
-                              child: Text(
-                                voice.toString(),
-                                overflow: TextOverflow.ellipsis,
+                      if (_chapters.isNotEmpty || _authorToc.isNotEmpty) ...[
+                        Builder(builder: (context) {
+                          final index = _currentDirectoryIndex;
+                          final authorial = _authorToc.isNotEmpty;
+                          final total = authorial
+                              ? _authorToc.length : _chapters.length;
+                          if (index < 0 || index >= total) {
+                            return const SizedBox.shrink();
+                          }
+                          final label = authorial
+                              ? _authorToc[index].label : _chapters[index].title;
+                          return Row(
+                            children: [
+                              IconButton(
+                                tooltip: 'Previous EPUB section',
+                                onPressed: index > 0
+                                    ? () => _jumpDirectoryIndex(index - 1) : null,
+                                icon: const Icon(Icons.first_page),
                               ),
-                            );
-                          }).toList(),
-                          onChanged: (voice) async {
-                            if (voice == null) return;
-                            try {
-                              await player.selectVoice(voice);
-                              await _saveVoiceSettings();
-                            } catch (error) {
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Voice unavailable: $error')),
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      player.currentPreferences.providerId == 'system'
-                          ? Platform.isWindows
-                              ? 'Engine: system voice (interpreted pauses)'
-                              : 'Engine: Android voice (native punctuation)'
-                          : player.currentPreferences.providerId == 'system-interpreted'
-                              ? 'Engine: system voice (interpreted punctuation)'
-                              : player.currentPreferences.providerId == 'system-native'
-                                  ? 'Engine: system voice (native punctuation)'
-                              : player.currentPreferences.providerId ==
-                                      SherpaVitsSpeechEngine.providerId
-                                  ? 'Engine: local neural VITS (experimental)'
-                                  : 'Engine: OpenAI Speech (cloud)',
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    tooltip: 'Speech preference scope',
-                    icon: const Icon(Icons.settings_voice),
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: 'make-global',
-                        child: Text('Save as global default'),
-                      ),
-                      PopupMenuItem(
-                        value: 'use-global',
-                        child: Text('Use global defaults for this book'),
-                      ),
-                    ],
-                    onSelected: (action) async {
-                      try {
-                        if (action == 'make-global') {
-                          await widget.store.saveSpeechPreferences(
-                            player.currentPreferences,
-                          );
-                        } else if (action == 'use-global') {
-                          await player.pause();
-                          await widget.store.clearBookSpeechPreferences(
-                            widget.book.id,
-                          );
-                          final globalPrefs = widget.store.getSpeechPreferences(
-                            bookId: widget.book.id,
-                          );
-                          await player.applyPreferences(globalPrefs);
-                          player.setDialogueTurnPause(Duration(
-                              milliseconds: globalPrefs.dialogueTurnPauseMs));
-                        }
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Voice preferences updated'),
-                            ),
-                          );
-                        }
-                      } catch (error) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(
-                              'Voice settings error: ' + error.toString(),
-                            )),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Text((player.currentPreferences.providerId == 'system' ||
-                      player.currentPreferences.providerId == 'system-native' ||
-                           player.currentPreferences.providerId == 'system-interpreted')
-                      ? 'Pitch' : 'Pitch unavailable'),
-                  Expanded(
-                    child: Slider(
-                      min: 0.5,
-                      max: 1.5,
-                      divisions: 10,
-                      value: player.pitch,
-                      onChanged: (player.currentPreferences.providerId == 'system' ||
-                          player.currentPreferences.providerId == 'system-native' ||
-                           player.currentPreferences.providerId == 'system-interpreted')
-                          ? (value) {
-                              player.setPitch(value);
-                            }
-                          : null,
-                      onChangeEnd: (player.currentPreferences.providerId == 'system' ||
-                          player.currentPreferences.providerId == 'system-native' ||
-                           player.currentPreferences.providerId == 'system-interpreted')
-                          ? (_) {
-                              unawaited(player.restartAfterSettingsChange());
-                              unawaited(_saveVoiceSettings());
-                            }
-                          : null,
-                    ),
-                  ),
-                  Text(player.pitch.toStringAsFixed(1)),
-                ],
-              ),
-              if (player.engineProviderId == 'system' ||
-                  player.engineProviderId == 'system-native' ||
-                   player.engineProviderId == 'system-interpreted')
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Text('Dialogue pause'),
-                          Expanded(
-                            child: Slider(
-                              key: const ValueKey('dialogue-turn-pause'),
-                              min: 0,
-                              max: 2000,
-                              divisions: 80,
-                              value: player.dialogueTurnPause.inMilliseconds
-                                  .toDouble(),
-                              onChanged: (value) => player.setDialogueTurnPause(
-                                Duration(milliseconds: value.round()),
+                              Expanded(
+                                child: Text(
+                                  '$label (${index + 1}/$total)',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.labelMedium,
+                                ),
                               ),
-                              onChangeEnd: (_) =>
-                                  unawaited(_saveVoiceSettings()),
-                            ),
+                              IconButton(
+                                tooltip: 'Next EPUB section',
+                                onPressed: index + 1 < total
+                                    ? () => _jumpDirectoryIndex(index + 1) : null,
+                                icon: const Icon(Icons.last_page),
+                              ),
+                            ],
+                          );
+                        }),
+                      ],
+                      if ((_document?.text.isNotEmpty ?? false))
+                        ValueListenableBuilder<int>(
+                          valueListenable: _visualProgressTick,
+                          builder: (context, revision, child) =>
+                              ReadingProgressBar(
+                            sourceOffset: _visibleProgressOffset(
+                                player, _document!.text.length),
+                            sourceLength: _document!.text.length,
+                            onSeekToOffset: _jumpToSourceProgress,
                           ),
-                          SizedBox(
-                            width: 70,
-                            child: Text(
-                              player.dialogueTurnPause == Duration.zero
-                                  ? 'Off'
-                                  : '${player.dialogueTurnPause.inMilliseconds} ms',
-                              textAlign: TextAlign.end,
+                        ),
+                      Text(
+                        player.currentIndex >= count
+                            ? 'Reading complete — Play to restart'
+                            : 'Segment ${player.currentIndex + 1} of $count',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                      if (player.activeSpeakerId != null)
+                        Text('Speaker: ' +
+                            (_castNames[player.activeSpeakerId] ?? 'Unknown')
+                          , style: Theme.of(context).textTheme.labelSmall),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 6,
+                        runSpacing: 2,
+                        children: [
+                          IconButton(
+                            tooltip: 'Previous segment (Left arrow)',
+                            icon: const Icon(Icons.skip_previous),
+                            onPressed: () => _move(-1),
+                          ),
+                          FilledButton.tonalIcon(
+                            onPressed: _playOrPause,
+                            icon: Icon(
+                              player.isPlaying ? Icons.pause : Icons.play_arrow,
                             ),
+                            label: Text(player.isPlaying ? 'Pause' : 'Play'),
+                          ),
+                          IconButton(
+                            tooltip: 'Next segment (Right arrow)',
+                            icon: const Icon(Icons.skip_next),
+                            onPressed: () => _move(1),
+                          ),
+                          IconButton(
+                            tooltip: 'Keyboard shortcuts (F1)',
+                            icon: const Icon(Icons.keyboard_outlined),
+                            onPressed: () => unawaited(
+                                showReaderKeyboardHelp(context)),
+                          ),
+                          PopupMenuButton<int>(
+                            tooltip: 'Sleep timer',
+                            icon: Icon(player.sleepTimerEndsAt == null
+                                ? Icons.bedtime_outlined : Icons.bedtime),
+                            onSelected: (minutes) {
+                              if (minutes == 0) {
+                                player.cancelSleepTimer();
+                              } else {
+                                player.setSleepTimer(Duration(minutes: minutes));
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              if (player.sleepTimerEndsAt != null)
+                                const PopupMenuItem(
+                                  value: 0, child: Text('Turn off sleep timer'),
+                                ),
+                              for (final minutes in [10, 15, 30, 45, 60])
+                                PopupMenuItem(
+                                  value: minutes,
+                                  child: Text('Stop after $minutes minutes'),
+                                ),
+                            ],
                           ),
                         ],
                       ),
-                      const Text(
-                        'Extra breath only between different installed '
-                        'narrator/character voices. The current sentence '
-                        'continues unchanged. Does not affect cloud TTS.',
+                      if (player.sleepTimerEndsAt != null)
+                        Text(
+                          'Sleep timer: stops at ${TimeOfDay.fromDateTime(player.sleepTimerEndsAt!).format(context)}'
+                          ' (continues while paused)',
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      if (_epubSpeechNoteFilter?.hasNotes ?? false)
+                        CheckboxListTile(
+                          key: const ValueKey('epub-skip-spoken-notes'),
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          title: const Text('Skip EPUB footnotes in narration'),
+                          subtitle: const Text(
+                            'Optional, off by default. Skips only fully contained '
+                            'verified note passages. Notes remain visible and '
+                            'searchable; mixed passages are spoken to avoid '
+                            'losing main text. Already sent cloud prebuffers cannot '
+                            'be recalled.',
+                          ),
+                          value: _skipEpubNotes,
+                          onChanged: (value) =>
+                              setState(() => _skipEpubNotes = value ?? false),
+                        ),
+                      if (player.engineProviderId == 'sherpa-vits')
+                        CheckboxListTile(
+                          key: const ValueKey('offline-next-wav-warmup'),
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          title: const Text('Prepare next offline voice clip'),
+                          subtitle: const Text(
+                            'On by default for the selected local VITS voice. '
+                            'Prepares only one future WAV, using local CPU and '
+                            'temporary disk but no network or provider fees. '
+                            'Stop, pause and seek cancel pending synthesis.',
+                          ),
+                          value: player.warmNextOfflineChunk,
+                          onChanged: (enabled) =>
+                              player.setOfflineWarmup(enabled ?? false),
+                        ),
+                      if (player.engineProviderId == 'sherpa-vits' &&
+                          player.offlineVoiceStatistics != null)
+                        Builder(builder: (context) {
+                          final d = player.offlineVoiceStatistics!;
+                          return ExpansionTile(
+                            key: const ValueKey('offline-vits-performance'),
+                            title: const Text('Offline voice performance'),
+                            subtitle: const Text(
+                              'This session only. No book text or audio logged; '
+                              'RAM reflects the entire app, not just ONNX.',
+                            ),
+                            children: [
+                              ListTile(
+                                dense: true,
+                                title: Text(
+                                  'Model loads: ${d.modelLoads} · '
+                                  'Syntheses: ${d.syntheses} · '
+                                  'Prepared in advance: ${d.aheadSyntheses} · '
+                                  'WAVs reused: ${d.warmedWaveReuses}',
+                                ),
+                              ),
+                              ListTile(
+                                dense: true,
+                                title: Text(
+                                  'Last synthesis: ${d.lastSynthesisMs} ms · '
+                                  'Average: ${d.averageSynthesisMs} ms · '
+                                  'P95 of last 64: ${d.p95SynthesisMs} ms',
+                                ),
+                                subtitle: const Text(
+                                  'Native/model synthesis duration; '
+                                  'P95 is a rolling sample statistic.',
+                                ),
+                              ),
+                              ListTile(
+                                dense: true,
+                                title: Text(
+                                  'Decoder handoff: ${d.lastDecoderHandoffMs} ms · '
+                                  'Whole-process RSS: '
+                                  '${d.lastWholeProcessRssMiB} MiB',
+                                ),
+                                subtitle: Text(
+                                  'Failed: ${d.failures} · '
+                                  'Cancelled: ${d.cancelledSyntheses} · '
+                                  'Pending WAV cleanup: ${d.pendingWaveFolders}. '
+                                  'Handoff is not audible onset; '
+                                  'RSS is not model-only memory.',
+                                ),
+                              ),
+                              ListTile(
+                                key: const ValueKey('reader-narration-transition-timing'),
+                                dense: true,
+                                title: const Text('Real-reading narration timing'),
+                                subtitle: Text(formatNarrationTransitionDiagnostics(
+                                    player.narrationTimings)),
+                              ),
+                              ListTile(
+                                key: const ValueKey('reader-narration-delay-analysis'),
+                                dense: true,
+                                title: const Text('Where transition time is spent'),
+                                subtitle: Text(formatNarrationDelayAssessment(
+                                    player.narrationTimings)),
+                              ),
+                            ],
+                          );
+                        }),
+                      if (player.engineProviderId ==
+                          OpenAiSpeechEngine.providerId)
+                        CheckboxListTile(
+                          key: const ValueKey('cloud-cache-only-warmup'),
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          title: const Text('Warm already cached cloud audio'),
+                          subtitle: const Text(
+                            'On by default. Only reads a previously generated '
+                            'private MP3 and prepares the next decoder locally. '
+                            'Never makes an extra network request or reserves '
+                            'provider characters. Disable to compare playback.',
+                          ),
+                          value: player.warmCachedCloudChunk,
+                          onChanged: (enabled) =>
+                              player.setCachedCloudWarmup(enabled ?? false),
+                        ),
+                      if (player.engineProviderId ==
+                          OpenAiSpeechEngine.providerId)
+                        CheckboxListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          title: const Text('Prebuffer one cloud audio chunk'),
+                          subtitle: const Text(
+                            'Optional, off by default. The next chunk may be '
+                            'sent to OpenAI and charged while the current one '
+                            'plays, even if you pause or skip before hearing it. '
+                            'Only one future chunk is prepared.',
+                          ),
+                          value: player.prefetchNextCloudChunk,
+                          onChanged: (enabled) => player.setCloudPrefetch(
+                              enabled ?? false),
+                        ),
+                      if (player.availableVoices.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Row(
+                            children: [
+                              const Text('Voice'),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: DropdownButton<SpeechVoice>(
+                                  isExpanded: true,
+                                  hint: const Text('Default system voice'),
+                                  value: player.selectedVoice,
+                                  items: player.availableVoices.map((voice) {
+                                    return DropdownMenuItem(
+                                      value: voice,
+                                      child: Text(
+                                        voice.toString(),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (voice) async {
+                                    if (voice == null) return;
+                                    try {
+                                      await player.selectVoice(voice);
+                                      await _saveVoiceSettings();
+                                    } catch (error) {
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Voice unavailable: $error')),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              player.currentPreferences.providerId == 'system'
+                                  ? Platform.isWindows
+                                      ? 'Engine: system voice (interpreted pauses)'
+                                      : 'Engine: Android voice (native punctuation)'
+                                  : player.currentPreferences.providerId == 'system-interpreted'
+                                      ? 'Engine: system voice (interpreted punctuation)'
+                                      : player.currentPreferences.providerId == 'system-native'
+                                          ? 'Engine: system voice (native punctuation)'
+                                      : player.currentPreferences.providerId ==
+                                              SherpaVitsSpeechEngine.providerId
+                                          ? 'Engine: local neural VITS (experimental)'
+                                          : 'Engine: OpenAI Speech (cloud)',
+                            ),
+                          ),
+                          PopupMenuButton<String>(
+                            tooltip: 'Speech preference scope',
+                            icon: const Icon(Icons.settings_voice),
+                            itemBuilder: (context) => const [
+                              PopupMenuItem(
+                                value: 'make-global',
+                                child: Text('Save as global default'),
+                              ),
+                              PopupMenuItem(
+                                value: 'use-global',
+                                child: Text('Use global defaults for this book'),
+                              ),
+                            ],
+                            onSelected: (action) async {
+                              try {
+                                if (action == 'make-global') {
+                                  await widget.store.saveSpeechPreferences(
+                                    player.currentPreferences,
+                                  );
+                                } else if (action == 'use-global') {
+                                  await player.pause();
+                                  await widget.store.clearBookSpeechPreferences(
+                                    widget.book.id,
+                                  );
+                                  final globalPrefs = widget.store.getSpeechPreferences(
+                                    bookId: widget.book.id,
+                                  );
+                                  await player.applyPreferences(globalPrefs);
+                                  player.setDialogueTurnPause(Duration(
+                                      milliseconds: globalPrefs.dialogueTurnPauseMs));
+                                }
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Voice preferences updated'),
+                                    ),
+                                  );
+                                }
+                              } catch (error) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(
+                                      'Voice settings error: ' + error.toString(),
+                                    )),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              if (player.supportsVolume)
-                Row(
-                  children: [
-                    const Text('Volume'),
-                    Expanded(
-                      child: Slider(
-                        key: const ValueKey('system-speech-volume'),
-                        min: 0,
-                        max: 1,
-                        divisions: 20,
-                        value: player.volume,
-                        semanticFormatterCallback: (value) =>
-                            '${(value * 100).round()} percent',
-                        onChanged: player.setVolume,
-                        onChangeEnd: (_) {
-                          unawaited(player.restartAfterSettingsChange());
-                          unawaited(_saveVoiceSettings());
-                        },
+                      Row(
+                        children: [
+                          Text((player.currentPreferences.providerId == 'system' ||
+                              player.currentPreferences.providerId == 'system-native' ||
+                                   player.currentPreferences.providerId == 'system-interpreted')
+                              ? 'Pitch' : 'Pitch unavailable'),
+                          Expanded(
+                            child: Slider(
+                              min: 0.5,
+                              max: 1.5,
+                              divisions: 10,
+                              value: player.pitch,
+                              onChanged: (player.currentPreferences.providerId == 'system' ||
+                                  player.currentPreferences.providerId == 'system-native' ||
+                                   player.currentPreferences.providerId == 'system-interpreted')
+                                  ? (value) {
+                                      player.setPitch(value);
+                                    }
+                                  : null,
+                              onChangeEnd: (player.currentPreferences.providerId == 'system' ||
+                                  player.currentPreferences.providerId == 'system-native' ||
+                                   player.currentPreferences.providerId == 'system-interpreted')
+                                  ? (_) {
+                                      unawaited(player.restartAfterSettingsChange());
+                                      unawaited(_saveVoiceSettings());
+                                    }
+                                  : null,
+                            ),
+                          ),
+                          Text(player.pitch.toStringAsFixed(1)),
+                        ],
                       ),
-                    ),
-                    SizedBox(
-                      width: 54,
-                      child: Text('${(player.volume * 100).round()}%',
-                          textAlign: TextAlign.end),
-                    ),
-                  ],
-                ),
-              Row(
-                children: [
-                  const Text('Speed'),
-                  Expanded(
-                    child: Slider(
-                      min: 0.2,
-                      max: 1.0,
-                      divisions: 8,
-                      value: player.rate,
-                      onChanged: (value) {
-                        player.setRate(value);
-                      },
-                      onChangeEnd: (_) {
-                        unawaited(player.restartAfterSettingsChange());
-                        unawaited(_saveVoiceSettings());
-                      },
-                    ),
-                  ),
-                  Text(player.rate.toStringAsFixed(1)),
-                  const SizedBox(width: 6),
-                  DropdownButton<String>(
-                    value: player.language,
-                    items: <String>{
-                      'it-IT', 'en-US', player.language,
-                      ...player.availableVoices.map((voice) => voice.locale),
-                    }.map((locale) => DropdownMenuItem(
-                      value: locale,
-                      child: Text(locale),
-                    )).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        player.setLanguage(value);
-                        unawaited(player.restartAfterSettingsChange());
-                        unawaited(_saveVoiceSettings());
-                      }
-                    },
-                  ),
-                ],
-              ),
+                      if (player.engineProviderId == 'system' ||
+                          player.engineProviderId == 'system-native' ||
+                           player.engineProviderId == 'system-interpreted')
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Text('Dialogue pause'),
+                                  Expanded(
+                                    child: Slider(
+                                      key: const ValueKey('dialogue-turn-pause'),
+                                      min: 0,
+                                      max: 2000,
+                                      divisions: 80,
+                                      value: player.dialogueTurnPause.inMilliseconds
+                                          .toDouble(),
+                                      onChanged: (value) => player.setDialogueTurnPause(
+                                        Duration(milliseconds: value.round()),
+                                      ),
+                                      onChangeEnd: (_) =>
+                                          unawaited(_saveVoiceSettings()),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 70,
+                                    child: Text(
+                                      player.dialogueTurnPause == Duration.zero
+                                          ? 'Off'
+                                          : '${player.dialogueTurnPause.inMilliseconds} ms',
+                                      textAlign: TextAlign.end,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Text(
+                                'Extra breath only between different installed '
+                                'narrator/character voices. The current sentence '
+                                'continues unchanged. Does not affect cloud TTS.',
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (player.supportsVolume)
+                        Row(
+                          children: [
+                            const Text('Volume'),
+                            Expanded(
+                              child: Slider(
+                                key: const ValueKey('system-speech-volume'),
+                                min: 0,
+                                max: 1,
+                                divisions: 20,
+                                value: player.volume,
+                                semanticFormatterCallback: (value) =>
+                                    '${(value * 100).round()} percent',
+                                onChanged: player.setVolume,
+                                onChangeEnd: (_) {
+                                  unawaited(player.restartAfterSettingsChange());
+                                  unawaited(_saveVoiceSettings());
+                                },
+                              ),
+                            ),
+                            SizedBox(
+                              width: 54,
+                              child: Text('${(player.volume * 100).round()}%',
+                                  textAlign: TextAlign.end),
+                            ),
+                          ],
+                        ),
+                      Row(
+                        children: [
+                          const Text('Speed'),
+                          Expanded(
+                            child: Slider(
+                              min: 0.2,
+                              max: 1.0,
+                              divisions: 8,
+                              value: player.rate,
+                              onChanged: (value) {
+                                player.setRate(value);
+                              },
+                              onChangeEnd: (_) {
+                                unawaited(player.restartAfterSettingsChange());
+                                unawaited(_saveVoiceSettings());
+                              },
+                            ),
+                          ),
+                          Text(player.rate.toStringAsFixed(1)),
+                          const SizedBox(width: 6),
+                          DropdownButton<String>(
+                            value: player.language,
+                            items: <String>{
+                              'it-IT', 'en-US', player.language,
+                              ...player.availableVoices.map((voice) => voice.locale),
+                            }.map((locale) => DropdownMenuItem(
+                              value: locale,
+                              child: Text(locale),
+                            )).toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                player.setLanguage(value);
+                                unawaited(player.restartAfterSettingsChange());
+                                unawaited(_saveVoiceSettings());
+                              }
+                            },
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
