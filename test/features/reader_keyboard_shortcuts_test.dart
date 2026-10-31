@@ -18,12 +18,16 @@ ReaderKeyboardAction? action(
   bool meta = false,
   bool alt = false,
   bool shift = false,
+  bool tools = false,
+  bool interactive = false,
 }) =>
     resolveReaderKeyboardAction(
       event,
       readerReady: ready,
       routeActive: routeActive,
       editingText: editing,
+      interactiveControlFocused: interactive,
+      toolsAvailable: tools,
       controlPressed: ctrl,
       metaPressed: meta,
       altPressed: alt,
@@ -31,6 +35,73 @@ ReaderKeyboardAction? action(
     );
 
 void main() {
+  test('Ctrl/Cmd+K opens tools only when explicitly available', () {
+    for (final useMeta in [false, true]) {
+      expect(action(down(LogicalKeyboardKey.keyK),
+              ready: false, tools: true,
+              ctrl: !useMeta, meta: useMeta),
+          ReaderKeyboardAction.tools);
+      expect(action(down(LogicalKeyboardKey.keyK),
+          ready: false, ctrl: !useMeta, meta: useMeta), isNull);
+      expect(action(down(LogicalKeyboardKey.keyK),
+          ready: true, tools: true,
+          ctrl: !useMeta, meta: useMeta, shift: true), isNull);
+      expect(action(down(LogicalKeyboardKey.keyK),
+          ready: true, tools: true, editing: true,
+          ctrl: !useMeta, meta: useMeta), isNull);
+    }
+    expect(action(down(LogicalKeyboardKey.keyK),
+        tools: true, routeActive: false, ctrl: true), isNull);
+    expect(action(down(LogicalKeyboardKey.keyK),
+        tools: true, alt: true, ctrl: true), isNull);
+    expect(action(down(LogicalKeyboardKey.keyK),
+        tools: true), isNull);
+    expect(action(KeyRepeatEvent(
+      logicalKey: LogicalKeyboardKey.keyK,
+      physicalKey: PhysicalKeyboardKey.keyK,
+      timeStamp: Duration.zero,
+    ), tools: true, ctrl: true), isNull);
+  });
+
+  test('focused interactive controls keep Space and arrow keys', () {
+    for (final key in [
+      LogicalKeyboardKey.space,
+      LogicalKeyboardKey.arrowLeft,
+      LogicalKeyboardKey.arrowRight,
+    ]) {
+      expect(action(down(key), interactive: true), isNull);
+    }
+    expect(action(down(LogicalKeyboardKey.keyK),
+        interactive: true, tools: true, ctrl: true),
+        ReaderKeyboardAction.tools);
+  });
+
+  testWidgets('Ctrl+K exposes tools in PDF page mode, not audio transport',
+      (tester) async {
+    var opened = 0;
+    var played = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderKeyboardShortcuts(
+        enabled: false,
+        onPlayPause: () => played++,
+        onPreviousSegment: () {},
+        onNextSegment: () {},
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        onTools: () => opened++,
+        child: const Scaffold(body: Text('Visual-only PDF')),
+      ),
+    ));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    expect(opened, 1);
+    expect(played, 0);
+  });
+
   test('unmodified desktop transport keys map to reader commands', () {
     expect(action(down(LogicalKeyboardKey.space)),
         ReaderKeyboardAction.playPause);
@@ -237,6 +308,7 @@ void main() {
     expect(find.text('Reader keyboard shortcuts'), findsOneWidget);
     expect(find.textContaining('Space — Play or pause'), findsOneWidget);
     expect(find.textContaining('text field'), findsOneWidget);
+    expect(find.textContaining('Ctrl/Cmd + K'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(find.text('Reader keyboard shortcuts'), findsNothing);
