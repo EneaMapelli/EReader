@@ -79,7 +79,7 @@ List<OrganizedActionSection> buildReaderToolSections(
         title: options.focusMode
             ? 'Show narration controls' : 'Hide narration controls',
         icon: options.focusMode
-            ? Icons.expand_less : Icons.chrome_reader_mode_outlined,
+            ? Icons.expand_less : Icons.fullscreen_outlined,
         subtitle: 'Give the text more space; restore controls anytime',
         selected: options.focusMode,
       ),
