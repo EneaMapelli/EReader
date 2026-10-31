@@ -1132,3 +1132,21 @@ Android Activity recreation remains a manual device gate.
   percentage increase. Native and screen-reader acceptance is still open.
 - See [READER_KEYBOARD_SHORTCUTS.md](READER_KEYBOARD_SHORTCUTS.md) and
   [SEARCHABLE_TOOL_MENUS.md](SEARCHABLE_TOOL_MENUS.md).
+
+
+### M1/M6 — Library keyboard navigation and searchable tools (2026-10-31)
+
+- Added route-scoped Ctrl/Cmd+F for the existing catalog search, Ctrl/Cmd+K
+  for focused library tool search, Ctrl/Cmd+O for guarded local book import,
+  and F1 for the scrollable keyboard help. These share existing UI actions.
+- A searchable keyboard palette works even for fewer than eight library
+  tools; normal toolbar opening does not raise the Android keyboard.
+- Guarded against active text editing, inactive routes/dialogs, repeat/key-up
+  events, missing catalog search and busy import/backup/recovery. Existing
+  Windows drag/drop and Android SAF import paths are unchanged.
+- Added pure key mapping, callback isolation, SQLite-backed integration
+  and enlarged-text help widget regressions. Authored, **not executed**.
+  No Windows builds, Android builds, GitHub Actions or cloud TTS started.
+- See [LIBRARY_KEYBOARD_NAVIGATION.md](LIBRARY_KEYBOARD_NAVIGATION.md).
+  Native acceptance and release readiness remain open; milestone
+  completion estimates do not change.
