@@ -676,7 +676,8 @@ class ReaderPlayer extends ChangeNotifier {
         final requestedBreath = isNewAudibleVoiceTurn
             ? _dialogueTurnPause : Duration.zero;
         final freeSystemVoice = engineProviderId == 'system' ||
-            engineProviderId == 'system-native';
+            engineProviderId == 'system-native' ||
+            engineProviderId == 'system-interpreted';
         // The last utterance is finished, so selecting the next native
         // voice may safely overlap the *silent* punctuation/cast breath.
         // Await BOTH before reporting the next source checkpoint: their
