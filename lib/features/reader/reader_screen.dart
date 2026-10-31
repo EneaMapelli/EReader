@@ -55,6 +55,7 @@ import 'epub_diagnostics_sheet.dart';
 import 'epub_opening_performance_sheet.dart';
 import 'epub_frame_sampler.dart';
 import 'reader_keyboard_shortcuts.dart';
+import '../shared/organized_action_sheet.dart';
 import 'reading_progress_bar.dart';
 
 class ReaderScreen extends StatefulWidget {
@@ -1763,6 +1764,246 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
+  /// Book actions are grouped by intent, not displayed as an overflowing
+  /// row of 10+ icon-only controls. Every operation is invoked only after
+  /// this accessible, scrollable sheet has closed.
+  Future<void> _openReaderTools() async {
+    final epub = widget.book.format == BookFormat.epub;
+    final pdf = widget.book.format == BookFormat.pdf;
+    final textMode = !pdf || _pdfTextMode;
+    final playable = _player != null && _player!.segments.isNotEmpty;
+    final hasContents = epub &&
+        (_chapters.isNotEmpty || _authorToc.isNotEmpty);
+    final action = await showOrganizedActionSheet(
+      context,
+      title: 'Reader tools',
+      sections: [
+        OrganizedActionSection(title: 'Navigate & find', items: [
+          if (hasContents)
+            const OrganizedActionItem(
+              id: 'contents', title: 'Table of contents',
+              icon: Icons.view_list_outlined,
+              subtitle: 'Jump between EPUB sections',
+            ),
+          if (playable)
+            const OrganizedActionItem(
+              id: 'search', title: 'Search this book',
+              icon: Icons.search,
+              subtitle: 'Find words or phrases within the current book',
+            ),
+          if (playable)
+            const OrganizedActionItem(
+              id: 'bookmarks', title: 'Bookmarks',
+              icon: Icons.bookmarks_outlined,
+              subtitle: 'View or manage saved reading locations',
+            ),
+          if (pdf && !_pdfTextMode && _pdfPageCount != null)
+            const OrganizedActionItem(
+              id: 'pdf-bookmarks', title: 'PDF page bookmarks',
+              icon: Icons.bookmarks_outlined,
+            ),
+          if (epub && _linkHistory.canReturn)
+            const OrganizedActionItem(
+              id: 'return-link', title: 'Return from internal link',
+              icon: Icons.keyboard_return,
+            ),
+          if (pdf && _pdfTextMode)
+            const OrganizedActionItem(
+              id: 'pdf-pages', title: 'Return to PDF pages',
+              icon: Icons.picture_as_pdf_outlined,
+            ),
+        ]),
+        OrganizedActionSection(title: 'Reading appearance', items: [
+          if (textMode)
+            const OrganizedActionItem(
+              id: 'appearance', title: 'Font & layout',
+              icon: Icons.format_line_spacing,
+              subtitle: 'Text size, spacing and colors',
+            ),
+          if (textMode)
+            const OrganizedActionItem(
+              id: 'font-plus', title: 'Increase text size',
+              icon: Icons.text_increase,
+            ),
+          if (textMode)
+            const OrganizedActionItem(
+              id: 'font-minus', title: 'Decrease text size',
+              icon: Icons.text_decrease,
+            ),
+          if (textMode)
+            OrganizedActionItem(
+              id: 'auto-follow', title: 'Follow narration',
+              icon: _autoFollow ? Icons.my_location
+                  : Icons.location_disabled,
+              subtitle: 'Automatically scroll while reading aloud',
+              selected: _autoFollow,
+            ),
+          if (epub) ...[
+            OrganizedActionItem(
+              id: 'palette-system', title: 'Device colors',
+              icon: Icons.brightness_auto_outlined,
+              selected: _epubPalette == EpubReadingPalette.system,
+            ),
+            OrganizedActionItem(
+              id: 'palette-sepia', title: 'Warm paper',
+              icon: Icons.wb_sunny_outlined,
+              selected: _epubPalette == EpubReadingPalette.sepia,
+            ),
+            OrganizedActionItem(
+              id: 'palette-night', title: 'Night reading',
+              icon: Icons.dark_mode_outlined,
+              selected: _epubPalette == EpubReadingPalette.night,
+            ),
+            OrganizedActionItem(
+              id: 'palette-contrast', title: 'High contrast',
+              icon: Icons.contrast,
+              selected: _epubPalette == EpubReadingPalette.highContrast,
+            ),
+          ],
+        ]),
+        OrganizedActionSection(title: 'Speech & characters', items: [
+          const OrganizedActionItem(
+            id: 'speech', title: 'TTS engines & voices',
+            icon: Icons.tune,
+            subtitle: 'Offline models, language and cloud consent',
+          ),
+          if (playable)
+            const OrganizedActionItem(
+              id: 'cast', title: 'Characters & voice cast',
+              icon: Icons.theater_comedy_outlined,
+            ),
+          const OrganizedActionItem(
+            id: 'pronunciation', title: 'Pronunciation dictionary',
+            icon: Icons.spellcheck,
+          ),
+        ]),
+        OrganizedActionSection(title: 'Help & diagnostics', items: [
+          const OrganizedActionItem(
+            id: 'keyboard-help', title: 'Keyboard shortcuts',
+            icon: Icons.keyboard_outlined,
+          ),
+          if (epub && !_loading && _epubWorkerTimings != null)
+            const OrganizedActionItem(
+              id: 'epub-performance', title: 'EPUB opening performance',
+              icon: Icons.speed_outlined,
+              subtitle: 'Inspect opening and rendering timings',
+            ),
+          if (epub && (_document?.epubDiagnostics.isNotEmpty ?? false))
+            const OrganizedActionItem(
+              id: 'epub-compat', title: 'EPUB compatibility report',
+              icon: Icons.report_problem_outlined,
+            ),
+        ]),
+      ],
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'contents':
+        await _openChapterDirectory();
+        return;
+      case 'search':
+        await _searchInBook();
+        return;
+      case 'bookmarks':
+        await _openBookmarks();
+        return;
+      case 'pdf-bookmarks':
+        await _openPdfVisualBookmarks();
+        return;
+      case 'return-link':
+        _returnFromEpubLink();
+        return;
+      case 'pdf-pages':
+        await _returnToPdfPages();
+        return;
+      case 'appearance':
+        await _openReadingAppearance();
+        return;
+      case 'font-plus':
+        _setReadingPreferences(_readingPrefs.copyWith(
+            fontSize: (_fontSize + 2).clamp(14.0, 32.0).toDouble()));
+        return;
+      case 'font-minus':
+        _setReadingPreferences(_readingPrefs.copyWith(
+            fontSize: (_fontSize - 2).clamp(14.0, 32.0).toDouble()));
+        return;
+      case 'auto-follow':
+        setState(() => _autoFollow = !_autoFollow);
+        if (_autoFollow) {
+          _lastFollowedIndex = -1;
+          _onPlaybackChanged();
+        }
+        return;
+      case 'palette-system':
+      case 'palette-sepia':
+      case 'palette-night':
+      case 'palette-contrast':
+        final palette = switch (action) {
+          'palette-system' => EpubReadingPalette.system,
+          'palette-sepia' => EpubReadingPalette.sepia,
+          'palette-night' => EpubReadingPalette.night,
+          _ => EpubReadingPalette.highContrast,
+        };
+        _setReadingPreferences(
+            _readingPrefs.copyWith(palette: palette.name));
+        return;
+      case 'speech':
+        await _openSpeechSettings();
+        return;
+      case 'cast':
+        await _openCastEditor();
+        return;
+      case 'pronunciation':
+        await _openPronunciations();
+        return;
+      case 'keyboard-help':
+        await showReaderKeyboardHelp(context);
+        return;
+      case 'epub-performance':
+        if (_epubWorkerTimings != null) {
+          await showEpubOpeningPerformance(
+            context,
+            worker: _epubWorkerTimings!,
+            castLayoutUs: _epubCastLayoutUs!,
+            voiceSetupUs: _epubVoiceSetupUs!,
+            totalOpenUs: _epubTotalOpenUs!,
+            firstFrameUs: _epubFirstFrameUs,
+            frameProfile: _frameProfile,
+            frameCaptureActive: _activeFrameSampler != null,
+            onStartFrameCapture: _startFrameCapture,
+            onStopFrameCapture: _stopFrameCapture,
+          );
+        }
+        return;
+      case 'epub-compat':
+        final reports = _document?.epubDiagnostics;
+        if (reports != null && reports.isNotEmpty) {
+          await showEpubImportDiagnostics(context, reports);
+        }
+        return;
+    }
+  }
+
+  Future<void> _returnToPdfPages() async {
+    await _player?.pause();
+    _saveVisualPositionTimer?.cancel();
+    if (!mounted) return;
+    final speech = _player;
+    final document = _document;
+    if (speech != null && document != null &&
+        speech.segments.isNotEmpty) {
+      final offset = speech.segments[
+          speech.currentIndex.clamp(
+              0, speech.segments.length - 1).toInt()].start;
+      final page = pdfVisualPageForTextOffset(
+        document.pdfPageRanges, offset,
+      );
+      if (page != null) _displayPdfPage = page;
+    }
+    setState(() => _pdfTextMode = false);
+    _onPdfPageChanged(_displayPdfPage);
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = _player;
@@ -1782,72 +2023,13 @@ class _ReaderScreenState extends State<ReaderScreen>
       onHelp: () => unawaited(showReaderKeyboardHelp(context)),
       child: Scaffold(
       appBar: AppBar(
-        title: Text(widget.book.title),
+        title: Text(widget.book.title,
+            maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          if (widget.book.format == BookFormat.pdf && !_pdfTextMode)
-            IconButton(
-              tooltip: 'PDF page bookmarks',
-              icon: const Icon(Icons.bookmarks_outlined),
-              onPressed: _pdfPageCount == null
-                  ? null : _openPdfVisualBookmarks,
-            ),
-          if (widget.book.format == BookFormat.epub &&
-              !_loading && _epubWorkerTimings != null)
-            IconButton(
-              icon: const Icon(Icons.speed_outlined),
-              tooltip: 'EPUB opening performance',
-              onPressed: () => showEpubOpeningPerformance(
-                context,
-                worker: _epubWorkerTimings!,
-                castLayoutUs: _epubCastLayoutUs!,
-                voiceSetupUs: _epubVoiceSetupUs!,
-                totalOpenUs: _epubTotalOpenUs!,
-                firstFrameUs: _epubFirstFrameUs,
-                frameProfile: _frameProfile,
-                frameCaptureActive: _activeFrameSampler != null,
-                onStartFrameCapture: _startFrameCapture,
-                onStopFrameCapture: _stopFrameCapture,
-              ),
-            ),
-          if (widget.book.format == BookFormat.epub &&
-              (_document?.epubDiagnostics.isNotEmpty ?? false))
-            IconButton(
-              icon: const Icon(Icons.report_problem_outlined),
-              tooltip: 'EPUB compatibility report',
-              onPressed: () => showEpubImportDiagnostics(
-                context, _document!.epubDiagnostics,
-              ),
-            ),
-          if (widget.book.format == BookFormat.epub)
-            PopupMenuButton<EpubReadingPalette>(
-              tooltip: 'EPUB reading colors',
-              icon: const Icon(Icons.palette_outlined),
-              initialValue: _epubPalette,
-              onSelected: (palette) =>
-                  _setReadingPreferences(
-                      _readingPrefs.copyWith(palette: palette.name)),
-              itemBuilder: (_) => const [
-                PopupMenuItem(
-                  value: EpubReadingPalette.system,
-                  child: Text('Follow device theme'),
-                ),
-                PopupMenuItem(
-                  value: EpubReadingPalette.sepia,
-                  child: Text('Warm paper'),
-                ),
-                PopupMenuItem(
-                  value: EpubReadingPalette.night,
-                  child: Text('Night reading'),
-                ),
-                PopupMenuItem(
-                  value: EpubReadingPalette.highContrast,
-                  child: Text('High contrast'),
-                ),
-              ],
-            ),
           if (widget.book.format == BookFormat.epub &&
               _linkHistory.canReturn)
             IconButton(
+              key: const ValueKey('reader-return-link'),
               tooltip: 'Return from note or internal link',
               icon: const Icon(Icons.keyboard_return),
               onPressed: _returnFromEpubLink,
@@ -1855,99 +2037,25 @@ class _ReaderScreenState extends State<ReaderScreen>
           if (widget.book.format == BookFormat.epub &&
               (_chapters.isNotEmpty || _authorToc.isNotEmpty))
             IconButton(
+              key: const ValueKey('reader-contents-action'),
               tooltip: _authorToc.isNotEmpty
                   ? 'Book table of contents' : 'EPUB spine sections',
               icon: const Icon(Icons.view_list),
               onPressed: _openChapterDirectory,
             ),
-          IconButton(
-            icon: const Icon(Icons.tune),
-            tooltip: 'TTS engines, models and cloud consent',
-            onPressed: _openSpeechSettings,
-          ),
           if (_player != null && _player!.segments.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.theater_comedy_outlined),
-              tooltip: 'Characters and manual voice cast',
-              onPressed: _openCastEditor,
-            ),
-          if (_player != null && _player!.segments.isNotEmpty)
-            IconButton(
+              key: const ValueKey('reader-search-action'),
               icon: const Icon(Icons.search),
               tooltip: 'Search this book (Ctrl/Cmd+F)',
               onPressed: _searchInBook,
             ),
-          if (_player != null && _player!.segments.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.bookmarks_outlined),
-              tooltip: 'Bookmarks (Ctrl/Cmd+B)',
-              onPressed: _openBookmarks,
-            ),
           IconButton(
-            icon: const Icon(Icons.spellcheck),
-            tooltip: 'Pronunciation dictionary',
-            onPressed: _openPronunciations,
+            key: const ValueKey('reader-tools-menu'),
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'Reader tools & settings',
+            onPressed: _openReaderTools,
           ),
-          if (widget.book.format != BookFormat.pdf || _pdfTextMode)
-            IconButton(
-              tooltip: _autoFollow
-                  ? 'Disable auto-scroll while listening'
-                  : 'Enable auto-scroll while listening',
-              icon: Icon(_autoFollow ? Icons.my_location : Icons.location_disabled),
-              onPressed: () {
-                setState(() => _autoFollow = !_autoFollow);
-                if (_autoFollow) {
-                  _lastFollowedIndex = -1;
-                  _onPlaybackChanged();
-                }
-              },
-            ),
-          if (widget.book.format == BookFormat.pdf && _pdfTextMode)
-            IconButton(
-              tooltip: 'Return to PDF pages',
-              icon: const Icon(Icons.picture_as_pdf_outlined),
-              onPressed: () async {
-                await _player?.pause();
-                _saveVisualPositionTimer?.cancel();
-                if (!mounted) return;
-                final speech = _player;
-                final document = _document;
-                if (speech != null && document != null &&
-                    speech.segments.isNotEmpty) {
-                  final offset = speech.segments[
-                      speech.currentIndex.clamp(
-                          0, speech.segments.length - 1).toInt()].start;
-                  final page = pdfVisualPageForTextOffset(
-                    document.pdfPageRanges, offset,
-                  );
-                  if (page != null) _displayPdfPage = page;
-                }
-                setState(() => _pdfTextMode = false);
-                _onPdfPageChanged(_displayPdfPage);
-              },
-            ),
-          if (widget.book.format != BookFormat.pdf || _pdfTextMode)
-            IconButton(
-              icon: const Icon(Icons.format_line_spacing),
-              tooltip: 'Reading appearance: fonts, line spacing and colors',
-              onPressed: _openReadingAppearance,
-            ),
-          if (widget.book.format != BookFormat.pdf || _pdfTextMode)
-            IconButton(
-              icon: const Icon(Icons.text_increase),
-              tooltip: 'Increase font size',
-              onPressed: () => _setReadingPreferences(
-                  _readingPrefs.copyWith(fontSize:
-                      (_fontSize + 2).clamp(14.0, 32.0).toDouble())),
-            ),
-          if (widget.book.format != BookFormat.pdf || _pdfTextMode)
-            IconButton(
-              icon: const Icon(Icons.text_decrease),
-              tooltip: 'Decrease font size',
-              onPressed: () => _setReadingPreferences(
-                  _readingPrefs.copyWith(fontSize:
-                      (_fontSize - 2).clamp(14.0, 32.0).toDouble())),
-            ),
         ],
       ),
       body: _loading
