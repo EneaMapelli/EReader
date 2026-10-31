@@ -8,6 +8,7 @@
 
 Sul branch `feature/m0-flutter-foundation` sono presenti:
 - Modello libri e importazione/copia locale di TXT, EPUB e PDF (limite provvisorio 100 MB).
+- **TXT con codifiche legacy (codice, da validare):** UTF-8, BOM UTF-16 LE/BE e Windows-1252 con puntaggiatura tipografica preservata; decodifica su isolate, rifiuto di contenuti binari e compatibilità degli offset con TTS/ricerca. [Specifiche](docs/TXT_CHARACTER_ENCODING.md).
 - Biblioteca SQLite con progressi e ancore persistenti, preferenze vocali, dizionario di pronuncia e segnalibri; migrazione automatica dei precedenti schemi JSON/SQLite (fino alla versione 16).
 - Estrazione TXT/EPUB in ordine OPF spine con limiti ZIP/XML e mappatura dei capitoli alle posizioni del testo; **il renderer EPUB completo e gli anchor EPUB CFI persistenti non sono ancora implementati**.
 - **Renderer EPUB per paragrafi (codice, da validare):** il testo è presentato in blocchi fluidi con larghezza di lettura limitata, carattere serif, evidenziazione TTS dentro il paragrafo e tap sulle singole porzioni vocali. Intestazioni accessibili, suddivisione Unicode sicura e temi sistema/sepia/notte. Il layout XHTML/CSS resta parziale. [Specifiche](docs/EPUB_PARAGRAPH_RENDERER.md).
