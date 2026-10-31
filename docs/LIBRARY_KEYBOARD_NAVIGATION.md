@@ -8,6 +8,7 @@ Branch: feature/m0-flutter-foundation.
 | Key | Behavior |
 | --- | --- |
 | Ctrl/Cmd+F | Focus the existing library catalog search (only when books are present and idle). |
+| Ctrl/Cmd+J | Open a searchable Quick open dialog for any saved book, without changing the current catalog filters. |
 | Ctrl/Cmd+K | Open library tools with its local search field immediately focused. |
 | Ctrl/Cmd+O | Open the already-existing local EPUB/PDF/TXT file picker, subject to import/busy safeguards. |
 | F1 | Display a scrollable keyboard guide, including at enlarged text scale. |
