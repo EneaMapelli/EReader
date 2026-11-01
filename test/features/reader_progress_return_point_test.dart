@@ -35,15 +35,33 @@ void main() {
     final history = ReaderProgressReturnPoint();
     history.recordCommittedJump(
       fromOffset: 100, toOffset: 450, sourceLength: 1000);
+    final staleRevision = history.revision;
     history.recordCommittedJump(
       fromOffset: 450, toOffset: 900, sourceLength: 1000);
     expect(history.origin, 450);
     expect(history.consumeIfOrigin(100), isFalse,
         reason: 'A stale async return cannot consume the newer jump');
     expect(history.origin, 450);
-    expect(history.consumeIfOrigin(450), isTrue);
+    expect(history.consumeIfOrigin(450, expectedRevision: staleRevision), isFalse,
+        reason: 'Even the same origin needs a matching jump revision');
+    expect(history.consumeIfOrigin(450,
+        expectedRevision: history.revision), isTrue);
     expect(history.canReturn, isFalse);
     expect(history.consumeIfOrigin(450), isFalse);
+  });
+
+  test('same-origin newer jump defeats a stale return callback', () {
+    final history = ReaderProgressReturnPoint();
+    history.recordCommittedJump(
+      fromOffset: 100, toOffset: 350, sourceLength: 1000);
+    final oldRevision = history.revision;
+    history.recordCommittedJump(
+      fromOffset: 100, toOffset: 750, sourceLength: 1000);
+    expect(history.consumeIfOrigin(
+        100, expectedRevision: oldRevision), isFalse);
+    expect(history.canReturn, isTrue);
+    expect(history.consumeIfOrigin(
+        100, expectedRevision: history.revision), isTrue);
   });
 
   test('beginning and exact source EOF are valid navigation points', () {
