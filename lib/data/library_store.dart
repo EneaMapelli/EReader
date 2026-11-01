@@ -36,6 +36,10 @@ import '../domain/llm_analysis_consent.dart';
 
 /// Local, transactional Windows/Android library. Inject homeDirectory in tests.
 class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
+  /// The version written after a complete, successful startup migration.
+  /// Historical version guards below must stay literal so upgrades from
+  /// every earlier on-disk schema continue to run in order.
+  static const int currentSchemaVersion = 26;
   LibraryStore({Directory? homeDirectory, PdfCoverRenderer? pdfCoverRenderer})
       : _configuredHome = homeDirectory,
         _pdfCoverRenderer = pdfCoverRenderer ?? renderPdfFirstPageThumbnail;
@@ -198,7 +202,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA journal_mode = WAL');
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
-      if (version > 26) {
+      if (version > currentSchemaVersion) {
         throw StateError('Library created by a newer EReader version');
       }
       if (version < 1) {
@@ -736,7 +740,7 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
               source_modified_us INTEGER NOT NULL
             )
           ''');
-          db.execute('PRAGMA user_version = 26');
+          db.execute('PRAGMA user_version = $currentSchemaVersion');
         });
       }
       await _migrateLegacyJson(db, support);
