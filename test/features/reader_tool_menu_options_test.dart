@@ -41,7 +41,8 @@ void main() {
     ]);
     final actions = ids(sections);
     for (final action in [
-      'contents', 'return-link', 'search', 'bookmarks',
+      'contents', 'first-section', 'last-section',
+      'return-link', 'search', 'bookmarks',
       'appearance', 'font-plus', 'font-minus', 'auto-follow',
       'reading-focus',
       'palette-system', 'palette-sepia', 'palette-night',
@@ -68,6 +69,8 @@ void main() {
     expect(items, isNot(contains('bookmarks')));
     expect(items, isNot(contains('appearance')));
     expect(items, isNot(contains('reading-focus')));
+    expect(items, isNot(contains('first-section')));
+    expect(items, isNot(contains('last-section')));
     expect(items, isNot(contains('auto-follow')));
     expect(items, isNot(contains('pdf-pages')));
     expect(items, isNot(contains('palette-night')));
@@ -83,6 +86,8 @@ void main() {
       'appearance', 'font-plus', 'auto-follow', 'reading-focus']));
     expect(items, isNot(contains('pdf-bookmarks')));
     expect(items, isNot(contains('contents')));
+    expect(items, isNot(contains('first-section')));
+    expect(items, isNot(contains('last-section')));
     expect(items, isNot(contains('epub-compat')));
   });
 
@@ -94,6 +99,8 @@ void main() {
     expect(items, containsAll(['search', 'bookmarks',
       'appearance', 'speech', 'pronunciation', 'keyboard-help']));
     expect(items, isNot(contains('contents')));
+    expect(items, isNot(contains('first-section')));
+    expect(items, isNot(contains('last-section')));
     expect(items, isNot(contains('pdf-pages')));
     expect(items, isNot(contains('palette-night')));
     expect(items, isNot(contains('epub-performance')));
@@ -135,6 +142,8 @@ void main() {
       perf: false, warnings: false,
     )));
     expect(items, isNot(contains('contents')));
+    expect(items, isNot(contains('first-section')));
+    expect(items, isNot(contains('last-section')));
     expect(items, isNot(contains('search')));
     expect(items, isNot(contains('cast')));
     expect(items, isNot(contains('epub-performance')));
