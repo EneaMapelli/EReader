@@ -199,8 +199,9 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
     final db = sqlite3.open(p.join(support.path, 'library.sqlite'));
     try {
       db.execute('PRAGMA busy_timeout = 5000');
-      db.execute('PRAGMA journal_mode = WAL');
-      db.execute('PRAGMA foreign_keys = ON');
+      // Read the version before changing even the persistent journal mode.
+      // A future-schema library belongs to a newer EReader installation;
+      // opening it must be a read-only compatibility check.
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
       if (version > currentSchemaVersion) {
         // Opening a database written by a newer build must fail before
@@ -212,6 +213,8 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
           'Update EReader to open this library; no data was changed.',
         );
       }
+      db.execute('PRAGMA journal_mode = WAL');
+      db.execute('PRAGMA foreign_keys = ON');
       if (version < 1) {
         _transaction(db, () {
           db.execute('''
