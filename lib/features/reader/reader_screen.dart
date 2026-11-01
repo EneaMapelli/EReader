@@ -2344,37 +2344,31 @@ class _ReaderScreenState extends State<ReaderScreen>
   /// Explicit whole-book navigation, not speculative synthesis. Reuse the
   /// exact-source EPUB pipeline for silent content and the serialized
   /// stop/seek barrier for TXT/PDF text. Never auto-resume when scrubbing.
-  void _jumpToSourceProgress(int requestedOffset) {
+  void _jumpToSourceProgress(int requestedOffset, {
+    VoidCallback? onCommitted,
+  }) {
     final player = _player;
     final document = _document;
     if (!mounted || player == null || player.segments.isEmpty ||
         document == null || document.text.isEmpty) return;
     final target = requestedOffset.clamp(0, document.text.length).toInt();
     if (widget.book.format == BookFormat.epub) {
-      _navigateToSourceOffset(target, remember: false);
+      _navigateToSourceOffset(target, remember: false,
+          onCommitted: onCommitted);
       return;
     }
     Future<void> jump() async {
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player || _document != document) return;
-      if (target == document.text.length) {
-        _cancelPendingVisualSave();
-        await player.seekToSourceEnd();
-        if (!mounted || _player != player || _document != document) return;
-        await widget.store.savePosition(
-          widget.book.id, target,
-          anchor: document.anchorAt(widget.book.format, target),
-        );
-        _visiblePositionIndex = player.segments.length - 1;
-        if (_itemScrollController.isAttached) {
-          _itemScrollController.jumpTo(
-              index: _visiblePositionIndex!, alignment: 0.12);
-        }
-        setState(() {});
-      } else {
-        final index = speechSegmentIndexForOffset(player.segments, target);
-        if (index >= 0) await _select(index);
-      }
+      // The same _select pipeline handles both ordinary text segments and
+      // exact source EOF, with one latest-wins guard and SQLite write.
+      final atEnd = target == document.text.length;
+      final index = atEnd ? player.segments.length
+          : speechSegmentIndexForOffset(player.segments, target);
+      if (index < 0) return;
+      await _select(index,
+          visualSourceOffset: atEnd ? target : null,
+          onCommitted: onCommitted);
     }
     unawaited(jump().catchError((Object error, StackTrace stack) {
       if (!mounted) return;
