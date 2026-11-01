@@ -38,6 +38,41 @@ void main() {
     expect(findIndexedExactPhrases(source, ['dragon', 'dragon']), isEmpty);
   });
 
+  test('exact phrase never crosses sentence or paragraph boundaries', () {
+    for (final source in [
+      'dragon. dragon',
+      'dragon! dragon',
+      'dragon? dragon',
+      'dragon\\n\\nd ragon'.replaceAll('d ragon', 'dragon'),
+      'dragon\\r\\n  \\r\\ndragon',
+    ]) {
+      expect(findIndexedExactPhrases(source, ['dragon', 'dragon']),
+          isEmpty, reason: source);
+    }
+    // A comma or a single line wrap belongs to the same local sentence.
+    expect(findIndexedExactPhrases(
+        'blue, dragon', ['blue', 'dragon']), hasLength(1));
+    expect(findIndexedExactPhrases(
+        'blue\\ndragon', ['blue', 'dragon']), hasLength(1));
+    expect(findIndexedExactPhrases(
+        'blue\\n\\ndragon', ['blue', 'dragon']), isEmpty);
+  });
+
+  test('long interword gaps fail closed without excluding ordinary spacing',
+      () {
+    const prefix = 'blue';
+    const suffix = 'dragon';
+    expect(findIndexedExactPhrases(
+        prefix + (' ' * 64) + suffix,
+        [prefix, suffix]), hasLength(1));
+    expect(findIndexedExactPhrases(
+        prefix + (' ' * 65) + suffix,
+        [prefix, suffix]), isEmpty);
+    expect(findIndexedExactPhrases(
+        prefix + (' ' * 200) + suffix,
+        [prefix, suffix]), isEmpty);
+  });
+
   test('repeated terms must occur repeatedly in the requested order', () {
     const source = 'echo echo stop. echo over echo. stop echo echo echo.';
     final hits = findIndexedExactPhrases(source, ['echo', 'echo']);
