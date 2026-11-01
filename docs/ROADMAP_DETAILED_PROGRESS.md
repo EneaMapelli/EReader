@@ -1702,3 +1702,25 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   reproducible manual checks. **Flutter tests, analysis, and Windows/Android
   native QA remain unexecuted** by owner request. No build or GitHub Actions
   triggered; do not claim ER-028 or milestone M2 is completed.
+
+### 2026-11-01 — Reader text/TTS follow detachment and one-tap return
+
+- When explicit follow is enabled and TTS is actively playing, genuine
+  wheel, vertical touchpad, touch drag or unmodified keyboard book scrolling
+  now **temporarily detaches visual follow**. Audible narration and its
+  checkpoint progression continue. This does not turn off the user's saved
+  preference or issue a native Stop/Seek.
+- A floating **Return to narrated passage** control and matching
+  **Navigate & find** menu command reconnect the viewport to the current
+  utterance. Native PDF page view is excluded. The independent presentation
+  state resets on return, explicit follow-setting changes or a reader reload.
+- Programmatic source navigation, layout resize and playback-follow jumps
+  are not treated as manual scrolling. The return jumps are protected by the
+  existing viewport-save gate, so paused reattachment does not become an
+  accidental source checkpoint or erase an EPUB exact visual bookmark.
+- Added pure-state tests, an accessible button widget test, and menu
+  capability tests. Full device test scenarios and limitations are in
+  [READER_MANUAL_FOLLOW_RETURN.md](READER_MANUAL_FOLLOW_RETURN.md).
+  **Not run:** Flutter tests, analyzer, native Windows/Android builds or
+  media-session smoke tests. Per owner request, no GitHub Actions triggered.
+  PR #1 remains draft and release gates remain open.
