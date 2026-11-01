@@ -1445,3 +1445,29 @@ Android Activity recreation remains a manual device gate.
   branch. No new tests were run here, no Windows builds or GitHub Actions
   launched; native validation and readiness percentages remain pending.
 - See [READER_COMPACT_CONTROLS.md](READER_COMPACT_CONTROLS.md).
+
+
+### M2/M6 — Exact book-percentage navigation from reader tools (2026-11-01)
+
+- Added a Go to book position dialog reachable from the organized reader
+  Navigate & find menu and Ctrl/Cmd+G (foreground loaded text modes).
+  It displays the current whole-source percentage, accepts a validated
+  0–100 integer and offers 0%, 25%, 50%, 75%, 100% shortcuts. Invalid
+  or canceled input never changes the book or starts TTS.
+- Only explicit Go maps percentage through ReadingSourceProgress to an
+  original UTF-16 text offset. EPUB uses its existing precise-source seek,
+  TXT/PDF text mode the existing segment navigation, with true 100% EOF.
+  These calls reuse native Stop/Seek and checkpoint logic; no network or
+  cloud playback is initiated by opening or confirming a location.
+  Visual PDF pages are deliberately excluded. Focus reading mode
+  still offers the menu and shortcut.
+- Added isolated widget/unit tests for percentage parsing, EOF rounding,
+  invalid Go, Cancel vs Go, presets, 200% text on a narrow phone and
+  Ctrl/Cmd+G guard / no-play dispatch. Reader menu options tests cover
+  EPUB/TXT/PDF availability. F1 help and reader docs updated.
+- The Flutter SDK is unavailable in this connected environment, so new
+  tests have NOT been executed. The latest published local run remains
+  non-green and from an older commit; no Windows builds or GitHub Actions
+  were started. Native acceptance is still required.
+- See [READER_COMPACT_CONTROLS.md](READER_COMPACT_CONTROLS.md) and
+  [READER_KEYBOARD_SHORTCUTS.md](READER_KEYBOARD_SHORTCUTS.md).
