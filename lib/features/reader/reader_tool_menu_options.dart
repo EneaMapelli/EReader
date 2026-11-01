@@ -43,7 +43,8 @@ List<OrganizedActionSection> buildReaderToolSections(
         icon: Icons.view_list_outlined,
         subtitle: 'Jump between EPUB sections',
       ),
-    if (options.isEpub && options.hasContents) ...[
+    if (options.isEpub && options.hasContents &&
+        options.hasPlayableSegments) ...[
       const OrganizedActionItem(
         id: 'first-section', title: 'First section',
         icon: Icons.first_page,
