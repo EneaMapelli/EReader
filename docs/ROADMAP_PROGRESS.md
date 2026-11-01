@@ -1567,3 +1567,30 @@ Android Activity recreation remains a manual device gate.
   SQLite suites remains required. Flutter/Dart is unavailable here;
   no Windows builds or GitHub Actions were triggered. Overall roadmap
   readiness estimates stay unchanged until the local tests pass.
+
+### M1/M2 — Window resizing and touchpad input checkpoint safety (2026-11-01)
+
+- Fixed a manual-scroll detection gap on desktop: vertical precision
+  touchpad gestures can arrive as Flutter PointerPanZoomUpdateEvent,
+  not PointerScrollEvent or dragDetails. The book viewport now accepts
+  nonzero vertical wheel and touchpad pan deltas, while rejecting
+  pinch-only zoom, horizontal-only pan and zero-delta inputs. The
+  platform Scrollable still owns actual movement; no synthetic scrolling
+  or book seek was introduced.
+- Added a WidgetsBindingObserver.didChangeMetrics guard to cancel pending
+  viewport checkpoint timers and suspend viewport-derived SQLite saves
+  on rotation, split-screen/window resize and keyboard-inset relayout.
+  An unrelated app layout change must not become manual reading progress.
+  Genuine subsequent wheel, touchpad pan, touch drag or unmodified
+  keyboard scroll restores normal tracking; source-explicit
+  chapter/bookmark/percentage seeks remain independent.
+- Added an isolated pointer-event matrix and viewport-save-gate unit
+  regressions, plus a TXT ReaderScreen integration test that measures
+  stored position revisions and offsets across multiple simulated
+  orientation and window-size changes. Reader controls documentation
+  updated with the precise user-input and resizing policy.
+- Flutter/Dart tests have NOT been executed in this environment.
+  GitHub branch contents can be checked structurally only; device-level
+  touchpad/rotation behavior remains to be validated. No Windows
+  executable build or GitHub Actions launched. Release readiness
+  estimates are not increased without native regression evidence.
