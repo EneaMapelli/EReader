@@ -16,6 +16,8 @@ Scope: **M1/M2/M6 — desktop accessibility and reader navigation**
 | Ctrl+K / Cmd+K | Open searchable reader tools; focus its search field |
 | Ctrl/Cmd+= (also Ctrl/Cmd+Shift+=) | Increase book text size by 2, up to 32 |
 | Ctrl/Cmd+- | Decrease book text size by 2, down to 14 |
+| Ctrl/Cmd+Page Up | Previous EPUB section (publisher TOC or spine) |
+| Ctrl/Cmd+Page Down | Next EPUB section (publisher TOC or spine) |
 | F1 | Open an in-app keyboard-shortcut guide |
 
 These commands call the **existing ReaderScreen actions**: playback still
@@ -45,6 +47,13 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
   arrows and Ctrl/Cmd combinations without moving the book.
 - Focused interactive controls (slider, button, action row) retain Space and
   arrow-key semantics; these keys do not accidentally seek narration.
+- Ctrl/Cmd+Page Up/Down moves between EPUB sections using the
+  existing exact-source EPUB navigation path. Publisher-defined contents
+  take priority over spine chapter boundaries, including silent
+  illustration-only sections. The commands cannot wrap past the first
+  or last entry, never start playback, and are unavailable for TXT and
+  visual/text-layer PDF. They also work while the lower narration
+  controls are hidden in focus mode, without adding a toolbar row.
 - Ctrl/Cmd+= and Ctrl/Cmd+- call the *same* per-book preference saving
   pathway as the Reading appearance menu, with identical 14–32 font
   bounds. They do not start or seek narration. These commands work in
@@ -83,6 +92,9 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
     support; interactive-focus transport guards.
 12. Ctrl/Cmd font size shortcuts for supported reader modes, modifier guards,
     no playback side effects, font bounds and callback delivery.
+13. Ctrl/Cmd+Page Up/Down on EPUB only, with strict modifier, editing,
+    dialog/foreground and focused-control guards, no-repeat behavior,
+    bounded chapter indices and no implicit TTS playback.
 11. Shortcut-initiated search autofocus, including compact tool menus
     (see organized_action_sheet_search_test.dart).
 
