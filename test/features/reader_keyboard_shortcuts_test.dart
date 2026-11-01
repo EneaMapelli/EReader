@@ -240,6 +240,69 @@ void main() {
     expect([previous, next, first, last, played], [1, 1, 1, 1, 0]);
   });
 
+  testWidgets('real keyboard scroll signals do not consume scrolling keys',
+      (tester) async {
+    var scrolls = 0;
+    var played = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderKeyboardShortcuts(
+        enabled: true,
+        onPlayPause: () => played++,
+        onPreviousSegment: () {},
+        onNextSegment: () {},
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        onViewportScrollKey: () => scrolls++,
+        child: const Scaffold(body: Text('Reading passage')),
+      ),
+    ));
+    await tester.pump();
+    for (final key in [
+      LogicalKeyboardKey.arrowUp,
+      LogicalKeyboardKey.arrowDown,
+      LogicalKeyboardKey.pageUp,
+      LogicalKeyboardKey.pageDown,
+      LogicalKeyboardKey.home,
+      LogicalKeyboardKey.end,
+    ]) {
+      await tester.sendKeyEvent(key);
+    }
+    expect(scrolls, 6);
+    expect(played, 0);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    expect(scrolls, 6,
+        reason: 'Modified chapter shortcuts are not visual scrolling');
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    expect(played, 1);
+  });
+
+  testWidgets('typing in text inputs does not reopen viewport bookmark gate',
+      (tester) async {
+    var scrolls = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderKeyboardShortcuts(
+        enabled: true,
+        onPlayPause: () {},
+        onPreviousSegment: () {},
+        onNextSegment: () {},
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        onViewportScrollKey: () => scrolls++,
+        child: const Scaffold(body: TextField()),
+      ),
+    ));
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    expect(scrolls, 0);
+  });
+
   test('focused interactive controls keep Space and arrow keys', () {
     for (final key in [
       LogicalKeyboardKey.space,
