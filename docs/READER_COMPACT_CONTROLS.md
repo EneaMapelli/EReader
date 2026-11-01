@@ -47,6 +47,27 @@ navigation and settings. A small, accessible **Show narration controls**
 floating button remains visible at the lower edge, including with large
 system fonts. The same reader-tools action also reverses the mode.
 
+### Protecting bookmarks during visual-only layout changes
+
+Changing between compact/expanded controls, hiding/restoring transport,
+or changing reading appearance can change the first paragraph visible
+without any scroll gesture. The reader now cancels pending viewport
+checkpoint writes before these transitions and suspends viewport-derived
+saves until a genuine user scroll resumes. The saved source offset and
+EPUB spine anchor are not overwritten simply because a row of controls
+appeared or disappeared.
+
+A drag update or a user scroll-direction notification inside the book
+viewport re-enables normal manual-scroll tracking. Explicit book
+search/TOC/segment navigation still uses its existing independent
+source-position save path. This gate does not alter audio or TTS state,
+request network access, or introduce a new database schema.
+
+Regression tests cover the layout/scroll gate, relayout notification
+isolation, genuine drag resumption, and an integrated TXT reader scenario
+checking the database manual-position revision while expanding,
+hiding and restoring narration controls.
+
 This focus setting is intentionally **session-only** and starts off for
 each newly opened reader. Activating it collapses any previously expanded
 advanced-control panel. It does not press Play/Pause or seek, and does not
@@ -76,6 +97,8 @@ EPUB sections are unaffected by these insets.
   source-progress slider, bounded scrollable advanced view and callbacks.
 - lib/features/reader/reader_focus_restore_button.dart — accessible
   always-visible restore action when the lower controls are hidden.
+- lib/features/reader/reader_viewport_save_gate.dart — suppresses bookmark
+  writes caused only by viewport resizing.
 - lib/features/reader/reader_viewport_layout.dart — deterministic
   small-phone horizontal margins, AppBar compactness and bottom FAB clearance.
 - lib/features/reader/reader_tool_menu_options.dart — contextual
@@ -84,6 +107,10 @@ EPUB sections are unaffected by these insets.
   Play/Pause state, sleep timer hint and 320x420 screen with 200% text.
 - test/features/reader_focus_restore_button_test.dart — actionable
   accessible restore FAB, including a narrow large-text smartphone.
+- test/features/reader_viewport_save_gate_test.dart — relayout-versus-user
+  scroll intent and resumption behavior.
+- test/features/reader_focus_checkpoint_integration_test.dart — actual
+  ReaderScreen and local TXT persisted-position revision guard.
 - test/features/reader_viewport_layout_test.dart — small-screen margins,
   380 px breakpoint, and bottom clearance.
 - test/features/reader_tool_menu_options_test.dart — focus toggle
