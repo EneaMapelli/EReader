@@ -56,7 +56,7 @@ void main() {
     expect(store.fullTextIndexedBooks, 0);
     expect(store.searchIndexedBookContents('dragon'), isEmpty);
     final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
-    expect(db.select('PRAGMA user_version').single['user_version'], 26);
+    expect(db.select('PRAGMA user_version').single['user_version'], LibraryStore.currentSchemaVersion);
     expect(db.select("SELECT name FROM sqlite_master WHERE name = "
         "'library_fulltext_fts'"), isEmpty);
     db.dispose();
@@ -514,7 +514,7 @@ void main() {
     expect(store.getBook(alpha)!.isFavorite, isTrue);
     expect(store.books, hasLength(2));
     final check = sqlite3.open(p.join(root.path, 'library.sqlite'));
-    expect(check.select('PRAGMA user_version').single['user_version'], 26);
+    expect(check.select('PRAGMA user_version').single['user_version'], LibraryStore.currentSchemaVersion);
     expect(check.select("SELECT name FROM sqlite_master WHERE name = "
         "'library_fulltext_fts'"), isEmpty);
     check.dispose();
