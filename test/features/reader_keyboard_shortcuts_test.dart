@@ -20,6 +20,7 @@ ReaderKeyboardAction? action(
   bool shift = false,
   bool tools = false,
   bool textSize = false,
+  bool sections = false,
   bool interactive = false,
 }) =>
     resolveReaderKeyboardAction(
@@ -30,6 +31,7 @@ ReaderKeyboardAction? action(
       interactiveControlFocused: interactive,
       toolsAvailable: tools,
       textSizeAvailable: textSize,
+      sectionNavigationAvailable: sections,
       controlPressed: ctrl,
       metaPressed: meta,
       altPressed: alt,
@@ -133,6 +135,87 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.minus);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     expect([increased, decreased, played], [1, 1, 0]);
+  });
+
+  test('EPUB directory shortcuts require Ctrl/Cmd and an active reader',
+      () {
+    for (final useMeta in [false, true]) {
+      expect(action(down(LogicalKeyboardKey.pageUp), sections: true,
+          ready: false, ctrl: !useMeta, meta: useMeta),
+          ReaderKeyboardAction.previousSection);
+      expect(action(down(LogicalKeyboardKey.pageDown), sections: true,
+          ready: false, ctrl: !useMeta, meta: useMeta),
+          ReaderKeyboardAction.nextSection);
+      expect(action(down(LogicalKeyboardKey.pageDown),
+          ctrl: !useMeta, meta: useMeta), isNull);
+      expect(action(down(LogicalKeyboardKey.pageDown), sections: true,
+          editing: true, ctrl: !useMeta, meta: useMeta), isNull);
+      expect(action(down(LogicalKeyboardKey.pageDown), sections: true,
+          routeActive: false, ctrl: !useMeta, meta: useMeta), isNull);
+      expect(action(down(LogicalKeyboardKey.pageUp), sections: true,
+          alt: true, ctrl: !useMeta, meta: useMeta), isNull);
+      expect(action(down(LogicalKeyboardKey.pageUp), sections: true,
+          shift: true, ctrl: !useMeta, meta: useMeta), isNull);
+      expect(action(down(LogicalKeyboardKey.pageUp), sections: true,
+          interactive: true, ctrl: !useMeta, meta: useMeta), isNull);
+    }
+    expect(action(down(LogicalKeyboardKey.pageDown), sections: true), isNull);
+    expect(action(KeyRepeatEvent(
+      logicalKey: LogicalKeyboardKey.pageDown,
+      physicalKey: PhysicalKeyboardKey.pageDown,
+      timeStamp: Duration.zero,
+    ), ctrl: true, sections: true), isNull);
+    expect(action(KeyUpEvent(
+      logicalKey: LogicalKeyboardKey.pageDown,
+      physicalKey: PhysicalKeyboardKey.pageDown,
+      timeStamp: Duration.zero,
+    ), ctrl: true, sections: true), isNull);
+  });
+
+  test('EPUB section stepping clamps and never wraps at the ends', () {
+    expect(adjacentReaderSectionIndex(
+        current: -1, count: 8, forward: true), 0);
+    expect(adjacentReaderSectionIndex(
+        current: -1, count: 8, forward: false), isNull);
+    expect(adjacentReaderSectionIndex(
+        current: 0, count: 8, forward: false), isNull);
+    expect(adjacentReaderSectionIndex(
+        current: 7, count: 8, forward: true), isNull);
+    expect(adjacentReaderSectionIndex(
+        current: 2, count: 8, forward: true), 3);
+    expect(adjacentReaderSectionIndex(
+        current: 3, count: 8, forward: false), 2);
+    expect(adjacentReaderSectionIndex(
+        current: 0, count: 0, forward: true), isNull);
+    expect(adjacentReaderSectionIndex(
+        current: -1, count: 0, forward: false), isNull);
+  });
+
+  testWidgets('chapter shortcuts dispatch without starting narration',
+      (tester) async {
+    var previous = 0;
+    var next = 0;
+    var played = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderKeyboardShortcuts(
+        enabled: false,
+        onPlayPause: () => played++,
+        onPreviousSegment: () {},
+        onNextSegment: () {},
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        onPreviousSection: () => previous++,
+        onNextSection: () => next++,
+        child: const Scaffold(body: Text('Silent EPUB section')),
+      ),
+    ));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    expect([previous, next, played], [1, 1, 0]);
   });
 
   test('focused interactive controls keep Space and arrow keys', () {
@@ -412,6 +495,8 @@ void main() {
     expect(find.textContaining('text field'), findsOneWidget);
     expect(find.textContaining('Ctrl/Cmd + K'), findsOneWidget);
     expect(find.textContaining('Increase reading text size'), findsOneWidget);
+    expect(find.textContaining('Previous EPUB section'), findsOneWidget);
+    expect(find.textContaining('Next EPUB section'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(find.text('Reader keyboard shortcuts'), findsNothing);
