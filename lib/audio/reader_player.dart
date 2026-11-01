@@ -1014,6 +1014,24 @@ class ReaderPlayer extends ChangeNotifier {
     }));
   }
 
+  /// Navigation on a genuinely settled, silent player needs no new native
+  /// SpeechEngine.stop() call. Avoiding it matters for lock-screen Previous
+  /// from source EOF: a gratuitous Stop can fail or incur platform latency.
+  ///
+  /// Still invalidate any obsolete playback task and await checkpoint
+  /// settlement. During live/uncertain audio we retain the full serialized
+  /// native Stop barrier; an unconfirmed Stop must NEVER be bypassed.
+  Future<void> _stopForNavigation() async {
+    if (!isSettledIdle) {
+      await _stopCurrent();
+      return;
+    }
+    _session++;
+    _cancelTurnBreath();
+    activeSpeakerId = null;
+    await _pendingStop;
+  }
+
   Future<void> seekTo(int index) async {
     if (_disposed) return;
     // A second seek during a pending native stop inherits the user's desire
@@ -1026,7 +1044,7 @@ class ReaderPlayer extends ChangeNotifier {
     _pendingNavigationIndex = desiredIndex;
     _pendingNavigationEpoch = epoch;
     _resumeAfterNavigation = resume;
-    await _stopCurrent();
+    await _stopForNavigation();
     if (_disposed || epoch != _navigationEpoch || _segments.isEmpty) return;
     currentIndex = desiredIndex;
     _pendingNavigationIndex = null;
@@ -1051,7 +1069,7 @@ class ReaderPlayer extends ChangeNotifier {
     _pendingNavigationIndex = _segments.length;
     _pendingNavigationEpoch = epoch;
     _resumeAfterNavigation = false;
-    await _stopCurrent();
+    await _stopForNavigation();
     if (_disposed || epoch != _navigationEpoch) return;
     currentIndex = _segments.length;
     _pendingNavigationIndex = null;
