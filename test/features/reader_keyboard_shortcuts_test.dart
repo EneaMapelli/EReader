@@ -19,6 +19,7 @@ ReaderKeyboardAction? action(
   bool alt = false,
   bool shift = false,
   bool tools = false,
+  bool progress = false,
   bool textSize = false,
   bool sections = false,
   bool interactive = false,
@@ -30,6 +31,7 @@ ReaderKeyboardAction? action(
       editingText: editing,
       interactiveControlFocused: interactive,
       toolsAvailable: tools,
+      progressAvailable: progress,
       textSizeAvailable: textSize,
       sectionNavigationAvailable: sections,
       controlPressed: ctrl,
@@ -301,6 +303,61 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.sendKeyEvent(LogicalKeyboardKey.home);
     expect(scrolls, 0);
+  });
+
+  test('Ctrl/Cmd+G is guarded from editors, dialogs and PDF page mode',
+      () {
+    for (final meta in [false, true]) {
+      expect(action(down(LogicalKeyboardKey.keyG),
+              ctrl: !meta, meta: meta, progress: true),
+          ReaderKeyboardAction.goToProgress);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !meta, meta: meta), isNull);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !meta, meta: meta, progress: true, ready: false), isNull);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !meta, meta: meta, progress: true,
+          routeActive: false), isNull);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !meta, meta: meta, progress: true, editing: true), isNull);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !meta, meta: meta, progress: true, interactive: true), isNull);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !meta, meta: meta, progress: true, shift: true), isNull);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !meta, meta: meta, progress: true, alt: true), isNull);
+    }
+    expect(action(down(LogicalKeyboardKey.keyG), progress: true), isNull);
+    expect(action(KeyRepeatEvent(
+      logicalKey: LogicalKeyboardKey.keyG,
+      physicalKey: PhysicalKeyboardKey.keyG,
+      timeStamp: Duration.zero,
+    ), ctrl: true, progress: true), isNull);
+  });
+
+  testWidgets('Ctrl+G opens percentage dialog callback but never plays audio',
+      (tester) async {
+    var opened = 0;
+    var played = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderKeyboardShortcuts(
+        enabled: true,
+        onPlayPause: () => played++,
+        onPreviousSegment: () {},
+        onNextSegment: () {},
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        onGoToProgress: () => opened++,
+        child: const Scaffold(body: Text('A readable book')),
+      ),
+    ));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    expect(opened, 1);
+    expect(played, 0);
   });
 
   test('focused interactive controls keep Space and arrow keys', () {
