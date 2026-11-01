@@ -18,6 +18,8 @@ Scope: **M1/M2/M6 — desktop accessibility and reader navigation**
 | Ctrl/Cmd+- | Decrease book text size by 2, down to 14 |
 | Ctrl/Cmd+Page Up | Previous EPUB section (publisher TOC or spine) |
 | Ctrl/Cmd+Page Down | Next EPUB section (publisher TOC or spine) |
+| Ctrl/Cmd+Home | First EPUB section |
+| Ctrl/Cmd+End | Last EPUB section |
 | F1 | Open an in-app keyboard-shortcut guide |
 
 These commands call the **existing ReaderScreen actions**: playback still
@@ -47,6 +49,11 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
   arrows and Ctrl/Cmd combinations without moving the book.
 - Focused interactive controls (slider, button, action row) retain Space and
   arrow-key semantics; these keys do not accidentally seek narration.
+- Ctrl/Cmd+Home/End jumps directly to the first/last EPUB
+  publisher-TOC item (or spine section where no publisher TOC exists).
+  It uses the same source-exact jump as the chapter directory and
+  does not start speech or wrap. The first/last actions are also
+  available in Reader tools > Navigate & find on touch devices.
 - Ctrl/Cmd+Page Up/Down moves between EPUB sections using the
   existing exact-source EPUB navigation path. Publisher-defined contents
   take priority over spine chapter boundaries, including silent
@@ -92,9 +99,11 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
     support; interactive-focus transport guards.
 12. Ctrl/Cmd font size shortcuts for supported reader modes, modifier guards,
     no playback side effects, font bounds and callback delivery.
-13. Ctrl/Cmd+Page Up/Down on EPUB only, with strict modifier, editing,
-    dialog/foreground and focused-control guards, no-repeat behavior,
-    bounded chapter indices and no implicit TTS playback.
+13. Ctrl/Cmd+Page Up/Down and Ctrl/Cmd+Home/End on EPUB only, with
+    strict modifier, editing, dialog/foreground and focused-control
+    guards, no-repeat behavior, bounded chapter indices and no implicit
+    TTS playback. EPUB-only first/last actions are also covered by the
+    reader menu options tests.
 11. Shortcut-initiated search autofocus, including compact tool menus
     (see organized_action_sheet_search_test.dart).
 
