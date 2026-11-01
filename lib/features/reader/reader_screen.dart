@@ -63,6 +63,7 @@ import 'reader_viewport_save_gate.dart';
 import '../shared/organized_action_sheet.dart';
 import 'reader_tool_menu_options.dart';
 import 'reading_progress_bar.dart';
+import 'reader_go_to_progress_dialog.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -1833,6 +1834,29 @@ class _ReaderScreenState extends State<ReaderScreen>
   /// Book actions are grouped by intent, not displayed as an overflowing
   /// row of 10+ icon-only controls. Every operation is invoked only after
   /// this accessible, scrollable sheet has closed.
+  /// A percentage is a canonical source coordinate. The dialog never
+  /// starts narration, and a stale result from a replaced book is ignored.
+  Future<void> _openGoToProgress({bool autofocus = false}) async {
+    final player = _player;
+    final document = _document;
+    if (!mounted || _loading || _error != null ||
+        player == null || player.segments.isEmpty ||
+        document == null || document.text.isEmpty ||
+        (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
+    final target = await showReaderGoToProgressDialog(
+      context,
+      currentSourceOffset: _visibleProgressOffset(
+          player, document.text.length),
+      sourceLength: document.text.length,
+      autofocus: autofocus,
+    );
+    if (!mounted || target == null || _loading || _error != null ||
+        _player != player || _document != document ||
+        (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
+    // Reuse the original EPUB exact-source and TXT/PDF stop/seek barriers.
+    _jumpToSourceProgress(target);
+  }
+
   Future<void> _openReaderTools({bool autofocusSearch = false}) async {
     final epub = widget.book.format == BookFormat.epub;
     final pdf = widget.book.format == BookFormat.pdf;
@@ -1872,6 +1896,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         return;
       case 'search':
         await _searchInBook();
+        return;
+      case 'go-to-percent':
+        await _openGoToProgress();
         return;
       case 'bookmarks':
         await _openBookmarks();
@@ -2001,6 +2028,12 @@ class _ReaderScreenState extends State<ReaderScreen>
       onNextSegment: () => unawaited(_move(1)),
       onSearch: () => unawaited(_searchInBook()),
       onBookmarks: () => unawaited(_openBookmarks()),
+      onGoToProgress: !_loading && _error == null &&
+              _document != null && _document!.text.isNotEmpty &&
+              player != null && player.segments.isNotEmpty &&
+              (widget.book.format != BookFormat.pdf || _pdfTextMode)
+          ? () => unawaited(_openGoToProgress(autofocus: true))
+          : null,
       onHelp: () => unawaited(showReaderKeyboardHelp(context)),
       onTools: _loading || _error != null ? null
           : () => unawaited(_openReaderTools(autofocusSearch: true)),
