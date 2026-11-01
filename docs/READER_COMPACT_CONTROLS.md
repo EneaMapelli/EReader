@@ -127,7 +127,9 @@ Android keyboard. The shortcut remains accessible in focus reading mode.
 After a **successful** Go command, Reader tools > Navigate & find offers
 **Return to position before jump**. This returns to the source-text
 position from which the last percentage jump started, using the same
-guarded navigation and checkpoint pipeline. The return option is
+guarded navigation and checkpoint pipeline. The origin is sampled
+**after the dialog closes**, immediately before the jump, because narration
+may have advanced while the dialog was open. The return option is
 single-use and session-only: it disappears after a successful return,
 and a new Go replaces the older return point. It does not create a
 permanent bookmark or interfere with EPUB footnote/internal-link history.
@@ -143,7 +145,10 @@ An opening/reload of the reader clears the temporary return point.
 The TXT integration regression exercises a confirmed 75% jump, the
 database checkpoint, the one-shot return and the cancel-no-op path.
 Other unit tests cover EOF, empty text, replacement by a newer jump
-and stale asynchronous attempts to consume history.
+and stale asynchronous attempts to consume history (including successive
+jumps starting at the same source offset). A revision is checked before
+consuming the return point, preventing older in-flight returns from
+removing a newer one.
 
 ## Files and verification
 
