@@ -57,14 +57,22 @@ saves until a genuine user scroll resumes. The saved source offset and
 EPUB spine anchor are not overwritten simply because a row of controls
 appeared or disappeared.
 
-A drag update or a user scroll-direction notification inside the book
-viewport re-enables normal manual-scroll tracking. Explicit book
-search/TOC/segment navigation still uses its existing independent
-source-position save path. This gate does not alter audio or TTS state,
+Only an actual input inside the reading viewport re-enables normal
+manual-scroll tracking: touch drag details, physical wheel/trackpad scroll
+or unmodified keyboard scrolling keys (Up/Down, Page Up/Down, Home/End)
+when not editing or controlling an interactive widget. A generic
+UserScrollNotification is NOT trusted: Flutter can also emit it during
+programmatic jumps or narration auto-follow. Modified keyboard shortcuts
+still take their ordinary source-exact chapter navigation path and do not
+masquerade as manual scrolls.
+
+Explicit book search/TOC/segment navigation still uses its existing
+independent source-position save path. The gate does not alter audio/TTS,
 request network access, or introduce a new database schema.
 
-Regression tests cover the layout/scroll gate, relayout notification
-isolation, genuine drag resumption, and an integrated TXT reader scenario
+Regression tests cover relayout suppression, synthetic jump/animateTo
+notifications, genuine touch drag resumption, keyboard scroll intent vs
+chapter shortcuts and typing, plus an integrated TXT reader scenario
 checking the database manual-position revision while expanding,
 hiding and restoring narration controls.
 
