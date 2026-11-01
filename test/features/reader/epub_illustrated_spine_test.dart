@@ -8,6 +8,7 @@ import 'package:ereader/domain/reading_anchor.dart';
 import 'package:ereader/features/reader/epub_chapter_navigation.dart';
 import 'package:ereader/features/reader/epub_paragraph_tile.dart';
 import 'package:ereader/features/reader/epub_progressive_layout.dart';
+import 'package:ereader/features/reader/reader_progress_return_point.dart';
 import 'package:ereader/features/reader/epub_visual_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -82,6 +83,33 @@ void main() {
     expect(layout.blockForSpine(coverBookmark.sourceId, 0), 1,
         reason: 'The OPF ID, not its shared UTF-16 offset, selects cover B');
     expect(layout.blockForSegment(0), 2);
+  });
+
+  test('percentage Go and Return preserve exact illustrated cover identity',
+      () {
+    final document = sample();
+    final layout = buildProgressiveEpubVisualLayout(
+        document, clips, buildEpubChapters(document, clips));
+    final history = ReaderProgressReturnPoint();
+    final sourceLength = document.text.length;
+
+    // A reader may start on either illustrated cover, whose source
+    // position is 0 even though both differ from the first spoken page.
+    expect(history.recordCommittedJump(
+      fromOffset: 0,
+      toOffset: sourceLength,
+      sourceLength: sourceLength,
+      originSpineIdref: 'cover-b',
+      destinationSpineIdref: 'appendix',
+    ), isTrue);
+    expect(layout.blockForSourceOffset(history.origin!), 2,
+        reason: 'Offsets alone select the spoken page rather than cover B');
+    expect(layout.blockForSpine(
+        history.originSpineIdref!, history.origin!), 1,
+        reason: 'Return must restore the actual illustrated page');
+    expect(history.consumeIfOrigin(
+        history.origin!, expectedRevision: history.revision), isTrue);
+    expect(history.canReturn, isFalse);
   });
 
   test('remote audio EOF preserves first illustrated appendix identity',
