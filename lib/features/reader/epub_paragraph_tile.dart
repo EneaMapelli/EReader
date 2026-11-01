@@ -290,7 +290,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
         child: Padding(
           padding: EdgeInsets.fromLTRB(
             8, widget.block.chapterStart ? 24 : 4,
-            8, (heading ? 18 : 17) * widget.paragraphSpacingFactor,
+            8, (heading ? 18.0 : 17.0) * widget.paragraphSpacingFactor,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
