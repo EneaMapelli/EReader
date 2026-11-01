@@ -1,6 +1,5 @@
 import 'package:ereader/features/reader/reader_viewport_save_gate.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -18,27 +17,32 @@ void main() {
     expect(gate.allowsViewportSave, isFalse);
   });
 
-  testWidgets('manual drag resumes scrolling after a presentation relayout',
+  testWidgets('programmatic jumps and animations are not manual scrolling',
       (tester) async {
     final gate = ReaderViewportSaveGate();
-    var userScrolls = 0;
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    var drags = 0;
+    var directionalNotifications = 0;
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: NotificationListener<ScrollNotification>(
           onNotification: (notification) {
+            if (notification is UserScrollNotification) {
+              directionalNotifications++;
+            }
             if ((notification is ScrollStartNotification &&
                     notification.dragDetails != null) ||
                 (notification is ScrollUpdateNotification &&
-                    notification.dragDetails != null) ||
-                (notification is UserScrollNotification &&
-                    notification.direction != ScrollDirection.idle)) {
+                    notification.dragDetails != null)) {
               gate.resumeFromUserScroll();
-              userScrolls++;
+              drags++;
             }
             return false;
           },
           child: ListView.builder(
             key: const ValueKey('reader-viewport-list'),
+            controller: controller,
             itemCount: 80,
             itemBuilder: (_, i) => SizedBox(
               height: 70, child: Text('Paragraph $i'),
@@ -48,44 +52,25 @@ void main() {
       ),
     ));
     gate.suspendForLayoutChange();
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: NotificationListener<ScrollNotification>(
-          onNotification: (notification) {
-            if ((notification is ScrollStartNotification &&
-                    notification.dragDetails != null) ||
-                (notification is ScrollUpdateNotification &&
-                    notification.dragDetails != null) ||
-                (notification is UserScrollNotification &&
-                    notification.direction != ScrollDirection.idle)) {
-              gate.resumeFromUserScroll();
-              userScrolls++;
-            }
-            return false;
-          },
-          child: SizedBox(
-            height: 400,
-            child: ListView.builder(
-              key: const ValueKey('reader-viewport-list'),
-              itemCount: 80,
-              itemBuilder: (_, i) => SizedBox(
-                height: 70, child: Text('Paragraph $i'),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ));
+    controller.jumpTo(490);
     await tester.pumpAndSettle();
-    expect(gate.allowsViewportSave, isFalse);
-    expect(userScrolls, 0,
-        reason: 'Resizing a list without touch input must not save a bookmark');
-    await tester.drag(
-        find.byKey(const ValueKey('reader-viewport-list')),
-        const Offset(0, -450));
+    expect(gate.allowsViewportSave, isFalse,
+        reason: 'jumpTo can emit notifications but is not user intent');
+    final moving = controller.animateTo(700,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.linear);
+    await tester.pumpAndSettle();
+    await moving;
+    expect(gate.allowsViewportSave, isFalse,
+        reason: 'Auto-follow animations must not overwrite saved bookmarks');
+    expect(drags, 0);
+    // A real finger drag restores the user's ability to save progress.
+    await tester.drag(find.byKey(const ValueKey('reader-viewport-list')),
+        const Offset(0, -310));
     await tester.pumpAndSettle();
     expect(gate.allowsViewportSave, isTrue);
-    expect(userScrolls, greaterThan(0));
+    expect(drags, greaterThan(0));
     expect(tester.takeException(), isNull);
+    expect(directionalNotifications, greaterThanOrEqualTo(0));
   });
 }
