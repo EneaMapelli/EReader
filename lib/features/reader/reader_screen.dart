@@ -2084,6 +2084,10 @@ class _ReaderScreenState extends State<ReaderScreen>
         widget.book.format == BookFormat.epub &&
         player != null && player.segments.isNotEmpty &&
         (_authorToc.isNotEmpty || _chapters.isNotEmpty);
+    final progressNavigationAvailable = !_loading && _error == null &&
+        _document != null && _document!.text.isNotEmpty &&
+        player != null && player.segments.isNotEmpty &&
+        (widget.book.format != BookFormat.pdf || _pdfTextMode);
     final compactReaderToolbar = useCompactReaderToolbar(
       width: MediaQuery.sizeOf(context).width,
       scaledBaseTextSize: MediaQuery.textScalerOf(context).scale(16),
@@ -2101,11 +2105,12 @@ class _ReaderScreenState extends State<ReaderScreen>
       onNextSegment: () => unawaited(_move(1)),
       onSearch: () => unawaited(_searchInBook()),
       onBookmarks: () => unawaited(_openBookmarks()),
-      onGoToProgress: !_loading && _error == null &&
-              _document != null && _document!.text.isNotEmpty &&
-              player != null && player.segments.isNotEmpty &&
-              (widget.book.format != BookFormat.pdf || _pdfTextMode)
+      onGoToProgress: progressNavigationAvailable
           ? () => unawaited(_openGoToProgress(autofocus: true))
+          : null,
+      onReturnToProgress: progressNavigationAvailable &&
+              _progressReturn.canReturn
+          ? _returnToProgressJumpOrigin
           : null,
       onHelp: () => unawaited(showReaderKeyboardHelp(context)),
       onTools: _loading || _error != null ? null
