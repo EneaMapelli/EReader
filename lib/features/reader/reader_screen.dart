@@ -2368,7 +2368,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                           child: Container(
                                             padding: const EdgeInsets.all(10),
                                             margin: EdgeInsets.only(bottom:
-                                                6 * _readingPrefs.paragraphSpacingFactor),
+                                                6.0 * _readingPrefs.paragraphSpacingFactor),
                                             decoration: BoxDecoration(
                                               borderRadius: BorderRadius.circular(8),
                                               color: selected
