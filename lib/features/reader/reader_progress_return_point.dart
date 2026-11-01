@@ -5,9 +5,11 @@
 /// saved origin only after the reader confirms its source seek succeeded.
 class ReaderProgressReturnPoint {
   int? _origin;
+  int _revision = 0;
 
   int? get origin => _origin;
   bool get canReturn => _origin != null;
+  int get revision => _revision;
 
   /// A canceled/failed/no-op jump must not replace an earlier return point.
   bool recordCommittedJump({
@@ -22,15 +24,23 @@ class ReaderProgressReturnPoint {
       return false;
     }
     _origin = fromOffset;
+    _revision++;
     return true;
   }
 
   /// Do not consume a newly-recorded jump on a stale async return.
-  bool consumeIfOrigin(int expectedOrigin) {
-    if (_origin != expectedOrigin) return false;
+  bool consumeIfOrigin(int expectedOrigin, {int? expectedRevision}) {
+    if (_origin != expectedOrigin ||
+        (expectedRevision != null && _revision != expectedRevision)) {
+      return false;
+    }
     _origin = null;
+    _revision++;
     return true;
   }
 
-  void clear() => _origin = null;
+  void clear() {
+    _origin = null;
+    _revision++;
+  }
 }
