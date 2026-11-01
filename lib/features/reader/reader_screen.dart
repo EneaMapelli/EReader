@@ -64,6 +64,7 @@ import '../shared/organized_action_sheet.dart';
 import 'reader_tool_menu_options.dart';
 import 'reading_progress_bar.dart';
 import 'reader_go_to_progress_dialog.dart';
+import 'reader_progress_return_point.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -164,6 +165,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   bool _readerFocusMode = false;
   final ScrollController _advancedControlsScroll = ScrollController();
   final ReaderViewportSaveGate _viewportSaveGate = ReaderViewportSaveGate();
+  final ReaderProgressReturnPoint _progressReturn = ReaderProgressReturnPoint();
   bool _skipEpubNotes = false;
   EpubSpeechNoteFilter? _epubSpeechNoteFilter;
   final ItemScrollController _itemScrollController = ItemScrollController();
@@ -250,6 +252,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // worker that would otherwise continue unpacking ZIP/XHTML offscreen.
     final epoch = ++_loadEpoch;
     _cancelPendingVisualSave();
+    _progressReturn.clear();
     _activeEpubTask?.cancel();
     _activeEpubTask = null;
     _stopFrameCapture(discard: true);
@@ -1333,6 +1336,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   void _navigateToSourceOffset(int sourceOffset, {
     required bool remember,
     bool preserveSearchHighlight = false,
+    VoidCallback? onCommitted,
   }) {
     Future<void> navigate() async {
       final player = _player;
@@ -1357,7 +1361,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       // the same position after seeking is unnecessary and can race with
       // user scrolls or turn a failed checkpoint into a partial jump.
       await _select(index, visualSourceOffset: sourceOffset,
-          preserveSearchHighlight: preserveSearchHighlight);
+          preserveSearchHighlight: preserveSearchHighlight,
+          onCommitted: onCommitted);
       if (!mounted || _player != player) return;
       if (remember) {
         _linkHistory.push(fromOffset, sourceOffset);
@@ -1460,6 +1465,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     int? visualSourceOffset,
     String? visualSpineIdref,
     bool preserveSearchHighlight = false,
+    VoidCallback? onCommitted,
   }) async {
     final player = _player;
     // Explicit source EOF also exists for TXT and PDF. Ordinary segment
@@ -1537,6 +1543,9 @@ class _ReaderScreenState extends State<ReaderScreen>
       // update the chapter and publisher directory indicator explicitly.
       setState(() {});
     }
+    // Called only after a winning source seek, durable checkpoint, and
+    // visual selection. A canceled/superseded seek has no return history.
+    onCommitted?.call();
   }
 
   void _recordEpubFrames(List<FrameTiming> frames) {
