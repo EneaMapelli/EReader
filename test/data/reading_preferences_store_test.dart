@@ -27,9 +27,10 @@ void main() {
     return (await store.importFile(input.path)).id;
   }
 
-  test('fresh v22 library retains the visual preferences table and defaults', () {
+  test('fresh current-schema library retains visual preferences and defaults', () {
     final db = sqlite3.open(p.join(home.path, 'library.sqlite'));
-    expect(db.select('PRAGMA user_version').single['user_version'], 22);
+    expect(db.select('PRAGMA user_version').single['user_version'],
+        LibraryStore.currentSchemaVersion);
     expect(db.select(
       "SELECT name FROM sqlite_master WHERE type='table' "
       "AND name='reading_preferences'",
