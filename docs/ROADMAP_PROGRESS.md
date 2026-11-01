@@ -1493,6 +1493,9 @@ Android Activity recreation remains a manual device gate.
 - TXT/PDF text EOF jumps now use the same guarded _select navigation
   and SQLite checkpoint pipeline as ordinary segment seeks, reducing
   duplicated race-sensitive code; EPUB retains exact-source jumps.
+- Reused the successful-selection callback to prevent superseded EPUB
+  internal-link seeks from inserting return history for a destination
+  that was never reached. This does not alter normal link navigation.
 - Added pure unit tests for one-shot history, invalid/no-op/EOF cases,
   replacing origins and same-origin async races; added TXT ReaderScreen
   integration cases for confirmed Go → Return persistence and Cancel
