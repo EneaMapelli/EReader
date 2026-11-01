@@ -1504,3 +1504,34 @@ Android Activity recreation remains a manual device gate.
   environment; no Windows builds or GitHub Actions were started.
   Existing published test reports are from an older revision and cannot
   confirm these additions. See [READER_COMPACT_CONTROLS.md](READER_COMPACT_CONTROLS.md).
+
+### M1/M2 — Reconcile exact-phrase search and EPUB paid prefetch regressions (2026-11-01)
+
+- Investigated the latest published older Windows run
+  (`20261031T202302Z-ec6f0643-fec7b0`: 1321 passed, 18 failed,
+  35 errors, 1 skipped). The per-case failure index is available but
+  individual raw assertion stack traces are not present in the accessible
+  branch. Treat the diagnoses below as source/test contract analysis,
+  NOT as a claim that the previous failures have been rerun or fixed.
+- Fixed two source-level exact-phrase issues in
+  `findIndexedExactPhrases`: matches from consecutive tokenizer words
+  could span sentence punctuation (`dragon. dragon`) and overly long
+  whitespace (200 spaces while still under the 320-character span limit).
+  Local phrase destinations now reject hard sentence/paragraph boundaries
+  and interword gaps over 64 UTF-16 units; ordinary commas, spaces and
+  single wrapped lines remain supported. Added focused tests and updated
+  `LIBRARY_FULL_TEXT_SEARCH.md`.
+- Reconciled incompatible test expectations for *opted-in* cloud speech
+  lookahead over skipped EPUB footnotes. Paid prefetch is allowed to
+  prepare the next audible passage only when explicitly enabled, but
+  must never synthesize a skipped note. Without opt-in, paid lookahead
+  remains OFF. This is a test correction, not a cloud behavior or
+  per-book consent change; see `CLOUD_TTS_PREFETCH.md`.
+- Native acceptance is still open. A recommended **local, manual-only**
+  validation after updating the working branch is:
+  `flutter test test/domain/library_full_text_phrase_test.dart`,
+  `flutter test test/data/epub_speech_note_filter_test.dart`, and
+  `flutter test test/audio/cloud_prefetch_test.dart`.
+  These were NOT run in this connected environment: Flutter/Dart SDK
+  unavailable. No Windows package build or GitHub Actions were started,
+  and no overall readiness percentages are increased.
