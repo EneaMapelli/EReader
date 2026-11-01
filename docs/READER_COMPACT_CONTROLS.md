@@ -122,6 +122,29 @@ Cancel / Go actions. Ctrl/Cmd+G focuses the input for desktop use;
 opening from the touchscreen menu does not automatically show the
 Android keyboard. The shortcut remains accessible in focus reading mode.
 
+### Return to the previous percentage-jump location
+
+After a **successful** Go command, Reader tools > Navigate & find offers
+**Return to position before jump**. This returns to the source-text
+position from which the last percentage jump started, using the same
+guarded navigation and checkpoint pipeline. The return option is
+single-use and session-only: it disappears after a successful return,
+and a new Go replaces the older return point. It does not create a
+permanent bookmark or interfere with EPUB footnote/internal-link history.
+
+Cancel, invalid input, an unchanged effective destination or a
+superseded/failed Seek do not create a new return point. For TXT/PDF
+text the effective spoken segment is considered when deciding whether
+the location changed; EPUB preserves its exact source text offset,
+including silent illustrated sections. The return action is not offered
+in the native PDF page viewer or on books without playable text.
+An opening/reload of the reader clears the temporary return point.
+
+The TXT integration regression exercises a confirmed 75% jump, the
+database checkpoint, the one-shot return and the cancel-no-op path.
+Other unit tests cover EOF, empty text, replacement by a newer jump
+and stale asynchronous attempts to consume history.
+
 ## Files and verification
 
 - lib/features/reader/reader_compact_controls.dart — independent compact
@@ -132,6 +155,12 @@ Android keyboard. The shortcut remains accessible in focus reading mode.
   always-visible restore action when the lower controls are hidden.
 - lib/features/reader/reader_go_to_progress_dialog.dart — bounded
   numeric percentage entry, presets, source conversion and Cancel/Go.
+- lib/features/reader/reader_progress_return_point.dart — session-only,
+  confirmed-jump origin with stale-return protection.
+- test/features/reader_progress_return_point_test.dart — invalid/no-op
+  recording, EOF, replacement and consume-once semantics.
+- test/features/reader_progress_return_integration_test.dart — TXT
+  Go/Return persistence, menu state and cancellation.
 - test/features/reader_go_to_progress_dialog_test.dart — percent parsing,
   source offset calculation, cancellation, commit and 200% accessibility.
 - lib/features/reader/reader_viewport_save_gate.dart — suppresses bookmark
