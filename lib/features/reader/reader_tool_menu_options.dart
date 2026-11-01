@@ -46,12 +46,12 @@ List<OrganizedActionSection> buildReaderToolSections(
     if (options.isEpub && options.hasContents) ...[
       const OrganizedActionItem(
         id: 'first-section', title: 'First section',
-        icon: Icons.first_page_outlined,
+        icon: Icons.first_page,
         subtitle: 'Jump to the beginning of the EPUB contents',
       ),
       const OrganizedActionItem(
         id: 'last-section', title: 'Last section',
-        icon: Icons.last_page_outlined,
+        icon: Icons.last_page,
         subtitle: 'Jump to the final EPUB contents section',
       ),
     ],
