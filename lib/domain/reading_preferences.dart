@@ -9,6 +9,8 @@ class ReadingPreferences {
     this.contentWidth = 760,
     this.textAlignment = 'auto',
     this.paragraphSpacingFactor = 1.0,
+    this.letterSpacing = 0.0,
+    this.wordSpacing = 0.0,
   });
 
   final double fontSize;
@@ -23,6 +25,9 @@ class ReadingPreferences {
   final String textAlignment;
   /// Scales existing visual gaps; default 1.0 preserves legacy layout.
   final double paragraphSpacingFactor;
+  /// Optional extra spacing in logical pixels; zero preserves Flutter defaults.
+  final double letterSpacing;
+  final double wordSpacing;
 
   static const fontFamilies = {'serif', 'sans-serif', 'monospace'};
   static const palettes = {'system', 'sepia', 'night', 'highContrast'};
@@ -36,7 +41,9 @@ class ReadingPreferences {
         !palettes.contains(palette) ||
         !textAlignments.contains(textAlignment) ||
         !paragraphSpacingFactor.isFinite ||
-        paragraphSpacingFactor < 0.5 || paragraphSpacingFactor > 2.5) {
+        paragraphSpacingFactor < 0.5 || paragraphSpacingFactor > 2.5 ||
+        !letterSpacing.isFinite || letterSpacing < 0 || letterSpacing > 3 ||
+        !wordSpacing.isFinite || wordSpacing < 0 || wordSpacing > 8) {
       throw const FormatException('Invalid visual reading preferences');
     }
   }
@@ -49,6 +56,8 @@ class ReadingPreferences {
     double? contentWidth,
     String? textAlignment,
     double? paragraphSpacingFactor,
+    double? letterSpacing,
+    double? wordSpacing,
   }) => ReadingPreferences(
     fontSize: fontSize ?? this.fontSize,
     lineHeight: lineHeight ?? this.lineHeight,
@@ -58,6 +67,8 @@ class ReadingPreferences {
     textAlignment: textAlignment ?? this.textAlignment,
     paragraphSpacingFactor:
         paragraphSpacingFactor ?? this.paragraphSpacingFactor,
+    letterSpacing: letterSpacing ?? this.letterSpacing,
+    wordSpacing: wordSpacing ?? this.wordSpacing,
   );
 
   Map<String, Object> toJson() {
@@ -71,6 +82,8 @@ class ReadingPreferences {
       'contentWidth': contentWidth,
       'textAlignment': textAlignment,
       'paragraphSpacingFactor': paragraphSpacingFactor,
+      'letterSpacing': letterSpacing,
+      'wordSpacing': wordSpacing,
     };
   }
 
@@ -90,10 +103,15 @@ class ReadingPreferences {
         ? json['textAlignment'] : 'auto';
     final paragraphSpacingFactor = json.containsKey('paragraphSpacingFactor')
         ? json['paragraphSpacingFactor'] : 1.0;
+    final letterSpacing = json.containsKey('letterSpacing')
+        ? json['letterSpacing'] : 0.0;
+    final wordSpacing = json.containsKey('wordSpacing')
+        ? json['wordSpacing'] : 0.0;
     if (fontSize is! num || lineHeight is! num ||
         fontFamily is! String || palette is! String ||
         contentWidth is! num || textAlignment is! String ||
-        paragraphSpacingFactor is! num) {
+        paragraphSpacingFactor is! num ||
+        letterSpacing is! num || wordSpacing is! num) {
       throw const FormatException('Malformed visual preferences');
     }
     final value = ReadingPreferences(
@@ -104,6 +122,8 @@ class ReadingPreferences {
       contentWidth: contentWidth.toDouble(),
       textAlignment: textAlignment,
       paragraphSpacingFactor: paragraphSpacingFactor.toDouble(),
+      letterSpacing: letterSpacing.toDouble(),
+      wordSpacing: wordSpacing.toDouble(),
     );
     value.validate();
     return value;
