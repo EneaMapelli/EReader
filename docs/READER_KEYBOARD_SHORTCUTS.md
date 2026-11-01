@@ -14,6 +14,7 @@ Scope: **M1/M2/M6 — desktop accessibility and reader navigation**
 | Ctrl+F (Windows), Cmd+F (macOS keyboards) | Search in the current book |
 | Ctrl+B / Cmd+B | Open this book's bookmarks |
 | Ctrl+G / Cmd+G | Enter a percentage of the book's original text |
+| Ctrl/Cmd+Shift+G | Return to the position before the last confirmed percentage jump |
 | Ctrl+K / Cmd+K | Open searchable reader tools; focus its search field |
 | Ctrl/Cmd+= (also Ctrl/Cmd+Shift+=) | Increase book text size by 2, up to 32 |
 | Ctrl/Cmd+- | Decrease book text size by 2, down to 14 |
@@ -57,6 +58,15 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
   start TTS or seek until the explicit Go confirmation; Cancel discards
   the draft. EPUB retains exact canonical-source targeting, while
   TXT/PDF text seek to their closest spoken segment.
+- Ctrl/Cmd+Shift+G returns to the previous source position after a
+  confirmed Go jump, equivalent to Reader tools > Return to position
+  before jump. It appears only while a one-shot return point exists.
+  Repeated key events, open dialogs, focused editors, inactive routes,
+  and PDF native-page mode never trigger this return, and it never
+  auto-starts narration. For illustrated EPUB spine sections with
+  identical source offsets, the return restores the original visual
+  spine ID too (e.g. a picture-only cover), not merely a nearby spoken
+  paragraph. Using Return consumes the saved return point.
 - Ctrl/Cmd+Home/End jumps directly to the first/last EPUB
   publisher-TOC item (or spine section where no publisher TOC exists).
   It uses the same source-exact jump as the chapter directory and
@@ -109,8 +119,10 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
     no playback side effects, font bounds and callback delivery.
 13. Ctrl/Cmd+G guarded reader availability, input focus, route and
     modifier combinations; confirmed dialog navigation without implicit
-    audio playback. The progress dialog has separate input validation,
-    Cancel/Go and accessibility tests.
+    audio playback. Ctrl/Cmd+Shift+G requires a confirmed one-shot
+    return point and dispatches to the exact EPUB spine/source
+    restoration without starting TTS. The progress dialog has separate
+    input validation, Cancel/Go and accessibility tests.
 14. Ctrl/Cmd+Page Up/Down and Ctrl/Cmd+Home/End on EPUB only, with
     strict modifier, editing, dialog/foreground and focused-control
     guards, no-repeat behavior, bounded chapter indices and no implicit
