@@ -1373,3 +1373,26 @@ Android Activity recreation remains a manual device gate.
   manual acceptance. Flutter/Dart tests have NOT been executed in this
   connected environment; no Windows build or GitHub Actions were started.
 - Milestone completion estimates remain unchanged until native validation.
+
+
+### M2/M6 — EPUB section keyboard navigation (2026-11-01)
+
+- Added Ctrl/Cmd+Page Up / Page Down to navigate to the previous/next
+  EPUB publisher table-of-contents entry (falling back to spine sections).
+  The commands remain available when focus reading mode hides the lower
+  playback controls, so rapid chapter navigation does not consume more
+  of the reading viewport.
+- Reused existing source-exact EPUB section jump and seek/pause safeguards
+  rather than introducing a separate cursor or TTS action. Chapter indexes
+  are bounded, never wrap, and handle an unresolved current index
+  conservatively. Illustrated/silent sections continue through the
+  existing exact visual-source navigation.
+- Keyboard resolver guards against text editing, non-foreground routes,
+  focused buttons/sliders, Alt/Shift combinations and repeated keydown
+  events. Non-EPUB books do not expose these shortcuts.
+- Added pure key/section-boundary tests and a foreground Focus widget
+  dispatch regression confirming that commands do not start narration.
+  F1 shortcut reference and docs/READER_KEYBOARD_SHORTCUTS.md updated.
+- Files and commits verified on the advanced branch; Flutter/Dart tests
+  NOT EXECUTED in this environment. No Windows builds or GitHub Actions.
+  Release readiness estimates remain unchanged pending native validation.
