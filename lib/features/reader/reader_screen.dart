@@ -58,6 +58,7 @@ import 'reader_keyboard_shortcuts.dart';
 import 'reader_compact_controls.dart';
 import 'reader_focus_restore_button.dart';
 import 'reader_viewport_layout.dart';
+import 'reader_viewport_save_gate.dart';
 import '../shared/organized_action_sheet.dart';
 import 'reader_tool_menu_options.dart';
 import 'reading_progress_bar.dart';
@@ -160,6 +161,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   bool _advancedControlsExpanded = false;
   bool _readerFocusMode = false;
   final ScrollController _advancedControlsScroll = ScrollController();
+  final ReaderViewportSaveGate _viewportSaveGate = ReaderViewportSaveGate();
   bool _skipEpubNotes = false;
   EpubSpeechNoteFilter? _epubSpeechNoteFilter;
   final ItemScrollController _itemScrollController = ItemScrollController();
@@ -825,7 +827,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     // A pending native Stop/checkpoint makes isPlaying=false while a
     // Seek may still auto-resume. Never treat its transient viewport
     // notifications as a manual bookmark or override crash recovery.
-    if (!player.isSettledIdle || player.segments.isEmpty) return;
+    if (!player.isSettledIdle || player.segments.isEmpty ||
+        !_viewportSaveGate.allowsViewportSave) return;
     final visible = _itemPositionsListener.itemPositions.value
         .where((item) =>
             item.itemTrailingEdge > 0 && item.itemLeadingEdge < 1)
@@ -1605,9 +1608,18 @@ class _ReaderScreenState extends State<ReaderScreen>
     super.dispose();
   }
 
+  void _changeVisualReaderLayout(VoidCallback change) {
+    // Changing the height of controls or text layout may expose a different
+    // first paragraph. It is NOT a user navigation intent and must not
+    // replace a prior exact EPUB bookmark or TXT segment checkpoint.
+    _cancelPendingVisualSave();
+    _viewportSaveGate.suspendForLayoutChange();
+    setState(change);
+  }
+
   void _setReaderFocusMode(bool enabled) {
     if (_readerFocusMode == enabled) return;
-    setState(() {
+    _changeVisualReaderLayout(() {
       _readerFocusMode = enabled;
       // A hidden panel must not reappear expanded on restore.
       if (enabled) _advancedControlsExpanded = false;
@@ -1630,7 +1642,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // live visual state claiming settings that cannot survive a restart.
     widget.store.saveReadingPreferences(
         preferences, bookId: widget.book.id);
-    if (mounted) setState(() => _readingPrefs = preferences);
+    if (mounted) _changeVisualReaderLayout(() => _readingPrefs = preferences);
   }
 
   Future<void> _openReadingAppearance() async {
@@ -1778,14 +1790,14 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (!mounted || result == null) return;
     if (result.action == 'reset') {
       widget.store.clearBookReadingPreferences(widget.book.id);
-      setState(() => _readingPrefs =
+      _changeVisualReaderLayout(() => _readingPrefs =
           widget.store.getReadingPreferences(bookId: widget.book.id));
     } else if (result.action == 'global') {
       // Global should affect this open book too; other books with
       // explicit overrides retain their own reading appearance.
       widget.store.saveReadingPreferences(result.preferences);
       widget.store.clearBookReadingPreferences(widget.book.id);
-      setState(() => _readingPrefs = result.preferences);
+      _changeVisualReaderLayout(() => _readingPrefs = result.preferences);
     } else {
       _setReadingPreferences(result.preferences);
     }
@@ -2298,7 +2310,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                   onPrevious: () => unawaited(_move(-1)),
                   onPlayPause: () => unawaited(_playOrPause()),
                   onNext: () => unawaited(_move(1)),
-                  onExpand: () => setState(
+                  onExpand: () => _changeVisualReaderLayout(
                       () => _advancedControlsExpanded = true),
                 ),
               ],
@@ -2327,7 +2339,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   key: const ValueKey('reader-collapse-controls'),
-                  onPressed: () => setState(
+                  onPressed: () => _changeVisualReaderLayout(
                       () => _advancedControlsExpanded = false),
                   icon: const Icon(Icons.expand_more),
                   label: const Text('Less controls'),
