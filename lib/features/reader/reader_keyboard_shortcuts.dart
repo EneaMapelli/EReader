@@ -15,6 +15,8 @@ enum ReaderKeyboardAction {
   decreaseTextSize,
   previousSection,
   nextSection,
+  firstSection,
+  lastSection,
 }
 
 /// Shared with the in-reader text-size menu: never write a preference
@@ -37,6 +39,13 @@ int? adjacentReaderSectionIndex({
       : current + (forward ? 1 : -1);
   return target >= 0 && target < count ? target : null;
 }
+
+/// Index of the first or last readable EPUB navigation section.
+/// Empty TOCs are deliberately not navigable, preventing a fabricated jump.
+int? boundaryReaderSectionIndex({
+  required int count,
+  required bool last,
+}) => count <= 0 ? null : (last ? count - 1 : 0);
 
 /// Pure, predictable key mapping, independent of the TTS engine.
 ///
@@ -86,6 +95,12 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
     }
     if (key == LogicalKeyboardKey.pageDown) {
       return ReaderKeyboardAction.nextSection;
+    }
+    if (key == LogicalKeyboardKey.home) {
+      return ReaderKeyboardAction.firstSection;
+    }
+    if (key == LogicalKeyboardKey.end) {
+      return ReaderKeyboardAction.lastSection;
     }
   }
   if (!readerReady) return null;
@@ -137,6 +152,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
     this.onDecreaseTextSize,
     this.onPreviousSection,
     this.onNextSection,
+    this.onFirstSection,
+    this.onLastSection,
     required this.child,
   });
 
@@ -152,6 +169,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
   final VoidCallback? onDecreaseTextSize;
   final VoidCallback? onPreviousSection;
   final VoidCallback? onNextSection;
+  final VoidCallback? onFirstSection;
+  final VoidCallback? onLastSection;
   final Widget child;
 
   @override
@@ -180,7 +199,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
           textSizeAvailable: onIncreaseTextSize != null &&
               onDecreaseTextSize != null,
           sectionNavigationAvailable: onPreviousSection != null &&
-              onNextSection != null,
+              onNextSection != null &&
+              onFirstSection != null && onLastSection != null,
           controlPressed: keyboard.isControlPressed,
           metaPressed: keyboard.isMetaPressed,
           altPressed: keyboard.isAltPressed,
@@ -210,6 +230,10 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
             onPreviousSection?.call();
           case ReaderKeyboardAction.nextSection:
             onNextSection?.call();
+          case ReaderKeyboardAction.firstSection:
+            onFirstSection?.call();
+          case ReaderKeyboardAction.lastSection:
+            onLastSection?.call();
         }
         return KeyEventResult.handled;
       },
@@ -240,6 +264,8 @@ Future<void> showReaderKeyboardHelp(BuildContext context) =>
             Text('Ctrl/Cmd + - — Decrease reading text size'),
             Text('Ctrl/Cmd + Page Up — Previous EPUB section'),
             Text('Ctrl/Cmd + Page Down — Next EPUB section'),
+            Text('Ctrl/Cmd + Home — First EPUB section'),
+            Text('Ctrl/Cmd + End — Last EPUB section'),
             Text('F1 — Show this help'),
             SizedBox(height: 12),
             Text('Shortcuts do not run while typing in a text field. '
