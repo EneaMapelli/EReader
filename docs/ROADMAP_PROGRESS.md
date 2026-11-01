@@ -1535,3 +1535,35 @@ Android Activity recreation remains a manual device gate.
   These were NOT run in this connected environment: Flutter/Dart SDK
   unavailable. No Windows package build or GitHub Actions were started,
   and no overall readiness percentages are increased.
+
+### M0/M1 — Current SQLite schema contract and future-library safety (2026-11-01)
+
+- Audited 45 data-layer test files against LibraryStore.initialize().
+  The application already migrates databases through **v26**, but four
+  regression tests still asserted legacy final versions **v16/v22**:
+  fresh PDF page bookmarks, reading appearance, v13-to-latest PDF visual
+  page migration, and v13-to-latest last-opened-book migration.
+  Updated those assertions without altering their historical migration
+  setup or the expected preserved source/bookmark values.
+- LibraryStore.currentSchemaVersion (currently 26) is now the single
+  implementation/test authority for the final schema marker and the
+  future-version safety threshold. Migrating *from* historical versions
+  continues to use their explicit version-specific guards. Existing
+  current-schema assertions across backup, favorites, collections,
+  reading shelf, smart collections, full-text search, activity tracking
+  and the core store test were aligned to the same constant to prevent
+  similar false failures after a future schema migration.
+- A SQLite database with user_version greater than the supported version
+  now fails with a clear, actionable version diagnostic. The version
+  check runs **before** configuring persistent SQLite WAL journal mode;
+  unknown future data is not migrated or overwritten.
+  Added a regression that writes a synthetic future version marker and
+  verifies startup refusal and preservation of its reading checkpoint.
+  Do not use this synthetic marker modification to downgrade a real
+  newer-version user database.
+- The published 2026-10-31 run (source fadcf16) predates all changes.
+  Its 1321 successes, 18 failures, 35 errors and one skipped case are
+  **not** new post-fix test results. Native verification of the affected
+  SQLite suites remains required. Flutter/Dart is unavailable here;
+  no Windows builds or GitHub Actions were triggered. Overall roadmap
+  readiness estimates stay unchanged until the local tests pass.
