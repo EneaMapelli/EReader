@@ -20,6 +20,11 @@ _Date: 2026-11-01. Implemented on `feature/m0-flutter-foundation`, PR #1 draft._
 - Temporarily detached state remains until explicit return, a follow-setting
   change, or a new reader load. Reading another book does not inherit
   detachment. Pausing playback does not silently reset the user's decision.
+- Vertical drag notifications are accepted only from the book-list viewport;
+  nested horizontal table scrolls, drag-free relayout notifications and
+  synthetic scroll events cannot detach narration follow. Scroll gestures
+  coalesce a single post-frame UI refresh to avoid calling setState during
+  a Flutter scroll/layout phase.
 - Rotation, changing reading appearance, opening panels, native programmatic
   follow jumps, TOC/voice navigation and ordinary rebuilds are not
   classified as manual scroll events.
@@ -42,6 +47,12 @@ and crash-recovery checkpoints are unaffected.
   and new-document reset.
 - `test/features/reader_return_to_narration_button_test.dart`: accessibility,
   visible control identity and explicit callback.
+- `test/features/reader_keyboard_shortcuts_test.dart`: Ctrl/Cmd+Shift+J
+  rejoins narration only when detached, never from a hidden route, editor,
+  focused control, missing reader or repeated key; does not trigger playback.
+- `test/features/reader_direct_scroll_input_test.dart`: vertical direct
+  drag notifications are accepted, horizontal, synthetic and end events
+  are rejected.
 - `test/features/reader_tool_menu_options_test.dart`: return action only
   exists in supported text-mode/detached states, follow preference still
   appears selected.
@@ -55,7 +66,11 @@ and crash-recovery checkpoints are unaffected.
    current spoken segment appears and automatic follow resumes on the next
    speech chunk; no extra synthesis, Stop/Seek or playback restart.
 3. Repeat with keyboard Page Down and arrow-down scrolling outside interactive
-   widgets; focused sliders/text input must retain their own keys.
+   widgets; focused sliders/text input must retain their own keys. Press
+   **Ctrl/Cmd+Shift+J** to rejoin the narrator without Play/Seek. Verify the
+   shortcut does nothing when not detached, during text entry and from a
+   hidden route. Scroll horizontally within an EPUB table: the return
+   button must *not* appear solely because of table movement.
 4. Disable **Follow narration**, then scroll while audio plays: no return
    button must appear. Re-enable following; confirm standard follow behavior.
 5. Pause after scrolling away: the return action should still work without
@@ -70,8 +85,9 @@ and crash-recovery checkpoints are unaffected.
 9. Verify that after tapping Return and exiting/reopening, progress remains
    at the correct speech/reading checkpoint; no retroactive viewport save
    should rewrite an exact EPUB source bookmark.
-10. At final integration, run local `flutter analyze`, the three targeted
-    test suites, and physical-device tests. No builds/Actions were started
+10. At final integration, run local `flutter analyze`, the targeted follow,
+    keyboard and scroll-filter test suites, and physical-device tests.
+    No builds/Actions were started
     in this code-editing session.
 
 **Validation status:** code/test authored and committed; Dart/Flutter tests,
