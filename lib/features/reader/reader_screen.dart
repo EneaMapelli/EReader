@@ -3,7 +3,6 @@ import 'dart:io' show Directory, Platform;
 import 'dart:ui' show FrameTiming;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart' show PointerScrollEvent;
  import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/scheduler.dart';
@@ -60,6 +59,7 @@ import 'reader_compact_controls.dart';
 import 'reader_focus_restore_button.dart';
 import 'reader_viewport_layout.dart';
 import 'reader_viewport_save_gate.dart';
+import 'reader_direct_scroll_input.dart';
 import '../shared/organized_action_sheet.dart';
 import 'reader_tool_menu_options.dart';
 import 'reading_progress_bar.dart';
@@ -212,6 +212,16 @@ class _ReaderScreenState extends State<ReaderScreen>
       EpubVisualSourceCheckpoint();
   int _lastFollowedIndex = -1;
   Object? _lastReportedPlaybackError;
+
+  @override
+  void didChangeMetrics() {
+    // Rotation, split-screen resizing and keyboard-inset changes may alter
+    // the first visible source paragraph without user scroll intent. Never
+    // persist a transient viewport coordinate during that relayout.
+    _cancelPendingVisualSave();
+    _viewportSaveGate.suspendForLayoutChange();
+    super.didChangeMetrics();
+  }
 
   @override
   void initState() {
@@ -2222,7 +2232,15 @@ class _ReaderScreenState extends State<ReaderScreen>
                                 child: SelectionArea(
                                   child: Listener(
                                     onPointerSignal: (event) {
-                                      if (event is PointerScrollEvent) {
+                                      if (isReaderDirectVerticalScroll(event)) {
+                                        _viewportSaveGate.resumeFromUserScroll();
+                                      }
+                                    },
+                                    // Desktop touchpads commonly emit pan/zoom
+                                    // events instead of wheel events. Pinch
+                                    // zoom without vertical pan stays ignored.
+                                    onPointerPanZoomUpdate: (event) {
+                                      if (isReaderDirectVerticalScroll(event)) {
                                         _viewportSaveGate.resumeFromUserScroll();
                                       }
                                     },
