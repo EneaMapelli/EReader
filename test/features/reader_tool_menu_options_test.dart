@@ -13,6 +13,7 @@ ReaderToolMenuAvailability options({
   bool perf = false,
   bool warnings = false,
   bool autoFollow = true,
+  bool followSuspended = false,
   bool focus = false,
   bool progressReturn = false,
   String palette = 'system',
@@ -22,7 +23,8 @@ ReaderToolMenuAvailability options({
   hasContents: toc, canReturnFromLink: returnLink,
   hasPdfPageBookmarks: pdfBookmarks,
   hasEpubPerformance: perf, hasEpubWarnings: warnings,
-  autoFollow: autoFollow, focusMode: focus,
+  autoFollow: autoFollow, followSuspended: followSuspended,
+  focusMode: focus,
   hasProgressReturn: progressReturn, paletteName: palette,
 );
 
@@ -111,6 +113,31 @@ void main() {
     final follow = sections.expand((s) => s.items)
         .singleWhere((i) => i.id == 'auto-follow');
     expect(follow.selected, isFalse);
+  });
+
+  test('temporarily detached follow shows return command only when valid', () {
+    final detached = buildReaderToolSections(options(
+        epub: true, autoFollow: true, followSuspended: true));
+    final commands = ids(detached);
+    expect(commands, contains('return-to-narration'));
+    final follow = detached.expand((s) => s.items)
+        .singleWhere((item) => item.id == 'auto-follow');
+    expect(follow.selected, isTrue,
+        reason: 'Temporary scrolling must not disable the user preference');
+    expect(follow.subtitle, contains('Temporarily paused'));
+
+    for (final combination in [
+      options(epub: true, followSuspended: false),
+      options(epub: true, autoFollow: false, followSuspended: true),
+      options(pdf: true, text: false, followSuspended: true),
+      options(epub: true, playable: false, followSuspended: true),
+    ]) {
+      final unavailable = ids(buildReaderToolSections(combination));
+      expect(unavailable, isNot(contains('return-to-narration')));
+    }
+    expect(ids(buildReaderToolSections(options(
+        pdf: true, text: true, followSuspended: true))),
+        contains('return-to-narration'));
   });
 
   test('focus reading mode is selectable only with readable text', () {
