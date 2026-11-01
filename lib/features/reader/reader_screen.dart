@@ -1750,6 +1750,17 @@ class _ReaderScreenState extends State<ReaderScreen>
                       onChanged: (value) =>
                           change(draft.copyWith(lineHeight: value)),
                     ),
+                    Text('Paragraph gaps: ${draft.paragraphSpacingFactor.toStringAsFixed(1)}×'),
+                    Slider(
+                      key: const ValueKey('reading-paragraph-spacing'),
+                      value: draft.paragraphSpacingFactor,
+                      min: 0.5,
+                      max: 2.5,
+                      divisions: 20,
+                      label: '${draft.paragraphSpacingFactor.toStringAsFixed(1)}×',
+                      onChanged: (value) => change(
+                          draft.copyWith(paragraphSpacingFactor: value)),
+                    ),
                     Text('Reading column: ${draft.contentWidth.round()} px'),
                     Slider(
                       key: const ValueKey('reading-column-width'),
@@ -2330,6 +2341,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                                         lineHeight: _readingPrefs.lineHeight,
                                         contentWidth: _readingPrefs.contentWidth,
                                         textAlignment: _readingPrefs.textAlignment,
+                                        paragraphSpacingFactor:
+                                            _readingPrefs.paragraphSpacingFactor,
                                         palette: _epubPalette,
                                         onSelectSegment: _selectFromVisualTap,
                                         onOpenLink: _openEpubLink,
@@ -2354,7 +2367,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                                           onTap: () => _selectFromVisualTap(index),
                                           child: Container(
                                             padding: const EdgeInsets.all(10),
-                                            margin: const EdgeInsets.only(bottom: 6),
+                                            margin: EdgeInsets.only(bottom:
+                                                6 * _readingPrefs.paragraphSpacingFactor),
                                             decoration: BoxDecoration(
                                               borderRadius: BorderRadius.circular(8),
                                               color: selected
