@@ -43,19 +43,19 @@ void main() {
       'dragon. dragon',
       'dragon! dragon',
       'dragon? dragon',
-      'dragon\\n\\nd ragon'.replaceAll('d ragon', 'dragon'),
-      'dragon\\r\\n  \\r\\ndragon',
+      'dragon\n\ndragon',
+      'dragon\r\n  \r\ndragon',
     ]) {
       expect(findIndexedExactPhrases(source, ['dragon', 'dragon']),
           isEmpty, reason: source);
     }
-    // A comma or a single line wrap belongs to the same local sentence.
+    // Commas and a single wrapped line may separate neighboring words.
     expect(findIndexedExactPhrases(
         'blue, dragon', ['blue', 'dragon']), hasLength(1));
     expect(findIndexedExactPhrases(
-        'blue\\ndragon', ['blue', 'dragon']), hasLength(1));
+        'blue\ndragon', ['blue', 'dragon']), hasLength(1));
     expect(findIndexedExactPhrases(
-        'blue\\n\\ndragon', ['blue', 'dragon']), isEmpty);
+        'blue\n\ndragon', ['blue', 'dragon']), isEmpty);
   });
 
   test('long interword gaps fail closed without excluding ordinary spacing',
@@ -63,13 +63,13 @@ void main() {
     const prefix = 'blue';
     const suffix = 'dragon';
     expect(findIndexedExactPhrases(
-        prefix + (' ' * 64) + suffix,
+        prefix + List.filled(64, ' ').join() + suffix,
         [prefix, suffix]), hasLength(1));
     expect(findIndexedExactPhrases(
-        prefix + (' ' * 65) + suffix,
+        prefix + List.filled(65, ' ').join() + suffix,
         [prefix, suffix]), isEmpty);
     expect(findIndexedExactPhrases(
-        prefix + (' ' * 200) + suffix,
+        prefix + List.filled(200, ' ').join() + suffix,
         [prefix, suffix]), isEmpty);
   });
 
