@@ -89,7 +89,7 @@ void main() {
 
     test('fresh schema v26 has default 20 minute goal, empty days', () {
       final db = sqlite3.open(p.join(home.path, 'library.sqlite'));
-      expect(db.select('PRAGMA user_version').single['user_version'], 26);
+      expect(db.select('PRAGMA user_version').single['user_version'], LibraryStore.currentSchemaVersion);
       db.dispose();
       final stats = store.weeklyReadingActivity(now: DateTime(2026, 10, 30));
       expect(stats.goalMinutes, 20);
@@ -347,7 +347,7 @@ void main() {
       expect(store.bookReadingLifetimeTotals(bookId).visualSeconds, 17);
       final upgraded = sqlite3.open(p.join(home.path, 'library.sqlite'));
       expect(upgraded.select('PRAGMA user_version').single['user_version'],
-          26);
+          LibraryStore.currentSchemaVersion);
       expect(upgraded.select('PRAGMA table_info(reading_activity_settings)')
           .where((r) => r['name'] == 'tracking_enabled'), hasLength(1));
       upgraded.dispose();
@@ -369,7 +369,7 @@ void main() {
       final check = sqlite3.open(p.join(home.path, 'library.sqlite'));
       expect(check.select('PRAGMA table_info(reading_activity_settings)')
           .where((r) => r['name'] == 'tracking_enabled'), hasLength(1));
-      expect(check.select('PRAGMA user_version').single['user_version'], 26);
+      expect(check.select('PRAGMA user_version').single['user_version'], LibraryStore.currentSchemaVersion);
       check.dispose();
     });
 
