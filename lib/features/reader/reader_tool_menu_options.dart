@@ -56,6 +56,12 @@ List<OrganizedActionSection> buildReaderToolSections(
         subtitle: 'Jump to the final EPUB contents section',
       ),
     ],
+    if (options.textMode && options.hasPlayableSegments)
+      const OrganizedActionItem(
+        id: 'go-to-percent', title: 'Go to book position',
+        icon: Icons.percent,
+        subtitle: 'Enter a percentage of the original text',
+      ),
     if (options.hasPlayableSegments)
       const OrganizedActionItem(
         id: 'search', title: 'Search this book',
