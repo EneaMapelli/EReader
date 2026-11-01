@@ -1615,3 +1615,36 @@ Android Activity recreation remains a manual device gate.
   and flutter test test/audio/rapid_playback_navigation_test.dart on the
   user's Flutter workstation; no Windows builds or GitHub Actions were
   started. Milestone implementation/readiness estimates are unchanged.
+
+
+### M2 — EPUB visual-spine-safe return and keyboard back navigation (2026-11-01)
+
+- Fixed a subtle one-shot percentage-return defect for illustrated EPUB
+  spines: multiple picture-only covers or appendices can share the same
+  canonical UTF-16 offset with one another and the first audible passage.
+  The previous return-point state recorded only the offset, which could
+  return to a spoken page instead of the original illustrated section.
+  Session-only ReaderProgressReturnPoint now also stores the source-backed
+  visual spine ID, and the existing exact-source _select path restores
+  its OPF anchor and matching visual block. Equal source offsets with
+  distinct visual spines count as meaningful navigation. TXT/PDF behavior
+  remains unchanged.
+- When narration is actively playing, the return origin is its current
+  audible source offset, not a stale illustrated viewport ID. Reload
+  clears both coordinates; stale async returns still require the
+  monotonic session revision to match before consuming history.
+- Added Ctrl/Cmd+Shift+G as an accessible one-shot return to the position
+  before the last confirmed Go-to-percentage jump. The command is available
+  only with a valid return point, a loaded reader text mode and a visible
+  foreground route, and does nothing while editing or interacting with
+  controls. It does not open a dialog, start TTS or send a cloud request.
+  F1 help, shortcut docs and the compact reader guide now explain it.
+- Added pure regression tests for identical-offset EPUB spine IDs,
+  invalid/unchanged jumps, stale-return revisions, Ctrl/Cmd+Shift+G
+  modifier/focus/availability guards and callback delivery, and a
+  source-backed illustrated EPUB visual-layout test proving that returning
+  to cover B is distinct from navigating to the first spoken page.
+- Flutter/Dart analysis and tests remain **unexecuted** in this connected
+  environment. No Windows builds or GitHub Actions were started; source
+  inspection alone does not confirm native accessibility, visual fidelity
+  or playback behavior. Readiness percentages are unchanged.
