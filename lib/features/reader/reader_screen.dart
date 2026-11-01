@@ -988,6 +988,23 @@ class _ReaderScreenState extends State<ReaderScreen>
         _authorToc, _directorySourceOffset(player));
   }
 
+  void _jumpDirectoryRelative(int direction) {
+    if (!mounted || _loading || _error != null ||
+        widget.book.format != BookFormat.epub ||
+        _player == null || _player!.segments.isEmpty) return;
+    final count = _authorToc.isNotEmpty
+        ? _authorToc.length : _chapters.length;
+    if (count == 0 || direction == 0) return;
+    final index = _currentDirectoryIndex;
+    // When the current section cannot be resolved, Next begins at the
+    // first section; Previous remains unavailable rather than jumping
+    // unexpectedly to the end of the book.
+    final next = index < 0 ? (direction > 0 ? 0 : -1)
+        : index + (direction > 0 ? 1 : -1);
+    if (next < 0 || next >= count) return;
+    _jumpDirectoryIndex(next);
+  }
+
   void _jumpDirectoryIndex(int index) {
     if (_authorToc.isNotEmpty) {
       if (index >= 0 && index < _authorToc.length) {
@@ -1974,6 +1991,14 @@ class _ReaderScreenState extends State<ReaderScreen>
       onDecreaseTextSize: !_loading && _error == null &&
               (widget.book.format != BookFormat.pdf || _pdfTextMode)
           ? () => _adjustReaderTextSize(-2) : null,
+      onPreviousSection: !_loading && _error == null &&
+              widget.book.format == BookFormat.epub &&
+              (_authorToc.isNotEmpty || _chapters.isNotEmpty)
+          ? () => _jumpDirectoryRelative(-1) : null,
+      onNextSection: !_loading && _error == null &&
+              widget.book.format == BookFormat.epub &&
+              (_authorToc.isNotEmpty || _chapters.isNotEmpty)
+          ? () => _jumpDirectoryRelative(1) : null,
       child: Scaffold(
       floatingActionButton: _readerFocusMode && !_loading &&
               _error == null && player != null &&
