@@ -154,6 +154,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
     this.onNextSection,
     this.onFirstSection,
     this.onLastSection,
+    this.onViewportScrollKey,
     required this.child,
   });
 
@@ -171,6 +172,10 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
   final VoidCallback? onNextSection;
   final VoidCallback? onFirstSection;
   final VoidCallback? onLastSection;
+
+  /// Observe unmodified book scrolling keys without consuming their
+  /// native ScrollAction. This is only a user-intent signal, not a seek.
+  final VoidCallback? onViewportScrollKey;
   final Widget child;
 
   @override
@@ -206,7 +211,26 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
           altPressed: keyboard.isAltPressed,
           shiftPressed: keyboard.isShiftPressed,
         );
-        if (action == null) return KeyEventResult.ignored;
+        if (action == null) {
+          // Keyboard scrolls may not carry dragDetails, whereas framework
+          // relayout/programmatic scrolling can emit UserScrollNotification.
+          // Observe the physical key instead of trusting that notification.
+          if (onViewportScrollKey != null &&
+              event is KeyDownEvent &&
+              (ModalRoute.of(context)?.isCurrent ?? true) &&
+              !editing && !interactive &&
+              !keyboard.isControlPressed && !keyboard.isMetaPressed &&
+              !keyboard.isAltPressed && !keyboard.isShiftPressed &&
+              (event.logicalKey == LogicalKeyboardKey.arrowUp ||
+                  event.logicalKey == LogicalKeyboardKey.arrowDown ||
+                  event.logicalKey == LogicalKeyboardKey.pageUp ||
+                  event.logicalKey == LogicalKeyboardKey.pageDown ||
+                  event.logicalKey == LogicalKeyboardKey.home ||
+                  event.logicalKey == LogicalKeyboardKey.end)) {
+            onViewportScrollKey!();
+          }
+          return KeyEventResult.ignored;
+        }
         switch (action) {
           case ReaderKeyboardAction.playPause:
             onPlayPause();
