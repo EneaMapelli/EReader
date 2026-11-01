@@ -1004,6 +1004,16 @@ class _ReaderScreenState extends State<ReaderScreen>
     _jumpDirectoryIndex(next);
   }
 
+  void _jumpDirectoryBoundary({required bool last}) {
+    if (!mounted || _loading || _error != null ||
+        widget.book.format != BookFormat.epub ||
+        _player == null || _player!.segments.isEmpty) return;
+    final count = _authorToc.isNotEmpty
+        ? _authorToc.length : _chapters.length;
+    final target = boundaryReaderSectionIndex(count: count, last: last);
+    if (target != null) _jumpDirectoryIndex(target);
+  }
+
   void _jumpDirectoryIndex(int index) {
     if (_authorToc.isNotEmpty) {
       if (index >= 0 && index < _authorToc.length) {
@@ -1998,6 +2008,14 @@ class _ReaderScreenState extends State<ReaderScreen>
               widget.book.format == BookFormat.epub &&
               (_authorToc.isNotEmpty || _chapters.isNotEmpty)
           ? () => _jumpDirectoryRelative(1) : null,
+      onFirstSection: !_loading && _error == null &&
+              widget.book.format == BookFormat.epub &&
+              (_authorToc.isNotEmpty || _chapters.isNotEmpty)
+          ? () => _jumpDirectoryBoundary(last: false) : null,
+      onLastSection: !_loading && _error == null &&
+              widget.book.format == BookFormat.epub &&
+              (_authorToc.isNotEmpty || _chapters.isNotEmpty)
+          ? () => _jumpDirectoryBoundary(last: true) : null,
       child: Scaffold(
       floatingActionButton: _readerFocusMode && !_loading &&
               _error == null && player != null &&
