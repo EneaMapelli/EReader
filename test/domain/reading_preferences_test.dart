@@ -10,6 +10,7 @@ void main() {
     expect(original.palette, 'system');
     expect(original.contentWidth, 760);
     expect(original.textAlignment, 'auto');
+    expect(original.paragraphSpacingFactor, 1.0);
     expect(original.toJson()['version'], 1);
   });
 
@@ -19,6 +20,7 @@ void main() {
       fontSize: 26, lineHeight: 2.2,
       fontFamily: 'sans-serif', palette: 'night',
       contentWidth: 920, textAlignment: 'start',
+      paragraphSpacingFactor: 2.0,
     );
     expect(ReadingPreferences.fromJson(original.toJson()).toJson(),
         original.toJson());
@@ -43,6 +45,10 @@ void main() {
       valid.copyWith(contentWidth: 1001),
       valid.copyWith(contentWidth: double.nan),
       valid.copyWith(textAlignment: 'center'),
+      valid.copyWith(paragraphSpacingFactor: 0.49),
+      valid.copyWith(paragraphSpacingFactor: 2.51),
+      valid.copyWith(paragraphSpacingFactor: double.nan),
+      valid.copyWith(paragraphSpacingFactor: double.infinity),
     ];
     for (final item in cases) {
       expect(item.validate, throwsFormatException);
@@ -60,6 +66,9 @@ void main() {
         'fontFamily': 'serif', 'palette': 'night', 'contentWidth': null},
       {'version': 1, 'fontSize': 19, 'lineHeight': 1.75,
         'fontFamily': 'serif', 'palette': 'night', 'textAlignment': null},
+      {'version': 1, 'fontSize': 19, 'lineHeight': 1.75,
+        'fontFamily': 'serif', 'palette': 'night',
+        'paragraphSpacingFactor': null},
     ];
     for (final item in broken) {
       expect(() => ReadingPreferences.fromJson(item), throwsFormatException);
@@ -73,6 +82,7 @@ void main() {
     });
     expect(old.contentWidth, 760);
     expect(old.textAlignment, 'auto');
+    expect(old.paragraphSpacingFactor, 1.0);
     expect(old.fontSize, 25);
     expect(old.palette, 'sepia');
     expect(old.toJson()['contentWidth'], 760);
@@ -88,6 +98,18 @@ void main() {
         profile.toJson());
   });
 
+  test('paragraph spacing survives legacy JSON without migration', () {
+    final legacy = ReadingPreferences.fromJson({
+      'version': 1, 'fontSize': 19, 'lineHeight': 1.75,
+      'fontFamily': 'serif', 'palette': 'system',
+    });
+    expect(legacy.paragraphSpacingFactor, 1.0);
+    final adjusted = legacy.copyWith(paragraphSpacingFactor: 0.5);
+    expect(adjusted.toJson()['paragraphSpacingFactor'], 0.5);
+    expect(ReadingPreferences.fromJson(adjusted.toJson())
+        .paragraphSpacingFactor, 0.5);
+  });
+
   test('values on the supported bounds are valid', () {
     const ReadingPreferences(
       fontSize: 14, lineHeight: 1.2,
@@ -97,6 +119,7 @@ void main() {
       fontSize: 32, lineHeight: 2.4,
       fontFamily: 'sans-serif', palette: 'highContrast',
       contentWidth: 1000, textAlignment: 'justify',
+      paragraphSpacingFactor: 2.5,
     ).validate();
   });
 }
