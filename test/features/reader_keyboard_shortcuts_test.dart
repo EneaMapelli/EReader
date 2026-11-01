@@ -21,6 +21,7 @@ ReaderKeyboardAction? action(
   bool tools = false,
   bool progress = false,
   bool progressReturn = false,
+  bool narrationReturn = false,
   bool textSize = false,
   bool sections = false,
   bool interactive = false,
@@ -34,6 +35,7 @@ ReaderKeyboardAction? action(
       toolsAvailable: tools,
       progressAvailable: progress,
       progressReturnAvailable: progressReturn,
+      returnToNarrationAvailable: narrationReturn,
       textSizeAvailable: textSize,
       sectionNavigationAvailable: sections,
       controlPressed: ctrl,
@@ -410,6 +412,76 @@ void main() {
     expect(returned, 1);
     expect(go, 1);
     expect(played, 0);
+  });
+
+  test('Ctrl/Cmd+Shift+J only rejoins narration while detached', () {
+    for (final useMeta in [false, true]) {
+      expect(action(down(LogicalKeyboardKey.keyJ),
+          ctrl: !useMeta, meta: useMeta, shift: true,
+          narrationReturn: true), ReaderKeyboardAction.returnToNarration);
+      for (final variant in [
+        action(down(LogicalKeyboardKey.keyJ),
+            ctrl: !useMeta, meta: useMeta, shift: true),
+        action(down(LogicalKeyboardKey.keyJ),
+            ctrl: !useMeta, meta: useMeta,
+            narrationReturn: true),
+        action(down(LogicalKeyboardKey.keyJ),
+            ctrl: !useMeta, meta: useMeta, shift: true,
+            narrationReturn: true, ready: false),
+        action(down(LogicalKeyboardKey.keyJ),
+            ctrl: !useMeta, meta: useMeta, shift: true,
+            narrationReturn: true, editing: true),
+        action(down(LogicalKeyboardKey.keyJ),
+            ctrl: !useMeta, meta: useMeta, shift: true,
+            narrationReturn: true, interactive: true),
+        action(down(LogicalKeyboardKey.keyJ),
+            ctrl: !useMeta, meta: useMeta, shift: true,
+            narrationReturn: true, alt: true),
+        action(down(LogicalKeyboardKey.keyJ),
+            ctrl: !useMeta, meta: useMeta, shift: true,
+            narrationReturn: true, routeActive: false),
+      ]) {
+        expect(variant, isNull);
+      }
+    }
+    expect(action(down(LogicalKeyboardKey.keyJ),
+        shift: true, narrationReturn: true), isNull);
+    expect(action(KeyRepeatEvent(
+      logicalKey: LogicalKeyboardKey.keyJ,
+      physicalKey: PhysicalKeyboardKey.keyJ,
+      timeStamp: Duration.zero,
+    ), ctrl: true, shift: true, narrationReturn: true), isNull);
+  });
+
+  testWidgets('return-to-narration shortcut never starts or seeks speech',
+      (tester) async {
+    var returns = 0;
+    var played = 0;
+    var skipped = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderKeyboardShortcuts(
+        enabled: true,
+        onPlayPause: () => played++,
+        onPreviousSegment: () => skipped++,
+        onNextSegment: () => skipped++,
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        onReturnToNarration: () => returns++,
+        child: const Scaffold(body: Text('Detached reader viewport')),
+      ),
+    ));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    expect(returns, 1);
+    expect(played, 0);
+    expect(skipped, 0);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Ctrl+G opens percentage dialog callback but never plays audio',
