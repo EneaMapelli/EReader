@@ -13,6 +13,8 @@ enum ReaderKeyboardAction {
   tools,
   increaseTextSize,
   decreaseTextSize,
+  previousSection,
+  nextSection,
 }
 
 /// Shared with the in-reader text-size menu: never write a preference
@@ -33,6 +35,7 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
   bool interactiveControlFocused = false,
   bool toolsAvailable = false,
   bool textSizeAvailable = false,
+  bool sectionNavigationAvailable = false,
   required bool controlPressed,
   required bool metaPressed,
   required bool altPressed,
@@ -58,6 +61,15 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
     }
     if (key == LogicalKeyboardKey.minus && !shiftPressed) {
       return ReaderKeyboardAction.decreaseTextSize;
+    }
+  }
+  if (command && !altPressed && !shiftPressed &&
+      sectionNavigationAvailable) {
+    if (key == LogicalKeyboardKey.pageUp) {
+      return ReaderKeyboardAction.previousSection;
+    }
+    if (key == LogicalKeyboardKey.pageDown) {
+      return ReaderKeyboardAction.nextSection;
     }
   }
   if (!readerReady) return null;
@@ -107,6 +119,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
     this.onTools,
     this.onIncreaseTextSize,
     this.onDecreaseTextSize,
+    this.onPreviousSection,
+    this.onNextSection,
     required this.child,
   });
 
@@ -120,6 +134,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
   final VoidCallback? onTools;
   final VoidCallback? onIncreaseTextSize;
   final VoidCallback? onDecreaseTextSize;
+  final VoidCallback? onPreviousSection;
+  final VoidCallback? onNextSection;
   final Widget child;
 
   @override
@@ -147,6 +163,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
           toolsAvailable: onTools != null,
           textSizeAvailable: onIncreaseTextSize != null &&
               onDecreaseTextSize != null,
+          sectionNavigationAvailable: onPreviousSection != null &&
+              onNextSection != null,
           controlPressed: keyboard.isControlPressed,
           metaPressed: keyboard.isMetaPressed,
           altPressed: keyboard.isAltPressed,
@@ -172,6 +190,10 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
             onIncreaseTextSize?.call();
           case ReaderKeyboardAction.decreaseTextSize:
             onDecreaseTextSize?.call();
+          case ReaderKeyboardAction.previousSection:
+            onPreviousSection?.call();
+          case ReaderKeyboardAction.nextSection:
+            onNextSection?.call();
         }
         return KeyEventResult.handled;
       },
@@ -200,6 +222,8 @@ Future<void> showReaderKeyboardHelp(BuildContext context) =>
             Text('Ctrl/Cmd + K — Find reader tools'),
             Text('Ctrl/Cmd + = — Increase reading text size'),
             Text('Ctrl/Cmd + - — Decrease reading text size'),
+            Text('Ctrl/Cmd + Page Up — Previous EPUB section'),
+            Text('Ctrl/Cmd + Page Down — Next EPUB section'),
             Text('F1 — Show this help'),
             SizedBox(height: 12),
             Text('Shortcuts do not run while typing in a text field. '
