@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io' show Directory, Platform;
-import 'dart:ui' show FrameTiming, PointerScrollEvent;
+import 'dart:ui' show FrameTiming;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
  import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/scheduler.dart';
