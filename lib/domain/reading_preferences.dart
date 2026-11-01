@@ -8,6 +8,7 @@ class ReadingPreferences {
     this.palette = 'system',
     this.contentWidth = 760,
     this.textAlignment = 'auto',
+    this.paragraphSpacingFactor = 1.0,
   });
 
   final double fontSize;
@@ -20,6 +21,8 @@ class ReadingPreferences {
   final double contentWidth;
   /// auto: original EPUB justification and TXT/PDF start-alignment.
   final String textAlignment;
+  /// Scales existing visual gaps; default 1.0 preserves legacy layout.
+  final double paragraphSpacingFactor;
 
   static const fontFamilies = {'serif', 'sans-serif', 'monospace'};
   static const palettes = {'system', 'sepia', 'night', 'highContrast'};
@@ -31,7 +34,9 @@ class ReadingPreferences {
         !contentWidth.isFinite || contentWidth < 480 || contentWidth > 1000 ||
         !fontFamilies.contains(fontFamily) ||
         !palettes.contains(palette) ||
-        !textAlignments.contains(textAlignment)) {
+        !textAlignments.contains(textAlignment) ||
+        !paragraphSpacingFactor.isFinite ||
+        paragraphSpacingFactor < 0.5 || paragraphSpacingFactor > 2.5) {
       throw const FormatException('Invalid visual reading preferences');
     }
   }
@@ -43,6 +48,7 @@ class ReadingPreferences {
     String? palette,
     double? contentWidth,
     String? textAlignment,
+    double? paragraphSpacingFactor,
   }) => ReadingPreferences(
     fontSize: fontSize ?? this.fontSize,
     lineHeight: lineHeight ?? this.lineHeight,
@@ -50,6 +56,8 @@ class ReadingPreferences {
     palette: palette ?? this.palette,
     contentWidth: contentWidth ?? this.contentWidth,
     textAlignment: textAlignment ?? this.textAlignment,
+    paragraphSpacingFactor:
+        paragraphSpacingFactor ?? this.paragraphSpacingFactor,
   );
 
   Map<String, Object> toJson() {
@@ -62,6 +70,7 @@ class ReadingPreferences {
       'palette': palette,
       'contentWidth': contentWidth,
       'textAlignment': textAlignment,
+      'paragraphSpacingFactor': paragraphSpacingFactor,
     };
   }
 
@@ -79,9 +88,12 @@ class ReadingPreferences {
         ? json['contentWidth'] : 760;
     final textAlignment = json.containsKey('textAlignment')
         ? json['textAlignment'] : 'auto';
+    final paragraphSpacingFactor = json.containsKey('paragraphSpacingFactor')
+        ? json['paragraphSpacingFactor'] : 1.0;
     if (fontSize is! num || lineHeight is! num ||
         fontFamily is! String || palette is! String ||
-        contentWidth is! num || textAlignment is! String) {
+        contentWidth is! num || textAlignment is! String ||
+        paragraphSpacingFactor is! num) {
       throw const FormatException('Malformed visual preferences');
     }
     final value = ReadingPreferences(
@@ -91,6 +103,7 @@ class ReadingPreferences {
       palette: palette,
       contentWidth: contentWidth.toDouble(),
       textAlignment: textAlignment,
+      paragraphSpacingFactor: paragraphSpacingFactor.toDouble(),
     );
     value.validate();
     return value;
