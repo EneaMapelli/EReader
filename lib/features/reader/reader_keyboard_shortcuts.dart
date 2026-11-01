@@ -11,6 +11,7 @@ enum ReaderKeyboardAction {
   bookmarks,
   goToProgress,
   returnToProgress,
+  returnToNarration,
   help,
   tools,
   increaseTextSize,
@@ -63,6 +64,7 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
   bool toolsAvailable = false,
   bool progressAvailable = false,
   bool progressReturnAvailable = false,
+  bool returnToNarrationAvailable = false,
   bool textSizeAvailable = false,
   bool sectionNavigationAvailable = false,
   required bool controlPressed,
@@ -108,6 +110,13 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
     }
   }
   if (!readerReady) return null;
+  // The shortcut is enabled only while visual follow is temporarily detached.
+  // It never changes the speech cursor or audio state.
+  if (command && shiftPressed && !altPressed &&
+      !interactiveControlFocused && returnToNarrationAvailable &&
+      key == LogicalKeyboardKey.keyJ) {
+    return ReaderKeyboardAction.returnToNarration;
+  }
   if (command && !altPressed && !interactiveControlFocused &&
       key == LogicalKeyboardKey.keyG) {
     if (shiftPressed && progressReturnAvailable) {
@@ -163,6 +172,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
     this.onTools,
     this.onGoToProgress,
     this.onReturnToProgress,
+    this.onReturnToNarration,
     this.onIncreaseTextSize,
     this.onDecreaseTextSize,
     this.onPreviousSection,
@@ -183,6 +193,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
   final VoidCallback? onTools;
   final VoidCallback? onGoToProgress;
   final VoidCallback? onReturnToProgress;
+  final VoidCallback? onReturnToNarration;
   final VoidCallback? onIncreaseTextSize;
   final VoidCallback? onDecreaseTextSize;
   final VoidCallback? onPreviousSection;
@@ -220,6 +231,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
           toolsAvailable: onTools != null,
           progressAvailable: onGoToProgress != null,
           progressReturnAvailable: onReturnToProgress != null,
+          returnToNarrationAvailable: onReturnToNarration != null,
           textSizeAvailable: onIncreaseTextSize != null &&
               onDecreaseTextSize != null,
           sectionNavigationAvailable: onPreviousSection != null &&
@@ -265,6 +277,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
             onGoToProgress?.call();
           case ReaderKeyboardAction.returnToProgress:
             onReturnToProgress?.call();
+          case ReaderKeyboardAction.returnToNarration:
+            onReturnToNarration?.call();
           case ReaderKeyboardAction.help:
             onHelp();
           case ReaderKeyboardAction.tools:
@@ -308,6 +322,7 @@ Future<void> showReaderKeyboardHelp(BuildContext context) =>
             Text('Ctrl/Cmd + B — Bookmarks'),
             Text('Ctrl/Cmd + G — Go to book percentage'),
             Text('Ctrl/Cmd + Shift + G — Return after percentage jump'),
+            Text('Ctrl/Cmd + Shift + J — Rejoin active narration'),
             Text('Ctrl/Cmd + K — Find reader tools'),
             Text('Ctrl/Cmd + = — Increase reading text size'),
             Text('Ctrl/Cmd + - — Decrease reading text size'),
