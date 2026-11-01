@@ -59,3 +59,22 @@ chunk beyond source-verified, user-skipped EPUB footnotes; no skipped note is
 prefetched. The active decoder still emits clips serially. Neither mode
 guarantees gapless playback. [Implementation and manual QA](CACHED_AUDIO_WARMUP.md).
 Tests were authored but **not run**.
+
+## 2026-11-01 — Align skipped-note regression with explicit opt-in
+
+Two previously authored tests asserted incompatible expectations:
+`cloud_prefetch_test.dart` correctly required paid, *explicitly opted-in*
+one-ahead preparation to pass over skipped EPUB footnotes to the next
+audible segment; the note-filter test incorrectly expected no preparation
+at all, even after the opt-in was enabled.
+
+The note-filter regression now checks the actual privacy/billing boundary:
+with paid prefetch explicitly ON, `Start. / [skipped note] / End.`
+may prepare **only `End.`**, never the skipped note. A separate test
+asserts that with the session default of paid prefetch OFF, neither
+`End.` nor the note is speculatively prepared. Existing cache-only
+warmup remains a separate no-network path.
+
+This is a test contract correction, **not a change to production cloud
+prefetch policy or billing**. No real remote provider calls, tests,
+Windows builds or GitHub Actions were run in this environment.
