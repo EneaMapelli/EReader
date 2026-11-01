@@ -1352,3 +1352,24 @@ Android Activity recreation remains a manual device gate.
   executable build, CI or GitHub Actions were started. Native accessibility
   acceptance and milestone estimates remain unchanged.
 - See [READER_COMPACT_CONTROLS.md](READER_COMPACT_CONTROLS.md).
+
+
+### M2 — Protect source checkpoints during reader relayout (2026-11-01)
+
+- Added a viewport-save gate so switching between compact/expanded
+  narration controls, enabling/disabling focus mode, or changing font/
+  layout settings does not turn a changed first visible paragraph into
+  a new persisted bookmark. Pending deferred viewport writes are canceled
+  before a visual-only relayout; exact EPUB source anchors remain protected.
+- Manual drag/wheel/keyboard scroll notifications from the actual book
+  viewport reopen normal visual-position persistence. Explicit search,
+  TOC, progress-slider and audio-segment navigation continue through
+  their existing separate source-position save routines.
+- Added unit and widget tests for relayout suppression and subsequent
+  manual scrolling, plus a real TXT ReaderScreen integration regression
+  checking the LibraryStore manualPositionRevision across expanding/
+  collapsing advanced controls and entering/exiting focus mode.
+- Updated docs/READER_COMPACT_CONTROLS.md with checkpoint semantics and
+  manual acceptance. Flutter/Dart tests have NOT been executed in this
+  connected environment; no Windows build or GitHub Actions were started.
+- Milestone completion estimates remain unchanged until native validation.
