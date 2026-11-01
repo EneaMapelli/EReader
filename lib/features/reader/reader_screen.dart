@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:io' show Directory, Platform;
-import 'dart:ui' show FrameTiming;
+import 'dart:ui' show FrameTiming, PointerScrollEvent;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollDirection;
-import 'package:path/path.dart' as p;
+ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -2018,6 +2017,7 @@ class _ReaderScreenState extends State<ReaderScreen>
           ? () => _jumpDirectoryBoundary(last: false) : null,
       onLastSection: epubSectionsAvailable
           ? () => _jumpDirectoryBoundary(last: true) : null,
+      onViewportScrollKey: _viewportSaveGate.resumeFromUserScroll,
       child: Scaffold(
       floatingActionButton: _readerFocusMode && !_loading &&
               _error == null && player != null &&
@@ -2133,14 +2133,18 @@ class _ReaderScreenState extends State<ReaderScreen>
                                 color: widget.book.format == BookFormat.epub
                                     ? _epubPalette.background(context) : null,
                                 child: SelectionArea(
-                                  child: NotificationListener<ScrollNotification>(
+                                  child: Listener(
+                                    onPointerSignal: (event) {
+                                      if (event is PointerScrollEvent) {
+                                        _viewportSaveGate.resumeFromUserScroll();
+                                      }
+                                    },
+                                    child: NotificationListener<ScrollNotification>(
                                     onNotification: (notification) {
                                       if ((notification is ScrollStartNotification &&
                                               notification.dragDetails != null) ||
                                           (notification is ScrollUpdateNotification &&
-                                              notification.dragDetails != null) ||
-                                          (notification is UserScrollNotification &&
-                                              notification.direction != ScrollDirection.idle)) {
+                                              notification.dragDetails != null)) {
                                         _viewportSaveGate.resumeFromUserScroll();
                                       }
                                       return false;
@@ -2251,6 +2255,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                       ),
                                     );
                                   },
+                                    ),
                                     ),
                                   ),
                                 ),
