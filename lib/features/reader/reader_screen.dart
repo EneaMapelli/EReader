@@ -1852,17 +1852,20 @@ class _ReaderScreenState extends State<ReaderScreen>
         player == null || player.segments.isEmpty ||
         document == null || document.text.isEmpty ||
         (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
-    final origin = _visibleProgressOffset(
+    final displayedOrigin = _visibleProgressOffset(
         player, document.text.length);
     final target = await showReaderGoToProgressDialog(
       context,
-      currentSourceOffset: origin,
+      currentSourceOffset: displayedOrigin,
       sourceLength: document.text.length,
       autofocus: autofocus,
     );
     if (!mounted || target == null || _loading || _error != null ||
         _player != player || _document != document ||
         (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
+    // Narration/media controls may advance the text while this dialog is
+    // open. Record the actual point immediately before the confirmed jump.
+    final origin = _visibleProgressOffset(player, document.text.length);
     // The return point is established only AFTER the new seek and SQLite
     // checkpoint succeeded. A canceled/no-op/failed jump leaves it alone.
     _jumpToSourceProgress(target, onCommitted: () {
@@ -1887,9 +1890,11 @@ class _ReaderScreenState extends State<ReaderScreen>
         player == null || player.segments.isEmpty ||
         document == null || document.text.isEmpty ||
         (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
+    final returnRevision = _progressReturn.revision;
     _jumpToSourceProgress(origin, onCommitted: () {
       if (!mounted || _player != player || _document != document) return;
-      if (_progressReturn.consumeIfOrigin(origin)) {
+      if (_progressReturn.consumeIfOrigin(origin,
+          expectedRevision: returnRevision)) {
         setState(() {});
       }
     });
