@@ -42,7 +42,7 @@ void main() {
     final actions = ids(sections);
     for (final action in [
       'contents', 'first-section', 'last-section',
-      'return-link', 'search', 'bookmarks',
+      'return-link', 'search', 'bookmarks', 'go-to-percent',
       'appearance', 'font-plus', 'font-minus', 'auto-follow',
       'reading-focus',
       'palette-system', 'palette-sepia', 'palette-night',
@@ -69,6 +69,7 @@ void main() {
     expect(items, isNot(contains('bookmarks')));
     expect(items, isNot(contains('appearance')));
     expect(items, isNot(contains('reading-focus')));
+    expect(items, isNot(contains('go-to-percent')));
     expect(items, isNot(contains('first-section')));
     expect(items, isNot(contains('last-section')));
     expect(items, isNot(contains('auto-follow')));
@@ -83,7 +84,8 @@ void main() {
       pdf: true, text: true, playable: true, pdfBookmarks: true,
     )));
     expect(items, containsAll(['pdf-pages', 'search', 'bookmarks',
-      'appearance', 'font-plus', 'auto-follow', 'reading-focus']));
+      'appearance', 'font-plus', 'auto-follow', 'reading-focus',
+      'go-to-percent']));
     expect(items, isNot(contains('pdf-bookmarks')));
     expect(items, isNot(contains('contents')));
     expect(items, isNot(contains('first-section')));
@@ -96,7 +98,7 @@ void main() {
     final sections = buildReaderToolSections(options(
         autoFollow: false));
     final items = ids(sections);
-    expect(items, containsAll(['search', 'bookmarks',
+    expect(items, containsAll(['search', 'bookmarks', 'go-to-percent',
       'appearance', 'speech', 'pronunciation', 'keyboard-help']));
     expect(items, isNot(contains('contents')));
     expect(items, isNot(contains('first-section')));
@@ -155,6 +157,7 @@ void main() {
     expect(items, isNot(contains('first-section')));
     expect(items, isNot(contains('last-section')));
     expect(items, isNot(contains('search')));
+    expect(items, isNot(contains('go-to-percent')));
     expect(items, isNot(contains('cast')));
     expect(items, isNot(contains('epub-performance')));
     expect(items, isNot(contains('epub-compat')));
