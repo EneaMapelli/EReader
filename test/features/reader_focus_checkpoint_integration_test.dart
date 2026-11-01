@@ -30,6 +30,41 @@ void main() {
     if (await directory.exists()) await directory.delete(recursive: true);
   });
 
+  testWidgets('rotation and split-screen viewport changes do not save '
+      'new reading position', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 780));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+    final initialRevision = store.manualPositionRevision(bookId);
+    final initialOffset = store.getBook(bookId)!.progressOffset;
+
+    // Neither a wider split window nor a shorter rotated viewport is
+    // evidence that the user deliberately moved to another paragraph.
+    await tester.binding.setSurfaceSize(const Size(610, 690));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+    expect(store.manualPositionRevision(bookId), initialRevision);
+    expect(store.getBook(bookId)!.progressOffset, initialOffset);
+
+    await tester.binding.setSurfaceSize(const Size(780, 390));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+    expect(store.manualPositionRevision(bookId), initialRevision);
+    expect(store.getBook(bookId)!.progressOffset, initialOffset);
+
+    await tester.binding.setSurfaceSize(const Size(390, 780));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+    expect(store.manualPositionRevision(bookId), initialRevision,
+        reason: 'Reflow cannot overwrite a persistent bookmark');
+    expect(store.getBook(bookId)!.progressOffset, initialOffset);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('focus and advanced panels never persist an idle relayout',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 780));
