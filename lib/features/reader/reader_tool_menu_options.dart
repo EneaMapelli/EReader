@@ -16,6 +16,7 @@ class ReaderToolMenuAvailability {
     required this.hasEpubPerformance,
     required this.hasEpubWarnings,
     required this.autoFollow,
+    this.followSuspended = false,
     required this.paletteName,
     this.focusMode = false,
     this.hasProgressReturn = false,
@@ -31,6 +32,8 @@ class ReaderToolMenuAvailability {
   final bool hasEpubPerformance;
   final bool hasEpubWarnings;
   final bool autoFollow;
+  /// Active speech remains uninterrupted while a manual scroll detaches.
+  final bool followSuspended;
   final String paletteName;
   final bool focusMode;
   final bool hasProgressReturn;
@@ -70,6 +73,14 @@ List<OrganizedActionSection> buildReaderToolSections(
         id: 'return-to-percent', title: 'Return to position before jump',
         icon: Icons.undo,
         subtitle: 'Go back after the last confirmed percentage jump',
+      ),
+    if (options.textMode && options.hasPlayableSegments &&
+        options.autoFollow && options.followSuspended)
+      const OrganizedActionItem(
+        id: 'return-to-narration',
+        title: 'Return to narrated passage',
+        icon: Icons.my_location,
+        subtitle: 'Rejoin the current speech position without seeking',
       ),
     if (options.hasPlayableSegments)
       const OrganizedActionItem(
@@ -132,7 +143,9 @@ List<OrganizedActionSection> buildReaderToolSections(
         id: 'auto-follow', title: 'Follow narration',
         icon: options.autoFollow ? Icons.my_location
             : Icons.location_disabled,
-        subtitle: 'Automatically scroll while reading aloud',
+        subtitle: options.followSuspended
+            ? 'Temporarily paused after manual scrolling'
+            : 'Automatically scroll while reading aloud',
         selected: options.autoFollow,
       ),
     if (options.isEpub) ...[
