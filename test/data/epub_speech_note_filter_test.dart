@@ -176,7 +176,7 @@ void main() {
     player.dispose();
   });
 
-  test('paid cloud prefetch never prepares the next skipped note',
+  test('opted-in paid prefetch bypasses skipped notes, never bills them',
       () async {
     final engine = _ImmediateCloudEngine();
     final player = ReaderPlayer(
@@ -194,8 +194,33 @@ void main() {
     player.setCloudPrefetch(true);
     await player.play();
     expect(engine.spoken, ['Start.', 'End.']);
+    expect(engine.prepared, ['End.'],
+        reason: 'Explicit paid prefetch may prepare only the next audible '
+            'segment, never a skipped note');
+    expect(engine.prepared, isNot(contains('Note text.')));
+    player.dispose();
+  });
+
+  test('without paid-prefetch opt-in no skipped note or later passage '
+      'is speculatively synthesized', () async {
+    final engine = _ImmediateCloudEngine();
+    final player = ReaderPlayer(
+      engineProviderId: 'openai-speech',
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 6, 'Start.'),
+        SpeechSegment(7, 17, 'Note text.'),
+        SpeechSegment(18, 22, 'End.'),
+      ],
+      onSegmentStarted: (_) async {},
+    );
+    player.shouldSkipSegment =
+        (segment) => segment.text == 'Note text.';
+    expect(player.prefetchNextCloudChunk, isFalse);
+    await player.play();
+    expect(engine.spoken, ['Start.', 'End.']);
     expect(engine.prepared, isEmpty,
-        reason: 'A skipped note cannot be a speculative paid request');
+        reason: 'No speculative paid cloud request without explicit opt-in');
     player.dispose();
   });
 
