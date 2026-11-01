@@ -3,6 +3,7 @@ import 'dart:io' show Directory, Platform;
 import 'dart:ui' show FrameTiming;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/scheduler.dart';
@@ -2088,7 +2089,19 @@ class _ReaderScreenState extends State<ReaderScreen>
                                 color: widget.book.format == BookFormat.epub
                                     ? _epubPalette.background(context) : null,
                                 child: SelectionArea(
-                                  child: ScrollablePositionedList.builder(
+                                  child: NotificationListener<ScrollNotification>(
+                                    onNotification: (notification) {
+                                      if ((notification is ScrollStartNotification &&
+                                              notification.dragDetails != null) ||
+                                          (notification is ScrollUpdateNotification &&
+                                              notification.dragDetails != null) ||
+                                          (notification is UserScrollNotification &&
+                                              notification.direction != ScrollDirection.idle)) {
+                                        _viewportSaveGate.resumeFromUserScroll();
+                                      }
+                                      return false;
+                                    },
+                                    child: ScrollablePositionedList.builder(
                                   // A new EPUB extraction/casting pass changes
                                   // the block index. Remount to honor the
                                   // restored anchor after the user edits voices.
@@ -2194,6 +2207,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                       ),
                                     );
                                   },
+                                    ),
                                   ),
                                 ),
                               ),
