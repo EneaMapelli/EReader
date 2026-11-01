@@ -2376,10 +2376,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                                     },
                                     child: NotificationListener<ScrollNotification>(
                                     onNotification: (notification) {
-                                      if ((notification is ScrollStartNotification &&
-                                              notification.dragDetails != null) ||
-                                          (notification is ScrollUpdateNotification &&
-                                              notification.dragDetails != null)) {
+                                      if (isReaderUserVerticalViewportScroll(
+                                          notification)) {
                                         _onUserReaderScroll();
                                       }
                                       return false;
