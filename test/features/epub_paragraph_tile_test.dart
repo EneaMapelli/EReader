@@ -95,6 +95,44 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('letter and word spacing preserve EPUB source, voice tap and highlights',
+      (tester) async {
+    final taps = <int>[];
+    Future<RichText> render({double letters = 0, double words = 0}) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(body: EpubParagraphTile(
+          block: spokenParagraph,
+          activeSegmentIndex: 1,
+          fontSize: 19,
+          letterSpacing: letters,
+          wordSpacing: words,
+          onSelectSegment: taps.add,
+        )),
+      ));
+      return tester.widget<RichText>(find.descendant(
+        of: find.byType(EpubParagraphTile),
+        matching: find.byType(RichText),
+      ));
+    }
+
+    final before = await render();
+    expect(before.text.style?.letterSpacing, isNull);
+    expect(before.text.style?.wordSpacing, isNull);
+    expect(before.text.toPlainText(), 'Hello world');
+
+    final after = await render(letters: 1.5, words: 4);
+    expect(after.text.style?.letterSpacing, 1.5);
+    expect(after.text.style?.wordSpacing, 4);
+    final pieces = leafTextSpans(after.text);
+    expect(pieces.map((span) => span.text).join(), 'Hello world');
+    expect(pieces.last.style?.backgroundColor, isNotNull);
+    expect(pieces.last.style?.letterSpacing, isNull,
+        reason: 'Text spans inherit the global reading style');
+    (pieces.first.recognizer! as TapGestureRecognizer).onTap!();
+    expect(taps, [0]);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('reader typography changes layout without mutating source runs',
       (tester) async {
     final tapped = <int>[];
