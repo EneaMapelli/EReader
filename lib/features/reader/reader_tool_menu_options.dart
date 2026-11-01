@@ -43,6 +43,18 @@ List<OrganizedActionSection> buildReaderToolSections(
         icon: Icons.view_list_outlined,
         subtitle: 'Jump between EPUB sections',
       ),
+    if (options.isEpub && options.hasContents) ...[
+      const OrganizedActionItem(
+        id: 'first-section', title: 'First section',
+        icon: Icons.first_page_outlined,
+        subtitle: 'Jump to the beginning of the EPUB contents',
+      ),
+      const OrganizedActionItem(
+        id: 'last-section', title: 'Last section',
+        icon: Icons.last_page_outlined,
+        subtitle: 'Jump to the final EPUB contents section',
+      ),
+    ],
     if (options.hasPlayableSegments)
       const OrganizedActionItem(
         id: 'search', title: 'Search this book',
