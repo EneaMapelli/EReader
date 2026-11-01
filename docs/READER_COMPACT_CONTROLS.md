@@ -97,6 +97,31 @@ clearance, so the final paragraph can scroll above the floating restore
 button without being obscured. The source positions and author-defined
 EPUB sections are unaffected by these insets.
 
+## Go to a percentage of the book
+
+Reader tools > Navigate & find > **Go to book position** and the
+**Ctrl/Cmd+G** keyboard shortcut open a percentage-entry dialog in
+EPUB, TXT and PDF text-layer modes. The reader shows its current
+source-text percentage and allows a whole number from 0 to 100, or one
+tap on 0%, 25%, 50%, 75% and 100%. Invalid values disable Go.
+Opening, typing and canceling have no seek, checkpoint or cloud cost.
+
+Only the explicit Go action computes the canonical UTF-16 source offset
+through the existing ReadingSourceProgress model. This is a share of the
+original text, **not audio duration** and **not native PDF page number**.
+EPUB uses exact-source navigation, including silent paragraphs;
+TXT and PDF text mode resolve the requested percentage to the
+corresponding narrated segment, except exact 100% which reaches EOF.
+The existing pause/stop barriers and SQLite checkpoint logic remain
+authoritative, so no extra TTS synthesis or auto-play is introduced.
+PDF visual page viewing never exposes this text-only action.
+
+The dialog is independently scrollable for small phones and high system
+text scaling, uses an accessible labelled number field and has explicit
+Cancel / Go actions. Ctrl/Cmd+G focuses the input for desktop use;
+opening from the touchscreen menu does not automatically show the
+Android keyboard. The shortcut remains accessible in focus reading mode.
+
 ## Files and verification
 
 - lib/features/reader/reader_compact_controls.dart — independent compact
@@ -105,6 +130,10 @@ EPUB sections are unaffected by these insets.
   source-progress slider, bounded scrollable advanced view and callbacks.
 - lib/features/reader/reader_focus_restore_button.dart — accessible
   always-visible restore action when the lower controls are hidden.
+- lib/features/reader/reader_go_to_progress_dialog.dart — bounded
+  numeric percentage entry, presets, source conversion and Cancel/Go.
+- test/features/reader_go_to_progress_dialog_test.dart — percent parsing,
+  source offset calculation, cancellation, commit and 200% accessibility.
 - lib/features/reader/reader_viewport_save_gate.dart — suppresses bookmark
   writes caused only by viewport resizing.
 - lib/features/reader/reader_viewport_layout.dart — deterministic
