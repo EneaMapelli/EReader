@@ -34,6 +34,45 @@ void main() {
     if (await root.exists()) await root.delete(recursive: true);
   });
 
+  test('newer SQLite libraries fail closed without rewriting user data',
+      () async {
+    final file = File(p.join(root.path, 'from-future.txt'));
+    await file.writeAsString('A future-format local reading position.');
+    final book = await store.importFile(file.path);
+    await store.savePosition(book.id, 12);
+    store.dispose();
+
+    final location = p.join(root.path, 'library.sqlite');
+    final futureVersion = LibraryStore.currentSchemaVersion + 1;
+    final database = sqlite3.open(location);
+    database.execute('PRAGMA user_version = $futureVersion');
+    database.dispose();
+
+    store = LibraryStore(homeDirectory: root);
+    await expectLater(
+      store.initialize(),
+      throwsA(isA<StateError>().having(
+        (error) => error.toString(),
+        'newer library diagnostic',
+        allOf(
+          contains('v$futureVersion'),
+          contains('v${LibraryStore.currentSchemaVersion}'),
+          contains('Update EReader'),
+          contains('no data was changed'),
+        ),
+      )),
+    );
+
+    // Reject the newer marker before any migration or position overwrite.
+    final after = sqlite3.open(location);
+    expect(after.select('PRAGMA user_version').single['user_version'],
+        futureVersion);
+    expect(after.select(
+      'SELECT progress_offset FROM books WHERE id = ?', [book.id],
+    ).single['progress_offset'], 12);
+    after.dispose();
+  });
+
   test('imports, deduplicates and restores progress after restart', () async {
     final source = File(p.join(root.path, 'import.txt'));
     await source.writeAsString('Once upon a time...', flush: true);
