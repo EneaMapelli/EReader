@@ -1686,3 +1686,19 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   Tests **written but not executed** (Dart/Flutter SDK unavailable).
   No Windows/Android build or GitHub Actions were started.
 
+### 2026-11-01 — ER-028 visual text spacing (EPUB/TXT/PDF extracted text)
+
+- Added backwards-compatible optional `letterSpacing` (0–3 px) and
+  `wordSpacing` (0–8 px) settings to `ReadingPreferences` v1 JSON, both
+  defaulting to zero for previously saved books. Existing book/global visual
+  preference persistence and migration paths remain in use.
+- Wired two sliders into **Font & layout** and applied their visual-only
+  `TextStyle` settings to EPUB paragraph runs, TXT and PDF extracted-text
+  segments. Embedded XHTML spans inherit the typography without mutating
+  original UTF-16 offsets, link targets, search hits, TTS segments or stored
+  progress. Native PDF page rendering is unaffected.
+- Authored validation/legacy persistence and EPUB widget regression tests;
+  see [accessible reading typography](ACCESSIBLE_PARAGRAPH_SPACING.md) for
+  reproducible manual checks. **Flutter tests, analysis, and Windows/Android
+  native QA remain unexecuted** by owner request. No build or GitHub Actions
+  triggered; do not claim ER-028 or milestone M2 is completed.
