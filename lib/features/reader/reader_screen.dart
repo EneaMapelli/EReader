@@ -1346,6 +1346,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   void _navigateToSourceOffset(int sourceOffset, {
     required bool remember,
     bool preserveSearchHighlight = false,
+    String? visualSpineIdref,
     VoidCallback? onCommitted,
   }) {
     Future<void> navigate() async {
@@ -1372,6 +1373,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       // user scrolls or turn a failed checkpoint into a partial jump.
       var committed = false;
       await _select(index, visualSourceOffset: sourceOffset,
+          visualSpineIdref: visualSpineIdref,
           preserveSearchHighlight: preserveSearchHighlight,
           onCommitted: () {
             committed = true;
@@ -1882,6 +1884,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     // Narration/media controls may advance the text while this dialog is
     // open. Record the actual point immediately before the confirmed jump.
     final origin = _visibleProgressOffset(player, document.text.length);
+    final originSpineIdref = widget.book.format == BookFormat.epub
+        ? _selectedVisualSpineIdref : null;
     // The return point is established only AFTER the new seek and SQLite
     // checkpoint succeeded. A canceled/no-op/failed jump leaves it alone.
     _jumpToSourceProgress(target, onCommitted: () {
@@ -1892,6 +1896,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         fromOffset: origin,
         toOffset: actualDestination,
         sourceLength: document.text.length,
+        originSpineIdref: originSpineIdref,
+        destinationSpineIdref: widget.book.format == BookFormat.epub
+            ? _selectedVisualSpineIdref : null,
       )) {
         setState(() {});
       }
@@ -1900,6 +1907,7 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   void _returnToProgressJumpOrigin() {
     final origin = _progressReturn.origin;
+    final originSpineIdref = _progressReturn.originSpineIdref;
     final player = _player;
     final document = _document;
     if (!mounted || origin == null || _loading || _error != null ||
@@ -1907,7 +1915,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         document == null || document.text.isEmpty ||
         (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
     final returnRevision = _progressReturn.revision;
-    _jumpToSourceProgress(origin, onCommitted: () {
+    _jumpToSourceProgress(origin,
+        visualSpineIdref: originSpineIdref,
+        onCommitted: () {
       if (!mounted || _player != player || _document != document) return;
       if (_progressReturn.consumeIfOrigin(origin,
           expectedRevision: returnRevision)) {
@@ -2407,6 +2417,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   /// exact-source EPUB pipeline for silent content and the serialized
   /// stop/seek barrier for TXT/PDF text. Never auto-resume when scrubbing.
   void _jumpToSourceProgress(int requestedOffset, {
+    String? visualSpineIdref,
     VoidCallback? onCommitted,
   }) {
     final player = _player;
@@ -2416,6 +2427,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     final target = requestedOffset.clamp(0, document.text.length).toInt();
     if (widget.book.format == BookFormat.epub) {
       _navigateToSourceOffset(target, remember: false,
+          visualSpineIdref: visualSpineIdref,
           onCommitted: onCommitted);
       return;
     }
