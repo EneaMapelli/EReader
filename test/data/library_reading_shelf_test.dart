@@ -31,7 +31,7 @@ void main() {
   test('fresh library defaults to To read with valid v26 schema', () async {
     final id = await add('initial');
     final db = sqlite3.open(p.join(root.path, 'library.sqlite'));
-    expect(db.select('PRAGMA user_version').single['user_version'], 26);
+    expect(db.select('PRAGMA user_version').single['user_version'], LibraryStore.currentSchemaVersion);
     expect(db.select('SELECT reading_status FROM books WHERE id = ?',
         [id]).single['reading_status'], 'toRead');
     db.dispose();
