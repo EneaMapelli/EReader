@@ -151,13 +151,25 @@ text the effective spoken segment is considered when deciding whether
 the location changed; EPUB preserves its exact source text offset,
 including silent illustrated sections. The return action is not offered
 in the native PDF page viewer or on books without playable text.
-An opening/reload of the reader clears the temporary return point.
+Desktop keyboards can also use **Ctrl/Cmd+Shift+G**, guarded by the same
+one-shot return availability, foreground route and input focus. An
+opening/reload of the reader clears the temporary return point.
+
+In illustrated EPUBs, picture-only covers and appendices may share
+one canonical UTF-16 source offset with the next spoken chapter. The
+one-shot return now also records the original visual spine ID when one
+is selected, and the existing source-exact navigation restores that
+specific OPF section (including its illustrated tile and persistence
+anchor). A changed spine with an unchanged offset can therefore be a
+genuine jump; returning cannot incorrectly choose the closest spoken
+paragraph. TXT/PDF text return data remains a plain source offset.
 
 The TXT integration regression exercises a confirmed 75% jump, the
 database checkpoint, the one-shot return and the cancel-no-op path.
-Other unit tests cover EOF, empty text, replacement by a newer jump
-and stale asynchronous attempts to consume history (including successive
-jumps starting at the same source offset). A revision is checked before
+Other unit tests cover EOF, empty text, replacement by a newer jump,
+different EPUB visual spine IDs at identical source offsets and stale
+asynchronous attempts to consume history (including successive jumps
+starting at the same source offset). A revision is checked before
 consuming the return point, preventing older in-flight returns from
 removing a newer one.
 
