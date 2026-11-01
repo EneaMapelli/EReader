@@ -272,3 +272,31 @@ also check selection and opening of an alternative passage.
 
 The tests were **authored but not executed** here: Dart/Flutter SDK is
 unavailable. No Windows/Android builds or GitHub Actions were started.
+
+## Exact phrase destination boundaries (2026-11-01)
+
+SQLite FTS5 matches consecutive tokenizer positions, so a book-level
+phrase match can span a sentence boundary such as `dragon. dragon`
+or hundreds of spaces. The source-exact phrase passage validator
+now refuses to turn those matches into a false in-reader quote:
+
+- Consecutive query terms must match complete Unicode words in order.
+- A sentence-ending period, question mark, exclamation mark, or blank
+  paragraph boundary between adjacent phrase words stops the match.
+- More than 64 UTF-16 units between neighboring words stops the match,
+  even if the total phrase is still below the general 320-unit span cap.
+- A comma, normal spacing or a single wrapped line is allowed.
+- Validated positions still use the original canonical UTF-16 source
+  offsets and bounded source context. There is no new FTS query syntax,
+  persistent data, network call or schema migration.
+
+This local verification intentionally errs on the side of rejecting
+ambiguous abbreviations, cross-sentence or fragmented matches rather
+than jumping to an unrelated passage. A book may still appear in the
+FTS5 matching-book list when no valid exact-source phrase location
+passes the stricter reader-side checks.
+
+Regressions: `test/domain/library_full_text_phrase_test.dart` now
+covers sentence/paragraph boundaries, 64-vs-65-unit whitespace gaps,
+commas, wrapped lines, repeated tokens and UTF-16 positions.
+Tests were authored but not executed in this environment.
