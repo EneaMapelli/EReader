@@ -1884,7 +1884,11 @@ class _ReaderScreenState extends State<ReaderScreen>
     // Narration/media controls may advance the text while this dialog is
     // open. Record the actual point immediately before the confirmed jump.
     final origin = _visibleProgressOffset(player, document.text.length);
-    final originSpineIdref = widget.book.format == BookFormat.epub
+    // A stale illustrated viewport may remain visible while TTS speaks a
+    // different chapter. Only a paused visual reader owns a spine-specific
+    // origin; active narration returns by its true spoken source offset.
+    final originSpineIdref = widget.book.format == BookFormat.epub &&
+            !player.isPlaying
         ? _selectedVisualSpineIdref : null;
     // The return point is established only AFTER the new seek and SQLite
     // checkpoint succeeded. A canceled/no-op/failed jump leaves it alone.
