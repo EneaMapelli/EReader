@@ -1471,3 +1471,33 @@ Android Activity recreation remains a manual device gate.
   were started. Native acceptance is still required.
 - See [READER_COMPACT_CONTROLS.md](READER_COMPACT_CONTROLS.md) and
   [READER_KEYBOARD_SHORTCUTS.md](READER_KEYBOARD_SHORTCUTS.md).
+
+
+### M2 — One-shot return after a confirmed percentage jump (2026-11-01)
+
+- After a confirmed Reader tools > Go to book position seek, the menu
+  exposes Return to position before jump. This single-use, session-only
+  navigation aid returns to the location just before the last Go without
+  creating a bookmark or modifying EPUB internal-link/footnote history.
+- History is recorded only from the successful navigation completion
+  callback after the durable source checkpoint and viewport update.
+  Cancel, invalid input, effective no-op, failed or superseded seeks do
+  not add false return entries. A subsequent successful Go replaces the
+  previous origin; successfully returning consumes that entry.
+- The return origin is sampled *after* the modal dialog closes so
+  speech/media transport that advances during the dialog is respected.
+  A monotonic revision prevents a stale asynchronous return from
+  clearing a newer same-origin jump. Reader reload clears the temporary
+  return. Native PDF pages and empty/unsupported reader sessions do
+  not offer this action.
+- TXT/PDF text EOF jumps now use the same guarded _select navigation
+  and SQLite checkpoint pipeline as ordinary segment seeks, reducing
+  duplicated race-sensitive code; EPUB retains exact-source jumps.
+- Added pure unit tests for one-shot history, invalid/no-op/EOF cases,
+  replacing origins and same-origin async races; added TXT ReaderScreen
+  integration cases for confirmed Go → Return persistence and Cancel
+  without a return. Extended Reader tools availability coverage.
+- Source and tests have not been executed by Flutter/Dart in this
+  environment; no Windows builds or GitHub Actions were started.
+  Existing published test reports are from an older revision and cannot
+  confirm these additions. See [READER_COMPACT_CONTROLS.md](READER_COMPACT_CONTROLS.md).
