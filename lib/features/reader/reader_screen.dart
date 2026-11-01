@@ -57,6 +57,8 @@ import 'epub_frame_sampler.dart';
 import 'reader_keyboard_shortcuts.dart';
 import 'reader_compact_controls.dart';
 import 'reader_focus_restore_button.dart';
+import 'reader_narration_follow_policy.dart';
+import 'reader_return_to_narration_button.dart';
 import 'reader_viewport_layout.dart';
 import 'reader_viewport_save_gate.dart';
 import 'reader_direct_scroll_input.dart';
@@ -159,7 +161,8 @@ class _ReaderScreenState extends State<ReaderScreen>
   EpubReadingPalette get _epubPalette =>
       EpubReadingPalette.values.byName(_readingPrefs.palette);
   bool _pdfTextMode = false;
-  bool _autoFollow = true;
+  final ReaderNarrationFollowPolicy _narrationFollow =
+      ReaderNarrationFollowPolicy();
   // Keep the page itself spacious. Playback settings are available on demand.
   bool _advancedControlsExpanded = false;
   bool _readerFocusMode = false;
@@ -263,6 +266,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     final epoch = ++_loadEpoch;
     _cancelPendingVisualSave();
     _progressReturn.clear();
+    _narrationFollow.resetForBook();
     _activeEpubTask?.cancel();
     _activeEpubTask = null;
     _stopFrameCapture(discard: true);
@@ -584,12 +588,12 @@ class _ReaderScreenState extends State<ReaderScreen>
             // A paused remote chapter jump is an explicit navigation,
             // not automatic speech-follow. Display it even when the user
             // disabled auto-follow for active narration.
-            if ((_autoFollow || !player.isPlaying) &&
+            if ((_narrationFollow.shouldAutoFollow || !player.isPlaying) &&
                 _itemScrollController.isAttached) {
               _itemScrollController.jumpTo(
                   index: block, alignment: 0.12);
             }
-          } else if ((_autoFollow || !player.isPlaying) &&
+          } else if ((_narrationFollow.shouldAutoFollow || !player.isPlaying) &&
               _itemScrollController.isAttached) {
             _itemScrollController.jumpTo(
                 index: index.clamp(0, chunks.length - 1).toInt(),
@@ -835,6 +839,37 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
+  /// A deliberate viewport gesture detaches active speech-follow, without
+  /// pausing or seeking the player and without writing a checkpoint.
+  void _onUserReaderScroll() {
+    _viewportSaveGate.resumeFromUserScroll();
+    if (_narrationFollow.onUserScroll(
+        narrationPlaying: _player?.isPlaying ?? false)) {
+      _lastFollowedIndex = -1;
+      if (mounted) setState(() {});
+    }
+  }
+
+  /// Reattach visually to the current utterance. The viewport write gate
+  /// avoids treating this programmatic scroll as a new reading checkpoint.
+  void _returnToNarration() {
+    if (!_narrationFollow.resume()) return;
+    final player = _player;
+    _cancelPendingVisualSave();
+    _viewportSaveGate.suspendForLayoutChange();
+    if (player != null && player.segments.isNotEmpty) {
+      final index = player.currentIndex
+          .clamp(0, player.segments.length - 1).toInt();
+      final target = widget.book.format == BookFormat.epub
+          ? _epubLayout.blockForSegment(index) : index;
+      _lastFollowedIndex = target;
+      if (_itemScrollController.isAttached) {
+        _itemScrollController.jumpTo(index: target, alignment: 0.12);
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
   void _onVisiblePositions() {
     if (!mounted || _loading || _player == null || _document == null ||
         (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
@@ -941,7 +976,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // An EPUB exact visual jump may seek the native audio cursor while
     // paused. Never schedule a TTS auto-follow scroll back to its coarse
     // segment after that jump; follow speech only while actually playing.
-    if (player != null && player.segments.isNotEmpty && _autoFollow &&
+    if (player != null && player.segments.isNotEmpty && _narrationFollow.shouldAutoFollow &&
         (widget.book.format != BookFormat.epub || player.isPlaying)) {
       final segmentIndex = player.currentIndex
           .clamp(0, player.segments.length - 1).toInt();
@@ -951,7 +986,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (target != _lastFollowedIndex) {
         _lastFollowedIndex = target;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || _player != player || !_autoFollow ||
+          if (!mounted || _player != player || !_narrationFollow.shouldAutoFollow ||
               !_itemScrollController.isAttached ||
               (widget.book.format == BookFormat.epub &&
                   !player.isPlaying)) {
@@ -1995,7 +2030,8 @@ class _ReaderScreenState extends State<ReaderScreen>
         hasPdfPageBookmarks: _pdfPageCount != null,
         hasEpubPerformance: !_loading && _epubWorkerTimings != null,
         hasEpubWarnings: _document?.epubDiagnostics.isNotEmpty ?? false,
-        autoFollow: _autoFollow,
+        autoFollow: _narrationFollow.enabled,
+        followSuspended: _narrationFollow.suspendedByUser,
         paletteName: _epubPalette.name,
         focusMode: _readerFocusMode,
         hasProgressReturn: _progressReturn.canReturn,
@@ -2045,9 +2081,14 @@ class _ReaderScreenState extends State<ReaderScreen>
       case 'font-minus':
         _adjustReaderTextSize(-2);
         return;
+      case 'return-to-narration':
+        _returnToNarration();
+        return;
       case 'auto-follow':
-        setState(() => _autoFollow = !_autoFollow);
-        if (_autoFollow) {
+        final enabled = !_narrationFollow.enabled;
+        _narrationFollow.setEnabled(enabled);
+        setState(() {});
+        if (enabled) {
           _lastFollowedIndex = -1;
           _onPlaybackChanged();
         }
@@ -2179,12 +2220,24 @@ class _ReaderScreenState extends State<ReaderScreen>
           ? () => _jumpDirectoryBoundary(last: true) : null,
       onViewportScrollKey: _viewportSaveGate.resumeFromUserScroll,
       child: Scaffold(
-      floatingActionButton: _readerFocusMode && !_loading &&
-              _error == null && player != null &&
+      floatingActionButton: !_loading && _error == null && player != null &&
               player.segments.isNotEmpty &&
-              (widget.book.format != BookFormat.pdf || _pdfTextMode)
-          ? ReaderFocusRestoreButton(
-              onRestore: () => _setReaderFocusMode(false),
+              (widget.book.format != BookFormat.pdf || _pdfTextMode) &&
+              (_readerFocusMode || _narrationFollow.suspendedByUser)
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_narrationFollow.suspendedByUser)
+                  ReaderReturnToNarrationButton(
+                    onReturn: _returnToNarration,
+                  ),
+                if (_narrationFollow.suspendedByUser && _readerFocusMode)
+                  const SizedBox(height: 8),
+                if (_readerFocusMode)
+                  ReaderFocusRestoreButton(
+                    onRestore: () => _setReaderFocusMode(false),
+                  ),
+              ],
             )
           : null,
       appBar: AppBar(
@@ -2296,7 +2349,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                   child: Listener(
                                     onPointerSignal: (event) {
                                       if (isReaderDirectVerticalScroll(event)) {
-                                        _viewportSaveGate.resumeFromUserScroll();
+                                        _onUserReaderScroll();
                                       }
                                     },
                                     // Desktop touchpads commonly emit pan/zoom
@@ -2304,7 +2357,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                     // zoom without vertical pan stays ignored.
                                     onPointerPanZoomUpdate: (event) {
                                       if (isReaderDirectVerticalScroll(event)) {
-                                        _viewportSaveGate.resumeFromUserScroll();
+                                        _onUserReaderScroll();
                                       }
                                     },
                                     child: NotificationListener<ScrollNotification>(
@@ -2313,7 +2366,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                                               notification.dragDetails != null) ||
                                           (notification is ScrollUpdateNotification &&
                                               notification.dragDetails != null)) {
-                                        _viewportSaveGate.resumeFromUserScroll();
+                                        _onUserReaderScroll();
                                       }
                                       return false;
                                     },
