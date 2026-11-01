@@ -1358,11 +1358,16 @@ class _ReaderScreenState extends State<ReaderScreen>
       final sourceIndex = (player.isPlaying ? player.currentIndex
               : (_visiblePositionIndex ?? player.currentIndex))
           .clamp(0, player.segments.length - 1).toInt();
+      final narrationActive = player.isPlaying;
       final fromOffset = epubSourceOffsetForLinkReturn(
         speechOffset: player.segments[sourceIndex].start,
-        narrationActive: player.isPlaying,
+        narrationActive: narrationActive,
         visualOffset: _currentEpubVisualSourceOffset,
       );
+      // Equal text offsets do not identify visual-only EPUB sections.
+      // Capture the origin before the asynchronous Stop/seek clears it.
+      final fromSpineIdref = narrationActive
+          ? null : _selectedVisualSpineIdref;
       final index = speechSourceDestinationIndexForOffset(
           player.segments, sourceOffset);
       _saveVisualPositionTimer?.cancel();
@@ -1383,7 +1388,9 @@ class _ReaderScreenState extends State<ReaderScreen>
       // "return from note" entry when that source jump never committed.
       if (!mounted || _player != player || !committed) return;
       if (remember) {
-        _linkHistory.push(fromOffset, sourceOffset);
+        _linkHistory.push(fromOffset, sourceOffset,
+            fromSpineIdref: fromSpineIdref,
+            toSpineIdref: visualSpineIdref);
         setState(() {});
       }
     }
@@ -1432,21 +1439,25 @@ class _ReaderScreenState extends State<ReaderScreen>
 
   void _returnFromEpubLink() {
     Future<void> navigateBack() async {
-      final offset = _linkHistory.last;
+      final origin = _linkHistory.lastLocation;
       final player = _player;
       final document = _document;
-      if (offset == null || player == null || player.segments.isEmpty ||
-          document == null || offset < 0 ||
-          offset > document.text.length) return;
+      if (origin == null || player == null || player.segments.isEmpty ||
+          document == null || origin.sourceOffset < 0 ||
+          origin.sourceOffset > document.text.length) return;
       final index = speechSourceDestinationIndexForOffset(
-          player.segments, offset);
+          player.segments, origin.sourceOffset);
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player) return;
-      await _select(index, visualSourceOffset: offset);
-      if (!mounted || _player != player) return;
-      _linkHistory.commitReturn();
-      setState(() {});
+      var committed = false;
+      await _select(index,
+          visualSourceOffset: origin.sourceOffset,
+          visualSpineIdref: origin.spineIdref,
+          onCommitted: () => committed = true);
+      // A newer seek or failed durable checkpoint cannot consume history.
+      if (!mounted || _player != player || !committed) return;
+      if (_linkHistory.commitReturnIfTop(origin)) setState(() {});
     }
     unawaited(navigateBack().catchError((Object error, StackTrace stack) {
       if (!mounted) return;

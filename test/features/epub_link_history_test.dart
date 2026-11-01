@@ -93,6 +93,55 @@ void main() {
     expect(history.last, isNull);
   });
 
+
+  test('link history restores the exact illustrated spine identity', () {
+    final history = EpubLinkHistory();
+    // Several OPF sections can have the same canonical text offset.
+    history.push(0, 0,
+      fromSpineIdref: 'cover', toSpineIdref: 'chapter-one');
+    final origin = history.lastLocation!;
+    expect(origin.sourceOffset, 0);
+    expect(origin.spineIdref, 'cover');
+    expect(history.commitReturnIfTop(origin), isTrue);
+    expect(history.canReturn, isFalse);
+  });
+
+  test('same-offset identical destinations and blank IDs are ignored', () {
+    final history = EpubLinkHistory();
+    history.push(5, 5,
+      fromSpineIdref: 'cover', toSpineIdref: 'cover');
+    history.push(5, 5, fromSpineIdref: '');
+    history.push(5, 8, toSpineIdref: '');
+    expect(history.canReturn, isFalse);
+    history.push(5, 5,
+      fromSpineIdref: 'cover', toSpineIdref: 'illustration');
+    expect(history.canReturn, isTrue);
+  });
+
+  test('a superseded async return never pops a newer history entry', () {
+    final history = EpubLinkHistory();
+    history.push(11, 70, fromSpineIdref: 'picture-a');
+    final stale = history.lastLocation!;
+    history.push(11, 90, fromSpineIdref: 'picture-b');
+    expect(history.commitReturnIfTop(stale), isFalse);
+    expect(history.lastLocation?.spineIdref, 'picture-b');
+    expect(history.commitReturnIfTop(history.lastLocation!), isTrue);
+    expect(history.lastLocation?.spineIdref, 'picture-a');
+    expect(history.commitReturnIfTop(stale), isTrue);
+    expect(history.canReturn, isFalse);
+  });
+
+  test('an equal-value newly pushed origin has a different history identity',
+      () {
+    final history = EpubLinkHistory();
+    history.push(14, 50);
+    final oldReturn = history.lastLocation!;
+    history.commitReturn();
+    history.push(14, 50);
+    expect(history.commitReturnIfTop(oldReturn), isFalse);
+    expect(history.last, 14);
+  });
+
   test('return is committed only after explicit success', () {
     final history = EpubLinkHistory();
     history.push(21, 201);

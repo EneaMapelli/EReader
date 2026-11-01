@@ -88,3 +88,22 @@ anchors and old offset-only EOF bookmarks.
 **Known gate:** no Dart formatter/analyzer, no Flutter tests and no native
 Windows/Android builds or audio measurements executed here. The work does
 not claim word-level read-along or gapless playback.
+
+## 2026-11-01 — EPUB illustrated link-return identity and race safety
+
+- Internal EPUB link/note return history now records the paused **visual OPF
+  spine ID** alongside the original UTF-16 source offset. A return from a
+  picture-only cover/illustration restores the same visible spine even when
+  multiple OPF sections share the same numeric offset. Active narration
+  deliberately captures the spoken offset instead of an unrelated visual ID.
+- Equal-offset links may now be recorded when their verified visual spine
+  identity differs; identical locations and invalid IDs remain no-ops.
+- Returning from a link consumes the history entry **only after** the
+  winning seek and its durable source checkpoint have committed. If a later
+  user action supersedes the seek or creates a newer link, the older return
+  cannot remove the new history entry. The stack remains session-only,
+  bounded to 20 entries and never affects cloud consent, spoken text or TTS.
+- Added unit regressions for duplicate source offsets, illustration
+  identity, malformed ID guards, superseded returns and repeated visits.
+- Tests authored but **not executed** (Flutter/Dart unavailable in the
+  connected environment); no builds or GitHub Actions were started.
