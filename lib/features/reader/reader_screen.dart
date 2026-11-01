@@ -1360,10 +1360,16 @@ class _ReaderScreenState extends State<ReaderScreen>
       // _select persists the exact source offset once. A second write of
       // the same position after seeking is unnecessary and can race with
       // user scrolls or turn a failed checkpoint into a partial jump.
+      var committed = false;
       await _select(index, visualSourceOffset: sourceOffset,
           preserveSearchHighlight: preserveSearchHighlight,
-          onCommitted: onCommitted);
-      if (!mounted || _player != player) return;
+          onCommitted: () {
+            committed = true;
+            onCommitted?.call();
+          });
+      // A superseded seek returns without throwing. Do not add a broken
+      // "return from note" entry when that source jump never committed.
+      if (!mounted || _player != player || !committed) return;
       if (remember) {
         _linkHistory.push(fromOffset, sourceOffset);
         setState(() {});
