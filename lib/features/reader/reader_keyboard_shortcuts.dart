@@ -22,6 +22,22 @@ enum ReaderKeyboardAction {
 double steppedReaderFontSize(double current, int delta) =>
     (current + delta).clamp(14.0, 32.0).toDouble();
 
+/// Resolve the adjacent EPUB directory entry without wrapping.
+///
+/// The first Next from an unresolved location starts at section zero;
+/// Previous does not guess or accidentally wrap to the final section.
+int? adjacentReaderSectionIndex({
+  required int current,
+  required int count,
+  required bool forward,
+}) {
+  if (count <= 0) return null;
+  final target = current < 0
+      ? (forward ? 0 : -1)
+      : current + (forward ? 1 : -1);
+  return target >= 0 && target < count ? target : null;
+}
+
 /// Pure, predictable key mapping, independent of the TTS engine.
 ///
 /// Never steal text editing (including Ctrl/Cmd+F), repeated key-downs,
@@ -64,7 +80,7 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
     }
   }
   if (command && !altPressed && !shiftPressed &&
-      sectionNavigationAvailable) {
+      !interactiveControlFocused && sectionNavigationAvailable) {
     if (key == LogicalKeyboardKey.pageUp) {
       return ReaderKeyboardAction.previousSection;
     }
@@ -228,8 +244,8 @@ Future<void> showReaderKeyboardHelp(BuildContext context) =>
             SizedBox(height: 12),
             Text('Shortcuts do not run while typing in a text field. '
                 'Space and arrows belong to focused buttons/sliders. '
-                'Navigation follows TTS segment boundaries, not visual '
-                'pages or words.'),
+                'Left/right follow spoken segments; Ctrl/Cmd+Page Up/Down '
+                'moves between EPUB sections, including silent sections.'),
           ],
         ),
         actions: [
