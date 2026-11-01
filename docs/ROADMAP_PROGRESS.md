@@ -1396,3 +1396,28 @@ Android Activity recreation remains a manual device gate.
 - Files and commits verified on the advanced branch; Flutter/Dart tests
   NOT EXECUTED in this environment. No Windows builds or GitHub Actions.
   Release readiness estimates remain unchanged pending native validation.
+
+
+### M2/M6 — EPUB first/last section jumps, keyboard and mobile (2026-11-01)
+
+- Ctrl/Cmd+Home and Ctrl/Cmd+End now jump to the first/last publisher
+  EPUB TOC entry, falling back to exact OPF spine sections. They join
+  Ctrl/Cmd+Page Up/Down, preserving the existing stop/seek, exact source
+  offset, silent-section handling and no-autoplay boundaries.
+- Added First section and Last section actions in Reader tools > Navigate
+  & find. Mobile users can reach these without an external keyboard, and
+  reader focus mode keeps both menu and hardware shortcuts accessible.
+- Both menu and shortcut availability are restricted to an active,
+  readable EPUB session with a nonempty directory; TXT, PDF page mode and
+  PDF text mode remain unchanged. Silent-only EPUB directories retain
+  their TOC entry but do not offer inoperative edge-jump actions.
+- Pure boundary tests cover empty, one-item and thousand-item directories;
+  keyboard resolver tests cover Ctrl/Cmd, Alt/Shift, repeat, hidden routes,
+  focused controls and editing fields. Widget tests confirm commands
+  dispatch once and do not start TTS. Tool menu descriptor tests cover
+  EPUB vs TXT/PDF and silent-only section availability.
+- Latest repository-published native test report predates these changes
+  and is not a green validation for this revision. Flutter/Dart tests
+  were not run here; no Windows builds or GitHub Actions were started.
+  Overall release readiness remains unmodified pending native testing.
+- See [READER_KEYBOARD_SHORTCUTS.md](READER_KEYBOARD_SHORTCUTS.md).
