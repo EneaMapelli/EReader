@@ -146,6 +146,12 @@ void main() {
       expect(action(down(LogicalKeyboardKey.pageDown), sections: true,
           ready: false, ctrl: !useMeta, meta: useMeta),
           ReaderKeyboardAction.nextSection);
+      expect(action(down(LogicalKeyboardKey.home), sections: true,
+          ready: false, ctrl: !useMeta, meta: useMeta),
+          ReaderKeyboardAction.firstSection);
+      expect(action(down(LogicalKeyboardKey.end), sections: true,
+          ready: false, ctrl: !useMeta, meta: useMeta),
+          ReaderKeyboardAction.lastSection);
       expect(action(down(LogicalKeyboardKey.pageDown),
           ctrl: !useMeta, meta: useMeta), isNull);
       expect(action(down(LogicalKeyboardKey.pageDown), sections: true,
@@ -158,6 +164,10 @@ void main() {
           shift: true, ctrl: !useMeta, meta: useMeta), isNull);
       expect(action(down(LogicalKeyboardKey.pageUp), sections: true,
           interactive: true, ctrl: !useMeta, meta: useMeta), isNull);
+      expect(action(down(LogicalKeyboardKey.end), sections: true,
+          interactive: true, ctrl: !useMeta, meta: useMeta), isNull);
+      expect(action(down(LogicalKeyboardKey.home), sections: true,
+          editing: true, ctrl: !useMeta, meta: useMeta), isNull);
     }
     expect(action(down(LogicalKeyboardKey.pageDown), sections: true), isNull);
     expect(action(KeyRepeatEvent(
@@ -189,12 +199,20 @@ void main() {
         current: 0, count: 0, forward: true), isNull);
     expect(adjacentReaderSectionIndex(
         current: -1, count: 0, forward: false), isNull);
+    expect(boundaryReaderSectionIndex(count: 0, last: false), isNull);
+    expect(boundaryReaderSectionIndex(count: 0, last: true), isNull);
+    expect(boundaryReaderSectionIndex(count: 1, last: false), 0);
+    expect(boundaryReaderSectionIndex(count: 1, last: true), 0);
+    expect(boundaryReaderSectionIndex(count: 1000, last: false), 0);
+    expect(boundaryReaderSectionIndex(count: 1000, last: true), 999);
   });
 
   testWidgets('chapter shortcuts dispatch without starting narration',
       (tester) async {
     var previous = 0;
     var next = 0;
+    var first = 0;
+    var last = 0;
     var played = 0;
     await tester.pumpWidget(MaterialApp(
       home: ReaderKeyboardShortcuts(
@@ -207,6 +225,8 @@ void main() {
         onHelp: () {},
         onPreviousSection: () => previous++,
         onNextSection: () => next++,
+        onFirstSection: () => first++,
+        onLastSection: () => last++,
         child: const Scaffold(body: Text('Silent EPUB section')),
       ),
     ));
@@ -214,8 +234,10 @@ void main() {
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
     await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await tester.sendKeyEvent(LogicalKeyboardKey.end);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-    expect([previous, next, played], [1, 1, 0]);
+    expect([previous, next, first, last, played], [1, 1, 1, 1, 0]);
   });
 
   test('focused interactive controls keep Space and arrow keys', () {
@@ -497,6 +519,8 @@ void main() {
     expect(find.textContaining('Increase reading text size'), findsOneWidget);
     expect(find.textContaining('Previous EPUB section'), findsOneWidget);
     expect(find.textContaining('Next EPUB section'), findsOneWidget);
+    expect(find.textContaining('First EPUB section'), findsOneWidget);
+    expect(find.textContaining('Last EPUB section'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(find.text('Reader keyboard shortcuts'), findsNothing);
