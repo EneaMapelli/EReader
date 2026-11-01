@@ -1,6 +1,7 @@
 import 'package:ereader/features/reader/reader_direct_scroll_input.dart';
 import 'package:ereader/features/reader/reader_viewport_save_gate.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -45,6 +46,62 @@ void main() {
         scale: 1.4,
       ),
     ), isFalse);
+  });
+
+  testWidgets('only direct vertical drags detach narration follow',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(body: Text('Scroll event host')),
+    ));
+    final context = tester.element(find.byType(Scaffold));
+    const vertical = FixedScrollMetrics(
+      minScrollExtent: 0,
+      maxScrollExtent: 500,
+      pixels: 35,
+      viewportDimension: 300,
+      axisDirection: AxisDirection.down,
+      devicePixelRatio: 1,
+    );
+    const horizontal = FixedScrollMetrics(
+      minScrollExtent: 0,
+      maxScrollExtent: 500,
+      pixels: 35,
+      viewportDimension: 300,
+      axisDirection: AxisDirection.right,
+      devicePixelRatio: 1,
+    );
+    expect(isReaderUserVerticalViewportScroll(ScrollStartNotification(
+      metrics: vertical,
+      context: context,
+      dragDetails: DragStartDetails(),
+    )), isTrue);
+    expect(isReaderUserVerticalViewportScroll(ScrollUpdateNotification(
+      metrics: vertical,
+      context: context,
+      dragDetails: DragUpdateDetails(globalPosition: Offset.zero),
+      scrollDelta: 12,
+    )), isTrue);
+    expect(isReaderUserVerticalViewportScroll(ScrollStartNotification(
+      metrics: horizontal,
+      context: context,
+      dragDetails: DragStartDetails(),
+    )), isFalse);
+    expect(isReaderUserVerticalViewportScroll(ScrollUpdateNotification(
+      metrics: horizontal,
+      context: context,
+      dragDetails: DragUpdateDetails(globalPosition: Offset.zero),
+      scrollDelta: 12,
+    )), isFalse);
+    expect(isReaderUserVerticalViewportScroll(ScrollUpdateNotification(
+      metrics: vertical,
+      context: context,
+      scrollDelta: 12,
+    )), isFalse,
+        reason: 'Programmatic follow changes have no dragDetails');
+    expect(isReaderUserVerticalViewportScroll(ScrollEndNotification(
+      metrics: vertical,
+      context: context,
+    )), isFalse);
   });
 
   test('generic touch and synthetic movement never imply scrolling', () {
