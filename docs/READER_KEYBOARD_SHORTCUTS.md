@@ -13,6 +13,7 @@ Scope: **M1/M2/M6 — desktop accessibility and reader navigation**
 | Right arrow | Next source-aligned spoken segment |
 | Ctrl+F (Windows), Cmd+F (macOS keyboards) | Search in the current book |
 | Ctrl+B / Cmd+B | Open this book's bookmarks |
+| Ctrl+G / Cmd+G | Enter a percentage of the book's original text |
 | Ctrl+K / Cmd+K | Open searchable reader tools; focus its search field |
 | Ctrl/Cmd+= (also Ctrl/Cmd+Shift+=) | Increase book text size by 2, up to 32 |
 | Ctrl/Cmd+- | Decrease book text size by 2, down to 14 |
@@ -49,6 +50,13 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
   arrows and Ctrl/Cmd combinations without moving the book.
 - Focused interactive controls (slider, button, action row) retain Space and
   arrow-key semantics; these keys do not accidentally seek narration.
+- Ctrl/Cmd+G opens the on-demand Go to book position dialog, also
+  accessible through Reader tools > Navigate & find on phones. It only
+  operates on loaded EPUB/TXT/PDF text layers with playable source text;
+  native PDF page mode is unchanged. Entering a percentage does not
+  start TTS or seek until the explicit Go confirmation; Cancel discards
+  the draft. EPUB retains exact canonical-source targeting, while
+  TXT/PDF text seek to their closest spoken segment.
 - Ctrl/Cmd+Home/End jumps directly to the first/last EPUB
   publisher-TOC item (or spine section where no publisher TOC exists).
   It uses the same source-exact jump as the chapter directory and
@@ -99,7 +107,11 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
     support; interactive-focus transport guards.
 12. Ctrl/Cmd font size shortcuts for supported reader modes, modifier guards,
     no playback side effects, font bounds and callback delivery.
-13. Ctrl/Cmd+Page Up/Down and Ctrl/Cmd+Home/End on EPUB only, with
+13. Ctrl/Cmd+G guarded reader availability, input focus, route and
+    modifier combinations; confirmed dialog navigation without implicit
+    audio playback. The progress dialog has separate input validation,
+    Cancel/Go and accessibility tests.
+14. Ctrl/Cmd+Page Up/Down and Ctrl/Cmd+Home/End on EPUB only, with
     strict modifier, editing, dialog/foreground and focused-control
     guards, no-repeat behavior, bounded chapter indices and no implicit
     TTS playback. EPUB-only first/last actions are also covered by the
