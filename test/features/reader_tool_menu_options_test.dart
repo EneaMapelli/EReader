@@ -135,6 +135,16 @@ void main() {
     expect(textPdf, contains('reading-focus'));
   });
 
+  test('silent-only EPUB keeps TOC visible but hides inert edge jumps',
+      () {
+    final items = ids(buildReaderToolSections(options(
+      epub: true, toc: true, playable: false,
+    )));
+    expect(items, contains('contents'));
+    expect(items, isNot(contains('first-section')));
+    expect(items, isNot(contains('last-section')));
+  });
+
   test('loading or incompatible EPUB never invents unavailable actions',
       () {
     final items = ids(buildReaderToolSections(options(
