@@ -18,6 +18,7 @@ class ReaderToolMenuAvailability {
     required this.autoFollow,
     required this.paletteName,
     this.focusMode = false,
+    this.hasProgressReturn = false,
   });
 
   final bool isEpub;
@@ -32,6 +33,7 @@ class ReaderToolMenuAvailability {
   final bool autoFollow;
   final String paletteName;
   final bool focusMode;
+  final bool hasProgressReturn;
 }
 
 List<OrganizedActionSection> buildReaderToolSections(
@@ -61,6 +63,13 @@ List<OrganizedActionSection> buildReaderToolSections(
         id: 'go-to-percent', title: 'Go to book position',
         icon: Icons.percent,
         subtitle: 'Enter a percentage of the original text',
+      ),
+    if (options.textMode && options.hasPlayableSegments &&
+        options.hasProgressReturn)
+      const OrganizedActionItem(
+        id: 'return-to-percent', title: 'Return to position before jump',
+        icon: Icons.undo,
+        subtitle: 'Go back after the last confirmed percentage jump',
       ),
     if (options.hasPlayableSegments)
       const OrganizedActionItem(
