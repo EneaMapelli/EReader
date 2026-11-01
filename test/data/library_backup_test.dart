@@ -48,7 +48,7 @@ void main() {
     final snapshot = sqlite3.open(
         p.join(backup.directory.path, 'library.sqlite'));
     try {
-      expect(snapshot.select('PRAGMA user_version').single['user_version'], 26);
+      expect(snapshot.select('PRAGMA user_version').single['user_version'], LibraryStore.currentSchemaVersion);
       final settings = snapshot.select(
           'SELECT tracking_enabled, goal_minutes '
           'FROM reading_activity_settings WHERE slot = 1').single;
@@ -76,7 +76,7 @@ void main() {
     final sqlite = sqlite3.open(
         p.join(backup.directory.path, 'library.sqlite'));
     try {
-      expect(sqlite.select('PRAGMA user_version').single['user_version'], 26);
+      expect(sqlite.select('PRAGMA user_version').single['user_version'], LibraryStore.currentSchemaVersion);
       final rules = sqlite.select('''
         SELECT id, name, rule_json FROM smart_book_collections
         WHERE id = ?
@@ -114,7 +114,7 @@ void main() {
     final db = sqlite3.open(
         p.join(backup.directory.path, 'library.sqlite'));
     try {
-      expect(db.select('PRAGMA user_version').single['user_version'], 26);
+      expect(db.select('PRAGMA user_version').single['user_version'], LibraryStore.currentSchemaVersion);
       expect(db.select(
         'SELECT body FROM library_fulltext_fts WHERE book_id = ?',
         [book.id]).single['body'], contains('violet phoenix'));
@@ -234,7 +234,7 @@ void main() {
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
     try {
-      expect(db.select('PRAGMA user_version').first['user_version'], 26);
+      expect(db.select('PRAGMA user_version').first['user_version'], LibraryStore.currentSchemaVersion);
       expect(db.select('SELECT reading_status FROM books WHERE id = ?',
           [starred.id]).single['reading_status'], 'reading');
       expect(db.select('SELECT reading_status FROM books WHERE id = ?',
@@ -269,7 +269,7 @@ void main() {
     final db = sqlite3.open(
         p.join(exported.directory.path, 'library.sqlite'));
     try {
-      expect(db.select('PRAGMA user_version').first['user_version'], 26);
+      expect(db.select('PRAGMA user_version').first['user_version'], LibraryStore.currentSchemaVersion);
       expect(db.select('SELECT * FROM book_collections'), hasLength(2));
       expect(db.select('SELECT * FROM book_collection_members'), hasLength(1));
     } finally {
