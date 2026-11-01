@@ -56,6 +56,16 @@ ReaderPlayer _reader(_FakeSpeechEngine engine) => ReaderPlayer(
   onSegmentStarted: (_) async {},
 );
 
+/// Audio transport dispatch is intentionally asynchronous: observe the
+/// actual mock-engine call rather than trusting a single microtask turn.
+Future<void> _waitForSpoken(_FakeSpeechEngine engine, int length) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    if (engine.spoken.length >= length) return;
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+  fail('Expected at least $length spoken clips, got ${engine.spoken}');
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -164,17 +174,50 @@ void main() {
     final handler = ReaderMediaHandler(requestFocus: () async => true);
     handler.attach(player, bookId: 'book', title: 'Book');
     await handler.play();
-    await Future<void>.delayed(Duration.zero);
+    await _waitForSpoken(engine, 1);
     await handler.skipToNext();
+    await _waitForSpoken(engine, 2);
     await handler.skipToNext();
     expect(player.currentIndex, 2);
+    expect(player.isSettledIdle, isTrue);
+    final stopsAtEof = engine.stopCalls;
     await handler.skipToPrevious();
     expect(player.currentIndex, 1);
     expect(player.isPlaying, isFalse);
+    expect(engine.stopCalls, stopsAtEof,
+        reason: 'Returning from settled EOF must not send an idle native Stop');
+    expect(engine.spoken, ['First', 'Second'],
+        reason: 'Moving backwards while idle is not a new Play');
     await handler.play();
-    await Future<void>.delayed(Duration.zero);
+    await _waitForSpoken(engine, 3);
     expect(engine.spoken, ['First', 'Second', 'Second']);
     await handler.pause();
+    await handler.close();
+    player.dispose();
+  });
+
+  test('idle source seeks and source EOF do not issue native Stop or Play',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    expect(player.isSettledIdle, isTrue);
+    await player.seekTo(1);
+    expect(player.currentIndex, 1);
+    await player.seekToSourceEnd();
+    expect(player.currentIndex, 2);
+    await handler.skipToPrevious();
+    expect(player.currentIndex, 1);
+    expect(engine.spoken, isEmpty);
+    expect(engine.stopCalls, 0,
+        reason: 'Unstarted speech must not need native Stop to seek');
+    await handler.play();
+    await _waitForSpoken(engine, 1);
+    expect(engine.spoken.single, 'Second');
+    await handler.pause();
+    expect(engine.stopCalls, greaterThan(0),
+        reason: 'Active audio still must use the real native Stop barrier');
     await handler.close();
     player.dispose();
   });
