@@ -58,23 +58,34 @@ EPUB spine anchor are not overwritten simply because a row of controls
 appeared or disappeared.
 
 Only an actual input inside the reading viewport re-enables normal
-manual-scroll tracking: touch drag details, physical wheel/trackpad scroll
+manual-scroll tracking: touch drag details, vertical mouse-wheel input,
+vertical trackpad pan/zoom gestures with a nonzero vertical pan delta,
 or unmodified keyboard scrolling keys (Up/Down, Page Up/Down, Home/End)
-when not editing or controlling an interactive widget. A generic
-UserScrollNotification is NOT trusted: Flutter can also emit it during
-programmatic jumps or narration auto-follow. Modified keyboard shortcuts
-still take their ordinary source-exact chapter navigation path and do not
-masquerade as manual scrolls.
+when not editing or controlling an interactive widget. Pure trackpad
+pinch-to-zoom, horizontal-only pans and zero-delta wheel events are
+not reading-position changes. A generic UserScrollNotification is NOT
+trusted: Flutter can also emit it during programmatic jumps or narration
+auto-follow. Modified keyboard shortcuts still take their ordinary
+source-exact chapter navigation path and do not masquerade as manual
+scrolls.
+
+Device rotation, split-screen/window resizing and virtual-keyboard
+inset changes can reflow text without a scroll gesture. The reader
+cancels pending viewport saves and suspends the visual checkpoint gate
+when Flutter reports a viewport metrics change. It resumes only on
+a later real scrolling input; explicit source seeks still use their
+existing independent save pipeline.
 
 Explicit book search/TOC/segment navigation still uses its existing
 independent source-position save path. The gate does not alter audio/TTS,
 request network access, or introduce a new database schema.
 
 Regression tests cover relayout suppression, synthetic jump/animateTo
-notifications, genuine touch drag resumption, keyboard scroll intent vs
-chapter shortcuts and typing, plus an integrated TXT reader scenario
-checking the database manual-position revision while expanding,
-hiding and restoring narration controls.
+notifications, genuine touch drag resumption, vertical wheel and trackpad
+pan signals (excluding pinch-only/horizontal gestures), keyboard scroll
+intent vs chapter shortcuts and typing, plus integrated TXT reader cases
+checking SQLite manual-position revisions during control resizing, focus
+mode transitions, rotation and split-screen window resizing.
 
 This focus setting is intentionally **session-only** and starts off for
 each newly opened reader. Activating it collapses any previously expanded
