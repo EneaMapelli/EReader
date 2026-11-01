@@ -1980,6 +1980,10 @@ class _ReaderScreenState extends State<ReaderScreen>
   @override
   Widget build(BuildContext context) {
     final player = _player;
+    final epubSectionsAvailable = !_loading && _error == null &&
+        widget.book.format == BookFormat.epub &&
+        player != null && player.segments.isNotEmpty &&
+        (_authorToc.isNotEmpty || _chapters.isNotEmpty);
     final compactReaderToolbar = useCompactReaderToolbar(
       width: MediaQuery.sizeOf(context).width,
       scaledBaseTextSize: MediaQuery.textScalerOf(context).scale(16),
@@ -2006,21 +2010,13 @@ class _ReaderScreenState extends State<ReaderScreen>
       onDecreaseTextSize: !_loading && _error == null &&
               (widget.book.format != BookFormat.pdf || _pdfTextMode)
           ? () => _adjustReaderTextSize(-2) : null,
-      onPreviousSection: !_loading && _error == null &&
-              widget.book.format == BookFormat.epub &&
-              (_authorToc.isNotEmpty || _chapters.isNotEmpty)
+      onPreviousSection: epubSectionsAvailable
           ? () => _jumpDirectoryRelative(-1) : null,
-      onNextSection: !_loading && _error == null &&
-              widget.book.format == BookFormat.epub &&
-              (_authorToc.isNotEmpty || _chapters.isNotEmpty)
+      onNextSection: epubSectionsAvailable
           ? () => _jumpDirectoryRelative(1) : null,
-      onFirstSection: !_loading && _error == null &&
-              widget.book.format == BookFormat.epub &&
-              (_authorToc.isNotEmpty || _chapters.isNotEmpty)
+      onFirstSection: epubSectionsAvailable
           ? () => _jumpDirectoryBoundary(last: false) : null,
-      onLastSection: !_loading && _error == null &&
-              widget.book.format == BookFormat.epub &&
-              (_authorToc.isNotEmpty || _chapters.isNotEmpty)
+      onLastSection: epubSectionsAvailable
           ? () => _jumpDirectoryBoundary(last: true) : null,
       child: Scaffold(
       floatingActionButton: _readerFocusMode && !_loading &&
