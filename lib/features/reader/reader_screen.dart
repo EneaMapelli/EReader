@@ -1750,6 +1750,28 @@ class _ReaderScreenState extends State<ReaderScreen>
                       onChanged: (value) =>
                           change(draft.copyWith(lineHeight: value)),
                     ),
+                    Text('Letter spacing: ${draft.letterSpacing.toStringAsFixed(2)} px'),
+                    Slider(
+                      key: const ValueKey('reading-letter-spacing'),
+                      value: draft.letterSpacing,
+                      min: 0,
+                      max: 3,
+                      divisions: 12,
+                      label: '${draft.letterSpacing.toStringAsFixed(2)} px',
+                      onChanged: (value) =>
+                          change(draft.copyWith(letterSpacing: value)),
+                    ),
+                    Text('Word spacing: ${draft.wordSpacing.toStringAsFixed(1)} px'),
+                    Slider(
+                      key: const ValueKey('reading-word-spacing'),
+                      value: draft.wordSpacing,
+                      min: 0,
+                      max: 8,
+                      divisions: 16,
+                      label: '${draft.wordSpacing.toStringAsFixed(1)} px',
+                      onChanged: (value) =>
+                          change(draft.copyWith(wordSpacing: value)),
+                    ),
                     Text('Paragraph gaps: ${draft.paragraphSpacingFactor.toStringAsFixed(1)}×'),
                     Slider(
                       key: const ValueKey('reading-paragraph-spacing'),
@@ -2343,6 +2365,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                                         textAlignment: _readingPrefs.textAlignment,
                                         paragraphSpacingFactor:
                                             _readingPrefs.paragraphSpacingFactor,
+                                        letterSpacing: _readingPrefs.letterSpacing,
+                                        wordSpacing: _readingPrefs.wordSpacing,
                                         palette: _epubPalette,
                                         onSelectSegment: _selectFromVisualTap,
                                         onOpenLink: _openEpubLink,
@@ -2391,6 +2415,12 @@ class _ReaderScreenState extends State<ReaderScreen>
                                                   height: heading
                                                       ? 1.3
                                                       : _readingPrefs.lineHeight,
+                                                  letterSpacing:
+                                                      _readingPrefs.letterSpacing == 0
+                                                          ? null : _readingPrefs.letterSpacing,
+                                                  wordSpacing:
+                                                      _readingPrefs.wordSpacing == 0
+                                                          ? null : _readingPrefs.wordSpacing,
                                                 ),
                                                 textAlign:
                                                     _readingPrefs.textAlignment ==
