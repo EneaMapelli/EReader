@@ -203,7 +203,14 @@ class LibraryStore implements CloudSpeechAccess, LlmAnalysisAccess {
       db.execute('PRAGMA foreign_keys = ON');
       final version = db.select('PRAGMA user_version').first['user_version'] as int;
       if (version > currentSchemaVersion) {
-        throw StateError('Library created by a newer EReader version');
+        // Opening a database written by a newer build must fail before
+        // touching its schema or reading positions. Give an actionable
+        // message rather than presenting a generic startup failure.
+        throw StateError(
+          'Library SQLite schema v$version is newer than this EReader '
+          'build (supports up to v$currentSchemaVersion). '
+          'Update EReader to open this library; no data was changed.',
+        );
       }
       if (version < 1) {
         _transaction(db, () {
