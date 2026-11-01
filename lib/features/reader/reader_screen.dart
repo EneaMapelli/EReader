@@ -1864,6 +1864,12 @@ class _ReaderScreenState extends State<ReaderScreen>
       case 'contents':
         await _openChapterDirectory();
         return;
+      case 'first-section':
+        _jumpDirectoryBoundary(last: false);
+        return;
+      case 'last-section':
+        _jumpDirectoryBoundary(last: true);
+        return;
       case 'search':
         await _searchInBook();
         return;
