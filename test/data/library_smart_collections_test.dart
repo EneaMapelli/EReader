@@ -37,7 +37,7 @@ void main() {
 
   test('v26 schema and saved smart filters update as books change', () {
     final db = sqlite3.open(p.join(home.path, 'library.sqlite'));
-    expect(db.select('PRAGMA user_version').single['user_version'], 26);
+    expect(db.select('PRAGMA user_version').single['user_version'], LibraryStore.currentSchemaVersion);
     db.dispose();
 
     final manual = store.createCollection('Manual shelf');
@@ -145,7 +145,7 @@ void main() {
     expect(store.collectionBookIds(manual.id), {atlas});
     expect(store.getBook(atlas)!.isFavorite, isTrue);
     final upgraded = sqlite3.open(p.join(home.path, 'library.sqlite'));
-    expect(upgraded.select('PRAGMA user_version').single['user_version'], 26);
+    expect(upgraded.select('PRAGMA user_version').single['user_version'], LibraryStore.currentSchemaVersion);
     upgraded.dispose();
     expect(store.createSmartCollection('New',
       const SmartBookCollectionRule(favoritesOnly: true)).name, 'New');
