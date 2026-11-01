@@ -78,6 +78,7 @@ class EpubParagraphTile extends StatefulWidget {
     this.fontFamily = 'serif',
     this.contentWidth = 760,
     this.textAlignment = 'auto',
+    this.paragraphSpacingFactor = 1.0,
     required this.onSelectSegment,
     this.onOpenLink,
     this.onOpenFootnote,
@@ -94,6 +95,7 @@ class EpubParagraphTile extends StatefulWidget {
   final String fontFamily;
   final double contentWidth;
   final String textAlignment;
+  final double paragraphSpacingFactor;
   final ValueChanged<int> onSelectSegment;
   /// Source offset of a verified internal EPUB fragment (never a URL).
   final ValueChanged<int>? onOpenLink;
@@ -288,7 +290,7 @@ class _EpubParagraphTileState extends State<EpubParagraphTile> {
         child: Padding(
           padding: EdgeInsets.fromLTRB(
             8, widget.block.chapterStart ? 24 : 4,
-            8, heading ? 18 : 17,
+            8, (heading ? 18 : 17) * widget.paragraphSpacingFactor,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
