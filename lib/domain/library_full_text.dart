@@ -356,11 +356,21 @@ List<LibraryFullTextPassage> findIndexedAnyWordPassages(
   return List.unmodifiable(passages);
 }
 
+/// Hard source boundaries between two FTS-adjacent tokens. SQLite FTS
+/// ignores punctuation and paragraph gaps when assigning token positions;
+/// the in-book jump must not present words across separate sentences or
+/// paragraphs as if they formed one exact reading phrase.
+final RegExp _indexedPhraseHardBoundary =
+    RegExp(r'[.!?]|\r?\n[ \t]*\r?\n');
+const int _maxIndexedPhraseInterwordGap = 64;
+
 /// Positions of genuinely consecutive query tokens in the indexed
 /// canonical source. SQLite FTS phrase matching is the book-level filter;
 /// this local pass supplies verified UTF-16 destinations, independent of
 /// SQLite's UTF-8 byte offsets. Bounded rolling window (max 8 tokens),
 /// bounded result list, no content saved or sent to an external service.
+/// Fail closed at sentence/paragraph boundaries or unusually long gaps,
+/// even where SQLite's tokenizer would report consecutive token positions.
 List<LibraryFullTextPassage> findIndexedExactPhrases(
   String indexedSource,
   List<String> queryTokens, {
@@ -385,6 +395,21 @@ List<LibraryFullTextPassage> findIndexedExactPhrases(
     var matches = true;
     for (var i = 0; i < targets.length; i++) {
       if (window[i].group(0)!.toLowerCase() != targets[i]) {
+        matches = false;
+        break;
+      }
+    }
+    if (!matches) continue;
+    // FTS considers "dragon. dragon" consecutive, but a passage jump
+    // must not claim that it is the exact phrase "dragon dragon".
+    // Similarly, hundreds of whitespace characters are not a useful
+    // local phrase even if the overall span is under maxSpanChars.
+    for (var i = 1; i < window.length; i++) {
+      final gapStart = window[i - 1].end;
+      final gapEnd = window[i].start;
+      if (gapEnd - gapStart > _maxIndexedPhraseInterwordGap ||
+          _indexedPhraseHardBoundary.hasMatch(
+              indexedSource.substring(gapStart, gapEnd))) {
         matches = false;
         break;
       }
