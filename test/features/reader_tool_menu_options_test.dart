@@ -14,6 +14,7 @@ ReaderToolMenuAvailability options({
   bool warnings = false,
   bool autoFollow = true,
   bool focus = false,
+  bool progressReturn = false,
   String palette = 'system',
 }) => ReaderToolMenuAvailability(
   isEpub: epub, isPdf: pdf, textMode: text,
@@ -21,7 +22,8 @@ ReaderToolMenuAvailability options({
   hasContents: toc, canReturnFromLink: returnLink,
   hasPdfPageBookmarks: pdfBookmarks,
   hasEpubPerformance: perf, hasEpubWarnings: warnings,
-  autoFollow: autoFollow, focusMode: focus, paletteName: palette,
+  autoFollow: autoFollow, focusMode: focus,
+  hasProgressReturn: progressReturn, paletteName: palette,
 );
 
 List<String> ids(List<OrganizedActionSection> sections) =>
@@ -145,6 +147,30 @@ void main() {
     expect(items, contains('contents'));
     expect(items, isNot(contains('first-section')));
     expect(items, isNot(contains('last-section')));
+  });
+
+  test('return to percentage jump appears only for available text', () {
+    final normal = ids(buildReaderToolSections(options(
+        epub: true, toc: true, playable: true)));
+    expect(normal, isNot(contains('return-to-percent')));
+    for (final settings in [
+      options(epub: true, toc: true, progressReturn: true),
+      options(progressReturn: true),
+      options(pdf: true, text: true, progressReturn: true),
+    ]) {
+      final actions = ids(buildReaderToolSections(settings));
+      expect(actions, contains('go-to-percent'));
+      expect(actions, contains('return-to-percent'));
+    }
+    for (final settings in [
+      options(pdf: true, text: false, progressReturn: true),
+      options(epub: true, playable: false, progressReturn: true),
+      options(pdf: true, text: true, playable: false,
+          progressReturn: true),
+    ]) {
+      final actions = ids(buildReaderToolSections(settings));
+      expect(actions, isNot(contains('return-to-percent')));
+    }
   });
 
   test('loading or incompatible EPUB never invents unavailable actions',
