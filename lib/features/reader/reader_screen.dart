@@ -163,6 +163,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   bool _pdfTextMode = false;
   final ReaderNarrationFollowPolicy _narrationFollow =
       ReaderNarrationFollowPolicy();
+  bool _followUiRefreshQueued = false;
   // Keep the page itself spacious. Playback settings are available on demand.
   bool _advancedControlsExpanded = false;
   bool _readerFocusMode = false;
@@ -846,7 +847,16 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (_narrationFollow.onUserScroll(
         narrationPlaying: _player?.isPlaying ?? false)) {
       _lastFollowedIndex = -1;
-      if (mounted) setState(() {});
+      // ScrollNotification can fire during layout; setState at that point
+      // triggers a build-phase exception. Coalesce gesture bursts and
+      // update the floating return control on the next settled frame.
+      if (!_followUiRefreshQueued) {
+        _followUiRefreshQueued = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _followUiRefreshQueued = false;
+          if (mounted) setState(() {});
+        });
+      }
     }
   }
 
@@ -2218,7 +2228,11 @@ class _ReaderScreenState extends State<ReaderScreen>
           ? () => _jumpDirectoryBoundary(last: false) : null,
       onLastSection: epubSectionsAvailable
           ? () => _jumpDirectoryBoundary(last: true) : null,
-      onViewportScrollKey: _viewportSaveGate.resumeFromUserScroll,
+      // Genuine keyboard viewport movement must detach just like touch/wheel.
+      onViewportScrollKey: _onUserReaderScroll,
+      onReturnToNarration: !_loading && _error == null &&
+              _narrationFollow.suspendedByUser
+          ? _returnToNarration : null,
       child: Scaffold(
       floatingActionButton: !_loading && _error == null && player != null &&
               player.segments.isNotEmpty &&
