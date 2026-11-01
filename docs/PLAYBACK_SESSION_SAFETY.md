@@ -64,3 +64,29 @@ epoch. Preference commits occur only after a successful winning native
 selection, and applying a saved profile never implicitly resumes
 a pending Seek. See
 [PERSISTED_VOICE_PREFERENCE_RACES.md](PERSISTED_VOICE_PREFERENCE_RACES.md).
+
+## 2026-11-01 — skip native Stop when the player is already settled idle
+
+ReaderPlayer now distinguishes an explicit source seek while playing from a
+source seek after a fully confirmed Pause/EOF. A settled, silent player has no
+native utterance to stop: seeking to a speech segment or source EOF now
+invalidates the stale session, cancels any queued turn breath, waits for
+pending checkpoint settlement and commits the latest intended position
+**without** a redundant SpeechEngine.stop() call.
+
+This reduces lock-screen Previous latency when returning from the end of a
+book and avoids making a no-op native Stop failure block otherwise safe
+offline navigation. It never makes a new audio request, requests focus or
+plays a segment by itself; Play remains an explicit user operation.
+
+Important safety boundaries: if playback is active, resumption is pending,
+a native Stop remains outstanding, a segment-completion checkpoint is
+unfinished, or a native Stop was unconfirmed, the original serialized
+Stop barrier remains mandatory. Nothing may bypass an unsafe Stop.
+
+The previously reported local Windows media test for Previous at source EOF
+now explicitly checks the stable audio callback, confirms idle Previous
+does not reissue Stop, and confirms that the subsequent Play speaks the
+last segment. A second regression covers paused source seeks and exact EOF.
+The Flutter tests were **authored but not executed** here, so runtime and
+native audio-focus validation remain required.
