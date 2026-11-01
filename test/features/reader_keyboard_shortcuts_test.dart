@@ -20,6 +20,7 @@ ReaderKeyboardAction? action(
   bool shift = false,
   bool tools = false,
   bool progress = false,
+  bool progressReturn = false,
   bool textSize = false,
   bool sections = false,
   bool interactive = false,
@@ -32,6 +33,7 @@ ReaderKeyboardAction? action(
       interactiveControlFocused: interactive,
       toolsAvailable: tools,
       progressAvailable: progress,
+      progressReturnAvailable: progressReturn,
       textSizeAvailable: textSize,
       sectionNavigationAvailable: sections,
       controlPressed: ctrl,
@@ -333,6 +335,81 @@ void main() {
       physicalKey: PhysicalKeyboardKey.keyG,
       timeStamp: Duration.zero,
     ), ctrl: true, progress: true), isNull);
+  });
+
+  test('Ctrl/Cmd+Shift+G only returns after a confirmed progress jump', () {
+    for (final useMeta in [false, true]) {
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !useMeta, meta: useMeta,
+          shift: true, progress: true), isNull,
+          reason: 'The book has no session return point yet');
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !useMeta, meta: useMeta,
+          shift: true, progressReturn: true),
+          ReaderKeyboardAction.returnToProgress);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !useMeta, meta: useMeta,
+          progressReturn: true), isNull,
+          reason: 'Return availability must not enable the Go dialog');
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !useMeta, meta: useMeta,
+          shift: true, progressReturn: true,
+          ready: false), isNull);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !useMeta, meta: useMeta,
+          shift: true, progressReturn: true,
+          routeActive: false), isNull);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !useMeta, meta: useMeta,
+          shift: true, progressReturn: true,
+          editing: true), isNull);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !useMeta, meta: useMeta,
+          shift: true, progressReturn: true,
+          interactive: true), isNull);
+      expect(action(down(LogicalKeyboardKey.keyG),
+          ctrl: !useMeta, meta: useMeta,
+          shift: true, progressReturn: true,
+          alt: true), isNull);
+    }
+    expect(action(down(LogicalKeyboardKey.keyG),
+        shift: true, progressReturn: true), isNull);
+    expect(action(KeyRepeatEvent(
+      logicalKey: LogicalKeyboardKey.keyG,
+      physicalKey: PhysicalKeyboardKey.keyG,
+      timeStamp: Duration.zero,
+    ), ctrl: true, shift: true, progressReturn: true), isNull);
+  });
+
+  testWidgets('Ctrl+Shift+G dispatches return only, never starts audio',
+      (tester) async {
+    var go = 0;
+    var returned = 0;
+    var played = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderKeyboardShortcuts(
+        enabled: true,
+        onPlayPause: () => played++,
+        onPreviousSegment: () {},
+        onNextSegment: () {},
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        onGoToProgress: () => go++,
+        onReturnToProgress: () => returned++,
+        child: const Scaffold(body: Text('EReader source position')),
+      ),
+    ));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    expect(returned, 1);
+    expect(go, 1);
+    expect(played, 0);
   });
 
   testWidgets('Ctrl+G opens percentage dialog callback but never plays audio',
