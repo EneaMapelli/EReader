@@ -1594,3 +1594,24 @@ Android Activity recreation remains a manual device gate.
   touchpad/rotation behavior remains to be validated. No Windows
   executable build or GitHub Actions launched. Release readiness
   estimates are not increased without native regression evidence.
+
+### M2 — Avoid native Stop on already idle source seeking (2026-11-01)
+
+- ReaderPlayer seeks from genuinely settled idle/EOF now invalidate the
+  session and await previous checkpoint barriers without issuing another
+  SpeechEngine.stop() call. Active audio, unconfirmed Stop, in-flight
+  native Stop or segment-completion work still invokes the serialized,
+  cancellable native Stop path; no auto-start or new TTS request was added.
+- This targets the previously published Windows regression "Previous at
+  source EOF selects last audible segment" without guessing its exact
+  assertion failure (individual raw stack traces are unavailable in the
+  branch). Its media test now observes actual synthetic speech dispatch,
+  confirms silent Previous does not reissue Stop, and verifies explicit
+  Play resumes the final audible segment. A separate case covers idle
+  navigation to a segment and exact source EOF.
+- No new Flutter or native audio run exists for these commits. The older
+  2026-10-31 failure report cannot validate the changes. Manual
+  verification: run flutter test test/audio/reader_media_handler_test.dart
+  and flutter test test/audio/rapid_playback_navigation_test.dart on the
+  user's Flutter workstation; no Windows builds or GitHub Actions were
+  started. Milestone implementation/readiness estimates are unchanged.
