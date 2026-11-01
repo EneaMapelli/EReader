@@ -65,6 +65,36 @@ void main() {
         reason: 'A tap must select the exact corresponding speech segment');
   });
 
+  testWidgets('paragraph gap scales visual padding without changing source',
+      (tester) async {
+    Future<double> render(double spacing) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(body: EpubParagraphTile(
+          block: spokenParagraph,
+          activeSegmentIndex: 0,
+          fontSize: 19,
+          paragraphSpacingFactor: spacing,
+          onSelectSegment: (_) {},
+        )),
+      ));
+      final tile = find.byType(EpubParagraphTile);
+      final padding = tester.widget<Padding>(find.descendant(
+        of: tile, matching: find.byType(Padding),
+      ).first);
+      final gap = (padding.padding as EdgeInsets).bottom;
+      final rich = tester.widget<RichText>(find.descendant(
+        of: tile, matching: find.byType(RichText),
+      ));
+      expect(rich.text.toPlainText(), 'Hello world');
+      return gap;
+    }
+
+    expect(await render(1.0), 17);
+    expect(await render(0.5), 8.5);
+    expect(await render(2.0), 34);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('reader typography changes layout without mutating source runs',
       (tester) async {
     final tapped = <int>[];
