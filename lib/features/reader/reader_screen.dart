@@ -1852,18 +1852,47 @@ class _ReaderScreenState extends State<ReaderScreen>
         player == null || player.segments.isEmpty ||
         document == null || document.text.isEmpty ||
         (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
+    final origin = _visibleProgressOffset(
+        player, document.text.length);
     final target = await showReaderGoToProgressDialog(
       context,
-      currentSourceOffset: _visibleProgressOffset(
-          player, document.text.length),
+      currentSourceOffset: origin,
       sourceLength: document.text.length,
       autofocus: autofocus,
     );
     if (!mounted || target == null || _loading || _error != null ||
         _player != player || _document != document ||
         (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
-    // Reuse the original EPUB exact-source and TXT/PDF stop/seek barriers.
-    _jumpToSourceProgress(target);
+    // The return point is established only AFTER the new seek and SQLite
+    // checkpoint succeeded. A canceled/no-op/failed jump leaves it alone.
+    _jumpToSourceProgress(target, onCommitted: () {
+      if (!mounted || _player != player || _document != document) return;
+      final actualDestination = _visibleProgressOffset(
+          player, document.text.length);
+      if (_progressReturn.recordCommittedJump(
+        fromOffset: origin,
+        toOffset: actualDestination,
+        sourceLength: document.text.length,
+      )) {
+        setState(() {});
+      }
+    });
+  }
+
+  void _returnToProgressJumpOrigin() {
+    final origin = _progressReturn.origin;
+    final player = _player;
+    final document = _document;
+    if (!mounted || origin == null || _loading || _error != null ||
+        player == null || player.segments.isEmpty ||
+        document == null || document.text.isEmpty ||
+        (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
+    _jumpToSourceProgress(origin, onCommitted: () {
+      if (!mounted || _player != player || _document != document) return;
+      if (_progressReturn.consumeIfOrigin(origin)) {
+        setState(() {});
+      }
+    });
   }
 
   Future<void> _openReaderTools({bool autofocusSearch = false}) async {
@@ -1890,6 +1919,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         autoFollow: _autoFollow,
         paletteName: _epubPalette.name,
         focusMode: _readerFocusMode,
+        hasProgressReturn: _progressReturn.canReturn,
       )),
     );
     if (!mounted || action == null) return;
@@ -1908,6 +1938,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         return;
       case 'go-to-percent':
         await _openGoToProgress();
+        return;
+      case 'return-to-percent':
+        _returnToProgressJumpOrigin();
         return;
       case 'bookmarks':
         await _openBookmarks();
