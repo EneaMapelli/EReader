@@ -1421,3 +1421,27 @@ Android Activity recreation remains a manual device gate.
   were not run here; no Windows builds or GitHub Actions were started.
   Overall release readiness remains unmodified pending native testing.
 - See [READER_KEYBOARD_SHORTCUTS.md](READER_KEYBOARD_SHORTCUTS.md).
+
+
+### M2 — Require genuine user scroll for viewport bookmark writes (2026-11-01)
+
+- Tightened the previously added viewport bookmark gate: Flutter's
+  UserScrollNotification can also appear during jumpTo/animateTo or
+  narration auto-follow, so it is no longer sufficient evidence of a
+  manual reading-location change.
+- The book viewport now re-enables visual checkpoint saving only on touch
+  drag notifications carrying dragDetails or a physical PointerScrollEvent.
+  Unmodified hardware keyboard Up/Down, Page Up/Down and Home/End are
+  observed without consuming native ScrollActions; focus/editing/modal
+  and Ctrl/Cmd EPUB navigation guards remain unchanged.
+- Updated regression coverage: a programmatic jump and animation must
+  leave the gate suspended, a genuine drag must resume it, and actual
+  reader keyboard dispatch separates scrolling from typing and modified
+  EPUB chapter shortcuts.
+- Reviewed the latest published local result:
+  20261031T202302Z-ec6f0643-fec7b0, reported 1321 passed, 18 failed,
+  35 errors and 1 skipped, with a 301s combined-suite timeout. Its
+  source revision predates these fixes and cannot validate the current
+  branch. No new tests were run here, no Windows builds or GitHub Actions
+  launched; native validation and readiness percentages remain pending.
+- See [READER_COMPACT_CONTROLS.md](READER_COMPACT_CONTROLS.md).
