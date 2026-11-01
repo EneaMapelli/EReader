@@ -1724,3 +1724,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   **Not run:** Flutter tests, analyzer, native Windows/Android builds or
   media-session smoke tests. Per owner request, no GitHub Actions triggered.
   PR #1 remains draft and release gates remain open.
+
+### 2026-11-01 — EReader follow UX hardening: keyboard and scroll-phase safety
+
+- Reconnected unmodified reader scroll keys to the same manual
+  follow-detachment handler used by wheel, touch and vertical touchpad pan.
+  Previously those keys only reopened the viewport-save gate and could leave
+  the active narration snapping back to its current passage.
+- Guarded the first detached-follow UI refresh with a coalesced
+  `WidgetsBinding.addPostFrameCallback`. ScrollNotifications can be delivered
+  during Flutter layout; calling `setState` synchronously from that phase
+  is unsafe.
+- Added `Ctrl/Cmd+Shift+J` as a *conditional* shortcut to rejoin the
+  current narration. It is unavailable while not detached and never
+  initiates Play/Seek, changes TTS settings, saves a bookmark or fetches
+  speech audio.
+- Direct touch drag notifications now require the primary vertical
+  reading viewport; nested/horizontal EPUB table drags and synthetic
+  programmatic scroll notifications do not detach follow.
+- Authored keyboard dispatch, shortcut guard and vertical scroll-filter
+  tests; updated the manual QA checklist in
+  [READER_MANUAL_FOLLOW_RETURN.md](READER_MANUAL_FOLLOW_RETURN.md).
+  **Unverified:** Flutter analyzer/tests, Windows/Android and real TTS
+  interaction. No build/Actions started; PR #1 remains draft.
