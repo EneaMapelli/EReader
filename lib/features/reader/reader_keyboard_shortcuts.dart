@@ -9,6 +9,7 @@ enum ReaderKeyboardAction {
   nextSegment,
   search,
   bookmarks,
+  goToProgress,
   help,
   tools,
   increaseTextSize,
@@ -59,6 +60,7 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
   required bool editingText,
   bool interactiveControlFocused = false,
   bool toolsAvailable = false,
+  bool progressAvailable = false,
   bool textSizeAvailable = false,
   bool sectionNavigationAvailable = false,
   required bool controlPressed,
@@ -104,6 +106,11 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
     }
   }
   if (!readerReady) return null;
+  if (command && !altPressed && !shiftPressed &&
+      progressAvailable && !interactiveControlFocused &&
+      key == LogicalKeyboardKey.keyG) {
+    return ReaderKeyboardAction.goToProgress;
+  }
   if (interactiveControlFocused &&
       (key == LogicalKeyboardKey.space ||
           key == LogicalKeyboardKey.arrowLeft ||
@@ -148,6 +155,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
     required this.onBookmarks,
     required this.onHelp,
     this.onTools,
+    this.onGoToProgress,
     this.onIncreaseTextSize,
     this.onDecreaseTextSize,
     this.onPreviousSection,
@@ -166,6 +174,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
   final VoidCallback onBookmarks;
   final VoidCallback onHelp;
   final VoidCallback? onTools;
+  final VoidCallback? onGoToProgress;
   final VoidCallback? onIncreaseTextSize;
   final VoidCallback? onDecreaseTextSize;
   final VoidCallback? onPreviousSection;
@@ -201,6 +210,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
           editingText: editing,
           interactiveControlFocused: interactive,
           toolsAvailable: onTools != null,
+          progressAvailable: onGoToProgress != null,
           textSizeAvailable: onIncreaseTextSize != null &&
               onDecreaseTextSize != null,
           sectionNavigationAvailable: onPreviousSection != null &&
@@ -242,6 +252,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
             onSearch();
           case ReaderKeyboardAction.bookmarks:
             onBookmarks();
+          case ReaderKeyboardAction.goToProgress:
+            onGoToProgress?.call();
           case ReaderKeyboardAction.help:
             onHelp();
           case ReaderKeyboardAction.tools:
@@ -283,6 +295,7 @@ Future<void> showReaderKeyboardHelp(BuildContext context) =>
             Text('Right arrow — Next spoken segment'),
             Text('Ctrl/Cmd + F — Search in this book'),
             Text('Ctrl/Cmd + B — Bookmarks'),
+            Text('Ctrl/Cmd + G — Go to book percentage'),
             Text('Ctrl/Cmd + K — Find reader tools'),
             Text('Ctrl/Cmd + = — Increase reading text size'),
             Text('Ctrl/Cmd + - — Decrease reading text size'),
