@@ -165,6 +165,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   final ReaderNarrationFollowPolicy _narrationFollow =
       ReaderNarrationFollowPolicy();
   bool _followUiRefreshQueued = false;
+  bool _visualProgressRefreshQueued = false;
   // Keep the page itself spacious. Playback settings are available on demand.
   bool _advancedControlsExpanded = false;
   bool _readerFocusMode = false;
@@ -843,6 +844,26 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
+  // Item-position listeners can run inside Flutter's layout phase. Never
+  // rebuild the reader or notify the progress bar synchronously from there.
+  void _scheduleReaderVisualRefresh() {
+    if (_followUiRefreshQueued) return;
+    _followUiRefreshQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _followUiRefreshQueued = false;
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _scheduleReaderProgressRefresh() {
+    if (_visualProgressRefreshQueued) return;
+    _visualProgressRefreshQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _visualProgressRefreshQueued = false;
+      if (mounted) _visualProgressTick.value++;
+    });
+  }
+
   /// A deliberate viewport gesture detaches active speech-follow, without
   /// pausing or seeking the player and without writing a checkpoint.
   void _onUserReaderScroll() {
@@ -850,16 +871,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (_narrationFollow.onUserScroll(
         narrationPlaying: _player?.isPlaying ?? false)) {
       _lastFollowedIndex = -1;
-      // ScrollNotification can fire during layout; setState at that point
-      // triggers a build-phase exception. Coalesce gesture bursts and
-      // update the floating return control on the next settled frame.
-      if (!_followUiRefreshQueued) {
-        _followUiRefreshQueued = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _followUiRefreshQueued = false;
-          if (mounted) setState(() {});
-        });
-      }
+      // Coalesce successive gesture notifications into one safe UI frame.
+      _scheduleReaderVisualRefresh();
     }
   }
 
@@ -942,12 +955,12 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (index == _visiblePositionIndex) return;
     }
     _visiblePositionIndex = index;
-    // Update only the small progress control on each real visual scroll.
-    // Rebuild the wider reader only when the displayed TOC label changes.
-    _visualProgressTick.value++;
+    // Independent visual progress can advance while the narrator speaks.
+    // Frame scheduling avoids build-phase writes from position callbacks.
+    _scheduleReaderProgressRefresh();
     if (_currentChapterIndex != previousChapter ||
         _currentDirectoryIndex != previousDirectory) {
-      setState(() {});
+      _scheduleReaderVisualRefresh();
     }
     _cancelPendingVisualSave();
     // Display progress, TOC and bookmark suggestions are independent of
