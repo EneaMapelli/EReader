@@ -2811,6 +2811,13 @@ class _ReaderScreenState extends State<ReaderScreen>
                         : _authorToc.isNotEmpty
                             ? _authorToc[current].label
                             : _chapters[current].title;
+                    final sectionRange = sectionName == null
+                        ? null : _currentSectionRange();
+                    final sectionPercent = sectionRange == null ||
+                            _document == null
+                        ? null : sectionRange.percentageAt(
+                            _visibleProgressOffset(
+                                player, _document!.text.length));
                     return ReaderCompactControls(
                       segmentLabel: player.currentIndex >= count
                           ? 'Reading complete — Play to restart'
@@ -2819,6 +2826,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                       sectionLabel: sectionName,
                       sectionIndex: current,
                       sectionCount: sections,
+                      sectionProgressPercent: sectionPercent,
                       onOpenSections: sectionName == null
                           ? null : () => unawaited(_openChapterDirectory()),
                       isPlaying: player.isPlaying,
