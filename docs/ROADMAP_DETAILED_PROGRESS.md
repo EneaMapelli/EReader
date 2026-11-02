@@ -1889,3 +1889,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - **Source changes and tests authored, not executed.** Flutter and
   Windows/Android native verification remain pending; GitHub Actions
   and Windows builds were not started, PR #1 remains draft.
+
+### 2026-11-02 — Immersive reader source progress and keyboard focus access
+
+- Improved focus-mode reading UX: hiding the TTS transport no longer
+  hides the source-text progress indicator. A slim AppBar strip presents
+  the current *visual* book percentage, including silent EPUB content,
+  and opens the existing Go-to-position dialog only on explicit tap.
+  It never infers audio duration or PDF physical page position.
+- Added screen-reader actionable percentage semantics and a visual
+  progress listener independent of continued background narration;
+  the existing return-to-narration button and checkpoint write gate
+  remain intact.
+- Added **F11** to toggle immersive controls on desktop through the
+  existing visual-layout transition. It does not seek/play audio,
+  modify user follow preference or persist a relayout bookmark;
+  editing fields and inactive reader routes are excluded.
+- Added unit/widget and integration regression coverage for visual
+  progress, accessible tap, 320px viewport, canceled vs confirmed
+  percentage jumps, source checkpoint safety and guarded F11.
+  See [READER_FOCUS_PROGRESS.md](READER_FOCUS_PROGRESS.md).
+- **Not run:** Flutter analyzer/widget tests or manual Windows/Android
+  acceptance. No GitHub Actions or Windows executable builds launched.
+  PR #1 remains draft.
