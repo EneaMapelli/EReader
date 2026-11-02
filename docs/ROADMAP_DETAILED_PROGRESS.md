@@ -1879,7 +1879,9 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   failed Stop defer WAV deletion until a confirmed Stop or Dispose.
   A failed native Dispose leaves a marked OS-leased private session for
   guarded next-process recovery instead of deleting an unconfirmed
-  native audio handle.
+  native audio handle. Both decoder-held WAV folders and deferred
+  filesystem retries count against one bounded generation budget; when
+  full, the engine refuses new synthesis until native cleanup succeeds.
 - Added deterministic mocked failure tests for prepared WAV Stop errors,
   late canceled native warm preload, output Play errors and failed
   Dispose recovery, in `test/audio/sherpa_vits_engine_test.dart`.
