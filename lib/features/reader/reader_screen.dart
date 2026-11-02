@@ -1386,23 +1386,25 @@ class _ReaderScreenState extends State<ReaderScreen>
           return;
         }
         _cancelPendingVisualSave();
-        // If the user browsed the pages manually, start audio where the
-        // reading viewport is, not at the last audio-only position.
-        final visible = _visiblePositionIndex;
-        if (widget.book.format == BookFormat.epub &&
-            visible == player.segments.length &&
-            player.currentIndex != player.segments.length) {
-          // The last visual section has no speech. Confirm native Stop,
-          // then the explicit Play below deliberately restarts the book.
-          // Never clamp a visual EOF to its preceding narrated sentence.
-          await player.seekToSourceEnd();
-        } else if (visible != null && visible != player.currentIndex &&
-            // A finished book restarts from the beginning, unless the user
-            // explicitly selected an earlier, actually audible passage.
-            (player.currentIndex < player.segments.length ||
-                visible < player.segments.length - 1)) {
-          await player.seekTo(visible);
+        if (readerMaySeekToViewportOnPlay(
+            temporarilyDetached: _narrationFollow.suspendedByUser)) {
+          // Outside detached browsing, an intentional manual reading
+          // position remains the source for starting new narration.
+          final visible = _visiblePositionIndex;
+          if (widget.book.format == BookFormat.epub &&
+              visible == player.segments.length &&
+              player.currentIndex != player.segments.length) {
+            // A visual-only EPUB end has no speech. Confirm native Stop
+            // before the user's explicit restart from this location.
+            await player.seekToSourceEnd();
+          } else if (visible != null && visible != player.currentIndex &&
+              (player.currentIndex < player.segments.length ||
+                  visible < player.segments.length - 1)) {
+            await player.seekTo(visible);
+          }
         }
+        // Detached browsing is different: Play resumes the existing audio
+        // cursor and leaves the text viewport at its independent location.
         await (widget.mediaHandler?.play() ?? player.play());
       }
     } catch (error) {
