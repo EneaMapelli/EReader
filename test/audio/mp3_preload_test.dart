@@ -402,6 +402,90 @@ void main() {
     expect(temp.listSync(), isEmpty);
   });
 
+  test('cancelled native MP3 load keeps file until Stop is confirmed',
+      () async {
+    // Windows holds a file handle after setFilePath resolves. A cancelled
+    // _load Future must not unlink the file before the decoder's queued
+    // physical Stop has acknowledged completion.
+    await output.dispose();
+    firstLoadGate = Completer<void>();
+    final deletions = <String>[];
+    output = JustAudioMp3Output(
+      decoderFactory: () {
+        final decoder = MockMp3Decoder()..delayedLoad = firstLoadGate;
+        decoders.add(decoder);
+        return decoder;
+      },
+      temporaryDirectory: () async => temp,
+      deleteTemporaryFile: (file) async {
+        deletions.add(file.path);
+        if (await file.exists()) await file.delete();
+      },
+    );
+
+    final opening = output.play(Uint8List.fromList([11, 12]), speed: 1);
+    await until(() => decoders.isNotEmpty &&
+        decoders.last.loadingNative);
+    final decoder = decoders.last;
+    final path = decoder.loadedPaths.single;
+    decoder.nativeStopGate = Completer<void>();
+    final stopping = output.stop();
+    firstLoadGate!.complete();
+    await until(() => decoder.stopCalls == 1);
+    expect(deletions, isEmpty,
+        reason: 'Cancelled load must not delete a file still in native use');
+    expect(await File(path).exists(), isTrue);
+    expect(decoder.playing, isEmpty,
+        reason: 'Cancelled generation must not begin late playback');
+    decoder.nativeStopGate!.complete();
+    await stopping;
+    await opening;
+    expect(deletions, [path]);
+    expect(await File(path).exists(), isFalse);
+    expect(decoder.stopsDuringNativeLoad, 0);
+  });
+
+  test('cancelled warm MP3 remains private until standby Stop is confirmed',
+      () async {
+    await output.dispose();
+    nextLoadGate = Completer<void>();
+    final deletions = <String>[];
+    output = JustAudioMp3Output(
+      decoderFactory: () {
+        final decoder = MockMp3Decoder();
+        if (decoders.isNotEmpty) decoder.delayedLoad = nextLoadGate;
+        decoders.add(decoder);
+        return decoder;
+      },
+      temporaryDirectory: () async => temp,
+      deleteTemporaryFile: (file) async {
+        deletions.add(file.path);
+        if (await file.exists()) await file.delete();
+      },
+    );
+
+    final active = output.play(Uint8List.fromList([21]), speed: 1);
+    await until(() => decoders.isNotEmpty && decoders[0].playing.isNotEmpty);
+    final warm = output.prepareNext(Uint8List.fromList([22]), speed: 1);
+    await until(() => decoders.length == 2 && decoders[1].loadingNative);
+    final path = decoders[1].loadedPaths.single;
+    decoders[1].nativeStopGate = Completer<void>();
+    final stopping = output.stop();
+    await stopping; // Idle decoder cleanup may remain queued.
+    expect(deletions, isNot(contains(path)));
+    nextLoadGate!.complete();
+    await warm;
+    await until(() => decoders[1].stopCalls > 0);
+    expect(deletions, isNot(contains(path)),
+        reason: 'Queued standby Stop must finish before its MP3 is deleted');
+    expect(await File(path).exists(), isTrue);
+    expect(decoders[1].playing, isEmpty);
+    decoders[1].nativeStopGate!.complete();
+    await until(() => deletions.contains(path));
+    await active;
+    expect(await File(path).exists(), isFalse);
+  });
+
   test('disposing with slow standby load waits before releasing decoder',
       () async {
     nextLoadGate = Completer<void>();
