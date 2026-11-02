@@ -582,6 +582,15 @@ class _ReaderScreenState extends State<ReaderScreen>
           final updateViewport =
               _narrationFollow.shouldAutoFollow || !player.isPlaying;
           if (updateViewport) {
+            // The media handler invokes this callback only after its
+            // latest winning Seek. A paused remote chapter jump is an
+            // explicit move, not continued detached browsing: reattach
+            // temporary follow, but never re-enable a user-disabled option.
+            // Remote movement while speech is still active and detached
+            // deliberately leaves the viewport at its browsed paragraph.
+            if (!player.isPlaying) {
+              _narrationFollow.onCommittedNavigation();
+            }
             _visiblePositionIndex = index;
             if (widget.book.format == BookFormat.epub) {
               _visualCheckpoint.clear();
