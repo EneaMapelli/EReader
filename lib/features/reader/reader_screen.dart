@@ -58,6 +58,7 @@ import 'reader_keyboard_shortcuts.dart';
 import 'reader_compact_controls.dart';
 import 'reader_focus_restore_button.dart';
 import 'reader_narration_follow_policy.dart';
+import 'reader_position_ownership.dart';
 import 'reader_return_to_narration_button.dart';
 import 'reader_viewport_layout.dart';
 import 'reader_viewport_save_gate.dart';
@@ -873,9 +874,19 @@ class _ReaderScreenState extends State<ReaderScreen>
       final target = widget.book.format == BookFormat.epub
           ? _epubLayout.blockForSegment(index) : index;
       _lastFollowedIndex = target;
+      // The button reconnects the *view* to the speech cursor. It does
+      // not request a media seek or save a new source checkpoint.
+      _visiblePositionIndex = index;
+      if (widget.book.format == BookFormat.epub) {
+        _currentEpubVisualSourceOffset = player.segments[index].start;
+        _selectedVisualSpineIdref = null;
+        _lastVisibleEpubBlockIndex = target;
+        _visualCheckpoint.clear();
+      }
       if (_itemScrollController.isAttached) {
         _itemScrollController.jumpTo(index: target, alignment: 0.12);
       }
+      _visualProgressTick.value++;
     }
     if (mounted) setState(() {});
   }
@@ -887,7 +898,11 @@ class _ReaderScreenState extends State<ReaderScreen>
     // A pending native Stop/checkpoint makes isPlaying=false while a
     // Seek may still auto-resume. Never treat its transient viewport
     // notifications as a manual bookmark or override crash recovery.
-    if (!player.isSettledIdle || player.segments.isEmpty ||
+    if (!readerMayObserveViewport(
+          settledIdle: player.isSettledIdle,
+          narrationPlaying: player.isPlaying,
+          shouldAutoFollow: _narrationFollow.shouldAutoFollow,
+        ) || player.segments.isEmpty ||
         !_viewportSaveGate.allowsViewportSave) return;
     final visible = _itemPositionsListener.itemPositions.value
         .where((item) =>
@@ -933,10 +948,22 @@ class _ReaderScreenState extends State<ReaderScreen>
       setState(() {});
     }
     _cancelPendingVisualSave();
+    // Display progress, TOC and bookmark suggestions are independent of
+    // the TTS cursor. Browsing while audio plays is never a SQLite save;
+    // a detached viewport also must not persist on a subsequent Pause.
+    if (!readerMayPersistViewport(
+          settledIdle: player.isSettledIdle,
+          narrationPlaying: player.isPlaying,
+          temporarilyDetached: _narrationFollow.suspendedByUser,
+        )) return;
     final revision = _visualSaveRevision;
     final document = _document;
     _saveVisualPositionTimer = Timer(const Duration(milliseconds: 450), () {
-      if (!mounted || !player.isSettledIdle || _player != player ||
+      if (!mounted || !readerMayPersistViewport(
+            settledIdle: player.isSettledIdle,
+            narrationPlaying: player.isPlaying,
+            temporarilyDetached: _narrationFollow.suspendedByUser,
+          ) || _player != player ||
           _visualSaveRevision != revision || _document != document ||
           (widget.book.format == BookFormat.epub &&
               _currentEpubVisualSourceOffset != sourceOffset) ||
@@ -970,17 +997,17 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
     if (player != null && player.isPlaying && player.segments.isNotEmpty) {
       _cancelPendingVisualSave();
-      // Explicit Play changes the active location from a visual-only
-      // checkpoint to the spoken segment currently being narrated.
-      _visualCheckpoint.clear();
-      _selectedVisualSpineIdref = null;
-      // Pause/resume must continue from the audio cursor, even when no
-      // manual visual scrolling occurred during the previous utterance.
-      _visiblePositionIndex = player.currentIndex
-          .clamp(0, player.segments.length - 1).toInt();
-      if (widget.book.format == BookFormat.epub) {
-        _currentEpubVisualSourceOffset =
-            player.segments[_visiblePositionIndex!].start;
+      if (_narrationFollow.shouldAutoFollow) {
+        // Only a connected viewport follows speech. Otherwise the player
+        // owns its audio cursor and must NOT rewrite the text location.
+        _visualCheckpoint.clear();
+        _selectedVisualSpineIdref = null;
+        _visiblePositionIndex = player.currentIndex
+            .clamp(0, player.segments.length - 1).toInt();
+        if (widget.book.format == BookFormat.epub) {
+          _currentEpubVisualSourceOffset =
+              player.segments[_visiblePositionIndex!].start;
+        }
       }
     }
     // An EPUB exact visual jump may seek the native audio cursor while
@@ -1013,14 +1040,18 @@ class _ReaderScreenState extends State<ReaderScreen>
   // unspoken captions. When paused, use the actual source position
   // rather than a nearby TTS segment that may be in another section.
   int _directorySourceOffset(ReaderPlayer player) {
-    final selected = player.isPlaying
-        ? player.currentIndex
-        : (_visiblePositionIndex ?? player.currentIndex);
+    final useVisual = readerUsesVisualCursor(
+      narrationPlaying: player.isPlaying,
+      shouldAutoFollow: _narrationFollow.shouldAutoFollow,
+    );
+    final selected = useVisual
+        ? (_visiblePositionIndex ?? player.currentIndex)
+        : player.currentIndex;
     final cursor = selected.clamp(0, player.segments.length - 1).toInt();
     return widget.book.format == BookFormat.epub
         ? epubSourceOffsetForLinkReturn(
             speechOffset: player.segments[cursor].start,
-            narrationActive: player.isPlaying,
+            narrationActive: !useVisual,
             visualOffset: _currentEpubVisualSourceOffset,
           )
         : player.segments[cursor].start;
@@ -1031,7 +1062,10 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (player == null || player.segments.isEmpty || _chapters.isEmpty) {
       return -1;
     }
-    if (!player.isPlaying && _selectedVisualSpineIdref != null) {
+    if (readerUsesVisualCursor(
+            narrationPlaying: player.isPlaying,
+            shouldAutoFollow: _narrationFollow.shouldAutoFollow,
+          ) && _selectedVisualSpineIdref != null) {
       final chosen = _chapters.indexWhere(
           (chapter) => chapter.idref == _selectedVisualSpineIdref);
       if (chosen >= 0) return chosen;
@@ -1203,17 +1237,21 @@ class _ReaderScreenState extends State<ReaderScreen>
     final player = _player;
     final document = _document;
     if (player == null || document == null || player.segments.isEmpty) return;
-    final index = player.isPlaying
-        ? player.currentIndex.clamp(0, player.segments.length - 1).toInt()
-        : (_visiblePositionIndex ?? player.currentIndex)
-            .clamp(0, player.segments.length - 1).toInt();
+    final useVisual = readerUsesVisualCursor(
+      narrationPlaying: player.isPlaying,
+      shouldAutoFollow: _narrationFollow.shouldAutoFollow,
+    );
+    final index = (useVisual
+            ? (_visiblePositionIndex ?? player.currentIndex)
+            : player.currentIndex)
+        .clamp(0, player.segments.length - 1).toInt();
     final segment = player.segments[index];
-    // A bookmarked EPUB position is a source location, not an audio
-    // segment. Silent captions and mid-segment text must be bookmarkable.
+    // While browsing during narration, a bookmark targets the actual
+    // viewport, not the speech chunk heard in the background.
     final sourceOffset = widget.book.format == BookFormat.epub
         ? epubSourceOffsetForLinkReturn(
             speechOffset: segment.start,
-            narrationActive: player.isPlaying,
+            narrationActive: !useVisual,
             visualOffset: _currentEpubVisualSourceOffset,
           )
         : segment.start;
@@ -1400,10 +1438,13 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (widget.book.format != BookFormat.epub || player == null ||
           document == null || player.segments.isEmpty ||
           sourceOffset < 0 || sourceOffset > document.text.length) return;
-      final sourceIndex = (player.isPlaying ? player.currentIndex
+      final narrationActive = !readerUsesVisualCursor(
+        narrationPlaying: player.isPlaying,
+        shouldAutoFollow: _narrationFollow.shouldAutoFollow,
+      );
+      final sourceIndex = (narrationActive ? player.currentIndex
               : (_visiblePositionIndex ?? player.currentIndex))
           .clamp(0, player.segments.length - 1).toInt();
-      final narrationActive = player.isPlaying;
       final fromOffset = epubSourceOffsetForLinkReturn(
         speechOffset: player.segments[sourceIndex].start,
         narrationActive: narrationActive,
@@ -1977,7 +2018,10 @@ class _ReaderScreenState extends State<ReaderScreen>
     // different chapter. Only a paused visual reader owns a spine-specific
     // origin; active narration returns by its true spoken source offset.
     final originSpineIdref = widget.book.format == BookFormat.epub &&
-            !player.isPlaying
+            readerUsesVisualCursor(
+              narrationPlaying: player.isPlaying,
+              shouldAutoFollow: _narrationFollow.shouldAutoFollow,
+            )
         ? _selectedVisualSpineIdref : null;
     // The return point is established only AFTER the new seek and SQLite
     // checkpoint succeeded. A canceled/no-op/failed jump leaves it alone.
