@@ -20,6 +20,7 @@ class ReaderToolMenuAvailability {
     required this.paletteName,
     this.focusMode = false,
     this.hasProgressReturn = false,
+    this.hasSectionPosition = false,
   });
 
   final bool isEpub;
@@ -37,6 +38,8 @@ class ReaderToolMenuAvailability {
   final String paletteName;
   final bool focusMode;
   final bool hasProgressReturn;
+  /// A unique, nonempty original-source interval in the current EPUB section.
+  final bool hasSectionPosition;
 }
 
 List<OrganizedActionSection> buildReaderToolSections(
@@ -66,6 +69,13 @@ List<OrganizedActionSection> buildReaderToolSections(
         id: 'go-to-percent', title: 'Go to book position',
         icon: Icons.percent,
         subtitle: 'Enter a percentage of the original text',
+      ),
+    if (options.isEpub && options.textMode && options.hasPlayableSegments &&
+        options.hasSectionPosition)
+      const OrganizedActionItem(
+        id: 'section-percent', title: 'Go to position in this section',
+        icon: Icons.linear_scale,
+        subtitle: 'Choose 0–100% within the current EPUB section',
       ),
     if (options.textMode && options.hasPlayableSegments &&
         options.hasProgressReturn)
@@ -218,6 +228,7 @@ List<OrganizedActionSection> buildReaderQuickNavigationSections(
     'contents',
     'bookmarks',
     'go-to-percent',
+    'section-percent',
     'pdf-bookmarks',
     'return-link',
     'return-to-percent',
