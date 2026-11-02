@@ -1959,3 +1959,23 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - **Not run:** Flutter analyzer, widget tests and native device QA.
   No Windows executable build or GitHub Actions were started; PR #1
   remains draft.
+
+### 2026-11-02 — Visible EPUB chapter in compact narration controls
+
+- Added a one-line current EPUB section status and direct searchable
+  directory shortcut above the compact speech transport. The label
+  distinguishes the **visible** source chapter from the separate
+  spoken-segment index; a manual-scroll detachment updates it through
+  the existing `_visualProgressTick` without waiting for a new
+  player notification.
+- Reused the preferred publisher TOC or fallback OPF spine and the
+  existing guarded chapter-directory navigation. Merely tapping the
+  status opens the directory and neither seeks nor changes TTS.
+  TXT/PDF and invalid chapters keep the row hidden.
+- Added presentation tests for chapter callback independence,
+  scrolling between sections including illustrated content,
+  missing metadata and long titles at 320px/200% font scaling.
+  See [READER_CURRENT_CHAPTER_STATUS.md](READER_CURRENT_CHAPTER_STATUS.md).
+- **Not executed:** Flutter analyzer/widget tests, Windows/Android
+  device acceptance. No Windows builds or GitHub Actions run.
+  PR #1 remains draft.
