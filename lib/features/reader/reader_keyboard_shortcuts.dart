@@ -12,6 +12,7 @@ enum ReaderKeyboardAction {
   goToProgress,
   returnToProgress,
   returnToNarration,
+  toggleFocusMode,
   help,
   tools,
   increaseTextSize,
@@ -66,6 +67,7 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
   bool progressReturnAvailable = false,
   bool returnToNarrationAvailable = false,
   bool textSizeAvailable = false,
+  bool focusModeAvailable = false,
   bool sectionNavigationAvailable = false,
   required bool controlPressed,
   required bool metaPressed,
@@ -110,6 +112,13 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
     }
   }
   if (!readerReady) return null;
+  // F11 switches reading presentation only. It must never seek, start TTS
+  // or steal a text editor's / focused control's own keyboard input.
+  if (!command && !altPressed && !shiftPressed &&
+      !interactiveControlFocused && focusModeAvailable &&
+      key == LogicalKeyboardKey.f11) {
+    return ReaderKeyboardAction.toggleFocusMode;
+  }
   // The shortcut is enabled only while visual follow is temporarily detached.
   // It never changes the speech cursor or audio state.
   if (command && shiftPressed && !altPressed &&
@@ -173,6 +182,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
     this.onGoToProgress,
     this.onReturnToProgress,
     this.onReturnToNarration,
+    this.onToggleFocusMode,
     this.onIncreaseTextSize,
     this.onDecreaseTextSize,
     this.onPreviousSection,
@@ -194,6 +204,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
   final VoidCallback? onGoToProgress;
   final VoidCallback? onReturnToProgress;
   final VoidCallback? onReturnToNarration;
+  final VoidCallback? onToggleFocusMode;
   final VoidCallback? onIncreaseTextSize;
   final VoidCallback? onDecreaseTextSize;
   final VoidCallback? onPreviousSection;
@@ -234,6 +245,7 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
           returnToNarrationAvailable: onReturnToNarration != null,
           textSizeAvailable: onIncreaseTextSize != null &&
               onDecreaseTextSize != null,
+          focusModeAvailable: onToggleFocusMode != null,
           sectionNavigationAvailable: onPreviousSection != null &&
               onNextSection != null &&
               onFirstSection != null && onLastSection != null,
@@ -279,6 +291,8 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
             onReturnToProgress?.call();
           case ReaderKeyboardAction.returnToNarration:
             onReturnToNarration?.call();
+          case ReaderKeyboardAction.toggleFocusMode:
+            onToggleFocusMode?.call();
           case ReaderKeyboardAction.help:
             onHelp();
           case ReaderKeyboardAction.tools:
@@ -330,6 +344,7 @@ Future<void> showReaderKeyboardHelp(BuildContext context) =>
             Text('Ctrl/Cmd + Page Down — Next EPUB section'),
             Text('Ctrl/Cmd + Home — First EPUB section'),
             Text('Ctrl/Cmd + End — Last EPUB section'),
+            Text('F11 — Toggle immersive reading mode'),
             Text('F1 — Show this help'),
             SizedBox(height: 12),
             Text('Shortcuts do not run while typing in a text field. '
