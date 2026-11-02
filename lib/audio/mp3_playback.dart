@@ -193,11 +193,13 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
           await _clearFile(slot, expected: file);
           rethrow;
         } finally {
-          // A generation cancelled while native setFilePath is still in
-          // flight owns this file until that operation has actually ended.
-          if (_disposed || generation != _generation) {
-            await _clearFile(slot, expected: file);
-          }
+          // A generation cancelled while native setFilePath was pending
+          // MUST leave its file attached to this decoder until the queued
+          // _stopSlot / dispose barrier confirms physical native Stop.
+          // Deleting here, immediately after load, races decoder.stop()
+          // on Windows and can strand locked private MP3 files. A failed
+          // load was already stopped and cleaned in the catch above.
+          // The owning Stop or Dispose performs deletion in native order.
         }
       } finally {
         slot.loadingInFlight = false;
