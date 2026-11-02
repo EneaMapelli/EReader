@@ -33,6 +33,36 @@ void main() {
     expect(follow.shouldAutoFollow, isTrue);
   });
 
+  test('explicit navigation clears detachment only after caller commits', () {
+    final follow = ReaderNarrationFollowPolicy();
+    expect(follow.onUserScroll(narrationPlaying: true), isTrue);
+    expect(follow.suspendedByUser, isTrue);
+
+    // Simulate a failed, cancelled, or superseded asynchronous source seek:
+    // no commit callback is invoked and the visual browse state stays put.
+    expect(follow.suspendedByUser, isTrue);
+    expect(follow.shouldAutoFollow, isFalse);
+
+    // A successfully persisted, winning seek reattaches the viewport.
+    expect(follow.onCommittedNavigation(), isTrue);
+    expect(follow.suspendedByUser, isFalse);
+    expect(follow.shouldAutoFollow, isTrue);
+    expect(follow.onCommittedNavigation(), isFalse);
+  });
+
+  test('explicit follow-off survives successful source navigation', () {
+    final follow = ReaderNarrationFollowPolicy();
+    follow.setEnabled(false);
+    expect(follow.onCommittedNavigation(), isFalse);
+    expect(follow.enabled, isFalse);
+    expect(follow.shouldAutoFollow, isFalse);
+    follow.setEnabled(true);
+    expect(follow.onUserScroll(narrationPlaying: true), isTrue);
+    expect(follow.onCommittedNavigation(), isTrue);
+    expect(follow.enabled, isTrue);
+    expect(follow.shouldAutoFollow, isTrue);
+  });
+
   test('reopening another book clears detachment but not preference', () {
     final follow = ReaderNarrationFollowPolicy();
     follow.onUserScroll(narrationPlaying: true);
