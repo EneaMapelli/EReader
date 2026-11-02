@@ -122,8 +122,14 @@ class _ReaderChapterDirectoryBodyState
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.sizeOf(context).height;
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    final height = (screenHeight * 0.72 - keyboard)
-        .clamp(160.0, screenHeight * 0.72).toDouble();
+    // Allow the sheet to grow up to the available space above the keyboard.
+    // Subtracting the keyboard from an already short 72%-height sheet
+    // caused small-screen 200% text to overflow on Android.
+    final available = (screenHeight - keyboard -
+            MediaQuery.paddingOf(context).top - 12)
+        .clamp(160.0, screenHeight).toDouble();
+    final height = (screenHeight * 0.78).clamp(160.0, available).toDouble();
+    final tightKeyboardLayout = height < 280;
     final visible = filterReaderDirectoryItems(widget.entries, _query);
     final isFiltering = _query.trim().isNotEmpty;
     final current = widget.currentIndex;
@@ -140,11 +146,26 @@ class _ReaderChapterDirectoryBodyState
           height: height,
           child: Column(
             children: [
-              ListTile(
-                title: Text(widget.authorial
-                    ? 'Book table of contents' : 'EPUB spine sections'),
-                subtitle: Text('${widget.entries.length} sections'),
-              ),
+              if (tightKeyboardLayout)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      widget.authorial
+                          ? 'Book table of contents' : 'EPUB spine sections',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                )
+              else
+                ListTile(
+                  title: Text(widget.authorial
+                      ? 'Book table of contents' : 'EPUB spine sections'),
+                  subtitle: Text('${widget.entries.length} sections'),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: TextField(
@@ -169,7 +190,7 @@ class _ReaderChapterDirectoryBodyState
                   onChanged: (value) => setState(() => _query = value),
                 ),
               ),
-              if (isFiltering)
+              if (isFiltering && !tightKeyboardLayout)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
                   child: Align(
