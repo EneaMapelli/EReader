@@ -2397,7 +2397,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                   builder: (context, revision, child) =>
                       ReaderFocusProgressStrip(
                     sourceOffset: _visibleProgressOffset(
-                        player, _document!.text.length),
+                        player!, _document!.text.length),
                     sourceLength: _document!.text.length,
                     onNavigate: () => unawaited(_openGoToProgress()),
                   ),
