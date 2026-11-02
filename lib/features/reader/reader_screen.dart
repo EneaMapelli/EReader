@@ -2437,7 +2437,7 @@ class _ReaderScreenState extends State<ReaderScreen>
             IconButton(
               key: const ValueKey('reader-quick-navigation'),
               icon: const Icon(Icons.explore_outlined),
-              tooltip: 'Quick navigation: search, contents and bookmarks',
+              tooltip: 'Quick navigation for this book',
               onPressed: () => unawaited(
                   _openReaderTools(navigationOnly: true)),
             ),
