@@ -47,6 +47,7 @@ void main() {
     for (final unavailable in [
       options(epub: true, sectionPosition: false),
       options(epub: true, sectionPosition: true, playable: false),
+      options(epub: true, sectionPosition: true, toc: false),
       options(pdf: true, text: true, sectionPosition: true),
       options(sectionPosition: true),
     ]) {
