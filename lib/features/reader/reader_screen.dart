@@ -2756,18 +2756,43 @@ class _ReaderScreenState extends State<ReaderScreen>
                       onSeekToOffset: _jumpToSourceProgress,
                     ),
                   ),
-                ReaderCompactControls(
-                  segmentLabel: player.currentIndex >= count
-                      ? 'Reading complete — Play to restart'
-                      : 'Segment ' + (player.currentIndex + 1).toString() +
-                          ' of ' + count.toString(),
-                  isPlaying: player.isPlaying,
-                  sleepTimerActive: player.sleepTimerEndsAt != null,
-                  onPrevious: () => unawaited(_move(-1)),
-                  onPlayPause: () => unawaited(_playOrPause()),
-                  onNext: () => unawaited(_move(1)),
-                  onExpand: () => _changeVisualReaderLayout(
-                      () => _advancedControlsExpanded = true),
+                // The source viewport may change without a player state
+                // notification when the reader manually scrolls away from
+                // the narrated passage. Observe visual progress revisions
+                // so the EPUB chapter label always follows the visible
+                // source location, not a stale speech cursor.
+                ValueListenableBuilder<int>(
+                  valueListenable: _visualProgressTick,
+                  builder: (context, revision, child) {
+                    final sections = _authorToc.isNotEmpty
+                        ? _authorToc.length : _chapters.length;
+                    final current = widget.book.format == BookFormat.epub &&
+                            sections > 0
+                        ? _currentDirectoryIndex : -1;
+                    final sectionName = current < 0 || current >= sections
+                        ? null
+                        : _authorToc.isNotEmpty
+                            ? _authorToc[current].label
+                            : _chapters[current].title;
+                    return ReaderCompactControls(
+                      segmentLabel: player.currentIndex >= count
+                          ? 'Reading complete — Play to restart'
+                          : 'Segment ' + (player.currentIndex + 1).toString() +
+                              ' of ' + count.toString(),
+                      sectionLabel: sectionName,
+                      sectionIndex: current,
+                      sectionCount: sections,
+                      onOpenSections: sectionName == null
+                          ? null : () => unawaited(_openChapterDirectory()),
+                      isPlaying: player.isPlaying,
+                      sleepTimerActive: player.sleepTimerEndsAt != null,
+                      onPrevious: () => unawaited(_move(-1)),
+                      onPlayPause: () => unawaited(_playOrPause()),
+                      onNext: () => unawaited(_move(1)),
+                      onExpand: () => _changeVisualReaderLayout(
+                          () => _advancedControlsExpanded = true),
+                    );
+                  },
                 ),
               ],
             ),
