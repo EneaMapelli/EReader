@@ -1776,3 +1776,24 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   **Not verified:** Flutter analyzer/tests and physical Windows/Android
   media integration. No GitHub Actions or Windows builds started; PR #1
   remains draft.
+
+### 2026-11-02 — Detached narration status and highlight regression
+
+- Added a passive, accessible, compact **TTS segment/total** indicator
+  next to **Return to narrated passage** while the user has temporarily
+  detached viewport following during active speech. The status reflects
+  the current audio cursor and updates on ordinary player notifications;
+  it does not seek, pause, resume, save progress or alter bookmarks.
+  Paused and completed states remain separately announced.
+- Existing EPUB TTS run highlighting remains anchored to the narrator's
+  speech segment, not the independent viewport cursor. Added a regression
+  for overlapping EPUB search/active-TTS styling: search wins on the
+  matched UTF-16 span without corrupting source text or recognizer taps.
+- The new status appears only for genuine temporary detachment in the
+  text reader; PDF native page view and explicitly disabled auto-follow
+  are unaffected. A labeled return action remains separate from status.
+- Added a pure/widget status test and updated
+  [READER_DETACHED_NARRATION_STATUS.md](READER_DETACHED_NARRATION_STATUS.md)
+  with manual QA scenarios.
+- **Source and tests committed but NOT Flutter-executed or native-tested.**
+  No Windows builds or GitHub Actions run. Keep PR #1 draft until verified.
