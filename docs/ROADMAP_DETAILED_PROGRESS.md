@@ -1821,3 +1821,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   [READER_COMMITTED_NAVIGATION_HANDOFF.md](READER_COMMITTED_NAVIGATION_HANDOFF.md).
 - **Not run:** Flutter analyzer and tests, native device TTS/navigation,
   Windows build or GitHub Actions. PR #1 remains draft.
+
+### 2026-11-02 — Latest-wins source selection across async native Pause
+
+- Closed a pre-Seek race: a source jump could await `ReaderPlayer.pause`
+  *before* increasing `_selectionRevision`; once it resumed, an obsolete
+  search/bookmark could override a newer navigation. Introduced
+  `ReaderSourceSelectionGate` and reserved each local navigation intent
+  **before** its native Pause barrier.
+- The same intent now passes through EPUB TOC, chapter, search, bookmark,
+  internal hyperlink, footnote return, spoken-span tap and TXT/PDF text
+  progress seek, and is rechecked before `ReaderPlayer.seekTo`, after
+  the native seek, and after the synchronous SQLite checkpoint call.
+- Remote media completion and book reload invalidate pending local
+  selection continuations. Link-history changes additionally check
+  that their committed intent is still current. An obsolete `Play`
+  continuation does not start playback after a newer explicit seek.
+- Added `test/features/reader_source_selection_gate_test.dart` with
+  simulated out-of-order Pause, reload, remote skip and late Play
+  continuations. Manual release gates documented in
+  [READER_CONCURRENT_NAVIGATION.md](READER_CONCURRENT_NAVIGATION.md).
+- **Source changes verified by inspection only:** Flutter analyzer and
+  unit/widget/native engine integration have not run. No Windows build
+  or GitHub Actions were triggered. PR #1 remains draft.
