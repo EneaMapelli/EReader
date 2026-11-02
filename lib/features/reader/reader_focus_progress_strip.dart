@@ -35,9 +35,14 @@ class ReaderFocusProgressStrip extends StatelessWidget
     final colorScheme = Theme.of(context).colorScheme;
     return Semantics(
       key: const ValueKey('reader-focus-progress-semantics'),
-      button: true,
-      label: 'Book text position: $percent percent. '
-          'Open go to book position',
+      button: sourceLength > 0,
+      enabled: sourceLength > 0,
+      label: sourceLength > 0
+          ? 'Book text position: $percent percent. Open go to book position'
+          : 'Book text position unavailable',
+      // ExcludeSemantics hides the nested InkWell semantics, so expose
+      // the activation explicitly for TalkBack and screen readers.
+      onTap: sourceLength > 0 ? onNavigate : null,
       child: ExcludeSemantics(
         child: Material(
           color: Theme.of(context).appBarTheme.backgroundColor ??
