@@ -32,6 +32,15 @@ class ReaderNarrationFollowPolicy {
     return true;
   }
 
+  /// A successfully completed source seek (search, bookmark, TOC, tap)
+  /// owns the new viewport. Drop ONLY transient manual detachment once the
+  /// seek and durable checkpoint have committed, not when the user merely
+  /// opens a dialog or starts an asynchronous operation.
+  ///
+  /// Keep explicitly disabled auto-follow disabled. Returns true only
+  /// when the transient state actually changed.
+  bool onCommittedNavigation() => resume();
+
   /// Opening another document must not inherit a previous scroll detachment.
   void resetForBook() {
     _suspendedByUser = false;
