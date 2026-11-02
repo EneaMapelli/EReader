@@ -1747,3 +1747,32 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   [READER_MANUAL_FOLLOW_RETURN.md](READER_MANUAL_FOLLOW_RETURN.md).
   **Unverified:** Flutter analyzer/tests, Windows/Android and real TTS
   interaction. No build/Actions started; PR #1 remains draft.
+
+### 2026-11-02 — Visual vs speech source cursor separation
+
+- Fixed an inconsistency in detached TTS reading: the audio listener
+  previously overwrote `_visiblePositionIndex` and the exact EPUB
+  visual source offset on each active narration update. The virtualized
+  text list also rejected visible-block updates while playback was not
+  settled idle. Both paths now respect visual/speech cursor ownership.
+- Live narration controls retain the audio cursor. When the user browses
+  while follow is disabled or temporarily detached, visual progress,
+  chapter/TOC, bookmark suggestion, search origin and EPUB link-return
+  origin use the actual viewport, including unspoken XHTML sections.
+- Passive viewport browsing during audio playback cannot write persistent
+  source checkpoints; a temporarily detached view stays non-persistent
+  even when paused. Explicit user navigation remains a separate pathway.
+- Pausing and pressing Play while detached resumes the existing TTS
+  position without implicitly seeking to the inspected page. Returning
+  to the narrator realigns the visual progress and source indices without
+  TTS calls. Remote chapter changes during playback no longer replace
+  a disconnected visible cursor.
+- Frame-coalesced UI and progress notifications avoid rebuilding during
+  Flutter layout; genuine manual scrolling releases an obsolete EPUB
+  restored-viewport hold.
+- Pure policy regressions added. See
+  [READER_VISUAL_AUDIO_CURSOR.md](READER_VISUAL_AUDIO_CURSOR.md) for
+  source-ownership rules and detailed manual acceptance cases.
+  **Not verified:** Flutter analyzer/tests and physical Windows/Android
+  media integration. No GitHub Actions or Windows builds started; PR #1
+  remains draft.
