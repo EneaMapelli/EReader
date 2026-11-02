@@ -29,6 +29,10 @@ Future<int?> showReaderGoToProgressDialog(
   required int currentSourceOffset,
   required int sourceLength,
   bool autofocus = false,
+  String title = 'Go to book position',
+  String explanation = 'Choose a percentage of the original book text. '
+      'This is not estimated audio time or a PDF page.',
+  String fieldLabel = 'Book position',
 }) async {
   if (sourceLength <= 0) return null;
   final current = ReadingSourceProgress.percentage(
@@ -40,6 +44,9 @@ Future<int?> showReaderGoToProgressDialog(
     builder: (_) => _ReaderProgressDialog(
       current: current,
       autofocus: autofocus,
+      title: title,
+      explanation: explanation,
+      fieldLabel: fieldLabel,
     ),
   );
   if (percent == null) return null;
@@ -50,9 +57,15 @@ class _ReaderProgressDialog extends StatefulWidget {
   const _ReaderProgressDialog({
     required this.current,
     required this.autofocus,
+    required this.title,
+    required this.explanation,
+    required this.fieldLabel,
   });
   final int current;
   final bool autofocus;
+  final String title;
+  final String explanation;
+  final String fieldLabel;
 
   @override
   State<_ReaderProgressDialog> createState() => _ReaderProgressDialogState();
@@ -88,16 +101,13 @@ class _ReaderProgressDialogState extends State<_ReaderProgressDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Go to book position'),
+        title: Text(widget.title),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Choose a percentage of the original book text. '
-                'This is not estimated audio time or a PDF page.',
-              ),
+              Text(widget.explanation),
               const SizedBox(height: 14),
               TextField(
                 key: const ValueKey('reader-progress-percent'),
@@ -110,7 +120,7 @@ class _ReaderProgressDialogState extends State<_ReaderProgressDialog> {
                   LengthLimitingTextInputFormatter(3),
                 ],
                 decoration: InputDecoration(
-                  labelText: 'Book position',
+                  labelText: widget.fieldLabel,
                   suffixText: '%',
                   border: const OutlineInputBorder(),
                   errorText: _target == null
