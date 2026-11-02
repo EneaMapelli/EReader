@@ -2348,6 +2348,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       onReturnToNarration: !_loading && _error == null &&
               _narrationFollow.suspendedByUser
           ? _returnToNarration : null,
+      onToggleFocusMode: progressNavigationAvailable
+          ? () => _setReaderFocusMode(!_readerFocusMode) : null,
       child: Scaffold(
       floatingActionButton: !_loading && _error == null && player != null &&
               player.segments.isNotEmpty &&
