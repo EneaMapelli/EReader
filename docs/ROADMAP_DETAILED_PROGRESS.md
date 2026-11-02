@@ -1912,3 +1912,27 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - **Not run:** Flutter analyzer/widget tests or manual Windows/Android
   acceptance. No GitHub Actions or Windows executable builds launched.
   PR #1 remains draft.
+
+### 2026-11-02 — Compact reader quick navigation and safe menu handoff
+
+- Restored a first-class mobile navigation affordance without overcrowding
+  the AppBar: compact layouts (under 420px, or enlarged system text) show
+  one **Quick navigation** button beside the full tools menu. Wide layouts
+  keep direct EPUB contents/search/return controls.
+- The navigation-only sheet prioritizes Search, Contents, Bookmarks and
+  Go-to-percentage, with context-specific return and PDF actions; it
+  derives availability from the **existing** organized reader tools
+  descriptor and dispatches through its existing handler. Silent-only
+  EPUB and native PDF page modes cannot advertise fictional TTS actions.
+- Captured book/player/document identity while a tools sheet is open:
+  an obsolete selection is discarded on book replacement or reload.
+  Full tools remain accessible during loading; quick navigation requires
+  a usable destination. Opening/canceling the sheet never changes
+  narration or book progress.
+- Added [READER_COMPACT_QUICK_NAVIGATION.md](READER_COMPACT_QUICK_NAVIGATION.md),
+  pure capability tests and reader integration widget tests for 320px
+  (including 200% text scaling), wide AppBar, immersive mode and
+  cancellation-safe percentage navigation.
+- **Source/test inspection only:** Flutter analyzer, widget tests and
+  native device QA were not run. No Windows builds or GitHub Actions
+  were triggered; PR #1 remains draft.
