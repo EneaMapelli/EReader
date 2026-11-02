@@ -38,6 +38,12 @@ without a confirmed stop/dispose.
   its OS lease but retains a **marked private WAV session** for guarded
   bounded recovery on a later application launch, rather than deleting
   a file potentially held by a failed decoder.
+- A bounded safety budget counts both retry-pending WAVs and WAVs still
+  owned by a decoder after an unconfirmed Stop/Play. New local WAV
+  synthesis or preloading fails closed once this combined budget reaches
+  `OfflineWavCleanup.maxPending` (32 by default). A successful native
+  Stop frees that budget; an unconfirmed Stop cannot silently accumulate
+  unbounded temporary folders.
 - Source segments, reading positions, paid APIs, the speech queue,
   book checkpoints and narrator preferences are unchanged.
   Local offline WAV synthesis is the only provider affected.
@@ -53,6 +59,8 @@ failure/latency coverage for:
 3. Failed output Play, retaining an apparently open WAV until Stop.
 4. Failed output Dispose, retaining the WAV inside a marked
    recovery-eligible session until another process can safely recover.
+5. Repeated failed output Play with a minimal cleanup budget, confirming
+   further synthesis is refused until a confirmed native Stop frees it.
 
 Earlier `wav_decoder_race_test.dart`, `offline_wav_cleanup_test.dart`
 and VITS session tests remain required. The tests have only been
