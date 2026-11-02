@@ -96,6 +96,47 @@ void main() {
     expect(result, 630);
   });
 
+  testWidgets('reused percentage dialog exposes section-specific labels',
+      (tester) async {
+    int? result = -1;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(
+      body: Builder(builder: (context) => TextButton(
+        onPressed: () async {
+          result = await showReaderGoToProgressDialog(
+            context,
+            currentSourceOffset: 40,
+            sourceLength: 200,
+            title: 'Go to section position',
+            explanation: 'Choose a percentage within this EPUB section.',
+            fieldLabel: 'Section position',
+          );
+        },
+        child: const Text('Open section'),
+      )),
+    )));
+    await tester.tap(find.text('Open section'));
+    await tester.pumpAndSettle();
+    expect(find.text('Go to section position'), findsOneWidget);
+    expect(find.text('Choose a percentage within this EPUB section.'),
+        findsOneWidget);
+    expect(find.text('Section position'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('reader-progress-preset-100')));
+    await tester.pump();
+    expect(result, -1,
+        reason: 'Selecting a chip never issues a source seek');
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(result, isNull);
+
+    await tester.tap(find.text('Open section'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('reader-progress-preset-75')));
+    await tester.tap(find.byKey(const ValueKey('reader-progress-confirm')));
+    await tester.pumpAndSettle();
+    expect(result, 150,
+        reason: 'Caller converts local coordinates to original EPUB offsets');
+  });
+
   testWidgets('dialog remains usable on narrow screens with enlarged text',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 520));
