@@ -457,6 +457,19 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
     }
   }
 
+  Future<void> _ensureWavStagingCapacity() async {
+    await _wavCleanup.ensureCapacity();
+    // Retained decoder-owned WAVs have deliberately NOT entered the
+    // retry queue. Count both kinds of unfinished cleanup, otherwise
+    // repeated failed native Stop/Play could grow private temp storage
+    // without limit during a long book.
+    if (_decoderHeldStaging.length + _wavCleanup.pendingCount >=
+        _wavCleanup.maxPending) {
+      throw StateError('Too many private offline WAV folders waiting for '
+          'confirmed native decoder cleanup');
+    }
+  }
+
   /// Injected in tests to simulate slow filesystem recovery. Production
   /// recovery retains OfflineWavSession's bounded marker/lease safety checks.
   final Future<int> Function(Directory tempRoot) _abandonedWavRecovery;
@@ -762,7 +775,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
           !identical(_prepared, next)) return;
       // Only directories from finished WAV owners may be retried.
       // No warmup if locked files have saturated the bounded queue.
-      await _wavCleanup.ensureCapacity();
+      await _ensureWavStagingCapacity();
       if (_disposed || token != _generation ||
           !identical(_prepared, next)) return;
       next.staging = await _newStaging('ereader-local-lookahead-');
@@ -860,7 +873,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
       if (staging == null) {
         // Retry only previous released WAVs; fail closed if Windows still
         // holds too many rather than creating unlimited temp files.
-        await _wavCleanup.ensureCapacity();
+        await _ensureWavStagingCapacity();
         if (_disposed || token != _generation) return;
         staging = await _newStaging('ereader-local-tts-');
         wavPath = staging.path + Platform.pathSeparator + 'speech.wav';
