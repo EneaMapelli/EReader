@@ -167,8 +167,8 @@ void main() {
     await tester.pumpAndSettle();
     final after = tester.widget<ScrollablePositionedList>(
         find.byType(ScrollablePositionedList));
-    expect(identical(before, after), isFalse,
-        reason: 'Recenter remounts list even without a query change');
+    expect(after.key, isNot(before.key),
+        reason: 'Recenter changes the virtual list key without a query');
     expect(find.byKey(const ValueKey('reader-directory-entry-1800')),
         findsOneWidget);
     expect(chosen, isNull);
