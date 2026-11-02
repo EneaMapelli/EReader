@@ -2138,7 +2138,14 @@ class _ReaderScreenState extends State<ReaderScreen>
     bool autofocusSearch = false,
     bool navigationOnly = false,
   }) async {
-    if (!mounted || _loading || _error != null) return;
+    // Keep the full settings sheet available during loading (speech and
+    // pronunciation settings do not require an active text player).
+    // Quick navigation, on the other hand, needs a usable destination.
+    if (!mounted ||
+        (navigationOnly && (_loading || _error != null))) return;
+    final openedBookId = widget.book.id;
+    final openedPlayer = _player;
+    final openedDocument = _document;
     final epub = widget.book.format == BookFormat.epub;
     final pdf = widget.book.format == BookFormat.pdf;
     final textMode = !pdf || _pdfTextMode;
@@ -2169,7 +2176,10 @@ class _ReaderScreenState extends State<ReaderScreen>
       autofocusSearch: autofocusSearch,
       sections: sections,
     );
-    if (!mounted || action == null) return;
+    // Closing a sheet after replacing/reloading a book must never
+    // dispatch an old action into a different document/player session.
+    if (!mounted || action == null || widget.book.id != openedBookId ||
+        _player != openedPlayer || _document != openedDocument) return;
     switch (action) {
       case 'contents':
         await _openChapterDirectory();
@@ -2419,7 +2429,7 @@ class _ReaderScreenState extends State<ReaderScreen>
           // It routes through the existing action handler, never a second
           // path to native Seek or book-position persistence.
           if (compactReaderToolbar && !_loading && _error == null &&
-              (player?.segments.isNotEmpty ?? false ||
+              ((player?.segments.isNotEmpty ?? false) ||
                (widget.book.format == BookFormat.epub &&
                    (_chapters.isNotEmpty || _authorToc.isNotEmpty)) ||
                (widget.book.format == BookFormat.pdf &&
