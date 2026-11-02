@@ -63,6 +63,21 @@ void main() {
     expect(follow.shouldAutoFollow, isTrue);
   });
 
+  test('a confirmed paused remote chapter jump reconnects visual follow', () {
+    final follow = ReaderNarrationFollowPolicy();
+    follow.onUserScroll(narrationPlaying: true);
+    expect(follow.suspendedByUser, isTrue);
+
+    // An active remote audio seek must preserve independent visual browsing.
+    expect(follow.shouldAutoFollow, isFalse);
+    expect(follow.suspendedByUser, isTrue);
+
+    // Media handler calls its UI callback only for the winning remote Seek.
+    // When it finishes paused, the source selection becomes intentional.
+    expect(follow.onCommittedNavigation(), isTrue);
+    expect(follow.shouldAutoFollow, isTrue);
+  });
+
   test('reopening another book clears detachment but not preference', () {
     final follow = ReaderNarrationFollowPolicy();
     follow.onUserScroll(narrationPlaying: true);
