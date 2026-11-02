@@ -19,6 +19,11 @@ void main() {
     final bar = tester.widget<LinearProgressIndicator>(
         find.byKey(const ValueKey('reader-focus-progress-track')));
     expect(bar.value, 0.31);
+    final semantics = tester.widget<Semantics>(
+        find.byKey(const ValueKey('reader-focus-progress-semantics')));
+    expect(semantics.properties.button, isTrue);
+    expect(semantics.properties.onTap, isNotNull,
+        reason: 'TalkBack must be able to open Go from the status strip');
     await tester.tap(find.byKey(const ValueKey('reader-focus-progress')));
     expect(opened, 1);
     expect(tester.takeException(), isNull);
@@ -60,6 +65,9 @@ void main() {
       ),
     ));
     expect(find.text('0%'), findsOneWidget);
+    final semantics = tester.widget<Semantics>(
+        find.byKey(const ValueKey('reader-focus-progress-semantics')));
+    expect(semantics.properties.onTap, isNull);
     await tester.tap(find.byKey(const ValueKey('reader-focus-progress')));
     expect(opened, 0);
     expect(tester.takeException(), isNull);
