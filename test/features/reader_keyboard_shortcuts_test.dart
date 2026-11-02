@@ -23,6 +23,7 @@ ReaderKeyboardAction? action(
   bool progressReturn = false,
   bool narrationReturn = false,
   bool textSize = false,
+  bool focusMode = false,
   bool sections = false,
   bool interactive = false,
 }) =>
@@ -37,6 +38,7 @@ ReaderKeyboardAction? action(
       progressReturnAvailable: progressReturn,
       returnToNarrationAvailable: narrationReturn,
       textSizeAvailable: textSize,
+      focusModeAvailable: focusMode,
       sectionNavigationAvailable: sections,
       controlPressed: ctrl,
       metaPressed: meta,
@@ -53,6 +55,56 @@ void main() {
     expect(steppedReaderFontSize(15, -2), 14);
     expect(steppedReaderFontSize(14, -2), 14);
     expect(steppedReaderFontSize(20, 0), 20);
+  });
+
+  test('F11 toggles reading focus only on an active reader', () {
+    expect(action(down(LogicalKeyboardKey.f11), focusMode: true),
+        ReaderKeyboardAction.toggleFocusMode);
+    for (final blocked in [
+      action(down(LogicalKeyboardKey.f11)),
+      action(down(LogicalKeyboardKey.f11), focusMode: true, ready: false),
+      action(down(LogicalKeyboardKey.f11), focusMode: true,
+          routeActive: false),
+      action(down(LogicalKeyboardKey.f11), focusMode: true,
+          editing: true),
+      action(down(LogicalKeyboardKey.f11), focusMode: true,
+          interactive: true),
+      action(down(LogicalKeyboardKey.f11), focusMode: true, shift: true),
+      action(down(LogicalKeyboardKey.f11), focusMode: true, ctrl: true),
+      action(down(LogicalKeyboardKey.f11), focusMode: true, alt: true),
+      action(KeyRepeatEvent(
+        logicalKey: LogicalKeyboardKey.f11,
+        physicalKey: PhysicalKeyboardKey.f11,
+        timeStamp: Duration.zero,
+      ), focusMode: true),
+    ]) {
+      expect(blocked, isNull);
+    }
+  });
+
+  testWidgets('F11 changes only presentation, not speech transport',
+      (tester) async {
+    var toggles = 0;
+    var played = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderKeyboardShortcuts(
+        enabled: true,
+        onPlayPause: () => played++,
+        onPreviousSegment: () {},
+        onNextSegment: () {},
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        onToggleFocusMode: () => toggles++,
+        child: const Scaffold(body: Text('Reader')),
+      ),
+    ));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f11);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f11);
+    expect(toggles, 2);
+    expect(played, 0);
+    expect(tester.takeException(), isNull);
   });
 
   test('Ctrl/Cmd+K opens tools only when explicitly available', () {
