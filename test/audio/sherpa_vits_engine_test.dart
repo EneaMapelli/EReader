@@ -566,6 +566,32 @@ void main() {
     expect(await root.list().toList(), isEmpty);
   });
 
+  test('unconfirmed decoder WAVs are bounded before new synthesis',
+      () async {
+    final native = _FaultyWaveOutput()..failPlay = true;
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack, synthesizer: fakeSynthesize,
+      output: native, temporaryDirectory: () async => root,
+      wavCleanup: OfflineWavCleanup(maxPending: 1),
+    );
+    await expectLater(synth.speak('First attempt',
+        language: 'en-US', rate: 0.5, pitch: 1), throwsStateError);
+    expect(texts, ['First attempt']);
+
+    await expectLater(synth.speak('Must not synthesize yet',
+        language: 'en-US', rate: 0.5, pitch: 1), throwsStateError);
+    expect(texts, ['First attempt'],
+        reason: 'Held native WAVs count against the bounded staging budget');
+
+    await synth.stop();
+    native.failPlay = false;
+    await synth.speak('Safe after Stop',
+        language: 'en-US', rate: 0.5, pitch: 1);
+    expect(texts, ['First attempt', 'Safe after Stop']);
+    await synth.dispose();
+    expect(await root.list().toList(), isEmpty);
+  });
+
   test('failed native WAV Dispose leaves held WAV in guarded recovery session',
       () async {
     final native = _FaultyWaveOutput()
