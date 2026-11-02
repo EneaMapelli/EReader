@@ -205,3 +205,34 @@ List<OrganizedActionSection> buildReaderToolSections(
       ),
   ]),
 ];
+
+/// A shorter, navigation-only entry point for the compact reader AppBar.
+/// Reuse the full menu's capability-gated actions; never create separate
+/// seek or playback behavior for mobile. Keep frequently used destinations
+/// first and the rarer boundary/return actions available at the end.
+List<OrganizedActionSection> buildReaderQuickNavigationSections(
+    ReaderToolMenuAvailability options) {
+  final navigation = buildReaderToolSections(options).first.items;
+  const order = <String>[
+    'search',
+    'contents',
+    'bookmarks',
+    'go-to-percent',
+    'pdf-bookmarks',
+    'return-link',
+    'return-to-percent',
+    'return-to-narration',
+    'pdf-pages',
+    'first-section',
+    'last-section',
+  ];
+  final quickItems = <OrganizedActionItem>[
+    for (final id in order)
+      for (final item in navigation)
+        if (item.id == id) item,
+  ];
+  if (quickItems.isEmpty) return const <OrganizedActionSection>[];
+  return <OrganizedActionSection>[
+    OrganizedActionSection(title: 'Navigate & find', items: quickItems),
+  ];
+}
