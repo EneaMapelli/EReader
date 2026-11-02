@@ -65,6 +65,45 @@ void main() {
         reason: 'A tap must select the exact corresponding speech segment');
   });
 
+  testWidgets('live TTS highlight stays source-aligned when search overlaps it',
+      (tester) async {
+    final selected = <int>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: EpubParagraphTile(
+        block: spokenParagraph,
+        activeSegmentIndex: 1,
+        searchMatch: const BookSourceMatch(7, 10, 'orl'),
+        fontSize: 19,
+        palette: EpubReadingPalette.night,
+        onSelectSegment: selected.add,
+      )),
+    ));
+    final context = tester.element(find.byType(EpubParagraphTile));
+    final rich = tester.widget<RichText>(find.descendant(
+      of: find.byType(EpubParagraphTile),
+      matching: find.byType(RichText),
+    ));
+    final spans = leafTextSpans(rich.text);
+    expect(spans.map((s) => s.text).join(), 'Hello world',
+        reason: 'Search and narration highlights cannot mutate book text');
+    final before = spans.singleWhere((s) => s.text == 'w');
+    final match = spans.singleWhere((s) => s.text == 'orl');
+    final after = spans.singleWhere((s) => s.text == 'd');
+    final palette = EpubReadingPalette.night;
+    expect(before.style?.backgroundColor, palette.highlight(context));
+    expect(after.style?.backgroundColor, palette.highlight(context));
+    expect(match.style?.backgroundColor, palette.searchHighlight(context),
+        reason: 'Search must remain visually distinguishable over live TTS');
+    expect(match.style?.color, palette.searchForeground(context));
+    expect(spans.first.style?.backgroundColor, isNull,
+        reason: 'Unrelated viewed text is not the narrated passage');
+    (match.recognizer! as TapGestureRecognizer).onTap!();
+    (after.recognizer! as TapGestureRecognizer).onTap!();
+    expect(selected, [1, 1],
+        reason: 'Search highlighting cannot alter source-aligned TTS taps');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('paragraph gap scales visual padding without changing source',
       (tester) async {
     Future<double> render(double spacing) async {
