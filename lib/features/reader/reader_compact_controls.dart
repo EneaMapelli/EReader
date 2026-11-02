@@ -15,11 +15,21 @@ class ReaderCompactControls extends StatelessWidget {
     required this.onNext,
     required this.onExpand,
     this.sleepTimerActive = false,
+    this.sectionLabel,
+    this.sectionIndex,
+    this.sectionCount,
+    this.onOpenSections,
   });
 
   final String segmentLabel;
   final bool isPlaying;
   final bool sleepTimerActive;
+  /// Visible EPUB TOC/spine position, never the active speech segment.
+  /// Null for TXT, PDF or books without a navigable section.
+  final String? sectionLabel;
+  final int? sectionIndex;
+  final int? sectionCount;
+  final VoidCallback? onOpenSections;
   final VoidCallback onPrevious;
   final VoidCallback onPlayPause;
   final VoidCallback onNext;
@@ -29,6 +39,37 @@ class ReaderCompactControls extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (sectionLabel != null &&
+              sectionIndex != null && sectionCount != null &&
+              sectionIndex! >= 0 && sectionIndex! < sectionCount! &&
+              onOpenSections != null)
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                key: const ValueKey('reader-compact-current-section'),
+                onPressed: onOpenSections,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  alignment: Alignment.centerLeft,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.menu_book_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${sectionLabel!} (${sectionIndex! + 1}/$sectionCount)',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right, size: 18),
+                  ],
+                ),
+              ),
+            ),
           Semantics(
             liveRegion: true,
             child: Text(
