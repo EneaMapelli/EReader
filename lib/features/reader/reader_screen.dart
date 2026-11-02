@@ -1407,6 +1407,10 @@ class _ReaderScreenState extends State<ReaderScreen>
           await _openSpeechSettings();
           return;
         }
+        // Explicit Play supersedes an older source seek still awaiting a
+        // native Stop/Pause. Never auto-play from a now-obsolete transport
+        // continuation after a newer chapter/bookmark selection.
+        final playRevision = _sourceSelectionGate.reserve();
         _cancelPendingVisualSave();
         if (readerMaySeekToViewportOnPlay(
             temporarilyDetached: _narrationFollow.suspendedByUser)) {
@@ -1427,6 +1431,8 @@ class _ReaderScreenState extends State<ReaderScreen>
         }
         // Detached browsing is different: Play resumes the existing audio
         // cursor and leaves the text viewport at its independent location.
+        if (!mounted || _player != player ||
+            !_sourceSelectionGate.isCurrent(playRevision)) return;
         await (widget.mediaHandler?.play() ?? player.play());
       }
     } catch (error) {
@@ -1520,7 +1526,8 @@ class _ReaderScreenState extends State<ReaderScreen>
           });
       // A superseded seek returns without throwing. Do not add a broken
       // "return from note" entry when that source jump never committed.
-      if (!mounted || _player != player || !committed) return;
+      if (!mounted || _player != player || !committed ||
+          !_sourceSelectionGate.isCurrent(selection)) return;
       if (remember) {
         _linkHistory.push(fromOffset, sourceOffset,
             fromSpineIdref: fromSpineIdref,
@@ -1593,7 +1600,8 @@ class _ReaderScreenState extends State<ReaderScreen>
           reservedSelection: selection,
           onCommitted: () => committed = true);
       // A newer seek or failed durable checkpoint cannot consume history.
-      if (!mounted || _player != player || !committed) return;
+      if (!mounted || _player != player || !committed ||
+          !_sourceSelectionGate.isCurrent(selection)) return;
       if (_linkHistory.commitReturnIfTop(origin)) setState(() {});
     }
     unawaited(navigateBack().catchError((Object error, StackTrace stack) {
@@ -1613,7 +1621,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       // to re-synthesize a new paragraph while narration is active.
       // Also cancel any pending seek/voice auto-resume before seeking.
       if (widget.book.format == BookFormat.epub &&
-          player != null && !player.isSettledIdle) {
+          !player.isSettledIdle) {
         await player.pause();
       }
       if (!mounted || _player != player ||
