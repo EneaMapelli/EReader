@@ -947,14 +947,22 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
     _nativeJob = null;
     final pending = _prepared;
     _prepared = null;
-    // Native output is disposed before private WAVs are reclaimed. All
-    // callers share this Future, including any native failure.
+    // Native output is disposed before private WAVs are reclaimed. A
+    // throwing Dispose is NOT evidence that Windows released file handles:
+    // keep decoder-held WAVs inside their marked session for safe recovery
+    // in a later process rather than unlinking files still in use.
+    var nativeDisposed = false;
     try {
       await _output.dispose();
+      nativeDisposed = true;
     } finally {
       try {
         if (pending != null && pending.ready) {
-          await _deleteStaging(pending.staging);
+          if (nativeDisposed) {
+            await _deleteStaging(pending.staging);
+          } else {
+            _holdDecoderStaging(pending.staging);
+          }
         }
       } finally {
         // A native call may outlive Dispose after cancellation. Keep the
@@ -962,10 +970,10 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
         Future<void> finishSession() async {
           await _allWaveJobsEnded.future;
           try {
-            // All native decoder handles have been disposed (or disposal
-            // failed but the engine is closed). Only now may formerly
-            // retained WAVs enter the bounded filesystem retry queue.
-            await _releaseDecoderHeldStaging();
+            // Only confirmed native decoder disposal authorizes deleting
+            // formerly held WAVs. After failed Dispose leave the marked,
+            // lease-protected session for bounded next-launch recovery.
+            if (nativeDisposed) await _releaseDecoderHeldStaging();
             await _wavCleanup.retryPending(
                 maxAttempts: _wavCleanup.maxPending);
           } finally {
