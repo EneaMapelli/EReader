@@ -176,6 +176,11 @@ void main() {
           alignment: Alignment.bottomCenter,
           child: ReaderCompactControls(
             segmentLabel: 'Segment 999 of 9999',
+            sectionLabel: 'A very long illustrated EPUB chapter title that '
+                'must fit within the tiny phone viewport',
+            sectionIndex: 999,
+            sectionCount: 1200,
+            onOpenSections: noop,
             isPlaying: false,
             onPrevious: noop,
             onPlayPause: noop,
@@ -186,6 +191,8 @@ void main() {
       ),
     ));
     expect(find.text('Segment 999 of 9999'), findsOneWidget);
+    expect(find.byKey(const ValueKey('reader-compact-current-section')),
+        findsOneWidget);
     expect(find.byTooltip('Play narration (Space)'), findsOneWidget);
     expect(find.byKey(const ValueKey('reader-expand-controls')), findsOneWidget);
     expect(tester.takeException(), isNull);
