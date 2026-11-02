@@ -441,6 +441,22 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
   final OfflineWaveOutput _output;
   final Future<Directory> Function() _temporaryDirectory;
   final OfflineWavCleanup _wavCleanup;
+  // Files which a native decoder may still hold after an unconfirmed Stop,
+  // failed Play or interrupted decoder preload. They are NOT eligible for
+  // ordinary WAV retry/deletion until output Stop or Dispose succeeds.
+  final Map<String, Directory> _decoderHeldStaging = {};
+  void _holdDecoderStaging(Directory? staging) {
+    if (staging != null) _decoderHeldStaging[staging.path] = staging;
+  }
+
+  Future<void> _releaseDecoderHeldStaging() async {
+    final released = _decoderHeldStaging.values.toList(growable: false);
+    _decoderHeldStaging.clear();
+    for (final folder in released) {
+      await _deleteStaging(folder);
+    }
+  }
+
   /// Injected in tests to simulate slow filesystem recovery. Production
   /// recovery retains OfflineWavSession's bounded marker/lease safety checks.
   final Future<int> Function(Directory tempRoot) _abandonedWavRecovery;
@@ -739,6 +755,7 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
 
   Future<void> _prepareWave(
       _PreparedWave next, int token, Future<void> priorSynthesis) async {
+    var nativePreloadAttempted = false;
     try {
       await priorSynthesis;
       if (_disposed || token != _generation ||
@@ -764,6 +781,10 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
       // The WAV has already passed PCM validation. Preload its decoder
       // independently while the current WAV is still playing.
       if (_output is PreloadableOfflineWaveOutput) {
+        // Decoder load might have opened a Windows WAV handle before
+        // throwing. Once attempted, only confirmed Stop/Dispose can
+        // authorize removal of an unconsumed speculative WAV.
+        nativePreloadAttempted = true;
         await (_output as PreloadableOfflineWaveOutput)
             .prepareNext(next.wavPath!);
       }
@@ -777,7 +798,11 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
         if (!next.ready || _disposed || token != _generation ||
             !identical(_prepared, next)) {
           if (identical(_prepared, next)) _prepared = null;
-          await _deleteStaging(next.staging);
+          if (nativePreloadAttempted) {
+            _holdDecoderStaging(next.staging);
+          } else {
+            await _deleteStaging(next.staging);
+          }
         }
       } finally {
         // A rare filesystem error must not leave the OS session lease
@@ -850,7 +875,16 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
       if (!ready.isCompleted) ready.complete();
       decoderHandoff.stop();
       _diagnostics.recordHandoff(decoderHandoff.elapsed);
-      await _output.play(wavPath);
+      try {
+        await _output.play(wavPath);
+      } catch (_) {
+        // A rejected decoder Play can include a rejected native Stop.
+        // Retain the private WAV instead of releasing a potentially
+        // open Windows file; only later Stop/Dispose may release it.
+        _holdDecoderStaging(staging);
+        staging = null;
+        rethrow;
+      }
     } finally {
       if (!ready.isCompleted) ready.complete();
       if (identical(_currentSynthesisReady, ready.future)) {
@@ -873,14 +907,22 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
     _nativeJob = null;
     final pending = _prepared;
     _prepared = null;
-    // Native audible Stop is more important than deleting a future WAV.
-    // Cleanup must not delay the user's Pause/Stop or focus release.
+    // Releasing a decoder-owned WAV is only safe after native output Stop
+    // CONFIRMS. A failed Stop leaves it owned until a later successful
+    // Stop or final decoder disposal (including speculative WAVs).
+    var nativeStopConfirmed = false;
     try {
       await _output.stop();
+      nativeStopConfirmed = true;
     } finally {
       if (pending != null && pending.ready) {
-        await _deleteStaging(pending.staging);
+        if (nativeStopConfirmed) {
+          await _deleteStaging(pending.staging);
+        } else {
+          _holdDecoderStaging(pending.staging);
+        }
       }
+      if (nativeStopConfirmed) await _releaseDecoderHeldStaging();
       // Once native output Stop has settled, release the UI-facing Stop
       // without waiting for old Windows file handles to become deletable.
       // Retry is bounded, serialized inside OfflineWavCleanup and
@@ -920,6 +962,10 @@ class SherpaVitsSpeechEngine implements SpeechEngine,
         Future<void> finishSession() async {
           await _allWaveJobsEnded.future;
           try {
+            // All native decoder handles have been disposed (or disposal
+            // failed but the engine is closed). Only now may formerly
+            // retained WAVs enter the bounded filesystem retry queue.
+            await _releaseDecoderHeldStaging();
             await _wavCleanup.retryPending(
                 maxAttempts: _wavCleanup.maxPending);
           } finally {
