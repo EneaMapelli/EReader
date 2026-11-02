@@ -58,6 +58,7 @@ import 'reader_keyboard_shortcuts.dart';
 import 'reader_compact_controls.dart';
 import 'reader_focus_restore_button.dart';
 import 'reader_narration_follow_policy.dart';
+import 'reader_source_selection_gate.dart';
 import 'reader_position_ownership.dart';
 import 'reader_return_to_narration_button.dart';
 import 'reader_narration_status_indicator.dart';
@@ -186,7 +187,8 @@ class _ReaderScreenState extends State<ReaderScreen>
   // Only the latest in-reader source selection can persist its bookmark.
   // A superseded Seek may return successfully once native Stop settles;
   // it must not write its obsolete visual location afterward.
-  int _selectionRevision = 0;
+  final ReaderSourceSelectionGate _sourceSelectionGate =
+      ReaderSourceSelectionGate();
   // Fast progress updates while manually scrolling must not rebuild
   // the entire potentially large EPUB/painted-document widget tree.
   final ValueNotifier<int> _visualProgressTick = ValueNotifier<int>(0);
@@ -268,6 +270,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // A later reload supersedes all earlier work, including an in-flight
     // worker that would otherwise continue unpacking ZIP/XHTML offscreen.
     final epoch = ++_loadEpoch;
+    _sourceSelectionGate.invalidate();
     _cancelPendingVisualSave();
     _progressReturn.clear();
     _narrationFollow.resetForBook();
@@ -570,6 +573,9 @@ class _ReaderScreenState extends State<ReaderScreen>
           // without issuing another native Stop or extra speech request.
           if (!mounted || _player != player || _document != document ||
               chunks.isEmpty) return;
+          // A winning external media seek supersedes pending local
+          // selections that might still be waiting for native Pause.
+          _sourceSelectionGate.invalidate();
           _cancelPendingVisualSave();
           final speechEnd = index >= chunks.length;
           final sourceTarget = remoteChapterTargets[index];
@@ -1155,13 +1161,16 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (player == null || chapterIndex < 0 ||
         chapterIndex >= _chapters.length) return;
     try {
+      final selection = _sourceSelectionGate.reserve();
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
-      if (!mounted || _player != player) return;
+      if (!mounted || _player != player ||
+          !_sourceSelectionGate.isCurrent(selection)) return;
       final chapter = _chapters[chapterIndex];
       await _select(chapter.segmentIndex,
           visualSourceOffset: chapter.start,
-          visualSpineIdref: chapter.hasSpeech ? null : chapter.idref);
+          visualSpineIdref: chapter.hasSpeech ? null : chapter.idref,
+          reservedSelection: selection);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1306,10 +1315,13 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (destination < 0) return;
     if (widget.book.format == BookFormat.epub) {
       if (offset < 0 || offset > document.text.length) return;
+      final selection = _sourceSelectionGate.reserve();
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
-      if (!mounted || _player != player) return;
-      await _select(destination, visualSourceOffset: offset);
+      if (!mounted || _player != player ||
+          !_sourceSelectionGate.isCurrent(selection)) return;
+      await _select(destination, visualSourceOffset: offset,
+          reservedSelection: selection);
     } else {
       await _select(destination);
     }
@@ -1489,9 +1501,11 @@ class _ReaderScreenState extends State<ReaderScreen>
           ? null : _selectedVisualSpineIdref;
       final index = speechSourceDestinationIndexForOffset(
           player.segments, sourceOffset);
+      final selection = _sourceSelectionGate.reserve();
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
-      if (!mounted || _player != player) return;
+      if (!mounted || _player != player ||
+          !_sourceSelectionGate.isCurrent(selection)) return;
       // _select persists the exact source offset once. A second write of
       // the same position after seeking is unnecessary and can race with
       // user scrolls or turn a failed checkpoint into a partial jump.
@@ -1499,6 +1513,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       await _select(index, visualSourceOffset: sourceOffset,
           visualSpineIdref: visualSpineIdref,
           committedSearchMatch: searchMatch,
+          reservedSelection: selection,
           onCommitted: () {
             committed = true;
             onCommitted?.call();
@@ -1566,13 +1581,16 @@ class _ReaderScreenState extends State<ReaderScreen>
           origin.sourceOffset > document.text.length) return;
       final index = speechSourceDestinationIndexForOffset(
           player.segments, origin.sourceOffset);
+      final selection = _sourceSelectionGate.reserve();
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
-      if (!mounted || _player != player) return;
+      if (!mounted || _player != player ||
+          !_sourceSelectionGate.isCurrent(selection)) return;
       var committed = false;
       await _select(index,
           visualSourceOffset: origin.sourceOffset,
           visualSpineIdref: origin.spineIdref,
+          reservedSelection: selection,
           onCommitted: () => committed = true);
       // A newer seek or failed durable checkpoint cannot consume history.
       if (!mounted || _player != player || !committed) return;
@@ -1589,6 +1607,8 @@ class _ReaderScreenState extends State<ReaderScreen>
   void _selectFromVisualTap(int index) {
     Future<void> navigate() async {
       final player = _player;
+      if (player == null) return;
+      final selection = _sourceSelectionGate.reserve();
       // EPUB is an explicit reading-location selection, not permission
       // to re-synthesize a new paragraph while narration is active.
       // Also cancel any pending seek/voice auto-resume before seeking.
@@ -1596,8 +1616,9 @@ class _ReaderScreenState extends State<ReaderScreen>
           player != null && !player.isSettledIdle) {
         await player.pause();
       }
-      if (!mounted || _player != player) return;
-      await _select(index);
+      if (!mounted || _player != player ||
+          !_sourceSelectionGate.isCurrent(selection)) return;
+      await _select(index, reservedSelection: selection);
     }
     unawaited(navigate().catchError(
       (Object error, StackTrace stack) {
@@ -1613,6 +1634,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     int? visualSourceOffset,
     String? visualSpineIdref,
     BookSourceMatch? committedSearchMatch,
+    int? reservedSelection,
     VoidCallback? onCommitted,
   }) async {
     final player = _player;
@@ -1622,18 +1644,20 @@ class _ReaderScreenState extends State<ReaderScreen>
         index == player?.segments.length;
     if (player == null || index < 0 ||
         (index >= player.segments.length && !visualOnlyEnd)) return;
+    // Reserve before native Pause in callers with an asynchronous barrier.
+    // A newer selection or remote media seek must defeat an older
+    // continuation BEFORE it can issue a Seek or mutate a checkpoint.
+    final selection = reservedSelection ?? _sourceSelectionGate.reserve();
+    if (!_sourceSelectionGate.isCurrent(selection)) return;
     // Preserve the current highlight until the seek actually commits.
-    // A prior scroll debounce must never overwrite this explicit seek
-    // or a source-exact bookmark/search hit after the next frame.
     _cancelPendingVisualSave();
-    final selection = ++_selectionRevision;
     if (visualOnlyEnd) {
       await player.seekToSourceEnd();
     } else {
       await player.seekTo(index);
     }
     if (!mounted || _player != player ||
-        selection != _selectionRevision ||
+        !_sourceSelectionGate.isCurrent(selection) ||
         player.currentIndex != index ||
         player.intendedNavigationIndex != index) return;
     // A verified EPUB link may point inside the current audio segment
@@ -1658,7 +1682,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // The old selection has already committed its write, but must not
     // repaint or scroll over the new intent when its Future resolves.
     if (!mounted || _player != player ||
-        selection != _selectionRevision ||
+        !_sourceSelectionGate.isCurrent(selection) ||
         player.currentIndex != index ||
         player.intendedNavigationIndex != index) return;
     // An explicit, durable source selection supersedes merely browsing
@@ -2663,8 +2687,10 @@ class _ReaderScreenState extends State<ReaderScreen>
       return;
     }
     Future<void> jump() async {
+      final selection = _sourceSelectionGate.reserve();
       if (!player.isSettledIdle) await player.pause();
-      if (!mounted || _player != player || _document != document) return;
+      if (!mounted || _player != player || _document != document ||
+          !_sourceSelectionGate.isCurrent(selection)) return;
       // The same _select pipeline handles both ordinary text segments and
       // exact source EOF, with one latest-wins guard and SQLite write.
       final atEnd = target == document.text.length;
@@ -2673,6 +2699,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (index < 0) return;
       await _select(index,
           visualSourceOffset: atEnd ? target : null,
+          reservedSelection: selection,
           onCommitted: onCommitted);
     }
     unawaited(jump().catchError((Object error, StackTrace stack) {
