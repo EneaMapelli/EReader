@@ -574,32 +574,34 @@ class _ReaderScreenState extends State<ReaderScreen>
           final sourceOffset = sourceTarget?.sourceOffset ??
               (speechEnd ? document.text.length : chunks[index].start);
           final silentSpineIdref = sourceTarget?.silentSpineIdref;
-          _visiblePositionIndex = index;
-          if (widget.book.format == BookFormat.epub) {
-            _visualCheckpoint.clear();
-            _selectedVisualSpineIdref = silentSpineIdref;
-            _currentEpubVisualSourceOffset = sourceOffset;
-            final block = silentSpineIdref == null
-                ? visualLayout.blockForSourceOffset(sourceOffset)
-                : visualLayout.blockForSpine(
-                    silentSpineIdref, sourceOffset);
-            _visualCheckpoint.hold(sourceOffset,
-                awaitTarget: true, targetBlockIndex: block);
-            _lastVisibleEpubBlockIndex = block;
-            _lastFollowedIndex = block;
-            // A paused remote chapter jump is an explicit navigation,
-            // not automatic speech-follow. Display it even when the user
-            // disabled auto-follow for active narration.
-            if ((_narrationFollow.shouldAutoFollow || !player.isPlaying) &&
-                _itemScrollController.isAttached) {
+          // A remote chapter change may advance speech while the user is
+          // reading elsewhere. Do not overwrite the visual cursor unless
+          // the viewport is following, or the remote seek was made paused.
+          final updateViewport =
+              _narrationFollow.shouldAutoFollow || !player.isPlaying;
+          if (updateViewport) {
+            _visiblePositionIndex = index;
+            if (widget.book.format == BookFormat.epub) {
+              _visualCheckpoint.clear();
+              _selectedVisualSpineIdref = silentSpineIdref;
+              _currentEpubVisualSourceOffset = sourceOffset;
+              final block = silentSpineIdref == null
+                  ? visualLayout.blockForSourceOffset(sourceOffset)
+                  : visualLayout.blockForSpine(
+                      silentSpineIdref, sourceOffset);
+              _visualCheckpoint.hold(sourceOffset,
+                  awaitTarget: true, targetBlockIndex: block);
+              _lastVisibleEpubBlockIndex = block;
+              _lastFollowedIndex = block;
+              if (_itemScrollController.isAttached) {
+                _itemScrollController.jumpTo(
+                    index: block, alignment: 0.12);
+              }
+            } else if (_itemScrollController.isAttached) {
               _itemScrollController.jumpTo(
-                  index: block, alignment: 0.12);
+                  index: index.clamp(0, chunks.length - 1).toInt(),
+                  alignment: 0.12);
             }
-          } else if ((_narrationFollow.shouldAutoFollow || !player.isPlaying) &&
-              _itemScrollController.isAttached) {
-            _itemScrollController.jumpTo(
-                index: index.clamp(0, chunks.length - 1).toInt(),
-                alignment: 0.12);
           }
           _visualProgressTick.value++;
           setState(() {});
@@ -2561,27 +2563,35 @@ class _ReaderScreenState extends State<ReaderScreen>
   /// utterance: manual EPUB scrolling, silent OPF items and exact note
   /// destinations are represented independently of the audio cursor.
   int _visibleProgressOffset(ReaderPlayer player, int totalLength) {
-    // Prefer a genuine manual visual position over speech EOF: scrolling
-    // back after completing the audio must move the text-position indicator.
-    // Do not confuse completion of the audio queue with the viewport.
-    if (!player.isPlaying) {
+    final useVisual = readerUsesVisualCursor(
+      narrationPlaying: player.isPlaying,
+      shouldAutoFollow: _narrationFollow.shouldAutoFollow,
+    );
+    if (useVisual) {
       if (widget.book.format == BookFormat.epub) {
-        final precise = _visualCheckpoint.offset ??
-            _currentEpubVisualSourceOffset;
+        // Never use an old programmatic checkpoint to override a detached
+        // active viewport. Browse by exact original UTF-16 source offset.
+        final precise = player.isPlaying
+            ? _currentEpubVisualSourceOffset
+            : (_visualCheckpoint.offset ?? _currentEpubVisualSourceOffset);
         if (precise != null) return precise.clamp(0, totalLength).toInt();
-      } else if (player.currentIndex >= player.segments.length &&
-          _visiblePositionIndex != null &&
-          _visiblePositionIndex! < player.segments.length - 1) {
-        return player.segments[_visiblePositionIndex!].start
+      } else if (_visiblePositionIndex != null &&
+          (player.currentIndex < player.segments.length ||
+              _visiblePositionIndex! < player.segments.length - 1)) {
+        // Audio EOF and the visual end are distinct. Keep EOF only when
+        // the viewport hasn't scrolled back to an earlier segment.
+        final visualIndex = _visiblePositionIndex!
+            .clamp(0, player.segments.length - 1).toInt();
+        return player.segments[visualIndex].start
             .clamp(0, totalLength).toInt();
       }
     }
     if (player.currentIndex >= player.segments.length) {
       return totalLength;
     }
-    final index = player.isPlaying
-        ? player.currentIndex
-        : (_visiblePositionIndex ?? player.currentIndex);
+    final index = useVisual
+        ? (_visiblePositionIndex ?? player.currentIndex)
+        : player.currentIndex;
     final safeIndex = index.clamp(0, player.segments.length - 1).toInt();
     return player.segments[safeIndex].start.clamp(0, totalLength).toInt();
   }
