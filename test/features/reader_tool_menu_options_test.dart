@@ -16,6 +16,7 @@ ReaderToolMenuAvailability options({
   bool followSuspended = false,
   bool focus = false,
   bool progressReturn = false,
+  bool sectionPosition = false,
   String palette = 'system',
 }) => ReaderToolMenuAvailability(
   isEpub: epub, isPdf: pdf, textMode: text,
@@ -25,7 +26,9 @@ ReaderToolMenuAvailability options({
   hasEpubPerformance: perf, hasEpubWarnings: warnings,
   autoFollow: autoFollow, followSuspended: followSuspended,
   focusMode: focus,
-  hasProgressReturn: progressReturn, paletteName: palette,
+  hasProgressReturn: progressReturn,
+  hasSectionPosition: sectionPosition,
+  paletteName: palette,
 );
 
 List<String> ids(List<OrganizedActionSection> sections) =>
@@ -33,6 +36,27 @@ List<String> ids(List<OrganizedActionSection> sections) =>
       for (final item in section.items) item.id];
 
 void main() {
+  test('local EPUB percent appears only for unique source section ranges', () {
+    final epub = options(
+        epub: true, toc: true, sectionPosition: true);
+    final quick = ids(buildReaderQuickNavigationSections(epub));
+    expect(quick, contains('section-percent'));
+    expect(quick.indexOf('section-percent'),
+        quick.indexOf('go-to-percent') + 1);
+    expect(ids(buildReaderToolSections(epub)), contains('section-percent'));
+    for (final unavailable in [
+      options(epub: true, sectionPosition: false),
+      options(epub: true, sectionPosition: true, playable: false),
+      options(pdf: true, text: true, sectionPosition: true),
+      options(sectionPosition: true),
+    ]) {
+      expect(ids(buildReaderToolSections(unavailable)),
+          isNot(contains('section-percent')));
+      expect(ids(buildReaderQuickNavigationSections(unavailable)),
+          isNot(contains('section-percent')));
+    }
+  });
+
   test('quick navigation prioritizes search, TOC, bookmarks and Go', () {
     final quick = buildReaderQuickNavigationSections(options(
       epub: true, toc: true, returnLink: true,
