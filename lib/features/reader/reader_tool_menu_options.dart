@@ -71,7 +71,7 @@ List<OrganizedActionSection> buildReaderToolSections(
         subtitle: 'Enter a percentage of the original text',
       ),
     if (options.isEpub && options.textMode && options.hasPlayableSegments &&
-        options.hasSectionPosition)
+        options.hasContents && options.hasSectionPosition)
       const OrganizedActionItem(
         id: 'section-percent', title: 'Go to position in this section',
         icon: Icons.linear_scale,
