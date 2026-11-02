@@ -60,6 +60,7 @@ class _FailedDisposeOutput extends _FakeWaveOutput {
 class _FaultyWaveOutput extends _FakeWaveOutput
     implements PreloadableOfflineWaveOutput {
   String? warmedPath;
+  Completer<void>? prepareGate;
   bool failPlay = false;
   bool failStop = false;
   bool failDispose = false;
@@ -68,6 +69,7 @@ class _FaultyWaveOutput extends _FakeWaveOutput
   Future<void> prepareNext(String filePath) async {
     expect(await File(filePath).exists(), isTrue);
     warmedPath = filePath;
+    if (prepareGate != null) await prepareGate!.future;
   }
 
   @override
@@ -505,6 +507,41 @@ void main() {
     await synth.stop();
     expect(await File(prepared).exists(), isFalse,
         reason: 'The next confirmed native Stop releases the held WAV');
+    await synth.dispose();
+    expect(await root.list().toList(), isEmpty);
+  });
+
+  test('canceled WAV preload does not delete during unconfirmed Stop',
+      () async {
+    final native = _FaultyWaveOutput()
+      ..playGate = Completer<void>()
+      ..prepareGate = Completer<void>()
+      ..failStop = true;
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack, synthesizer: fakeSynthesize,
+      output: native, temporaryDirectory: () async => root,
+    );
+    final reading = synth.speak(
+        'Audible', language: 'en-US', rate: 0.5, pitch: 1);
+    await waitForNativeCondition(() => native.filePaths.isNotEmpty);
+    final preparing = synth.prepareOfflineSpeech('Unfinished warm',
+        voice: null, language: 'en-US', rate: 0.5, pitch: 1);
+    await waitForNativeCondition(() => native.warmedPath != null);
+    final warmPath = native.warmedPath!;
+
+    await expectLater(synth.stop(), throwsStateError);
+    await reading;
+    // A stale warm-up finishes only AFTER the native Stop failed.
+    native.prepareGate!.complete();
+    await preparing;
+    expect(await File(warmPath).exists(), isTrue,
+        reason: 'A canceled native preload cannot unlink an unsafe WAV');
+
+    native.failStop = false;
+    await synth.stop();
+    expect(await File(warmPath).exists(), isFalse);
+    expect(native.filePaths, hasLength(1),
+        reason: 'The canceled future WAV must never start playback');
     await synth.dispose();
     expect(await root.list().toList(), isEmpty);
   });
