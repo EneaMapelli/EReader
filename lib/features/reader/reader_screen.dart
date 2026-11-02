@@ -71,6 +71,7 @@ import '../shared/organized_action_sheet.dart';
 import 'reader_tool_menu_options.dart';
 import 'reading_progress_bar.dart';
 import 'reader_go_to_progress_dialog.dart';
+import 'reader_section_range.dart';
 import 'reader_progress_return_point.dart';
 
 class ReaderScreen extends StatefulWidget {
@@ -2023,24 +2024,55 @@ class _ReaderScreenState extends State<ReaderScreen>
   /// this accessible, scrollable sheet has closed.
   /// A percentage is a canonical source coordinate. The dialog never
   /// starts narration, and a stale result from a replaced book is ignored.
-  Future<void> _openGoToProgress({bool autofocus = false}) async {
+  ReaderSectionRange? _currentSectionRange() {
+    final document = _document;
+    if (widget.book.format != BookFormat.epub ||
+        document == null || document.text.isEmpty ||
+        _player == null || _player!.segments.isEmpty) return null;
+    return readerSectionRangeForIndex(
+      authorToc: _authorToc,
+      chapters: _chapters,
+      currentIndex: _currentDirectoryIndex,
+      sourceLength: document.text.length,
+    );
+  }
+
+  Future<void> _openGoToProgress({
+    bool autofocus = false,
+    bool withinSection = false,
+  }) async {
     final player = _player;
     final document = _document;
     if (!mounted || _loading || _error != null ||
         player == null || player.segments.isEmpty ||
         document == null || document.text.isEmpty ||
         (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
+    final sectionIndex = withinSection ? _currentDirectoryIndex : -1;
+    final section = withinSection ? _currentSectionRange() : null;
+    if (withinSection && section == null) return;
     final displayedOrigin = _visibleProgressOffset(
         player, document.text.length);
     final target = await showReaderGoToProgressDialog(
       context,
-      currentSourceOffset: displayedOrigin,
-      sourceLength: document.text.length,
+      currentSourceOffset: section == null
+          ? displayedOrigin : (displayedOrigin - section.start)
+              .clamp(0, section.length).toInt(),
+      sourceLength: section?.length ?? document.text.length,
       autofocus: autofocus,
+      title: withinSection ? 'Go to section position' : 'Go to book position',
+      explanation: withinSection
+          ? 'Choose a percentage within the current EPUB section. '
+              'This uses original source text, not audio time.'
+          : 'Choose a percentage of the original book text. '
+              'This is not estimated audio time or a PDF page.',
+      fieldLabel: withinSection ? 'Section position' : 'Book position',
     );
     if (!mounted || target == null || _loading || _error != null ||
         _player != player || _document != document ||
-        (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
+        (widget.book.format == BookFormat.pdf && !_pdfTextMode) ||
+        (withinSection && _currentDirectoryIndex != sectionIndex)) return;
+    final destination = section == null ? target
+        : section.start + target.clamp(0, section.length - 1).toInt();
     // Narration/media controls may advance the text while this dialog is
     // open. Record the actual point immediately before the confirmed jump.
     final origin = _visibleProgressOffset(player, document.text.length);
@@ -2055,7 +2087,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         ? _selectedVisualSpineIdref : null;
     // The return point is established only AFTER the new seek and SQLite
     // checkpoint succeeded. A canceled/no-op/failed jump leaves it alone.
-    _jumpToSourceProgress(target, onCommitted: () {
+    _jumpToSourceProgress(destination, onCommitted: () {
       if (!mounted || _player != player || _document != document) return;
       final actualDestination = _visibleProgressOffset(
           player, document.text.length);
@@ -2124,6 +2156,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       paletteName: _epubPalette.name,
       focusMode: _readerFocusMode,
       hasProgressReturn: _progressReturn.canReturn,
+      hasSectionPosition: !_loading && _error == null &&
+          _currentSectionRange() != null,
     );
     final sections = navigationOnly
         ? buildReaderQuickNavigationSections(availability)
@@ -2154,6 +2188,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         return;
       case 'go-to-percent':
         await _openGoToProgress();
+        return;
+      case 'section-percent':
+        await _openGoToProgress(withinSection: true);
         return;
       case 'return-to-percent':
         _returnToProgressJumpOrigin();
