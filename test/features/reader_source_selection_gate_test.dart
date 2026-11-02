@@ -40,6 +40,45 @@ void main() {
     expect(gate.isCurrent(newer), isFalse);
   });
 
+  test('newer selection suppresses Play after a stale async seek', () async {
+    final gate = ReaderSourceSelectionGate();
+    final seekCompleted = Completer<void>();
+    var didPlay = false;
+
+    Future<void> startPlay() async {
+      final playIntent = gate.reserve();
+      await seekCompleted.future;
+      if (!gate.isCurrent(playIntent)) return;
+      didPlay = true;
+    }
+
+    final playback = startPlay();
+    final newChapter = gate.reserve();
+    seekCompleted.complete();
+    await playback;
+    expect(didPlay, isFalse);
+    expect(gate.isCurrent(newChapter), isTrue);
+  });
+
+  test('a cancelled in-flight source intent remains invalid after reload',
+      () async {
+    final gate = ReaderSourceSelectionGate();
+    final pause = Completer<void>();
+    var wroteCheckpoint = false;
+
+    Future<void> jump() async {
+      final intent = gate.reserve();
+      await pause.future;
+      if (gate.isCurrent(intent)) wroteCheckpoint = true;
+    }
+
+    final pending = jump();
+    gate.invalidate(); // reader reloaded / replaced its audio player
+    pause.complete();
+    await pending;
+    expect(wroteCheckpoint, isFalse);
+  });
+
   test('a synchronous select and a remote selection share the same order', () {
     final gate = ReaderSourceSelectionGate();
     final tap = gate.reserve();
