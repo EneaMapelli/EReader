@@ -187,10 +187,13 @@ class JustAudioMp3Output implements PreloadableSynthesizedAudioOutput {
             await slot.decoder.stop();
             slot.needsNativeStop = false;
           } catch (_) {
-            // The next Stop/load must try again; Windows may still hold
-            // this file open, and deletion will be deferred safely.
+            // Stop was NOT confirmed: preserve both the native-stop
+            // obligation AND its private source file until a successful
+            // retry or decoder disposal releases the Windows file handle.
           }
-          await _clearFile(slot, expected: file);
+          if (!slot.needsNativeStop) {
+            await _clearFile(slot, expected: file);
+          }
           rethrow;
         }
         // A cancelled generation retains slot.file until the queued
