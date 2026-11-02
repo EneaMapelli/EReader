@@ -2134,33 +2134,40 @@ class _ReaderScreenState extends State<ReaderScreen>
     });
   }
 
-  Future<void> _openReaderTools({bool autofocusSearch = false}) async {
+  Future<void> _openReaderTools({
+    bool autofocusSearch = false,
+    bool navigationOnly = false,
+  }) async {
+    if (!mounted || _loading || _error != null) return;
     final epub = widget.book.format == BookFormat.epub;
     final pdf = widget.book.format == BookFormat.pdf;
     final textMode = !pdf || _pdfTextMode;
     final playable = _player != null && _player!.segments.isNotEmpty;
-    final hasContents = epub &&
-        (_chapters.isNotEmpty || _authorToc.isNotEmpty);
+    final availability = ReaderToolMenuAvailability(
+      isEpub: epub,
+      isPdf: pdf,
+      textMode: textMode,
+      hasPlayableSegments: playable,
+      hasContents: _chapters.isNotEmpty || _authorToc.isNotEmpty,
+      canReturnFromLink: _linkHistory.canReturn,
+      hasPdfPageBookmarks: _pdfPageCount != null,
+      hasEpubPerformance: !_loading && _epubWorkerTimings != null,
+      hasEpubWarnings: _document?.epubDiagnostics.isNotEmpty ?? false,
+      autoFollow: _narrationFollow.enabled,
+      followSuspended: _narrationFollow.suspendedByUser,
+      paletteName: _epubPalette.name,
+      focusMode: _readerFocusMode,
+      hasProgressReturn: _progressReturn.canReturn,
+    );
+    final sections = navigationOnly
+        ? buildReaderQuickNavigationSections(availability)
+        : buildReaderToolSections(availability);
+    if (sections.isEmpty) return;
     final action = await showOrganizedActionSheet(
       context,
-      title: 'Reader tools',
+      title: navigationOnly ? 'Quick navigation' : 'Reader tools',
       autofocusSearch: autofocusSearch,
-      sections: buildReaderToolSections(ReaderToolMenuAvailability(
-        isEpub: epub,
-        isPdf: pdf,
-        textMode: textMode,
-        hasPlayableSegments: playable,
-        hasContents: _chapters.isNotEmpty || _authorToc.isNotEmpty,
-        canReturnFromLink: _linkHistory.canReturn,
-        hasPdfPageBookmarks: _pdfPageCount != null,
-        hasEpubPerformance: !_loading && _epubWorkerTimings != null,
-        hasEpubWarnings: _document?.epubDiagnostics.isNotEmpty ?? false,
-        autoFollow: _narrationFollow.enabled,
-        followSuspended: _narrationFollow.suspendedByUser,
-        paletteName: _epubPalette.name,
-        focusMode: _readerFocusMode,
-        hasProgressReturn: _progressReturn.canReturn,
-      )),
+      sections: sections,
     );
     if (!mounted || action == null) return;
     switch (action) {
@@ -2407,6 +2414,23 @@ class _ReaderScreenState extends State<ReaderScreen>
               )
             : null,
         actions: [
+          // Compact layouts have one dedicated navigation entry instead
+          // of hiding search/contents/return deep inside all preferences.
+          // It routes through the existing action handler, never a second
+          // path to native Seek or book-position persistence.
+          if (compactReaderToolbar && !_loading && _error == null &&
+              (player?.segments.isNotEmpty ?? false ||
+               (widget.book.format == BookFormat.epub &&
+                   (_chapters.isNotEmpty || _authorToc.isNotEmpty)) ||
+               (widget.book.format == BookFormat.pdf &&
+                   _pdfPageCount != null && !_pdfTextMode)))
+            IconButton(
+              key: const ValueKey('reader-quick-navigation'),
+              icon: const Icon(Icons.explore_outlined),
+              tooltip: 'Quick navigation: search, contents and bookmarks',
+              onPressed: () => unawaited(
+                  _openReaderTools(navigationOnly: true)),
+            ),
           if (!compactReaderToolbar &&
               widget.book.format == BookFormat.epub &&
               _linkHistory.canReturn)
