@@ -45,6 +45,7 @@ import 'voice_cast_screen.dart';
 import 'pronunciation_screen.dart';
 import 'reading_tools.dart';
 import 'epub_chapter_navigation.dart';
+import 'reader_chapter_directory_sheet.dart';
 import 'epub_link_history.dart';
 import 'epub_note_preview_sheet.dart';
 import '../../data/epub_navigation.dart';
@@ -1181,72 +1182,30 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   Future<void> _openChapterDirectory() async {
-    if (_chapters.isEmpty && _authorToc.isEmpty) return;
+    if (!mounted || (_chapters.isEmpty && _authorToc.isEmpty)) return;
+    final player = _player;
+    final document = _document;
+    final loadEpoch = _loadEpoch;
+    final bookId = widget.book.id;
     final authorial = _authorToc.isNotEmpty;
     final entries = _authorToc;
-    final current = _currentChapterIndex;
-    final activeTocIndex = _currentDirectoryIndex;
-    final chosen = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: FractionallySizedBox(
-          heightFactor: 0.7,
-          child: Column(
-            children: [
-              ListTile(title: Text(authorial
-                  ? 'Book table of contents' : 'EPUB spine sections')),
-              Expanded(
-                child: ScrollablePositionedList.builder(
-                  // Keep publisher TOCs with thousands of entries virtual,
-                  // but start near the current EPUB chapter rather than
-                  // building/scanning earlier chapters to scroll there.
-                  initialScrollIndex: authorial
-                      ? (activeTocIndex < 0 ? 0 : activeTocIndex)
-                      : (current < 0 ? 0 : current),
-                  itemCount: authorial ? entries.length : _chapters.length,
-                  itemBuilder: (_, index) {
-                    if (authorial) {
-                      final entry = entries[index];
-                      final active = index == activeTocIndex;
-                      return Padding(
-                        padding: EdgeInsets.only(
-                            left: (entry.depth.clamp(0, 12) * 14).toDouble()),
-                        child: ListTile(
-                          dense: true,
-                          leading: Icon(active
-                              ? Icons.menu_book : Icons.subdirectory_arrow_right),
-                          title: Text(entry.label),
-                          selected: active,
-                          onTap: () => Navigator.of(sheetContext).pop(index),
-                        ),
-                      );
-                    }
-                    final chapter = _chapters[index];
-                    return ListTile(
-                      leading: index == current
-                          ? const Icon(Icons.menu_book)
-                          : const Icon(Icons.article_outlined),
-                      title: Text(chapter.title),
-                      subtitle: Text(chapter.hasSpeech
-                          ? 'Section ${index + 1} of ${_chapters.length}'
-                          : 'Section ${index + 1} of ${_chapters.length} · '
-                            'no spoken text'),
-                      selected: index == current,
-                      onTap: () => Navigator.of(sheetContext).pop(index),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    final chosen = await showReaderChapterDirectory(
+      context,
+      authorToc: entries,
+      chapters: _chapters,
+      activeTocIndex: _currentDirectoryIndex,
+      activeChapterIndex: _currentChapterIndex,
     );
-    if (!mounted || chosen == null) return;
+    // Searching and highlighting are visual-only. If the book was
+    // replaced/reloaded while the sheet was open, a stale original index
+    // must not be applied to a different spine or publisher directory.
+    if (!mounted || chosen == null || _loading ||
+        widget.book.id != bookId || _loadEpoch != loadEpoch ||
+        _player != player || _document != document) return;
     if (authorial) {
-      _navigateToSourceOffset(entries[chosen].offset, remember: false);
+      if (chosen >= 0 && chosen < entries.length) {
+        _navigateToSourceOffset(entries[chosen].offset, remember: false);
+      }
     } else {
       await _jumpToChapterIndex(chosen);
     }
