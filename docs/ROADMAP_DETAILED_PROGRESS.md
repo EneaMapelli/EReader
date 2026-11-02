@@ -1979,3 +1979,22 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - **Not executed:** Flutter analyzer/widget tests, Windows/Android
   device acceptance. No Windows builds or GitHub Actions run.
   PR #1 remains draft.
+
+### 2026-11-02 — Direct EPUB section number lookup and current-index return
+
+- Added `#N` lookup to the searchable publisher TOC / OPF fallback
+  directory. `#125` targets original section ordinal 125, not a
+  filtered-row index or TTS segment, retaining exact identity for
+  duplicate labels, silent spines and equal source offsets.
+- Added a **Show current section** action in both normal and
+  keyboard-constrained directory headers. This clears a query and
+  remounts the virtualized list at the reader's existing current
+  source entry even after manually browsing far away. It does not
+  close the sheet, play/pause audio or save a checkpoint.
+- New deterministic tests cover 2500-entry TOCs, number overflow and
+  out-of-range lookups, original-index selection, recenter after
+  query, and recenter when the query is already empty.
+  See [READER_DIRECTORY_SECTION_LOOKUP.md](READER_DIRECTORY_SECTION_LOOKUP.md).
+- **Test files committed, not executed:** no Flutter analyzer, widget
+  runtime or Windows/Android QA in this environment. No GitHub Actions
+  or Windows builds triggered; PR #1 remains draft.
