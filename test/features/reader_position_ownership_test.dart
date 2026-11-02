@@ -57,6 +57,16 @@ void main() {
         reason: 'The TTS cursor and visual source coordinate are separate');
   });
 
+  test('Play resumes existing audio after detached browsing and Pause', () {
+    const narratedIndex = 27;
+    const visuallyBrowsedIndex = 82;
+    expect(narratedIndex, isNot(visuallyBrowsedIndex));
+    expect(readerMaySeekToViewportOnPlay(temporarilyDetached: true), isFalse,
+        reason: 'Temporarily browsing does not authorize a TTS Seek');
+    expect(readerMaySeekToViewportOnPlay(temporarilyDetached: false), isTrue,
+        reason: 'Legacy explicit viewport selection remains available');
+  });
+
   test('active audio permits observing only detached visual scrolling', () {
     expect(readerMayObserveViewport(
         settledIdle: false, narrationPlaying: true,
