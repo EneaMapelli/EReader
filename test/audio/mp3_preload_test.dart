@@ -241,10 +241,15 @@ void main() {
     );
     expect(decoders.single.stopCalls, 1,
         reason: 'The native cleanup attempt itself failed');
+    final firstPath = decoders.single.loadedPaths.single;
+    expect(await File(firstPath).exists(), isTrue,
+        reason: 'An unconfirmed Stop may still hold the failed-load MP3');
     final second = output.play(Uint8List.fromList([12]), speed: 1);
     await until(() => decoders.single.playing.isNotEmpty);
     expect(decoders.single.stopCalls, 2,
         reason: 'Never assume a failed native Stop closed its file handle');
+    expect(await File(firstPath).exists(), isFalse,
+        reason: 'The confirmed retry must now release the old file');
     decoders.single.finish();
     await second;
     expect(decoders.single.stopCalls, 3);
