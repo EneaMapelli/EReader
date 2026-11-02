@@ -18,6 +18,7 @@ class ReaderCompactControls extends StatelessWidget {
     this.sectionLabel,
     this.sectionIndex,
     this.sectionCount,
+    this.sectionProgressPercent,
     this.onOpenSections,
   });
 
@@ -29,6 +30,9 @@ class ReaderCompactControls extends StatelessWidget {
   final String? sectionLabel;
   final int? sectionIndex;
   final int? sectionCount;
+  /// Exact canonical-source percentage inside the visible EPUB section.
+  /// Null when NAV/OPF source boundaries are ambiguous or empty.
+  final int? sectionProgressPercent;
   final VoidCallback? onOpenSections;
   final VoidCallback onPrevious;
   final VoidCallback onPlayPause;
@@ -64,6 +68,14 @@ class ReaderCompactControls extends StatelessWidget {
                         style: Theme.of(context).textTheme.labelMedium,
                       ),
                     ),
+                    if (sectionProgressPercent != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '${sectionProgressPercent!.clamp(0, 100)}%',
+                        key: const ValueKey('reader-compact-section-progress'),
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
                     const SizedBox(width: 4),
                     const Icon(Icons.chevron_right, size: 18),
                   ],
