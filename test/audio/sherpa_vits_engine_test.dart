@@ -55,6 +55,48 @@ class _FailedDisposeOutput extends _FakeWaveOutput {
   }
 }
 
+/// In-memory decoder boundary: allows independently failing native
+/// Play, Stop and Dispose without invoking platform audio or a model.
+class _FaultyWaveOutput extends _FakeWaveOutput
+    implements PreloadableOfflineWaveOutput {
+  String? warmedPath;
+  bool failPlay = false;
+  bool failStop = false;
+  bool failDispose = false;
+
+  @override
+  Future<void> prepareNext(String filePath) async {
+    expect(await File(filePath).exists(), isTrue);
+    warmedPath = filePath;
+  }
+
+  @override
+  Future<void> discardNext() async {
+    warmedPath = null;
+  }
+
+  @override
+  Future<void> play(String filePath) async {
+    if (failPlay) {
+      expect(await File(filePath).exists(), isTrue);
+      throw StateError('simulated native WAV handoff failure');
+    }
+    await super.play(filePath);
+  }
+
+  @override
+  Future<void> stop() async {
+    await super.stop();
+    if (failStop) throw StateError('native WAV Stop was not confirmed');
+  }
+
+  @override
+  Future<void> dispose() async {
+    disposals++;
+    if (failDispose) throw StateError('native WAV Dispose was not confirmed');
+  }
+}
+
 class _CountingDecoder implements WaveDecoder {
   final loaded = <String>[];
   int plays = 0;
@@ -435,6 +477,81 @@ void main() {
         .where((f) => f is File && f.path.endsWith('speech.wav')).toList(), isEmpty);
     await expectLater(synth.speak('again', language: 'en-US',
         rate: 0.5, pitch: 1), throwsStateError);
+  });
+
+  test('failed WAV Stop holds a preloaded future clip until retry',
+      () async {
+    final native = _FaultyWaveOutput()
+      ..playGate = Completer<void>()
+      ..failStop = true;
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack, synthesizer: fakeSynthesize,
+      output: native, temporaryDirectory: () async => root,
+    );
+    final reading = synth.speak(
+        'Current', language: 'en-US', rate: 0.5, pitch: 1);
+    await waitForNativeCondition(() => native.filePaths.isNotEmpty);
+    await synth.prepareOfflineSpeech('Prepared next',
+        voice: null, language: 'en-US', rate: 0.5, pitch: 1);
+    final prepared = native.warmedPath!;
+    expect(await File(prepared).exists(), isTrue);
+
+    await expectLater(synth.stop(), throwsStateError);
+    await reading;
+    expect(await File(prepared).exists(), isTrue,
+        reason: 'A failed native Stop may still hold the warmed WAV');
+
+    native.failStop = false;
+    await synth.stop();
+    expect(await File(prepared).exists(), isFalse,
+        reason: 'The next confirmed native Stop releases the held WAV');
+    await synth.dispose();
+    expect(await root.list().toList(), isEmpty);
+  });
+
+  test('failed WAV Play retains its file until confirmed Stop', () async {
+    final native = _FaultyWaveOutput()..failPlay = true;
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack, synthesizer: fakeSynthesize,
+      output: native, temporaryDirectory: () async => root,
+    );
+    await expectLater(synth.speak(
+        'A failing decoder', language: 'en-US', rate: 0.5, pitch: 1),
+        throwsStateError);
+    final wavFiles = await root.list(recursive: true).where(
+        (item) => item is File && item.path.endsWith('speech.wav')).toList();
+    expect(wavFiles, hasLength(1),
+        reason: 'An output error is not proof of native handle release');
+
+    await synth.stop();
+    expect(await File(wavFiles.single.path).exists(), isFalse);
+    await synth.dispose();
+    expect(await root.list().toList(), isEmpty);
+  });
+
+  test('failed native WAV Dispose leaves held WAV in guarded recovery session',
+      () async {
+    final native = _FaultyWaveOutput()
+      ..failPlay = true
+      ..failStop = true
+      ..failDispose = true;
+    final synth = SherpaVitsSpeechEngine(
+      pack: pack, synthesizer: fakeSynthesize,
+      output: native, temporaryDirectory: () async => root,
+    );
+    await expectLater(synth.speak(
+        'Held file', language: 'en-US', rate: 0.5, pitch: 1),
+        throwsStateError);
+    await expectLater(synth.stop(), throwsStateError);
+    await expectLater(synth.dispose(), throwsStateError);
+
+    final entries = await root.list(recursive: true).toList();
+    expect(entries.any((item) => item is File &&
+        item.path.endsWith('speech.wav')), isTrue,
+        reason: 'A failed native Dispose cannot authorize file deletion');
+    expect(entries.any((item) => item is File &&
+        item.path.endsWith(OfflineWavSession.markerName)), isTrue,
+        reason: 'Leave a marked WAV session for guarded next-launch recovery');
   });
 
   test('Stop does not wait for a blocked Windows WAV cleanup retry',
