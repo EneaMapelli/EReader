@@ -10,6 +10,10 @@ Widget _host({
   bool playing = false,
   bool sleepTimerActive = false,
   String segment = 'Segment 12 of 300',
+  String? sectionLabel,
+  int? sectionIndex,
+  int? sectionCount,
+  VoidCallback? onOpenSections,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -22,6 +26,10 @@ Widget _host({
                 segmentLabel: segment,
                 isPlaying: playing,
                 sleepTimerActive: sleepTimerActive,
+                sectionLabel: sectionLabel,
+                sectionIndex: sectionIndex,
+                sectionCount: sectionCount,
+                onOpenSections: onOpenSections,
                 onPrevious: onPrevious,
                 onPlayPause: onPlayPause,
                 onNext: onNext,
@@ -59,6 +67,74 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('reader-expand-controls')));
     expect([previous, play, next, expand], [1, 1, 1, 1]);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('visible EPUB chapter is a shortcut, not a TTS seek',
+      (tester) async {
+    var opened = 0;
+    var played = 0;
+    var skipped = 0;
+    await tester.pumpWidget(_host(
+      onPrevious: () => skipped++,
+      onPlayPause: () => played++,
+      onNext: () => skipped++,
+      onExpand: () {},
+      sectionLabel: 'The Hidden Valley',
+      sectionIndex: 4,
+      sectionCount: 18,
+      onOpenSections: () => opened++,
+    ));
+    final chapter = find.byKey(
+        const ValueKey('reader-compact-current-section'));
+    expect(chapter, findsOneWidget);
+    expect(find.text('The Hidden Valley (5/18)'), findsOneWidget);
+    await tester.tap(chapter);
+    expect([opened, played, skipped], [1, 0, 0],
+        reason: 'Opening the TOC cannot start or seek speech');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('section context responds to viewport changes without audio',
+      (tester) async {
+    var opened = 0;
+    void noop() {}
+    Future<void> display(String title, int index) =>
+        tester.pumpWidget(_host(
+          onPrevious: noop, onPlayPause: noop, onNext: noop, onExpand: noop,
+          sectionLabel: title, sectionIndex: index,
+          sectionCount: 3, onOpenSections: () => opened++,
+        ));
+    await display('Opening', 0);
+    expect(find.text('Opening (1/3)'), findsOneWidget);
+    await display('Illustrated appendix', 2);
+    expect(find.text('Illustrated appendix (3/3)'), findsOneWidget);
+    expect(find.text('Opening (1/3)'), findsNothing);
+    expect(opened, 0,
+        reason: 'Visual position changes only update a label');
+  });
+
+  testWidgets('TXT and invalid chapter positions hide section shortcut',
+      (tester) async {
+    void noop() {}
+    await tester.pumpWidget(_host(
+      onPrevious: noop, onPlayPause: noop, onNext: noop, onExpand: noop,
+    ));
+    expect(find.byKey(const ValueKey('reader-compact-current-section')),
+        findsNothing);
+    await tester.pumpWidget(_host(
+      onPrevious: noop, onPlayPause: noop, onNext: noop, onExpand: noop,
+      sectionLabel: 'Invalid source index',
+      sectionIndex: -1, sectionCount: 7, onOpenSections: noop,
+    ));
+    expect(find.byKey(const ValueKey('reader-compact-current-section')),
+        findsNothing);
+    await tester.pumpWidget(_host(
+      onPrevious: noop, onPlayPause: noop, onNext: noop, onExpand: noop,
+      sectionLabel: 'No action',
+      sectionIndex: 0, sectionCount: 7,
+    ));
+    expect(find.byKey(const ValueKey('reader-compact-current-section')),
+        findsNothing);
   });
 
   testWidgets('playing status updates accessible play/pause hint and icon',
