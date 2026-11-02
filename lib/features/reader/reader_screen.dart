@@ -60,6 +60,7 @@ import 'reader_focus_restore_button.dart';
 import 'reader_narration_follow_policy.dart';
 import 'reader_position_ownership.dart';
 import 'reader_return_to_narration_button.dart';
+import 'reader_narration_status_indicator.dart';
 import 'reader_viewport_layout.dart';
 import 'reader_viewport_save_gate.dart';
 import 'reader_direct_scroll_input.dart';
@@ -2307,10 +2308,22 @@ class _ReaderScreenState extends State<ReaderScreen>
               (_readerFocusMode || _narrationFollow.suspendedByUser)
           ? Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (_narrationFollow.suspendedByUser)
-                  ReaderReturnToNarrationButton(
-                    onReturn: _returnToNarration,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ReaderNarrationStatusIndicator(
+                        currentIndex: player.currentIndex,
+                        segmentCount: player.segments.length,
+                        isPlaying: player.isPlaying,
+                      ),
+                      const SizedBox(width: 8),
+                      ReaderReturnToNarrationButton(
+                        onReturn: _returnToNarration,
+                      ),
+                    ],
                   ),
                 if (_narrationFollow.suspendedByUser && _readerFocusMode)
                   const SizedBox(height: 8),
