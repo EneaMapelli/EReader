@@ -33,6 +33,62 @@ List<String> ids(List<OrganizedActionSection> sections) =>
       for (final item in section.items) item.id];
 
 void main() {
+  test('quick navigation prioritizes search, TOC, bookmarks and Go', () {
+    final quick = buildReaderQuickNavigationSections(options(
+      epub: true, toc: true, returnLink: true,
+      progressReturn: true, followSuspended: true,
+    ));
+    expect(quick, hasLength(1));
+    expect(quick.single.title, 'Navigate & find');
+    final quickIds = ids(quick);
+    expect(quickIds.take(4).toList(),
+        ['search', 'contents', 'bookmarks', 'go-to-percent']);
+    expect(quickIds, containsAll([
+      'return-link', 'return-to-percent', 'return-to-narration',
+      'first-section', 'last-section',
+    ]));
+    expect(quickIds.toSet().length, quickIds.length,
+        reason: 'A destination is shown at most once');
+    expect(quickIds, isNot(contains('speech')));
+    expect(quickIds, isNot(contains('auto-follow')));
+    expect(quickIds, isNot(contains('palette-night')));
+    expect(quickIds, isNot(contains('reading-focus')));
+  });
+
+  test('compact PDF page navigation shows only available page bookmarks', () {
+    final quick = buildReaderQuickNavigationSections(options(
+      pdf: true, text: false, playable: false, pdfBookmarks: true,
+    ));
+    expect(ids(quick), ['pdf-bookmarks']);
+    expect(ids(buildReaderQuickNavigationSections(options(
+      pdf: true, text: false, playable: false, pdfBookmarks: false,
+    ))), isEmpty);
+  });
+
+  test('silent EPUB TOC stays reachable without fabricated speech actions',
+      () {
+    final actions = ids(buildReaderQuickNavigationSections(options(
+      epub: true, toc: true, playable: false,
+    )));
+    expect(actions, ['contents']);
+    expect(actions, isNot(contains('search')));
+    expect(actions, isNot(contains('first-section')));
+  });
+
+  test('TXT and extracted PDF quick navigation use source-safe actions',
+      () {
+    final txt = ids(buildReaderQuickNavigationSections(options()));
+    expect(txt.take(3), ['search', 'bookmarks', 'go-to-percent']);
+    expect(txt, isNot(contains('contents')));
+    expect(txt, isNot(contains('pdf-pages')));
+    final pdf = ids(buildReaderQuickNavigationSections(options(
+      pdf: true, text: true, playable: true,
+    )));
+    expect(pdf.take(3), ['search', 'bookmarks', 'go-to-percent']);
+    expect(pdf.last, 'pdf-pages');
+    expect(pdf, isNot(contains('pdf-bookmarks')));
+  });
+
   test('EPUB groups all relevant commands and marks the chosen palette',
       () {
     final sections = buildReaderToolSections(options(
