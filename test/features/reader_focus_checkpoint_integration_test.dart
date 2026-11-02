@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:ereader/data/library_store.dart';
 import 'package:ereader/features/reader/reader_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -62,6 +63,32 @@ void main() {
     expect(store.manualPositionRevision(bookId), initialRevision,
         reason: 'Reflow cannot overwrite a persistent bookmark');
     expect(store.getBook(bookId)!.progressOffset, initialOffset);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('F11 toggles focus progress without changing saved position',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 780));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 600));
+    final original = store.manualPositionRevision(bookId);
+
+    expect(find.byKey(const ValueKey('reader-focus-progress')), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f11);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-focus-progress')), findsOneWidget);
+    expect(find.byKey(const ValueKey('reader-compact-transport')), findsNothing);
+    expect(store.manualPositionRevision(bookId), original);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.f11);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-focus-progress')), findsNothing);
+    expect(find.byKey(const ValueKey('reader-compact-transport')), findsOneWidget);
+    expect(store.manualPositionRevision(bookId), original);
     expect(tester.takeException(), isNull);
   });
 
