@@ -1998,3 +1998,29 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - **Test files committed, not executed:** no Flutter analyzer, widget
   runtime or Windows/Android QA in this environment. No GitHub Actions
   or Windows builds triggered; PR #1 remains draft.
+
+### 2026-11-02 — EPUB current-section percentage and source-exact jump
+
+- Added **Go to position in this section** to both full reader tools
+  and mobile Quick navigation when an EPUB section has a unique,
+  nonempty original-text range. Publisher NAV/NCX section ranges
+  use the smallest strictly higher UTF-16 offset, regardless of
+  editorial index order; OPF fallback uses its exact spine bounds.
+  Duplicate starts, zero-length and invalid boundaries hide the
+  command rather than inventing progress.
+- Reused the whole-book percentage chooser with section-specific
+  labels; 100% remains within the current section. Explicit Go uses
+  the existing guarded source seek and adds a return point only after
+  a durable commit. A stale dialog result is discarded when the
+  player/document or current section changes.
+- Compact EPUB controls now distinguish a visible **section %
+  indicator** from whole-book progress and TTS segment number.
+  TXT/PDF and ambiguous illustrated chapters display no local
+  percentage.
+- Added pure range tests for unordered/hierarchical TOCs, duplicate
+  offsets, silent OPF spines and section boundaries, plus UI/menu
+  tests for capability gating, dialog cancellation and progress
+  display. See [READER_EPUB_SECTION_PERCENT_NAVIGATION.md](READER_EPUB_SECTION_PERCENT_NAVIGATION.md).
+- Flutter analyzer, widget runtime and native Windows/Android QA
+  **not executed**. No Windows builds or GitHub Actions triggered;
+  PR #1 stays draft.
