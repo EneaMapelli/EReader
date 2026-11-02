@@ -1844,3 +1844,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - **Source changes verified by inspection only:** Flutter analyzer and
   unit/widget/native engine integration have not run. No Windows build
   or GitHub Actions were triggered. PR #1 remains draft.
+
+### 2026-11-02 — Native MP3 Stop-before-delete race in cloud TTS
+
+- Audited `ReaderPlayer`, native Windows/Android system speech adapter,
+  OpenAI cached-MP3 output, and offline VITS/WAV output for stale
+  playback after Pause/Seek. Existing generation/session guards in
+  player and engines remain in place.
+- Fixed a concrete `JustAudioMp3Output._load` race: after a canceled
+  native `setFilePath`, a stale generation could unlink its temporary
+  MP3 **before** the queued decoder-specific Stop confirmed native
+  handle release. File ownership now persists until `_stopSlot` or
+  decoder disposal performs physical cleanup.
+- If a native MP3 load fails and the following Stop also fails, keep
+  the source file and native-stop obligation until a later confirmed
+  retry, rather than deleting a file potentially still opened by
+  Windows. No extra cloud synthesis or user-facing source behavior.
+- Extended `test/audio/mp3_preload_test.dart` with active-load and
+  standby warm-load cancellation under held native Stop, and file
+  preservation across failed Stop then successful retry. See
+  [TTS_MP3_NATIVE_STOP_FILE_LIFECYCLE.md](TTS_MP3_NATIVE_STOP_FILE_LIFECYCLE.md).
+- **Source/tests committed, not executed.** Flutter analyzer and
+  real-device/Windows native-file-lock checks remain pending. No
+  GitHub Actions or Windows builds triggered; PR #1 stays draft.
