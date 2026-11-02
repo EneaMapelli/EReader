@@ -2,6 +2,7 @@ import 'package:ereader/data/epub_navigation.dart';
 import 'package:ereader/features/reader/epub_chapter_navigation.dart';
 import 'package:ereader/features/reader/reader_chapter_directory_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Widget _launcher({
@@ -69,6 +70,108 @@ void main() {
     expect(items.map((e) => e.originalIndex), [0, 1, 2]);
     expect(items.map((e) => e.hasSpeech), [true, false, false]);
     expect(filterReaderDirectoryItems(items, 'art b').single.originalIndex, 2);
+  });
+
+  test('numeric section search preserves original TOC/spine identity', () {
+    const entries = [
+      ReaderDirectoryItem(originalIndex: 0, title: 'First #2',
+          depth: 0, hasSpeech: true, isAuthorToc: true),
+      ReaderDirectoryItem(originalIndex: 1, title: 'Repeated',
+          depth: 0, hasSpeech: false, isAuthorToc: true),
+      ReaderDirectoryItem(originalIndex: 2, title: 'Repeated',
+          depth: 0, hasSpeech: false, isAuthorToc: true),
+    ];
+    expect(filterReaderDirectoryItems(entries, '#1').single.originalIndex, 0);
+    expect(filterReaderDirectoryItems(entries, ' # 3 ').single.originalIndex, 2);
+    expect(filterReaderDirectoryItems(entries, '#2').single.hasSpeech, isFalse);
+    expect(filterReaderDirectoryItems(entries, 'first #2').single.originalIndex, 0,
+        reason: 'Mixed title text must remain a title search');
+    expect(filterReaderDirectoryItems(entries, '#0'), isEmpty);
+    expect(filterReaderDirectoryItems(entries, '#4'), isEmpty);
+    expect(filterReaderDirectoryItems(entries, '#999999999999999999999'), isEmpty);
+    expect(filterReaderDirectoryItems(entries, '#-1'), isEmpty);
+    expect(filterReaderDirectoryItems(entries, '2'), hasLength(1),
+        reason: 'Bare digits remain ordinary title search');
+    expect(filterReaderDirectoryItems(entries, 'repeat').map((e) =>
+        e.originalIndex), [1, 2]);
+  });
+
+  testWidgets('numeric search selects the original index in a large TOC',
+      (tester) async {
+    final toc = List<EpubNavigationEntry>.generate(2500,
+        (index) => EpubNavigationEntry('Entry ${index + 1}', index * 10, 0));
+    int? chosen;
+    await tester.pumpWidget(_launcher(
+      toc: toc, currentToc: 1234, onSelected: (index) => chosen = index,
+    ));
+    await tester.tap(find.text('Open EPUB index'));
+    await tester.pumpAndSettle();
+    final filter = find.byKey(const ValueKey('reader-directory-filter'));
+    await tester.enterText(filter, '#2000');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-directory-entry-1999')),
+        findsOneWidget);
+    expect(find.text('1 section found'), findsOneWidget);
+    expect(chosen, isNull, reason: 'Filtering alone must never seek');
+    await tester.tap(find.byKey(
+        const ValueKey('reader-directory-entry-1999')));
+    await tester.pumpAndSettle();
+    expect(chosen, 1999);
+  });
+
+  testWidgets('show current restores the real section after search',
+      (tester) async {
+    final toc = List<EpubNavigationEntry>.generate(2000,
+        (index) => EpubNavigationEntry('Chapter ${index + 1}', index * 10, 0));
+    int? chosen;
+    await tester.pumpWidget(_launcher(
+      toc: toc, currentToc: 1510, onSelected: (index) => chosen = index,
+    ));
+    await tester.tap(find.text('Open EPUB index'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byKey(const ValueKey('reader-directory-filter')), '#4');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-directory-entry-3')),
+        findsOneWidget);
+    await tester.tap(find.byKey(
+        const ValueKey('reader-directory-show-current')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(
+        find.byKey(const ValueKey('reader-directory-filter')))
+        .controller!.text, isEmpty);
+    expect(find.byKey(const ValueKey('reader-directory-entry-1510')),
+        findsOneWidget);
+    expect(chosen, isNull,
+        reason: 'Show current is only visual list positioning');
+    await tester.tap(find.byKey(
+        const ValueKey('reader-directory-entry-1510')));
+    await tester.pumpAndSettle();
+    expect(chosen, 1510);
+  });
+
+  testWidgets('show current can re-center already unfiltered virtual list',
+      (tester) async {
+    final toc = List<EpubNavigationEntry>.generate(2200,
+        (index) => EpubNavigationEntry('Entry ${index + 1}', index * 12, 0));
+    int? chosen;
+    await tester.pumpWidget(_launcher(
+      toc: toc, currentToc: 1800, onSelected: (index) => chosen = index,
+    ));
+    await tester.tap(find.text('Open EPUB index'));
+    await tester.pumpAndSettle();
+    final before = tester.widget<ScrollablePositionedList>(
+        find.byType(ScrollablePositionedList));
+    await tester.tap(find.byKey(
+        const ValueKey('reader-directory-show-current')));
+    await tester.pumpAndSettle();
+    final after = tester.widget<ScrollablePositionedList>(
+        find.byType(ScrollablePositionedList));
+    expect(identical(before, after), isFalse,
+        reason: 'Recenter remounts list even without a query change');
+    expect(find.byKey(const ValueKey('reader-directory-entry-1800')),
+        findsOneWidget);
+    expect(chosen, isNull);
   });
 
   testWidgets('thousands of TOC entries filter to original source index',
