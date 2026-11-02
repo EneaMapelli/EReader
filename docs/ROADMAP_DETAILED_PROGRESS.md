@@ -1797,3 +1797,27 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   with manual QA scenarios.
 - **Source and tests committed but NOT Flutter-executed or native-tested.**
   No Windows builds or GitHub Actions run. Keep PR #1 draft until verified.
+
+### 2026-11-02 — Commit-safe navigation handoff between detached TTS and source seeks
+
+- Fixed temporary follow remaining detached after a successful explicit
+  selection from search, bookmarks, publisher TOC, visual chapter,
+  internal EPUB link, source percentage, or an in-book text tap. The
+  common `_select` pathway now resets the transient state only after
+  its latest-intent guards and SQLite source checkpoint have succeeded.
+  A user-disabled auto-follow preference stays disabled.
+- Search highlights no longer appear prematurely when a source jump
+  merely begins. The source-exact `BookSourceMatch` becomes active only
+  after the winning navigation commits; canceled/failed/superseded
+  navigation retains the existing visual highlight.
+- Refreshed post-commit UI for all text-readable formats (EPUB, TXT,
+  PDF extracted text), so a stale floating TTS return chip cannot
+  survive a successful explicit TXT/PDF jump.
+- A paused, successful media-handler chapter Seek now also reconnects
+  temporary follow. Remote audio navigation while playback continues
+  and the user browses elsewhere remains independent of the viewport.
+- Extended pure follow-policy regression coverage and documented
+  asynchronous/UX acceptance cases in
+  [READER_COMMITTED_NAVIGATION_HANDOFF.md](READER_COMMITTED_NAVIGATION_HANDOFF.md).
+- **Not run:** Flutter analyzer and tests, native device TTS/navigation,
+  Windows build or GitHub Actions. PR #1 remains draft.
