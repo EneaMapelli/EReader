@@ -57,6 +57,7 @@ import 'epub_frame_sampler.dart';
 import 'reader_keyboard_shortcuts.dart';
 import 'reader_compact_controls.dart';
 import 'reader_focus_restore_button.dart';
+import 'reader_focus_progress_strip.dart';
 import 'reader_narration_follow_policy.dart';
 import 'reader_source_selection_gate.dart';
 import 'reader_position_ownership.dart';
@@ -2383,6 +2384,26 @@ class _ReaderScreenState extends State<ReaderScreen>
       appBar: AppBar(
         title: Text(widget.book.title,
             maxLines: 1, overflow: TextOverflow.ellipsis),
+        // Focus mode intentionally hides the full player and its progress
+        // slider. Keep a small, screen-reader-accessible visual position in
+        // the existing header, without overlapping the reading surface.
+        // ValueListenableBuilder tracks viewport movement even when TTS
+        // continues at another source offset in the background.
+        bottom: _readerFocusMode && progressNavigationAvailable
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(44),
+                child: ValueListenableBuilder<int>(
+                  valueListenable: _visualProgressTick,
+                  builder: (context, revision, child) =>
+                      ReaderFocusProgressStrip(
+                    sourceOffset: _visibleProgressOffset(
+                        player, _document!.text.length),
+                    sourceLength: _document!.text.length,
+                    onNavigate: () => unawaited(_openGoToProgress()),
+                  ),
+                ),
+              )
+            : null,
         actions: [
           if (!compactReaderToolbar &&
               widget.book.format == BookFormat.epub &&
