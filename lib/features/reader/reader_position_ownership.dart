@@ -26,3 +26,12 @@ bool readerMayPersistViewport({
   required bool narrationPlaying,
   required bool temporarilyDetached,
 }) => settledIdle && !narrationPlaying && !temporarilyDetached;
+
+/// A detached viewport is a reference-only browsing position, not a speech
+/// seek request. When the user pauses and presses Play again, resume the
+/// original audio cursor instead of silently jumping to the looked-up page.
+/// Ordinary Play from a normally connected reader keeps its legacy
+/// "start at selected visual paragraph" behavior.
+bool readerMaySeekToViewportOnPlay({
+  required bool temporarilyDetached,
+}) => !temporarilyDetached;
