@@ -1936,3 +1936,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - **Source/test inspection only:** Flutter analyzer, widget tests and
   native device QA were not run. No Windows builds or GitHub Actions
   were triggered; PR #1 remains draft.
+
+### 2026-11-02 — Searchable EPUB chapter directory, including silent spine entries
+
+- Extracted the EPUB chapter directory sheet to
+  `reader_chapter_directory_sheet.dart`, retaining lazy
+  `ScrollablePositionedList` rendering and active-section positioning.
+  Added case-insensitive multiword chapter-title filtering, result
+  counts, clear/no-match states, and keyboard-aware modal layout.
+- Filter matches retain **original authorial TOC or OPF spine indices**
+  and publisher hierarchy: selecting a filtered row cannot incorrectly
+  seek to row zero. Silent illustrated spines sharing the same source
+  offset remain distinct navigation destinations.
+- A newly selected item continues through the existing
+  source-exact, latest-intent navigation barrier. Search, cancellation
+  and sheet opening never change the TTS cursor or saved position;
+  stale sheet results from a reloaded/replaced book are discarded.
+- Added pure and widget regression tests for publisher duplicate
+  names, 2,000-item TOCs, silent same-offset sections, search reset,
+  original-index selection and 320px / 200% typography. See
+  [READER_EPUB_SEARCHABLE_DIRECTORY.md](READER_EPUB_SEARCHABLE_DIRECTORY.md).
+- **Not run:** Flutter analyzer, widget tests and native device QA.
+  No Windows executable build or GitHub Actions were started; PR #1
+  remains draft.
