@@ -13,6 +13,7 @@ Widget _host({
   String? sectionLabel,
   int? sectionIndex,
   int? sectionCount,
+  int? sectionProgressPercent,
   VoidCallback? onOpenSections,
 }) =>
     MaterialApp(
@@ -29,6 +30,7 @@ Widget _host({
                 sectionLabel: sectionLabel,
                 sectionIndex: sectionIndex,
                 sectionCount: sectionCount,
+                sectionProgressPercent: sectionProgressPercent,
                 onOpenSections: onOpenSections,
                 onPrevious: onPrevious,
                 onPlayPause: onPlayPause,
@@ -92,6 +94,48 @@ void main() {
     expect([opened, played, skipped], [1, 0, 0],
         reason: 'Opening the TOC cannot start or seek speech');
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('chapter-local progress shows without changing narration',
+      (tester) async {
+    var opened = 0;
+    void noop() {}
+    await tester.pumpWidget(_host(
+      onPrevious: noop,
+      onPlayPause: noop,
+      onNext: noop,
+      onExpand: noop,
+      sectionLabel: 'Section A',
+      sectionIndex: 1,
+      sectionCount: 5,
+      sectionProgressPercent: 64,
+      onOpenSections: () => opened++,
+    ));
+    expect(find.byKey(const ValueKey('reader-compact-section-progress')),
+        findsOneWidget);
+    expect(find.text('64%'), findsOneWidget);
+    expect(opened, 0);
+    await tester.tap(find.byKey(
+        const ValueKey('reader-compact-current-section')));
+    expect(opened, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('unknown source boundaries hide local progress',
+      (tester) async {
+    void noop() {}
+    await tester.pumpWidget(_host(
+      onPrevious: noop, onPlayPause: noop,
+      onNext: noop, onExpand: noop,
+      sectionLabel: 'Silent illustration',
+      sectionIndex: 0, sectionCount: 3,
+      onOpenSections: noop,
+    ));
+    expect(find.byKey(const ValueKey('reader-compact-current-section')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('reader-compact-section-progress')),
+        findsNothing,
+        reason: 'Silent sections do not imply measurable source progress');
   });
 
   testWidgets('section context responds to viewport changes without audio',
