@@ -65,6 +65,53 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('focus mode retains an accessible position and explicit Go',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 720));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    final originalOffset = store.getBook(bookId)!.progressOffset;
+    final originalRevision = store.manualPositionRevision(bookId);
+
+    await tester.tap(find.byKey(const ValueKey('reader-tools-menu')));
+    await tester.pumpAndSettle();
+    final toggle = find.byKey(const ValueKey('organized-action-reading-focus'));
+    await tester.scrollUntilVisible(
+        toggle, 160, scrollable: find.byType(Scrollable).last);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('reader-compact-transport')), findsNothing);
+    expect(find.byKey(const ValueKey('reader-focus-progress')), findsOneWidget);
+    expect(find.byKey(const ValueKey('reader-focus-restore')), findsOneWidget);
+    expect(store.manualPositionRevision(bookId), originalRevision,
+        reason: 'Opening immersion mode is never an implicit source seek');
+
+    await tester.tap(find.byKey(const ValueKey('reader-focus-progress')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-progress-confirm')), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(store.manualPositionRevision(bookId), originalRevision,
+        reason: 'Opening and canceling Go does not save a bookmark');
+    expect(store.getBook(bookId)!.progressOffset, originalOffset);
+
+    await tester.tap(find.byKey(const ValueKey('reader-focus-progress')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('reader-progress-preset-75')));
+    await tester.tap(find.byKey(const ValueKey('reader-progress-confirm')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset, greaterThan(originalOffset),
+        reason: 'Confirmed Go reuses the exact-source navigation pipeline');
+    expect(find.byKey(const ValueKey('reader-compact-transport')), findsNothing,
+        reason: 'Go does not exit focus mode or start narration');
+    expect(find.byKey(const ValueKey('reader-focus-progress')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('focus and advanced panels never persist an idle relayout',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 780));
