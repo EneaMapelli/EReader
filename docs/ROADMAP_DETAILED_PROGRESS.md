@@ -1867,3 +1867,23 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - **Source/tests committed, not executed.** Flutter analyzer and
   real-device/Windows native-file-lock checks remain pending. No
   GitHub Actions or Windows builds triggered; PR #1 stays draft.
+
+### 2026-11-02 — Local VITS WAV native Stop/Dispose ownership recovery
+
+- Audited the Sherpa VITS one-ahead WAV preload and output lifecycle after
+  improving cached MP3 Stop-before-delete. Fixed the symmetric WAV case:
+  a ready preloaded WAV was previously deleted after `_output.stop()`
+  failed, although native decoder handles could still be open.
+- Introduced narrowly scoped, per-engine `_decoderHeldStaging` ownership:
+  failed decoder Play, canceled/failed attempted native preload, and
+  failed Stop defer WAV deletion until a confirmed Stop or Dispose.
+  A failed native Dispose leaves a marked OS-leased private session for
+  guarded next-process recovery instead of deleting an unconfirmed
+  native audio handle.
+- Added deterministic mocked failure tests for prepared WAV Stop errors,
+  late canceled native warm preload, output Play errors and failed
+  Dispose recovery, in `test/audio/sherpa_vits_engine_test.dart`.
+  Detailed contract: [TTS_VITS_WAV_STOP_RECOVERY.md](TTS_VITS_WAV_STOP_RECOVERY.md).
+- **Source changes and tests authored, not executed.** Flutter and
+  Windows/Android native verification remain pending; GitHub Actions
+  and Windows builds were not started, PR #1 remains draft.
