@@ -71,6 +71,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('compact navigation survives enlarged text and narrow width',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 620));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: const TextScaler.linear(2),
+        ),
+        child: child!,
+      ),
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-quick-navigation')), findsOneWidget);
+    expect(find.byKey(const ValueKey('reader-tools-menu')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('reader-quick-navigation')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('organized-action-search')), findsOneWidget);
+    expect(find.byKey(const ValueKey('organized-action-bookmarks')),
+        findsOneWidget);
+    expect(tester.takeException(), isNull,
+        reason: 'Large fonts must not overflow AppBar or the small sheet');
+  });
+
   testWidgets('wide AppBar keeps direct search rather than duplicate nav',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(740, 680));
