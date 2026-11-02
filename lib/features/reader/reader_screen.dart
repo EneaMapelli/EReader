@@ -1243,11 +1243,11 @@ class _ReaderScreenState extends State<ReaderScreen>
           startOffset: _directorySourceOffset(player));
       if (!mounted || _player != player || _document != document ||
           hit == null) return;
-      // A search hit is an immutable original-source UTF-16 span.
-      // Highlighting must never rewrite reading anchors or start TTS.
-      setState(() => _selectedSourceSearchHit = hit);
+      // The result must not replace a previous highlight unless the
+      // source-exact seek and its durable checkpoint both succeed.
+      // A cancelled or superseded search leaves the UI untouched.
       _navigateToSourceOffset(hit.start,
-          remember: false, preserveSearchHighlight: true);
+          remember: false, searchMatch: hit);
       return;
     }
     final result = await showBookSearch(context, player.segments);
@@ -1452,7 +1452,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   /// arbitrary URLs. A return position is recorded after a successful seek.
   void _navigateToSourceOffset(int sourceOffset, {
     required bool remember,
-    bool preserveSearchHighlight = false,
+    BookSourceMatch? searchMatch,
     String? visualSpineIdref,
     VoidCallback? onCommitted,
   }) {
@@ -1489,7 +1489,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       var committed = false;
       await _select(index, visualSourceOffset: sourceOffset,
           visualSpineIdref: visualSpineIdref,
-          preserveSearchHighlight: preserveSearchHighlight,
+          committedSearchMatch: searchMatch,
           onCommitted: () {
             committed = true;
             onCommitted?.call();
@@ -1603,7 +1603,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   Future<void> _select(int index, {
     int? visualSourceOffset,
     String? visualSpineIdref,
-    bool preserveSearchHighlight = false,
+    BookSourceMatch? committedSearchMatch,
     VoidCallback? onCommitted,
   }) async {
     final player = _player;
@@ -1613,8 +1613,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         index == player?.segments.length;
     if (player == null || index < 0 ||
         (index >= player.segments.length && !visualOnlyEnd)) return;
-    // Navigating elsewhere clears a previous search-result highlight.
-    if (!preserveSearchHighlight) _selectedSourceSearchHit = null;
+    // Preserve the current highlight until the seek actually commits.
     // A prior scroll debounce must never overwrite this explicit seek
     // or a source-exact bookmark/search hit after the next frame.
     _cancelPendingVisualSave();
@@ -1653,6 +1652,11 @@ class _ReaderScreenState extends State<ReaderScreen>
         selection != _selectionRevision ||
         player.currentIndex != index ||
         player.intendedNavigationIndex != index) return;
+    // An explicit, durable source selection supersedes merely browsing
+    // elsewhere. Reattach temporary follow only at this winning commit.
+    // The user's explicit Follow narration OFF setting remains unchanged.
+    _narrationFollow.onCommittedNavigation();
+    _selectedSourceSearchHit = committedSearchMatch;
     _selectedVisualSpineIdref = visualSpineIdref;
     _visiblePositionIndex = player.segments.isEmpty ? null
         : index.clamp(0, player.segments.length - 1).toInt();
@@ -1676,11 +1680,12 @@ class _ReaderScreenState extends State<ReaderScreen>
       _lastFollowedIndex = visualIndex;
       _itemScrollController.jumpTo(index: visualIndex, alignment: 0.12);
     }
-    if (mounted && _player == player &&
-        widget.book.format == BookFormat.epub) {
-      // A programmatic jump may not emit a new visible-item notification:
-      // update the chapter and publisher directory indicator explicitly.
+    if (mounted && _player == player) {
+      // Also refresh TXT/PDF, since temporary follow and the status chip
+      // can change after an explicit seek on any readable text format.
+      // The source-exact EPUB highlight and TOC must refresh immediately.
       setState(() {});
+      _visualProgressTick.value++;
     }
     // Called only after a winning source seek, durable checkpoint, and
     // visual selection. A canceled/superseded seek has no return history.
