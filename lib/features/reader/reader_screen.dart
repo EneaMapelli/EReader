@@ -2043,6 +2043,8 @@ class _ReaderScreenState extends State<ReaderScreen>
   }) async {
     final player = _player;
     final document = _document;
+    final bookId = widget.book.id;
+    final loadEpoch = _loadEpoch;
     if (!mounted || _loading || _error != null ||
         player == null || player.segments.isEmpty ||
         document == null || document.text.isEmpty ||
@@ -2068,6 +2070,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       fieldLabel: withinSection ? 'Section position' : 'Book position',
     );
     if (!mounted || target == null || _loading || _error != null ||
+        widget.book.id != bookId || _loadEpoch != loadEpoch ||
         _player != player || _document != document ||
         (widget.book.format == BookFormat.pdf && !_pdfTextMode) ||
         (withinSection && _currentDirectoryIndex != sectionIndex)) return;
