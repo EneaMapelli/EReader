@@ -874,6 +874,12 @@ class _ReaderScreenState extends State<ReaderScreen>
       // Coalesce successive gesture notifications into one safe UI frame.
       _scheduleReaderVisualRefresh();
     }
+    if (_player?.isPlaying == true && !_narrationFollow.shouldAutoFollow) {
+      // A verified user gesture supersedes a pending EPUB restore target.
+      // Otherwise its five-second grace window can hide the new visible
+      // paragraph from the cursor even though the list really moved.
+      _visualCheckpoint.clear();
+    }
   }
 
   /// Reattach visually to the current utterance. The viewport write gate
