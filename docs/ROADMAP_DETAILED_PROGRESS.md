@@ -2104,3 +2104,30 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   [READER_EPUB_CHAPTER_RETURN.md](READER_EPUB_CHAPTER_RETURN.md).
 - Flutter analyzer/widget/integration tests **not executed**.
   No Windows builds or GitHub Actions launched; PR #1 remains draft.
+
+### 2026-11-03 — Bounded consultable EPUB chapter visit history
+
+- Replaced the single EPUB chapter-return pointer with a **20-entry
+  session-only stack** of successfully committed pre-switch reading
+  locations. The existing **Return before chapter change** now pops
+  the most recent entry while keeping older visits available.
+- Added **Recent chapter positions** (Reader tools and compact Quick
+  navigation) once two or more chapter origins exist. A newest-first,
+  scrollable sheet shows publisher/OPF titles, ordinal and whole-book
+  source percentage. Selecting an older visit returns to its exact
+  canonical source offset and discards that visit plus more recent
+  entries; older entries remain.
+- Preserved illustrated OPF spine identity and the existing native
+  stop/seek, latest-wins selection and SQLite checkpoint barriers.
+  The history is updated/consumed **only after successful commits**,
+  with object identity and revision checks against stale sheet
+  selections and asynchronous returns. History clears on book reload
+  and does not interfere with percentage/link return channels.
+- Added pure stack tests (ordering, 20-element cap, older visit
+  selection, stale revisions, no-op and silent spines), a new
+  history-sheet widget test (including 320px / 200% scaling), menu
+  gating checks, and EPUB3 two-chapter integration coverage for
+  three chapter switches, cancellation and oldest-origin return.
+  See [READER_CHAPTER_VISIT_HISTORY.md](READER_CHAPTER_VISIT_HISTORY.md).
+- Flutter analyzer/widget/integration tests **not executed**. No
+  Windows build or GitHub Actions triggered. PR #1 remains draft.
