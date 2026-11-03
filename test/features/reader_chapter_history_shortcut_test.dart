@@ -6,10 +6,14 @@ Widget host({
   VoidCallback? back,
   VoidCallback? forward,
   VoidCallback? recent,
+  int? historyRevision,
+  int Function()? currentHistoryRevision,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(child: ReaderChapterHistoryShortcut(
       onBack: back, onForward: forward, onRecent: recent,
+      historyRevision: historyRevision,
+      currentHistoryRevision: currentHistoryRevision,
     )),
   ),
 );
@@ -116,6 +120,80 @@ void main() {
         const ValueKey('reader-chapter-shortcut-recent')));
     await tester.pumpAndSettle();
     expect(opened, 1);
+  });
+
+  testWidgets('popup refuses outdated Back Forward and Recent after history changes',
+      (tester) async {
+    var currentRevision = 7;
+    var backs = 0;
+    var forwards = 0;
+    var recents = 0;
+    Widget buildHost() => host(
+      back: () => backs++,
+      forward: () => forwards++,
+      recent: () => recents++,
+      historyRevision: currentRevision,
+      currentHistoryRevision: () => currentRevision,
+    );
+    final shortcut = find.byKey(
+        const ValueKey('reader-chapter-history-shortcut'));
+    for (final key in [
+      'reader-chapter-shortcut-back',
+      'reader-chapter-shortcut-forward',
+      'reader-chapter-shortcut-recent',
+    ]) {
+      await tester.pumpWidget(buildHost());
+      await tester.tap(shortcut);
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey(key)), findsOneWidget);
+      // Simulates another committed chapter jump while the popup is
+      // still displayed. The displayed menu belongs to revision N.
+      currentRevision++;
+      await tester.tap(find.byKey(ValueKey(key)));
+      await tester.pumpAndSettle();
+      expect([backs, forwards, recents], [0, 0, 0],
+          reason: 'A stale open menu may not retarget another visit');
+    }
+
+    // Opening a NEW menu for the new revision must work normally.
+    await tester.pumpWidget(buildHost());
+    await tester.tap(shortcut);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-shortcut-back')));
+    await tester.pumpAndSettle();
+    expect([backs, forwards, recents], [1, 0, 0]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('shortcut cannot select stale history after parent rebuild',
+      (tester) async {
+    var liveRevision = 1;
+    var actions = 0;
+    Widget screen(int displayedRevision) => host(
+      back: () => actions++,
+      historyRevision: displayedRevision,
+      currentHistoryRevision: () => liveRevision,
+    );
+    final shortcut = find.byKey(
+        const ValueKey('reader-chapter-history-shortcut'));
+    await tester.pumpWidget(screen(1));
+    await tester.tap(shortcut);
+    await tester.pumpAndSettle();
+    liveRevision = 2;
+    await tester.pumpWidget(screen(2));
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-shortcut-back')));
+    await tester.pumpAndSettle();
+    expect(actions, 0,
+        reason: 'Rebuilding beneath a menu cannot change its origin');
+
+    await tester.tap(shortcut);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-shortcut-back')));
+    await tester.pumpAndSettle();
+    expect(actions, 1);
   });
 
   testWidgets('320px 200 percent text shows accessible history menu',
