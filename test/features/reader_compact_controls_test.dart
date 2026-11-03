@@ -15,6 +15,8 @@ Widget _host({
   int? sectionCount,
   int? sectionProgressPercent,
   VoidCallback? onOpenSections,
+  VoidCallback? onPreviousSection,
+  VoidCallback? onNextSection,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -32,6 +34,8 @@ Widget _host({
                 sectionCount: sectionCount,
                 sectionProgressPercent: sectionProgressPercent,
                 onOpenSections: onOpenSections,
+                onPreviousSection: onPreviousSection,
+                onNextSection: onNextSection,
                 onPrevious: onPrevious,
                 onPlayPause: onPlayPause,
                 onNext: onNext,
@@ -93,6 +97,73 @@ void main() {
     await tester.tap(chapter);
     expect([opened, played, skipped], [1, 0, 0],
         reason: 'Opening the TOC cannot start or seek speech');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('chapter arrows switch sections without using TTS transport',
+      (tester) async {
+    var chapterPrevious = 0;
+    var chapterNext = 0;
+    var audioPrevious = 0;
+    var audioNext = 0;
+    var directory = 0;
+    await tester.pumpWidget(_host(
+      onPrevious: () => audioPrevious++,
+      onPlayPause: () {},
+      onNext: () => audioNext++,
+      onExpand: () {},
+      sectionLabel: 'Chapter Two',
+      sectionIndex: 1,
+      sectionCount: 3,
+      onOpenSections: () => directory++,
+      onPreviousSection: () => chapterPrevious++,
+      onNextSection: () => chapterNext++,
+    ));
+    final prev = find.byKey(
+        const ValueKey('reader-compact-previous-section'));
+    final next = find.byKey(
+        const ValueKey('reader-compact-next-section'));
+    expect(prev, findsOneWidget);
+    expect(next, findsOneWidget);
+    expect(find.byTooltip('Previous EPUB section'), findsOneWidget);
+    expect(find.byTooltip('Next EPUB section'), findsOneWidget);
+    await tester.tap(prev);
+    await tester.tap(next);
+    expect([chapterPrevious, chapterNext], [1, 1]);
+    expect([audioPrevious, audioNext, directory], [0, 0, 0],
+        reason: 'Chapter navigation never sends transport skip callbacks');
+    await tester.tap(find.byKey(
+        const ValueKey('reader-compact-current-section')));
+    expect(directory, 1);
+    expect([audioPrevious, audioNext], [0, 0]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('chapter arrows disable at source boundaries',
+      (tester) async {
+    void noop() {}
+    Future<void> build(int index, {VoidCallback? previous,
+        VoidCallback? next}) => tester.pumpWidget(_host(
+      onPrevious: noop, onPlayPause: noop,
+      onNext: noop, onExpand: noop,
+      sectionLabel: 'Current',
+      sectionIndex: index, sectionCount: 2,
+      onOpenSections: noop,
+      onPreviousSection: previous, onNextSection: next,
+    ));
+    await build(0, next: noop);
+    final previousButton = find.byKey(
+        const ValueKey('reader-compact-previous-section'));
+    final nextButton = find.byKey(
+        const ValueKey('reader-compact-next-section'));
+    expect(tester.widget<IconButton>(previousButton).onPressed, isNull);
+    expect(tester.widget<IconButton>(nextButton).onPressed, isNotNull);
+    await build(1, previous: noop);
+    expect(tester.widget<IconButton>(previousButton).onPressed, isNotNull);
+    expect(tester.widget<IconButton>(nextButton).onPressed, isNull);
+    await build(0);
+    expect(tester.widget<IconButton>(previousButton).onPressed, isNull);
+    expect(tester.widget<IconButton>(nextButton).onPressed, isNull);
     expect(tester.takeException(), isNull);
   });
 
@@ -225,6 +296,8 @@ void main() {
             sectionIndex: 999,
             sectionCount: 1200,
             onOpenSections: noop,
+            onPreviousSection: noop,
+            onNextSection: noop,
             isPlaying: false,
             onPrevious: noop,
             onPlayPause: noop,
