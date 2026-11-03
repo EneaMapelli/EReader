@@ -148,9 +148,87 @@ void main() {
     await openQuick();
     expect(find.byKey(const ValueKey('organized-action-chapter-history')),
         findsNothing,
-        reason: 'Returning to the oldest entry consumes it and newer visits');
+        reason: 'Returning to the oldest entry moves later visits to Forward');
     expect(find.byKey(const ValueKey('organized-action-return-to-section')),
         findsNothing);
+    // The forward path is chronological: first the prior second
+    // chapter, then first chapter, then the original current chapter.
+    for (final inSecondChapter in [true, false, true]) {
+      final nextVisited = find.byKey(
+          const ValueKey('organized-action-forward-to-section'));
+      await tester.scrollUntilVisible(
+          nextVisited, 160, scrollable: find.byType(Scrollable).last);
+      await tester.tap(nextVisited);
+      await tester.pumpAndSettle();
+      final offset = store.getBook(bookId)!.progressOffset;
+      if (inSecondChapter) {
+        expect(offset, greaterThanOrEqualTo(nextChapterStart));
+      } else {
+        expect(offset, lessThan(nextChapterStart));
+      }
+      await openQuick();
+    }
+    expect(find.byKey(
+        const ValueKey('organized-action-forward-to-section')),
+        findsNothing,
+        reason: 'Every successful Forward consumes one redo destination');
+    expect(find.byKey(const ValueKey('organized-action-return-to-section')),
+        findsOneWidget,
+        reason: 'Forward navigation preserves the backward trail');
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('new chapter branch invalidates forward after Back',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+    await tester.tap(find.byKey(
+        const ValueKey('reader-compact-next-section')));
+    await tester.pumpAndSettle();
+
+    Future<void> quick() async {
+      await tester.tap(find.byKey(
+          const ValueKey('reader-quick-navigation')));
+      await tester.pumpAndSettle();
+    }
+
+    await quick();
+    final back = find.byKey(
+        const ValueKey('organized-action-return-to-section'));
+    await tester.scrollUntilVisible(
+        back, 160, scrollable: find.byType(Scrollable).last);
+    await tester.tap(back);
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        lessThan(nextChapterStart));
+
+    await quick();
+    expect(find.byKey(
+        const ValueKey('organized-action-forward-to-section')),
+        findsOneWidget);
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+
+    // Explicitly choosing a new chapter is a fresh branch, not Forward.
+    await tester.tap(find.byKey(
+        const ValueKey('reader-compact-next-section')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+    await quick();
+    expect(find.byKey(
+        const ValueKey('organized-action-forward-to-section')),
+        findsNothing);
+    expect(find.byKey(
+        const ValueKey('organized-action-return-to-section')),
+        findsOneWidget);
     await tester.tapAt(const Offset(4, 4));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
