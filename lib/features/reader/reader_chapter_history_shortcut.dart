@@ -17,7 +17,11 @@ class ReaderChapterHistoryShortcut extends StatelessWidget {
   final VoidCallback? onRecent;
 
   @override
-  Widget build(BuildContext context) => PopupMenuButton<String>(
+  Widget build(BuildContext context) {
+    if (onBack == null && onForward == null && onRecent == null) {
+      return const SizedBox.shrink();
+    }
+    return PopupMenuButton<String>(
         key: const ValueKey('reader-chapter-history-shortcut'),
         tooltip: 'Chapter visit history: back, forward and recent positions',
         icon: const Icon(Icons.history),
@@ -67,4 +71,5 @@ class ReaderChapterHistoryShortcut extends StatelessWidget {
             ),
         ],
       );
+  }
 }
