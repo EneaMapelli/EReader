@@ -49,16 +49,42 @@ class _ReaderChapterVisitHistorySheet extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              title: const Text('Recent chapter positions'),
-              subtitle: Text(visits.length == 1
-                  ? '1 saved visit in this reading session'
-                  : '${visits.length} saved visits in this reading session'),
-              trailing: IconButton(
-                key: const ValueKey('reader-chapter-history-close'),
-                tooltip: 'Close chapter history',
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.of(context).pop(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Semantics(
+                          header: true,
+                          child: Text(
+                            'Recent chapter positions',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                        ),
+                        Text(
+                          visits.length == 1
+                              ? '1 saved visit in this reading session'
+                              : '${visits.length} saved visits in this reading session',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    key: const ValueKey('reader-chapter-history-close'),
+                    tooltip: 'Close chapter history',
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
               ),
             ),
             Flexible(
@@ -74,19 +100,36 @@ class _ReaderChapterVisitHistorySheet extends StatelessWidget {
                   );
                   final section = 'Section ${visit.sectionNumber} '
                       'of ${visit.sectionCount}';
-                  return ListTile(
-                    key: ValueKey('reader-chapter-history-entry-$index'),
-                    leading: const Icon(Icons.history),
-                    title: Text(
-                      visit.sectionTitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text('$section · $percent% of book'),
-                    trailing: const Icon(Icons.chevron_right),
-                    minVerticalPadding: 8,
+                  return Semantics(
+                    key: ValueKey(
+                        'reader-chapter-history-semantics-$index'),
+                    button: true,
+                    enabled: true,
+                    label: 'Return to ${visit.sectionTitle}. '
+                        '$section. $percent percent of book. '
+                        'Visit ${index + 1} of ${visits.length}, '
+                        'newest first',
                     onTap: () => Navigator.of(context).pop(visit),
-                    titleTextStyle: theme.textTheme.bodyLarge,
+                    child: ExcludeSemantics(
+                      child: ListTile(
+                        key: ValueKey('reader-chapter-history-entry-$index'),
+                        leading: const Icon(Icons.history),
+                        title: Text(
+                          visit.sectionTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          '$section · $percent% of book',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        minVerticalPadding: 8,
+                        onTap: () => Navigator.of(context).pop(visit),
+                        titleTextStyle: theme.textTheme.bodyLarge,
+                      ),
+                    ),
                   );
                 },
               ),
