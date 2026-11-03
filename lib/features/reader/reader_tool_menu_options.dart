@@ -21,6 +21,7 @@ class ReaderToolMenuAvailability {
     this.focusMode = false,
     this.hasProgressReturn = false,
     this.hasSectionReturn = false,
+    this.hasChapterHistory = false,
     this.hasSectionPosition = false,
   });
 
@@ -39,8 +40,10 @@ class ReaderToolMenuAvailability {
   final String paletteName;
   final bool focusMode;
   final bool hasProgressReturn;
-  /// Separate one-shot return after a committed EPUB chapter switch.
+  /// Latest committed EPUB chapter switch can be undone.
   final bool hasSectionReturn;
+  /// Multiple older committed chapter visits can be browsed.
+  final bool hasChapterHistory;
   /// A unique, nonempty original-source interval in the current EPUB section.
   final bool hasSectionPosition;
 }
@@ -86,7 +89,15 @@ List<OrganizedActionSection> buildReaderToolSections(
         id: 'return-to-section',
         title: 'Return before chapter change',
         icon: Icons.undo,
-        subtitle: 'Restore the exact location before the last EPUB section switch',
+        subtitle: 'Restore the exact position before the latest EPUB chapter switch',
+      ),
+    if (options.isEpub && options.hasContents &&
+        options.hasPlayableSegments && options.hasChapterHistory)
+      const OrganizedActionItem(
+        id: 'chapter-history',
+        title: 'Recent chapter positions',
+        icon: Icons.history,
+        subtitle: 'Return to an older position visited before changing chapters',
       ),
     if (options.textMode && options.hasPlayableSegments &&
         options.hasProgressReturn)
@@ -241,6 +252,7 @@ List<OrganizedActionSection> buildReaderQuickNavigationSections(
     'go-to-percent',
     'section-percent',
     'return-to-section',
+    'chapter-history',
     'pdf-bookmarks',
     'return-link',
     'return-to-percent',
