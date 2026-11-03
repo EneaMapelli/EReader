@@ -1246,7 +1246,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // a more recent chapter selection.
     final selection = _sourceSelectionGate.reserve();
     try {
-      _saveVisualPositionTimer?.cancel();
+      _cancelPendingVisualSave();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player ||
           !_sourceSelectionGate.isCurrent(selection)) return;
@@ -1361,7 +1361,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (widget.book.format == BookFormat.epub) {
       if (offset < 0 || offset > document.text.length) return;
       final selection = _sourceSelectionGate.reserve();
-      _saveVisualPositionTimer?.cancel();
+      _cancelPendingVisualSave();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player ||
           !_sourceSelectionGate.isCurrent(selection)) return;
@@ -1505,6 +1505,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // Reserve before _select so a late failed seek cannot display an
     // error after a newer chapter/segment command won.
     final selection = _sourceSelectionGate.reserve();
+    _cancelPendingVisualSave();
     try {
       if (target == player.segments.length) {
         final eof = widget.book.format == BookFormat.epub
@@ -1567,7 +1568,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       final selection = _sourceSelectionGate.reserve();
       issuedSelection = selection;
       issuedPlayer = player;
-      _saveVisualPositionTimer?.cancel();
+      _cancelPendingVisualSave();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player ||
           !_sourceSelectionGate.isCurrent(selection)) return;
@@ -1654,7 +1655,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       final selection = _sourceSelectionGate.reserve();
       issuedSelection = selection;
       issuedPlayer = player;
-      _saveVisualPositionTimer?.cancel();
+      _cancelPendingVisualSave();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player ||
           !_sourceSelectionGate.isCurrent(selection)) return;
@@ -1688,6 +1689,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       final selection = _sourceSelectionGate.reserve();
       issuedSelection = selection;
       issuedPlayer = player;
+      // Invalidate an already-queued viewport write before native Pause.
+      _cancelPendingVisualSave();
       // EPUB is an explicit reading-location selection, not permission
       // to re-synthesize a new paragraph while narration is active.
       // Also cancel any pending seek/voice auto-resume before seeking.
@@ -3041,6 +3044,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     Future<void> jump() async {
       final selection = _sourceSelectionGate.reserve();
       issuedSelection = selection;
+      _cancelPendingVisualSave();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player || _document != document ||
           !_sourceSelectionGate.isCurrent(selection)) return;
