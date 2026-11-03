@@ -49,7 +49,7 @@ void main() {
     )));
     final strip = tester.widget<ReaderFocusProgressStrip>(
       find.byType(ReaderFocusProgressStrip));
-    expect(strip.preferredSize.height, 80);
+    expect(strip.preferredSize.height, 92);
     expect(find.text('31%'), findsOneWidget,
         reason: 'Global position is not the section fraction');
     expect(find.text('The Hidden Valley'), findsOneWidget);
