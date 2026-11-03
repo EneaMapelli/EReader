@@ -132,13 +132,19 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (_closed || _closeFuture != null) return false;
     final pending = _pendingTransportStops;
     final revision = _transportBarrierRevision;
+    // Direct ReaderScreen navigation bypasses the handler's command epoch
+    // and Stop tracker. Preserve its revision as part of recovery identity.
+    final recoveryPlayer = _player;
+    final recoveryControl = recoveryPlayer?.narrationControlRevision;
     final confirmed = await pending;
     // Even an initially successful Stop can settle after a later
     // detach/attach or close. An obsolete recovery query must never
     // report ownership of a newly bound or already closed MediaSession.
     if (_closed || _closeFuture != null ||
         revision != _transportBarrierRevision ||
-        !identical(pending, _pendingTransportStops)) return false;
+        !identical(pending, _pendingTransportStops) ||
+        !identical(recoveryPlayer, _player) ||
+        recoveryPlayer?.narrationControlRevision != recoveryControl) return false;
     if (confirmed) return true;
     final unsafePlayers = _unsafeStopPlayers.toList(growable: false);
     if (unsafePlayers.isEmpty) return false;
@@ -157,8 +163,16 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (_closed || _closeFuture != null ||
         revision != _transportBarrierRevision ||
         !identical(pending, _pendingTransportStops) ||
+        !identical(recoveryPlayer, _player) ||
+        recoveryPlayer?.narrationControlRevision != recoveryControl ||
         unsafePlayers.any((player) => player.isPlaying ||
             player.nativeStopUnconfirmed)) return false;
+    // A direct Pause/Seek may be stopping the current book without
+    // touching the handler's transport barrier. Never re-arm while
+    // that current native engine is still transitioning or unsafe.
+    if (recoveryPlayer != null && !recoveryPlayer.isSettledIdle) {
+      return false;
+    }
     _unsafeStopPlayers.clear();
     _pendingTransportStops = Future<bool>.value(true);
     _transportStopUnsafe = false;
@@ -347,6 +361,9 @@ class ReaderMediaHandler extends BaseAudioHandler {
     // Two Play requests may both wait on cloud consent or native focus.
     // Only the most recent request may initiate a new playback session.
     final command = ++_commandEpoch;
+    // ReaderScreen can invoke ReaderPlayer.pause/seekTo directly, outside
+    // the handler. A newer direct command must also cancel this Play.
+    final control = player.narrationControlRevision;
 
     // Remote headset/lock-screen controls must honor the same per-book
     // consent gate as the in-reader Play button. Consent checks can take
@@ -360,11 +377,13 @@ class ReaderMediaHandler extends BaseAudioHandler {
       permitted = canStart == null || await canStart();
     } catch (_) {
       if (_closed || !identical(_player, player) ||
-          epoch != _bindingEpoch || command != _commandEpoch) return;
+          epoch != _bindingEpoch || command != _commandEpoch ||
+          player.narrationControlRevision != control) return;
       rethrow;
     }
     if (_closed || !identical(_player, player) ||
-        epoch != _bindingEpoch || command != _commandEpoch) return;
+        epoch != _bindingEpoch || command != _commandEpoch ||
+          player.narrationControlRevision != control) return;
     if (!permitted) {
       throw StateError('Cloud speech consent is not enabled for this book');
     }
@@ -372,11 +391,13 @@ class ReaderMediaHandler extends BaseAudioHandler {
     // may still be outstanding from an earlier attached book.
     final oldStopConfirmed = await _pendingTransportStops;
     if (_closed || !identical(_player, player) ||
-        epoch != _bindingEpoch || command != _commandEpoch) return;
+        epoch != _bindingEpoch || command != _commandEpoch ||
+          player.narrationControlRevision != control) return;
     if (!oldStopConfirmed) {
       final recovered = await tryRecoverAfterConfirmedNativeStops();
       if (_closed || !identical(_player, player) ||
-          epoch != _bindingEpoch || command != _commandEpoch) return;
+          epoch != _bindingEpoch || command != _commandEpoch ||
+          player.narrationControlRevision != control) return;
       if (!recovered) {
         throw StateError('Previous native speech Stop is unconfirmed. '
             'Try Play again after Stop completes; restart audio if it failed.');
@@ -390,11 +411,13 @@ class ReaderMediaHandler extends BaseAudioHandler {
       // book attachment. The obsolete request no longer owns this
       // MediaSession, and must not surface an unrelated failure.
       if (_closed || !identical(_player, player) ||
-          epoch != _bindingEpoch || command != _commandEpoch) return;
+          epoch != _bindingEpoch || command != _commandEpoch ||
+          player.narrationControlRevision != control) return;
       rethrow;
     }
     if (_closed || !identical(_player, player) ||
-        epoch != _bindingEpoch || command != _commandEpoch) return;
+        epoch != _bindingEpoch || command != _commandEpoch ||
+          player.narrationControlRevision != control) return;
     if (!focused) {
       throw StateError('Cannot obtain Android audio focus');
     }

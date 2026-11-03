@@ -1438,6 +1438,65 @@ void main() {
     player.dispose();
   });
 
+  test('direct reader Seek cancels remote Play while consent is pending',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final consentGate = Completer<bool>();
+    var focusClaims = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusClaims++;
+      return true;
+    });
+    handler.attach(player, bookId: 'book', title: 'Book',
+        canStart: () => consentGate.future);
+
+    final obsoletePlay = handler.play();
+    await player.seekTo(1);
+    expect(player.currentIndex, 1);
+    consentGate.complete(true);
+    await obsoletePlay;
+
+    expect(engine.spoken, isEmpty,
+        reason: 'Direct UI navigation supersedes pending lock-screen Play');
+    expect(focusClaims, 0);
+    expect(player.isSettledIdle, isTrue);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('direct reader Pause supersedes Play awaiting Android audio focus',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final focusGate = Completer<bool>();
+    var claims = 0;
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () {
+        claims++;
+        return focusGate.future;
+      },
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(player, bookId: 'book', title: 'Book');
+    final obsoletePlay = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(claims, 1);
+
+    await player.pause();
+    focusGate.complete(true);
+    await obsoletePlay;
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.spoken, isEmpty,
+        reason: 'Focus granted late cannot reverse a direct reader Pause');
+    expect(player.isPlaying, isFalse);
+    expect(releases, 1,
+        reason: 'Stale Android focus must be released once Pause settles');
+    await handler.close();
+    player.dispose();
+  });
+
   test('two Play requests waiting for cloud consent start speech once',
       () async {
     final engine = _FakeSpeechEngine();

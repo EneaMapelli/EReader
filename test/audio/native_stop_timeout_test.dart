@@ -607,6 +607,76 @@ void main() {
     currentPlayer.dispose();
   });
 
+  test('direct navigation invalidates recovery awaiting the old Stop',
+      () async {
+    final oldEngine = _HeldStopEngine();
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    oldEngine.stopGate = Completer<void>();
+
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    final obsoleteRecovery = handler.tryRecoverAfterConfirmedNativeStops();
+    await newPlayer.seekTo(1); // Direct reader action, not MediaSession.
+    oldEngine.stopGate!.complete();
+    expect(await obsoleteRecovery, isFalse,
+        reason: 'A new direct Seek invalidates an earlier recovery query');
+    expect(newEngine.spoken, isEmpty);
+    expect(newPlayer.currentIndex, 1);
+    expect(handler.ownsPlayer(newPlayer), isTrue);
+
+    await handler.play();
+    await _settle();
+    expect(newEngine.spoken, ['Second']);
+    await handler.pause();
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
+  test('active direct native Stop prevents premature recovery rearm',
+      () async {
+    final oldEngine = _HeldStopEngine();
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    oldEngine.stopGate = Completer<void>();
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+
+    await expectLater(handler.play(), throwsStateError);
+    oldEngine.stopGate!.complete();
+    await _settle();
+    expect(oldPlayer.nativeStopUnconfirmed, isFalse);
+    expect(handler.requiresFreshAudioSession, isTrue);
+
+    newEngine.stopGate = Completer<void>();
+    final directPause = newPlayer.pause();
+    expect(newPlayer.isSettledIdle, isFalse);
+    expect(await handler.tryRecoverAfterConfirmedNativeStops(), isFalse,
+        reason: 'The current book has its own native Stop still pending');
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(newEngine.spoken, isEmpty);
+
+    newEngine.stopGate!.complete();
+    await directPause;
+    await handler.play(); // Now both actual Stop acknowledgments exist.
+    await _settle();
+    expect(newEngine.spoken, ['First']);
+    expect(handler.requiresFreshAudioSession, isFalse);
+    await handler.pause();
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(

@@ -393,3 +393,37 @@ failure must re-lock controls, suppress new focus, and preserve the
 current book's metadata. The test code is authored but not executed;
 Dart analyzer, Flutter/native tests, builds and GitHub Actions
 remain deferred.
+
+## 2026-11-03 — direct reader actions invalidate pending MediaSession Play/recovery
+
+The Android handler tracks its own command/binding revisions, but a
+ReaderScreen may also issue `ReaderPlayer.seekTo()`, `pause()`, or
+another playback operation directly. Such an action changes the
+player's independent `narrationControlRevision` without incrementing
+the handler's command epoch. An earlier lock-screen Play waiting on
+consent or Android focus could therefore start speech *after* an
+explicit direct Pause/Seek.
+
+`ReaderMediaHandler.play()` now snapshots this additional player
+revision and rechecks it after all asynchronous consent, Stop-barrier,
+recovery and focus waits. When an intervening direct reader command
+wins, the earlier Play quietly exits rather than starting stale
+narration. Existing focus release remains serialized by the player
+state listener.
+
+Recovery probes now capture the bound player's identity and direct
+control revision, too. A direct Seek during an older Stop
+acknowledgment invalidates the obsolete recovery result. Before
+rearming a failed cross-book barrier, recovery additionally requires
+the *current* player to be settled idle; an in-flight direct native
+Stop must not be ignored merely because it never passed through
+the Android transport.
+
+Four new regression tests in
+`test/audio/reader_media_handler_test.dart` and
+`test/audio/native_stop_timeout_test.dart` cover direct Seek during
+cloud consent, direct Pause during Android focus acquisition, direct
+navigation during older recovery, and a direct native Stop while
+recovery is eligible. The code and tests are committed but have not
+been executed; Flutter/analyzer, device builds and GitHub Actions
+remain deferred until stabilization.
