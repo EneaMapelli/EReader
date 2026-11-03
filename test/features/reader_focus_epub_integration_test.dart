@@ -83,6 +83,66 @@ void main() {
     if (await home.exists()) await home.delete(recursive: true);
   });
 
+  testWidgets('chapter arrows use guarded EPUB positions in focus and compact modes',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+
+    final original = store.getBook(bookId)!.progressOffset;
+    await tester.tap(find.byKey(const ValueKey('reader-tools-menu')));
+    await tester.pumpAndSettle();
+    final focus = find.byKey(const ValueKey('organized-action-reading-focus'));
+    await tester.scrollUntilVisible(
+        focus, 160, scrollable: find.byType(Scrollable).last);
+    await tester.tap(focus);
+    await tester.pumpAndSettle();
+
+    final previous = find.byKey(
+        const ValueKey('reader-focus-previous-section'));
+    final next = find.byKey(const ValueKey('reader-focus-next-section'));
+    expect(tester.widget<IconButton>(previous).onPressed, isNull);
+    expect(tester.widget<IconButton>(next).onPressed, isNotNull);
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+    expect(tester.widget<Text>(find.byKey(
+        const ValueKey('reader-focus-section-number'))).data, '2/2');
+    expect(tester.widget<IconButton>(previous).onPressed, isNotNull);
+    expect(tester.widget<IconButton>(next).onPressed, isNull,
+        reason: 'Last EPUB section cannot advance past the book');
+
+    await tester.tap(previous);
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset, lessThan(nextChapterStart));
+    expect(tester.widget<IconButton>(previous).onPressed, isNull);
+    expect(find.byKey(const ValueKey('reader-compact-transport')), findsNothing,
+        reason: 'Section navigation never exits focus mode');
+
+    await tester.tap(find.byKey(const ValueKey('reader-focus-restore')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-focus-section')), findsNothing);
+    final compactPrevious = find.byKey(
+        const ValueKey('reader-compact-previous-section'));
+    final compactNext = find.byKey(
+        const ValueKey('reader-compact-next-section'));
+    expect(tester.widget<IconButton>(compactPrevious).onPressed, isNull);
+    expect(tester.widget<IconButton>(compactNext).onPressed, isNotNull);
+    await tester.tap(compactNext);
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+    expect(tester.widget<IconButton>(compactNext).onPressed, isNull);
+    expect(tester.widget<IconButton>(compactPrevious).onPressed, isNotNull);
+    expect(store.getBook(bookId)!.progressOffset, greaterThan(original));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('immersive EPUB header provides independent visual navigation',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 760));
