@@ -2304,6 +2304,12 @@ class _ReaderScreenState extends State<ReaderScreen>
     final openedLoadEpoch = _loadEpoch;
     final openedPlayer = _player;
     final openedDocument = _document;
+    // A sheet is a snapshot. Back/Forward and other returns must not
+    // silently retarget if audio, a remote command or another seek changes
+    // their history while the sheet is still open.
+    final openedChapterRevision = _chapterHistory.revision;
+    final openedProgressRevision = _progressReturn.revision;
+    final openedLinkReturn = _linkHistory.lastLocation;
     final epub = widget.book.format == BookFormat.epub;
     final pdf = widget.book.format == BookFormat.pdf;
     final textMode = !pdf || _pdfTextMode;
@@ -2344,6 +2350,15 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (!mounted || action == null || widget.book.id != openedBookId ||
         _loadEpoch != openedLoadEpoch ||
         _player != openedPlayer || _document != openedDocument) return;
+    if (!readerReturnToolActionIsCurrent(
+      action,
+      openedChapterRevision: openedChapterRevision,
+      currentChapterRevision: _chapterHistory.revision,
+      openedProgressRevision: openedProgressRevision,
+      currentProgressRevision: _progressReturn.revision,
+      openedLinkReturn: openedLinkReturn,
+      currentLinkReturn: _linkHistory.lastLocation,
+    )) return;
     switch (action) {
       case 'contents':
         await _openChapterDirectory();

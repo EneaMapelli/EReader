@@ -103,3 +103,33 @@ These tests are committed, **not run**.
 
 No automated tests, builds, or GitHub Actions have been launched.
 Keep PR #1 in draft until Flutter analyzer and native verification pass.
+
+## 2026-11-03 — stale return commands in open reader tool sheets
+
+A reader tools / compact Quick navigation sheet captured **visibility** for
+Back, Forward, recent chapter positions, percentage return and EPUB
+internal-link return at opening. Before this change, a remote media
+navigation or another committed selection could change one of those
+return channels while the sheet was open. Choosing its *old* menu row
+would then silently navigate to the **new** origin, even though that
+destination was not the one the user saw when opening the sheet.
+
+The reader now snapshots the two versioned chapter/percentage return
+revisions and the exact identity of the current EPUB link return object
+when a tools sheet opens. After dismissal/selection and the existing
+book/session/player guards, the selected action is checked against
+those snapshots. An obsolete return action exits **without** a Seek,
+checkpoint write, history consumption or narration start. Each return
+channel is checked independently, so a newer percent jump does not
+disable a still-current chapter Back action. Fresh destination actions
+(search, contents, Go, bookmarks) and settings stay available.
+
+This deliberately supplements, rather than replaces, the existing
+latest-intent gate: the latter already guards asynchronous Stop/Seek;
+the new check protects the **pre-navigation modal window**.
+
+Added pure regression scenarios in
+`test/features/reader_tool_menu_options_test.dart` for stale Back,
+Forward, recent history, percentage and link returns, identity-unequal
+link origins and cross-channel independence. Dart/Flutter tests are
+authored but **not run**; no build, Action or native acceptance performed.

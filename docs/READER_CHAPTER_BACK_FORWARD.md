@@ -12,6 +12,16 @@ labels for every saved visit. The existing navigation/back-stack
 semantics below remain unchanged. See
 [READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md](READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md).
 
+## Update · 2026-11-03: modal snapshot safety
+
+Reader tools and compact Quick navigation now check that a chapter
+Back/Forward/Recent history action still refers to the same history
+revision captured when the menu opened. A different committed chapter
+change while the sheet is open invalidates only the old return command;
+it cannot silently target the new Back/Forward entry. Percentage and
+EPUB-link returns have separate snapshot guards. See
+[READER_CONCURRENT_NAVIGATION.md](READER_CONCURRENT_NAVIGATION.md).
+
 ## Reading experience
 
 The reader now supports **both directions** through committed EPUB chapter

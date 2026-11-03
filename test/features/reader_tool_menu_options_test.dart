@@ -42,6 +42,83 @@ List<String> ids(List<OrganizedActionSection> sections) =>
       for (final item in section.items) item.id];
 
 void main() {
+  test('stale chapter return menu actions never retarget another visit', () {
+    for (final action in [
+      'return-to-section', 'forward-to-section', 'chapter-history',
+    ]) {
+      expect(readerReturnToolActionIsCurrent(
+        action,
+        openedChapterRevision: 7, currentChapterRevision: 7,
+        openedProgressRevision: 3, currentProgressRevision: 4,
+        openedLinkReturn: null, currentLinkReturn: null,
+      ), isTrue, reason: '$action must depend on chapter history only');
+      expect(readerReturnToolActionIsCurrent(
+        action,
+        openedChapterRevision: 7, currentChapterRevision: 8,
+        openedProgressRevision: 3, currentProgressRevision: 3,
+        openedLinkReturn: null, currentLinkReturn: null,
+      ), isFalse, reason: '$action must reject an outdated sheet snapshot');
+    }
+    // Cancel or unrelated appearance changes do not mutate that revision.
+    expect(readerReturnToolActionIsCurrent(
+      'chapter-history',
+      openedChapterRevision: 3, currentChapterRevision: 3,
+      openedProgressRevision: 1, currentProgressRevision: 9,
+      openedLinkReturn: null, currentLinkReturn: null,
+    ), isTrue);
+  });
+
+  test('percentage and link returns reject their own stale destinations', () {
+    final oldLink = Object();
+    final replacementLink = Object();
+    bool allowed(String action, {
+      int currentChapter = 4,
+      int currentProgress = 2,
+      Object? currentLink,
+    }) => readerReturnToolActionIsCurrent(
+      action,
+      openedChapterRevision: 4,
+      currentChapterRevision: currentChapter,
+      openedProgressRevision: 2,
+      currentProgressRevision: currentProgress,
+      openedLinkReturn: oldLink,
+      currentLinkReturn: currentLink,
+    );
+
+    expect(allowed('return-to-percent',
+        currentChapter: 5, currentLink: replacementLink), isTrue);
+    expect(allowed('return-to-percent', currentProgress: 3), isFalse);
+    expect(allowed('return-link',
+        currentChapter: 5, currentProgress: 3,
+        currentLink: oldLink), isTrue);
+    expect(allowed('return-link', currentLink: replacementLink), isFalse);
+    expect(allowed('return-link'), isFalse);
+    // Source offsets alone cannot identify a repeated visit to a link.
+    expect(readerReturnToolActionIsCurrent(
+      'return-link',
+      openedChapterRevision: 1, currentChapterRevision: 1,
+      openedProgressRevision: 1, currentProgressRevision: 1,
+      openedLinkReturn: null, currentLinkReturn: null,
+    ), isFalse);
+  });
+
+  test('fresh commands remain available despite unrelated navigation', () {
+    final marker = Object();
+    for (final action in [
+      'contents', 'first-section', 'last-section',
+      'search', 'bookmarks', 'go-to-percent', 'section-percent',
+      'appearance', 'auto-follow', 'keyboard-help',
+      'reading-focus', 'font-plus', 'speech',
+    ]) {
+      expect(readerReturnToolActionIsCurrent(
+        action,
+        openedChapterRevision: 1, currentChapterRevision: 99,
+        openedProgressRevision: 2, currentProgressRevision: 98,
+        openedLinkReturn: marker, currentLinkReturn: null,
+      ), isTrue, reason: 'Fresh action $action must not be canceled');
+    }
+  });
+
   test('Forward command appears only after an EPUB Back return', () {
     final returned = options(
       epub: true, toc: true, sectionReturn: true,

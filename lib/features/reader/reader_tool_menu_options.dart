@@ -51,6 +51,39 @@ class ReaderToolMenuAvailability {
   final bool hasSectionPosition;
 }
 
+/// Reader tool sheets display an availability snapshot that can outlive
+/// another committed navigation (including hardware/media navigation).
+/// Never apply a stale Back/Forward, percentage return or EPUB-link return
+/// to a DIFFERENT destination than the one offered when the sheet opened.
+///
+/// Revisions protect the two versioned return channels. EPUB link history
+/// instead uses object identity because equal source offsets can be distinct
+/// visits. Unrelated actions (new searches, TOC jumps, appearance) remain
+/// usable after an intervening navigation; they express a fresh user intent.
+bool readerReturnToolActionIsCurrent(
+  String action, {
+  required int openedChapterRevision,
+  required int currentChapterRevision,
+  required int openedProgressRevision,
+  required int currentProgressRevision,
+  required Object? openedLinkReturn,
+  required Object? currentLinkReturn,
+}) {
+  switch (action) {
+    case 'return-to-section':
+    case 'forward-to-section':
+    case 'chapter-history':
+      return openedChapterRevision == currentChapterRevision;
+    case 'return-to-percent':
+      return openedProgressRevision == currentProgressRevision;
+    case 'return-link':
+      return openedLinkReturn != null &&
+          identical(openedLinkReturn, currentLinkReturn);
+    default:
+      return true;
+  }
+}
+
 List<OrganizedActionSection> buildReaderToolSections(
     ReaderToolMenuAvailability options) => [
   OrganizedActionSection(title: 'Navigate & find', items: [
