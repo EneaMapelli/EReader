@@ -1233,8 +1233,10 @@ class _ReaderScreenState extends State<ReaderScreen>
     final player = _player;
     if (player == null || chapterIndex < 0 ||
         chapterIndex >= _chapters.length) return;
+    // Capture before Pause so an old native exception cannot surface over
+    // a more recent chapter selection.
+    final selection = _sourceSelectionGate.reserve();
     try {
-      final selection = _sourceSelectionGate.reserve();
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player ||
@@ -1246,7 +1248,8 @@ class _ReaderScreenState extends State<ReaderScreen>
           reservedSelection: selection,
           onCommitted: onCommitted);
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || _player != player ||
+          !_sourceSelectionGate.isCurrent(selection)) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Cannot change chapter: $error')),
       );
@@ -1516,6 +1519,10 @@ class _ReaderScreenState extends State<ReaderScreen>
     String? visualSpineIdref,
     VoidCallback? onCommitted,
   }) {
+    // Keep the originating intent for an asynchronous error callback:
+    // a superseded seek should not emit a stale navigation error.
+    int? issuedSelection;
+    ReaderPlayer? issuedPlayer;
     Future<void> navigate() async {
       final player = _player;
       final document = _document;
@@ -1541,6 +1548,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       final index = speechSourceDestinationIndexForOffset(
           player.segments, sourceOffset);
       final selection = _sourceSelectionGate.reserve();
+      issuedSelection = selection;
+      issuedPlayer = player;
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player ||
@@ -1569,7 +1578,9 @@ class _ReaderScreenState extends State<ReaderScreen>
       }
     }
     unawaited(navigate().catchError((Object error, StackTrace stack) {
-      if (!mounted) return;
+      if (!mounted || (issuedSelection != null &&
+          (_player != issuedPlayer ||
+           !_sourceSelectionGate.isCurrent(issuedSelection!)))) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Cannot open EPUB destination: $error')),
       );
