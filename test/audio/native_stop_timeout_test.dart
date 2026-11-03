@@ -311,6 +311,11 @@ void main() {
     expect(handler.ownsPlayer(newPlayer), isTrue,
         reason: 'Old Stop timeout does not remove new media metadata');
     expect(handler.mediaItem.value?.id, 'new');
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(handler.playbackState.value.processingState,
+        AudioProcessingState.error);
+    expect(handler.playbackState.value.controls, isEmpty,
+        reason: 'Never advertise playback while old native Stop is unsafe');
     expect(newEngine.spoken, isEmpty,
         reason: 'Never assume native silence after a Stop timeout');
     expect(focusRequests, 1,

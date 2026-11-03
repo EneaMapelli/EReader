@@ -70,13 +70,29 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // barrier across detach/attach; resetting it at book handoff could
   // allow two different speech engines to speak simultaneously.
   Future<bool> _pendingTransportStops = Future<bool>.value(true);
+  bool _transportStopUnsafe = false;
+
+  /// An earlier native Stop could not be confirmed. This handler cannot
+  /// safely start a replacement book; a fresh audio service is required,
+  /// not a retry of Play on the same uncertain native session.
+  bool get requiresFreshAudioSession => _transportStopUnsafe;
 
   void _trackNativeConfirmation(Future<bool> confirmation) {
     final earlier = _pendingTransportStops;
     // Never reset the cross-book fence at detach/attach: one failed
     // native Stop poisons this handler instance until recreated.
     _pendingTransportStops = Future.wait<bool>([earlier, confirmation])
-        .then((results) => results.every((confirmed) => confirmed));
+        .then((results) {
+      final confirmed = results.every((value) => value);
+      if (!confirmed && !_transportStopUnsafe) {
+        _transportStopUnsafe = true;
+        // A newly attached player may have no lastError, but that does
+        // not make the older speech engine safe. Reflect the shared
+        // transport failure in Android's lock-screen playback state.
+        _publish();
+      }
+      return confirmed;
+    });
   }
 
   void _trackTransportStop(Future<void> stopping) {
@@ -182,15 +198,21 @@ class ReaderMediaHandler extends BaseAudioHandler {
     }
 
     final completed = player.currentIndex >= player.segments.length;
+    final unsafeNativeStop =
+        _transportStopUnsafe || player.nativeStopUnconfirmed;
     playbackState.add(PlaybackState(
-      controls: [
+      // Do not advertise actionable Play/Skip buttons when native speech
+      // may still be audible. The user must restart the audio service
+      // rather than repeatedly triggering the same safety exception.
+      controls: unsafeNativeStop ? const [] : [
         MediaControl.skipToPrevious,
         player.isPlaying ? MediaControl.pause : MediaControl.play,
         MediaControl.skipToNext,
         MediaControl.stop,
       ],
-      androidCompactActionIndices: const [0, 1, 2],
-      processingState: player.lastError != null
+      androidCompactActionIndices:
+          unsafeNativeStop ? const [] : const [0, 1, 2],
+      processingState: unsafeNativeStop || player.lastError != null
           ? AudioProcessingState.error
           : completed
               ? AudioProcessingState.completed

@@ -277,3 +277,30 @@ The pre-existing stuck native Stop test in
 `test/audio/native_stop_timeout_test.dart` now asserts both callers
 join the bounded shutdown. Code/tests/docs authored only: no Dart
 analyzer, Flutter/native tests, builds or GitHub Actions executed.
+
+## 2026-11-03 — surface permanent native Stop lock in Android controls
+
+The cross-book native Stop barrier already prevented a replacement
+book from synthesizing after an old engine's failed or timed-out Stop.
+However, the newly attached book's `ReaderPlayer.lastError` was
+empty. Its MediaSession consequently advertised `ready` playback,
+including Play and Next/Previous buttons that could not succeed. This
+misrepresented an unsafe shared audio service as ready to play.
+
+`ReaderMediaHandler` now latches `requiresFreshAudioSession` if
+any observed Stop confirmation is false, publishes an Android
+`AudioProcessingState.error`, and suppresses compact transport
+buttons while unsafe. The prior book's media metadata can still be
+replaced safely; it is the **audio transport** that stays locked.
+A late confirmation of a previously failed handler operation does
+not automatically rearm it. Only a fresh, separately initialized
+audio service can recover, after ensuring the earlier native engine
+is actually stopped. The current player's own
+`nativeStopUnconfirmed` also disables transport while unsafe.
+
+One new deterministic media-handler test covers the failure-to-
+replacement-book state. Earlier delayed Stop-failure and
+Stop-timeout tests now verify the lock-screen error state and
+absence of misleading Play controls. Test code was authored and
+source patches checked, but Flutter tests, analyzer, native builds
+and GitHub Actions were not executed.

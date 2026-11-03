@@ -824,6 +824,41 @@ void main() {
     newPlayer.dispose();
   });
 
+  test('failed Stop does not advertise Play controls for replacement book',
+      () async {
+    final oldEngine = _FakeSpeechEngine();
+    final newEngine = _FakeSpeechEngine();
+    final oldPlayer = _reader(oldEngine);
+    final newPlayer = _reader(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _waitForSpoken(oldEngine, 1);
+    oldEngine.failStop = true;
+
+    await expectLater(handler.pause(), throwsStateError);
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    // Native failure propagation is asynchronous; allow its barrier to
+    // publish the error even after the new media binding is installed.
+    await Future<void>.delayed(Duration.zero);
+
+    expect(handler.ownsPlayer(newPlayer), isTrue);
+    expect(handler.mediaItem.value?.id, 'new');
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(handler.playbackState.value.processingState,
+        AudioProcessingState.error);
+    expect(handler.playbackState.value.controls, isEmpty,
+        reason: 'Do not offer a Play button that must fail closed');
+    expect(handler.playbackState.value.androidCompactActionIndices, isEmpty);
+    await expectLater(handler.play(), throwsStateError);
+    expect(newEngine.spoken, isEmpty);
+
+    oldEngine.failStop = false;
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
   test('failed old native Stop blocks playback in replacement book',
       () async {
     final oldEngine = _FakeSpeechEngine();
@@ -944,9 +979,12 @@ void main() {
 
     expect(handler.ownsPlayer(newPlayer), isTrue);
     expect(handler.mediaItem.value?.id, 'new');
+    expect(handler.requiresFreshAudioSession, isTrue,
+        reason: 'Old native Stop failure makes the shared handler unsafe');
     expect(handler.playbackState.value.processingState,
-        AudioProcessingState.ready,
-        reason: 'Old speech failure must not poison a new player');
+        AudioProcessingState.error,
+        reason: 'New book metadata stays, but transport must show unsafe Stop');
+    expect(handler.playbackState.value.controls, isEmpty);
     oldEngine.failStop = false;
     await handler.close();
     oldPlayer.dispose();
