@@ -304,3 +304,40 @@ Stop-timeout tests now verify the lock-screen error state and
 absence of misleading Play controls. Test code was authored and
 source patches checked, but Flutter tests, analyzer, native builds
 and GitHub Actions were not executed.
+
+## 2026-11-03 — explicit recovery after a late confirmed native Stop
+
+A native Stop timeout is a bounded wait, **not** proof of silence.
+Previously the handler latched every expired cross-book Stop barrier
+permanently, so a platform that finally acknowledged its old Stop
+could not resume audio in a new book without recreating the Android
+audio service. That was unnecessarily restrictive for a **late,
+successful** Stop, while genuine errors still require fail-closed
+handling.
+
+The handler now retains the precise `ReaderPlayer` instances whose
+Stop/Seek/transport operation could not be confirmed. On a **new
+explicit Play request**, `tryRecoverAfterConfirmedNativeStops()`
+rechecks each affected player's actual native Stop Future through its
+bounded confirmation accessor. Recovery is allowed only when every
+recorded engine is no longer playing, has no pending/unconfirmed
+Stop, and no new media Stop or book attachment has invalidated the
+inspection. The handler then rearms its cross-book barrier, republishes
+the media controls and proceeds with the user's Play. A genuine
+native Stop failure never passes the confirmation check. Neither a
+focus-gain event nor a late native callback automatically starts TTS.
+
+The unsafe-player set retains only sessions that failed their
+original Stop barrier, avoiding retention of every successfully
+closed book. The previous `requiresFreshAudioSession` flag still
+means the current handler is unsafe *until an explicit successful
+recovery*; if recovery fails, the lock-screen error state and disabled
+controls are preserved.
+
+Two tests in `test/audio/native_stop_timeout_test.dart` simulate
+a timeout followed by a late positive acknowledgment and an
+irreversible native Stop exception. They verify there is no automatic
+speech or audio-focus acquisition, that an explicit retry can safely
+resume the new book, and that native errors cannot bypass the lock.
+Source patches verified; Dart/Flutter test suites, analyzer,
+Android/Windows builds and GitHub Actions not run.

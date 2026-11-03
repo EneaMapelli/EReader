@@ -71,36 +71,77 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // allow two different speech engines to speak simultaneously.
   Future<bool> _pendingTransportStops = Future<bool>.value(true);
   bool _transportStopUnsafe = false;
+  // Remember only players whose Stop fences failed. A confirmed Stop
+  // requires no retained reference to a book that has already closed.
+  final Set<ReaderPlayer> _unsafeStopPlayers = {};
+  int _transportBarrierRevision = 0;
 
-  /// An earlier native Stop could not be confirmed. This handler cannot
-  /// safely start a replacement book; a fresh audio service is required,
-  /// not a retry of Play on the same uncertain native session.
+  /// A previous Stop was not confirmed by its deadline. Recovery is
+  /// possible only after every affected native engine actually confirms
+  /// silence; a genuine native Stop failure stays locked.
   bool get requiresFreshAudioSession => _transportStopUnsafe;
 
-  void _trackNativeConfirmation(Future<bool> confirmation) {
+  void _trackNativeConfirmation(
+    Future<bool> confirmation, ReaderPlayer player,
+  ) {
+    _transportBarrierRevision++;
     final earlier = _pendingTransportStops;
-    // Never reset the cross-book fence at detach/attach: one failed
-    // native Stop poisons this handler instance until recreated.
+    // Retain the failing engine, not merely the combined failure state.
+    // The whole barrier stays fail-closed until a separate explicit
+    // recovery verifies every unresolved source player.
     _pendingTransportStops = Future.wait<bool>([earlier, confirmation])
         .then((results) {
+      if (!results[1]) _unsafeStopPlayers.add(player);
       final confirmed = results.every((value) => value);
       if (!confirmed && !_transportStopUnsafe) {
         _transportStopUnsafe = true;
-        // A newly attached player may have no lastError, but that does
-        // not make the older speech engine safe. Reflect the shared
-        // transport failure in Android's lock-screen playback state.
         _publish();
       }
       return confirmed;
     });
   }
 
-  void _trackTransportStop(Future<void> stopping) {
-    // Observe every Stop/Seek Future immediately. An old transport
-    // exception must not escape from the detached book's Future.
+  void _trackTransportStop(Future<void> stopping, ReaderPlayer player) {
+    // Consume the old operation's Future immediately, including storage
+    // or navigation failures. A failed operation can be rearmed only
+    // after the player's actual native Stop is separately confirmed.
     _trackNativeConfirmation(stopping.then<bool>(
       (_) => true, onError: (Object _, StackTrace __) => false,
-    ));
+    ), player);
+  }
+
+  /// Re-arm the same MediaSession only after a *late positive* Stop
+  /// acknowledgment from every engine that made the handoff unsafe.
+  /// Never interpret timeout, native exception, or missing acknowledgment
+  /// as silence. Called only in response to a new explicit Play request;
+  /// focus gain/interruption callbacks never initiate playback.
+  Future<bool> tryRecoverAfterConfirmedNativeStops() async {
+    if (_closed || _closeFuture != null) return false;
+    final pending = _pendingTransportStops;
+    final revision = _transportBarrierRevision;
+    if (await pending) return true;
+    if (_closed || _closeFuture != null ||
+        revision != _transportBarrierRevision ||
+        !identical(pending, _pendingTransportStops)) return false;
+    final unsafePlayers = _unsafeStopPlayers.toList(growable: false);
+    if (unsafePlayers.isEmpty) return false;
+    for (final player in unsafePlayers) {
+      if (player.isPlaying || !await player.waitForNativeStopConfirmation()) {
+        return false;
+      }
+    }
+    // A new Stop or book handoff while verifying old engines invalidates
+    // this recovery. Never clear a newer failure with an older success.
+    if (_closed || _closeFuture != null ||
+        revision != _transportBarrierRevision ||
+        !identical(pending, _pendingTransportStops) ||
+        unsafePlayers.any((player) => player.isPlaying ||
+            player.nativeStopUnconfirmed)) return false;
+    _unsafeStopPlayers.clear();
+    _pendingTransportStops = Future<bool>.value(true);
+    _transportStopUnsafe = false;
+    _publish();
+    return true;
   }
   // AudioSession may deliver several interruption/noisy callbacks for one
   // incident. Coalesce their Stop into one native operation per attached
@@ -154,9 +195,10 @@ class ReaderMediaHandler extends BaseAudioHandler {
       // audio focus to a new book. Also cancel a pending Seek's *latent*
       // auto-resume (isPlaying may already be false during native Stop).
       if (!outgoing.isSettledIdle) {
-        _trackTransportStop(outgoing.pause());
+        _trackTransportStop(outgoing.pause(), outgoing);
       }
-      _trackNativeConfirmation(outgoing.waitForNativeStopConfirmation());
+      _trackNativeConfirmation(
+          outgoing.waitForNativeStopConfirmation(), outgoing);
     }
     _bindingEpoch++;
     _commandEpoch++;
@@ -310,8 +352,13 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (_closed || !identical(_player, player) ||
         epoch != _bindingEpoch || command != _commandEpoch) return;
     if (!oldStopConfirmed) {
-      throw StateError('Previous native speech Stop was not confirmed; '
-          'reopen the audio session before playing another book');
+      final recovered = await tryRecoverAfterConfirmedNativeStops();
+      if (_closed || !identical(_player, player) ||
+          epoch != _bindingEpoch || command != _commandEpoch) return;
+      if (!recovered) {
+        throw StateError('Previous native speech Stop is unconfirmed. '
+            'Try Play again after Stop completes; restart audio if it failed.');
+      }
     }
     bool focused;
     try {
@@ -359,7 +406,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
       return;
     }
     final stopping = player.pause();
-    _trackTransportStop(stopping);
+    _trackTransportStop(stopping, player);
     try {
       await stopping;
     } finally {
@@ -428,7 +475,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     final moving = target == length
         ? player.seekToSourceEnd()
         : player.seekTo(target);
-    _trackTransportStop(moving);
+    _trackTransportStop(moving, player);
     // Seek increments its revision synchronously before the first await.
     // Capture that revision NOW so another press arriving during native
     // Stop adds a step rather than calculating from the stale cursor.

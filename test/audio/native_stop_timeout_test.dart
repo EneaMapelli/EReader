@@ -328,6 +328,91 @@ void main() {
     newPlayer.dispose();
   });
 
+  test('late confirmed native Stop recovers on explicit Play, not by itself',
+      () async {
+    final oldEngine = _HeldStopEngine();
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    var focusRequests = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusRequests++;
+      return true;
+    });
+    handler.attach(oldPlayer, bookId: 'old', title: 'Previous');
+    await handler.play();
+    await _settle();
+    expect(oldEngine.spoken, ['First']);
+    oldEngine.stopGate = Completer<void>();
+
+    // Outgoing Stop is still pending when the new reader attaches.
+    handler.attach(newPlayer, bookId: 'new', title: 'Current');
+    await expectLater(handler.play().timeout(const Duration(seconds: 1)),
+        throwsStateError);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(handler.playbackState.value.processingState,
+        AudioProcessingState.error);
+    expect(newEngine.spoken, isEmpty);
+    expect(focusRequests, 1);
+    expect(await handler.tryRecoverAfterConfirmedNativeStops(), isFalse,
+        reason: 'The old plugin has not acknowledged Stop yet');
+
+    // A late native confirmation is positive evidence of silence, but
+    // must NEVER automatically trigger Play or claim Android focus.
+    oldEngine.stopGate!.complete();
+    await _settle();
+    expect(await oldPlayer.waitForNativeStopConfirmation(), isTrue);
+    expect(newEngine.spoken, isEmpty);
+    expect(focusRequests, 1);
+
+    // A fresh user-requested Play is permitted to re-arm this handler
+    // after verifying the exact unsafe native engine's acknowledgment.
+    await handler.play();
+    await _settle();
+    expect(handler.requiresFreshAudioSession, isFalse);
+    expect(handler.mediaItem.value?.id, 'new');
+    expect(newEngine.spoken, ['First']);
+    expect(focusRequests, 2);
+    expect(handler.playbackState.value.playing, isTrue);
+    await handler.pause();
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
+  test('genuine native Stop failure cannot be rearmed on same handler',
+      () async {
+    final oldEngine = _HeldStopEngine()..throwOnStop = true;
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    var focusRequests = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusRequests++;
+      return true;
+    });
+    handler.attach(oldPlayer, bookId: 'old', title: 'Previous');
+    await handler.play();
+    await _settle();
+
+    handler.attach(newPlayer, bookId: 'new', title: 'Current');
+    await expectLater(handler.play(), throwsStateError);
+    expect(await handler.tryRecoverAfterConfirmedNativeStops(), isFalse);
+    // Fixing the underlying fake engine after a failed Stop does not
+    // rewrite the player's recorded native failure as confirmed silence.
+    oldEngine.throwOnStop = false;
+    expect(await handler.tryRecoverAfterConfirmedNativeStops(), isFalse);
+    await expectLater(handler.play(), throwsStateError);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(handler.playbackState.value.controls, isEmpty);
+    expect(newEngine.spoken, isEmpty);
+    expect(focusRequests, 1);
+
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(
