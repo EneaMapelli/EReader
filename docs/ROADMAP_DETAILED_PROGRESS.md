@@ -2024,3 +2024,30 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Flutter analyzer, widget runtime and native Windows/Android QA
   **not executed**. No Windows builds or GitHub Actions triggered;
   PR #1 stays draft.
+
+### 2026-11-03 — EPUB chapter context in immersive reader
+
+- Enhanced the existing focus AppBar with a 36px additional row only
+  for EPUBs with a navigable section. Shows the **visible** publisher
+  TOC / OPF chapter title and ordinal, with its own directory action.
+  When a section has uniquely identifiable UTF-16 boundaries, also
+  shows its **local** original-source percentage with an independent
+  Go-to-section action. The existing 44px **whole-book** progress and
+  global Go remain unchanged; TXT/PDF stay single-row.
+- Reused the visual progress notifier, existing chapter directory,
+  existing chapter-percent dialog and guarded source seek. Opening
+  a header control alone cannot pause or restart TTS, or overwrite a
+  persistent checkpoint. Ambiguous/illustrated-only EPUB sections
+  still expose directory access but no fabricated local percentage.
+- Added accessible labels/independent semantics for the three tap
+  targets. Expanded widget tests for action separation, absent
+  section, long names at 320px and 200% font scaling, and visual
+  percent updates without playback callbacks.
+- Added an EPUB3 ZIP integration fixture and reader test for entering
+  focus mode, opening/canceling the directory, canceling both Go
+  dialogs without SQLite writes, and a confirmed 75% section jump
+  remaining before the next chapter. See
+  [READER_FOCUS_SECTION_CONTEXT.md](READER_FOCUS_SECTION_CONTEXT.md).
+- **Not executed:** Flutter analyzer, widget/integration tests or
+  Android/Windows device verification. No Windows builds or GitHub
+  Actions launched; PR #1 remains draft.
