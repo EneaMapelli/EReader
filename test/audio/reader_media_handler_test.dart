@@ -969,6 +969,93 @@ void main() {
     player.dispose();
   });
 
+  test('obsolete cloud denial after replacement cannot error or block '
+      'the new media session', () async {
+    final oldEngine = _FakeSpeechEngine();
+    final newEngine = _FakeSpeechEngine();
+    final old = _reader(oldEngine);
+    final next = _reader(newEngine);
+    final gate = Completer<bool>();
+    var focusRequests = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusRequests++;
+      return true;
+    });
+    handler.attach(old, bookId: 'old-private', title: 'Previous',
+        canStart: () => gate.future);
+    final obsolete = handler.play();
+    handler.attach(next, bookId: 'next-book', title: 'Current');
+    await handler.play();
+    await _waitForSpoken(newEngine, 1);
+    gate.complete(false);
+    await obsolete;
+
+    expect(handler.mediaItem.value?.id, 'next-book');
+    expect(handler.ownsPlayer(next), isTrue);
+    expect(newEngine.spoken, ['First']);
+    expect(oldEngine.spoken, isEmpty);
+    expect(focusRequests, 1,
+        reason: 'Obsolete consent cannot start or focus the previous book');
+    await handler.pause();
+    await handler.close();
+    old.dispose();
+    next.dispose();
+  });
+
+  test('an earlier consent denial cannot fail a newer successful Play',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final firstConsent = Completer<bool>();
+    var calls = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book', canStart: () {
+      calls++;
+      return calls == 1
+          ? firstConsent.future : Future<bool>.value(true);
+    });
+    final old = handler.play();
+    await handler.play();
+    await _waitForSpoken(engine, 1);
+    firstConsent.complete(false);
+    await old;
+
+    expect(engine.spoken, ['First']);
+    expect(handler.playbackState.value.playing, isTrue);
+    await handler.pause();
+    await handler.close();
+    player.dispose();
+  });
+
+  test('a stale consent exception after Pause is ignored', () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final consent = Completer<bool>();
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book',
+        canStart: () => consent.future);
+    final pendingPlay = handler.play();
+    await handler.pause();
+    consent.completeError(StateError('old consent storage failed'));
+    await pendingPlay;
+
+    expect(engine.spoken, isEmpty);
+    expect(player.isPlaying, isFalse);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('current cloud consent exception is still surfaced', () async {
+    final player = _reader(_FakeSpeechEngine());
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book',
+        canStart: () async => throw StateError('consent storage failed'));
+    await expectLater(handler.play(), throwsStateError);
+    expect(player.isPlaying, isFalse);
+    await handler.close();
+    player.dispose();
+  });
+
   test('two Play requests waiting for cloud consent start speech once',
       () async {
     final engine = _FakeSpeechEngine();

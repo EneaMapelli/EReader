@@ -116,3 +116,27 @@ the old task-removal Future is outstanding. The new book must keep its
 media metadata and transport capability; no playback starts without
 an explicit subsequent Play. These tests have been authored but not
 run, consistent with the postponed Flutter/device test phase.
+
+## 2026-11-03 — suppress superseded asynchronous consent failures
+
+The Android MediaSession waits on a per-book speech-consent check
+before requesting audio focus or issuing Play. An old request could
+return `false` (or throw) after the reader had attached a different
+book, another Play was accepted, or an intervening Pause invalidated
+the request. Previously the old denial was reported *before* the
+binding/command freshness check, producing an unrelated consent error
+over the current session.
+
+`ReaderMediaHandler.play` now snapshots the consent callback and
+checks the original binding epoch, player identity, command epoch and
+closed state **before propagating a denial or callback exception**.
+Only a still-current Play may report cloud consent denial. An
+obsolete request performs no focus acquisition or speech dispatch
+and cannot alter the newer book's controls. Existing denials for
+the active book remain enforced.
+
+Four deterministic tests cover delayed denial after book replacement,
+an earlier denial following a newer successful Play, a late consent
+exception after Pause, and preservation of the current consent
+exception. Tests and documentation have been authored; Flutter tests,
+native builds, and GitHub Actions have not been run.

@@ -227,12 +227,25 @@ class ReaderMediaHandler extends BaseAudioHandler {
     final command = ++_commandEpoch;
 
     // Remote headset/lock-screen controls must honor the same per-book
-    // consent gate as the in-reader Play button.
-    if (_canStart != null && !await _canStart!()) {
-      throw StateError('Cloud speech consent is not enabled for this book');
+    // consent gate as the in-reader Play button. Consent checks can take
+    // time (e.g. disk/platform preferences). While they run, the user
+    // might pause, request a newer Play, or open another book. Do not
+    // report a stale denial/exception for a session that no longer owns
+    // the media controls.
+    final canStart = _canStart;
+    bool permitted;
+    try {
+      permitted = canStart == null || await canStart();
+    } catch (_) {
+      if (_closed || !identical(_player, player) ||
+          epoch != _bindingEpoch || command != _commandEpoch) return;
+      rethrow;
     }
     if (_closed || !identical(_player, player) ||
         epoch != _bindingEpoch || command != _commandEpoch) return;
+    if (!permitted) {
+      throw StateError('Cloud speech consent is not enabled for this book');
+    }
     if (!await _claimAudioFocus()) {
       if (_closed || !identical(_player, player) ||
           epoch != _bindingEpoch || command != _commandEpoch) return;
