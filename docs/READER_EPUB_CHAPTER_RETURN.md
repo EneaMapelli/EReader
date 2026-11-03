@@ -2,6 +2,20 @@
 
 Implemented on `feature/m0-flutter-foundation` · 2026-11-03 · draft PR #1.
 
+## Update · 2026-11-03: bounded chapter visit history
+
+The original one-shot chapter return described below is now backed by
+a **20-entry session-only back stack**, rather than a single
+`ReaderProgressReturnPoint`. The one-tap **Return before chapter change**
+continues to restore the most recent source location, but preserves any
+older chapter visits. The new **Recent chapter positions** sheet becomes
+available after two or more chapter switches and lets readers select
+an older saved location. See
+[READER_CHAPTER_VISIT_HISTORY.md](READER_CHAPTER_VISIT_HISTORY.md)
+for the current implementation, source identity and revision-safety
+details. The older references to `_sectionReturn` below describe
+the original milestone and are superseded by `_chapterHistory`.
+
 ## Reader workflow
 
 Selecting a different EPUB section now remembers the **exact source location
