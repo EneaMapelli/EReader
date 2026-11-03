@@ -2678,6 +2678,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                   ? _forwardToChapterVisit : null,
               onRecent: _chapterHistory.length > 1
                   ? () => unawaited(_openChapterVisitHistory()) : null,
+              historyRevision: _chapterHistory.revision,
+              currentHistoryRevision: () => _chapterHistory.revision,
             ),
           // Compact layouts have one dedicated navigation entry instead
           // of hiding search/contents/return deep inside all preferences.
@@ -3103,6 +3105,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                               _chapterHistory.length > 1
                           ? () => unawaited(_openChapterVisitHistory())
                           : null,
+                      historyRevision: _chapterHistory.revision,
+                      currentHistoryRevision: () => _chapterHistory.revision,
                       isPlaying: player.isPlaying,
                       sleepTimerActive: player.sleepTimerEndsAt != null,
                       onPrevious: () => unawaited(_move(-1)),
