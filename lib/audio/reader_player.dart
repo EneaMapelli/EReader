@@ -590,6 +590,25 @@ class ReaderPlayer extends ChangeNotifier {
   // Keep the physical native Stop queue independent from checkpoint/durable
   // position writes: those may take longer without proving audio is unsafe.
   Future<void> _pendingNativeStop = Future<void>.value();
+
+  /// The latest native Stop fence, readable by a media handler when this
+  /// player is detached. A direct UI Pause/Seek can start a native Stop
+  /// without passing through ReaderMediaHandler; a replacement book must
+  /// still wait for that old engine to confirm silence.
+  ///
+  /// The result is false after a failed or still-unconfirmed Stop, never
+  /// an unhandled Future error. An idle player with no Stop returns true.
+  Future<bool> waitForNativeStopConfirmation() async {
+    final stopping = _pendingNativeStop;
+    try {
+      await stopping;
+    } catch (_) {
+      return false;
+    }
+    return !_stopFailed && !nativeStopUnconfirmed &&
+        _pendingNativeStops == 0;
+  }
+
   Future<void> _pendingStop = Future<void>.value();
   Future<void> _pendingCompletion = Future<void>.value();
   Future<void> _pendingVoiceChange = Future<void>.value();

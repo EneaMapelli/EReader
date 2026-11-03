@@ -568,10 +568,9 @@ void main() {
     expect(handler.mediaItem.value?.id, 'new');
     expect(handler.ownsPlayer(next), isTrue);
     expect(newEngine.spoken, isEmpty);
-    await handler.play();
-    await _waitForSpoken(newEngine, 1);
-    expect(newEngine.spoken, ['First']);
-    await handler.pause();
+    await expectLater(handler.play(), throwsStateError);
+    expect(newEngine.spoken, isEmpty,
+        reason: 'An unconfirmed old native Stop blocks the new session');
     oldEngine.failStop = false;
     await handler.close();
     old.dispose();
@@ -658,6 +657,133 @@ void main() {
         reason: 'A late focus grant must be released exactly once');
     await handler.close();
     player.dispose();
+  });
+
+  test('direct reader Pause blocks the replacement book until native Stop',
+      () async {
+    final firstEngine = _FakeSpeechEngine();
+    final secondEngine = _FakeSpeechEngine();
+    final first = _reader(firstEngine);
+    final second = _reader(secondEngine);
+    var focusClaims = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusClaims++;
+      return true;
+    });
+    handler.attach(first, bookId: 'first', title: 'First book');
+    await handler.play();
+    await _waitForSpoken(firstEngine, 1);
+    expect(focusClaims, 1);
+
+    firstEngine.stopGate = Completer<void>();
+    // Pause is issued directly by ReaderScreen, bypassing the handler.
+    final directPause = first.pause();
+    handler.attach(second, bookId: 'second', title: 'Second book');
+    final newPlay = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(secondEngine.spoken, isEmpty);
+    expect(focusClaims, 1);
+
+    firstEngine.stopGate!.complete();
+    await Future.wait([directPause, newPlay]);
+    await _waitForSpoken(secondEngine, 1);
+    expect(secondEngine.spoken, ['First']);
+    expect(handler.mediaItem.value?.id, 'second');
+    await handler.pause();
+    await handler.close();
+    first.dispose();
+    second.dispose();
+  });
+
+  test('failed direct Pause cannot be bypassed by replacing the book',
+      () async {
+    final firstEngine = _FakeSpeechEngine();
+    final secondEngine = _FakeSpeechEngine();
+    final first = _reader(firstEngine);
+    final second = _reader(secondEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(first, bookId: 'first', title: 'First');
+    await handler.play();
+    await _waitForSpoken(firstEngine, 1);
+
+    firstEngine.stopGate = Completer<void>();
+    firstEngine.failStop = true;
+    final directPause = first.pause();
+    handler.attach(second, bookId: 'second', title: 'Second');
+    final attemptedPlay = handler.play();
+    firstEngine.stopGate!.complete();
+
+    await expectLater(directPause, throwsStateError);
+    await expectLater(attemptedPlay, throwsStateError);
+    expect(secondEngine.spoken, isEmpty);
+    expect(handler.ownsPlayer(second), isTrue);
+    expect(handler.mediaItem.value?.id, 'second');
+    firstEngine.failStop = false;
+    await handler.close();
+    first.dispose();
+    second.dispose();
+  });
+
+  test('replacing a playing book explicitly stops its previous engine',
+      () async {
+    final firstEngine = _FakeSpeechEngine();
+    final secondEngine = _FakeSpeechEngine();
+    final first = _reader(firstEngine);
+    final second = _reader(secondEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(first, bookId: 'first', title: 'First');
+    await handler.play();
+    await _waitForSpoken(firstEngine, 1);
+    firstEngine.stopGate = Completer<void>();
+
+    // No explicit Pause: replacing the media binding itself cancels
+    // the outgoing player's audio before the new book can speak.
+    handler.attach(second, bookId: 'second', title: 'Second');
+    expect(first.isPlaying, isFalse);
+    final nextPlay = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(secondEngine.spoken, isEmpty);
+
+    firstEngine.stopGate!.complete();
+    await nextPlay;
+    await _waitForSpoken(secondEngine, 1);
+    expect(secondEngine.spoken, ['First']);
+    await handler.pause();
+    await handler.close();
+    first.dispose();
+    second.dispose();
+  });
+
+  test('replacing a book cancels a pending direct Seek auto-resume',
+      () async {
+    final firstEngine = _FakeSpeechEngine();
+    final secondEngine = _FakeSpeechEngine();
+    final first = _reader(firstEngine);
+    final second = _reader(secondEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(first, bookId: 'first', title: 'First');
+    await handler.play();
+    await _waitForSpoken(firstEngine, 1);
+
+    firstEngine.stopGate = Completer<void>();
+    final pendingSeek = first.seekTo(1);
+    expect(first.isPlaying, isFalse,
+        reason: 'A native Stop can hide a latent Seek auto-resume');
+    handler.attach(second, bookId: 'second', title: 'Second');
+    final newPlay = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(secondEngine.spoken, isEmpty);
+
+    firstEngine.stopGate!.complete();
+    await Future.wait([pendingSeek, newPlay]);
+    await _waitForSpoken(secondEngine, 1);
+    expect(firstEngine.spoken, ['First'],
+        reason: 'Old reader cannot auto-resume after losing media ownership');
+    expect(secondEngine.spoken, ['First']);
+    await handler.pause();
+    await handler.close();
+    first.dispose();
+    second.dispose();
   });
 
   test('new book waits for previous native Stop before requesting focus',

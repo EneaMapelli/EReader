@@ -67,16 +67,20 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // allow two different speech engines to speak simultaneously.
   Future<bool> _pendingTransportStops = Future<bool>.value(true);
 
-  void _trackTransportStop(Future<void> stopping) {
+  void _trackNativeConfirmation(Future<bool> confirmation) {
     final earlier = _pendingTransportStops;
-    // Observe every Stop/Seek Future as soon as it is issued. Convert
-    // failures to a durable false result so no unhandled Future leaks
-    // from an obsolete media session. Unsafe failure stays fail-closed.
-    final current = stopping.then<bool>(
-      (_) => true, onError: (Object _, StackTrace __) => false,
-    );
-    _pendingTransportStops = Future.wait<bool>([earlier, current])
+    // Never reset the cross-book fence at detach/attach: one failed
+    // native Stop poisons this handler instance until recreated.
+    _pendingTransportStops = Future.wait<bool>([earlier, confirmation])
         .then((results) => results.every((confirmed) => confirmed));
+  }
+
+  void _trackTransportStop(Future<void> stopping) {
+    // Observe every Stop/Seek Future immediately. An old transport
+    // exception must not escape from the detached book's Future.
+    _trackNativeConfirmation(stopping.then<bool>(
+      (_) => true, onError: (Object _, StackTrace __) => false,
+    ));
   }
   // AudioSession may deliver several interruption/noisy callbacks for one
   // incident. Coalesce their Stop into one native operation per attached
@@ -123,6 +127,17 @@ class ReaderMediaHandler extends BaseAudioHandler {
 
   void detach([ReaderPlayer? expected]) {
     if (expected != null && !identical(expected, _player)) return;
+    final outgoing = _player;
+    if (outgoing != null) {
+      // The UI can call ReaderPlayer.pause/seekTo without going through
+      // this handler. Capture that in-flight native Stop before handing
+      // audio focus to a new book. Also cancel a pending Seek's *latent*
+      // auto-resume (isPlaying may already be false during native Stop).
+      if (!outgoing.isSettledIdle) {
+        _trackTransportStop(outgoing.pause());
+      }
+      _trackNativeConfirmation(outgoing.waitForNativeStopConfirmation());
+    }
     _bindingEpoch++;
     _commandEpoch++;
     _clearRemoteSkipIntent();
@@ -524,5 +539,8 @@ class ReaderMediaHandler extends BaseAudioHandler {
     await _interruption?.cancel();
     await _noisy?.cancel();
     await _focusOperation;
+    // A close initiated during narration must not report completion
+    // while the detached book's native Stop is still outstanding.
+    await _pendingTransportStops;
   }
 }

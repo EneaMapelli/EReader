@@ -195,3 +195,32 @@ covers operations issued through `ReaderMediaHandler`; direct
 `ReaderPlayer` shutdown outside the handler retains its own
 native Stop lifecycle. Flutter/device tests and GitHub Actions
 were not run.
+
+## 2026-11-03 — direct ReaderPlayer Stop and Seek at book handoff
+
+The existing cross-binding handler barrier only observed Pause and
+Next/Previous issued through Android MediaSession. A direct reader UI
+`ReaderPlayer.pause()` or `seekTo()` can initiate native Stop without
+passing through that transport. If a different book was attached while
+the old Stop was pending, its Play could start another speech engine.
+A pending direct Seek could also silently auto-resume the **old** book
+after the handler removed its media controls.
+
+`ReaderPlayer.waitForNativeStopConfirmation()` exposes a read-only,
+failure-consuming snapshot of its latest native Stop operation. A
+handler detachment now observes this fence and, unless the outgoing
+player is already settled idle, issues a final Pause to supersede any
+latent Seek auto-resume. The existing cross-book Stop barrier must
+settle before the replacement Play obtains focus or synthesizes audio.
+A failed native Stop leaves the handler fail-closed and a fresh
+handler instance is required. `ReaderMediaHandler.close()` now
+waits for detached native Stop settlement as well. Stale binding
+callbacks still cannot overwrite the new book's media metadata.
+
+Four new deterministic media-handler tests cover direct Pause with
+slow Stop, failed direct Pause, immediate book replacement during
+live narration, and replacement during a direct Seek's pending
+auto-resume. The earlier obsolete remote Seek-failure regression
+was aligned with the safety invariant: a new book must not Play
+after a failed old native Stop. No Flutter tests, analyzer, builds
+or GitHub Actions were run.
