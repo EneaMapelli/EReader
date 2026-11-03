@@ -27,6 +27,8 @@ class ReaderCompactControls extends StatelessWidget {
     this.onHistoryBack,
     this.onHistoryForward,
     this.onHistoryRecent,
+    this.historyRevision,
+    this.currentHistoryRevision,
   });
 
   final String segmentLabel;
@@ -49,6 +51,10 @@ class ReaderCompactControls extends StatelessWidget {
   final VoidCallback? onHistoryBack;
   final VoidCallback? onHistoryForward;
   final VoidCallback? onHistoryRecent;
+  /// The displayed revision and a live lookup reject outdated popup
+  /// actions if history changes while the user is choosing an option.
+  final int? historyRevision;
+  final int Function()? currentHistoryRevision;
   final VoidCallback onPrevious;
   final VoidCallback onPlayPause;
   final VoidCallback onNext;
@@ -159,6 +165,8 @@ class ReaderCompactControls extends StatelessWidget {
                   onBack: onHistoryBack,
                   onForward: onHistoryForward,
                   onRecent: onHistoryRecent,
+                  historyRevision: historyRevision,
+                  currentHistoryRevision: currentHistoryRevision,
                 ),
               IconButton(
                 key: const ValueKey('reader-expand-controls'),
