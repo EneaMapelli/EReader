@@ -92,7 +92,8 @@ List<OrganizedActionSection> buildReaderToolSections(
         subtitle: 'Restore the exact position before the latest EPUB chapter switch',
       ),
     if (options.isEpub && options.hasContents &&
-        options.hasPlayableSegments && options.hasChapterHistory)
+        options.hasPlayableSegments &&
+        options.hasSectionReturn && options.hasChapterHistory)
       const OrganizedActionItem(
         id: 'chapter-history',
         title: 'Recent chapter positions',
