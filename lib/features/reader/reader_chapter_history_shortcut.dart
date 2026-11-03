@@ -50,8 +50,7 @@ class _ReaderChapterHistoryShortcutState
         // hardware/media navigation can alter the live history while this
         // popup route is still awaiting the user's selection.
         onOpened: () {
-          _openedRevision = widget.currentHistoryRevision?.call() ??
-              widget.historyRevision;
+          _openedRevision = widget.historyRevision;
         },
         onSelected: (action) {
           if (!_stillCurrent) return;
