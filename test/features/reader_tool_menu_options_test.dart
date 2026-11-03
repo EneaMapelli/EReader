@@ -18,6 +18,7 @@ ReaderToolMenuAvailability options({
   bool progressReturn = false,
   bool sectionReturn = false,
   bool chapterHistory = false,
+  bool chapterForward = false,
   bool sectionPosition = false,
   String palette = 'system',
 }) => ReaderToolMenuAvailability(
@@ -31,6 +32,7 @@ ReaderToolMenuAvailability options({
   hasProgressReturn: progressReturn,
   hasSectionReturn: sectionReturn,
   hasChapterHistory: chapterHistory,
+  hasChapterForward: chapterForward,
   hasSectionPosition: sectionPosition,
   paletteName: palette,
 );
@@ -40,6 +42,39 @@ List<String> ids(List<OrganizedActionSection> sections) =>
       for (final item in section.items) item.id];
 
 void main() {
+  test('Forward command appears only after an EPUB Back return', () {
+    final returned = options(
+      epub: true, toc: true, sectionReturn: true,
+      chapterHistory: true, chapterForward: true,
+    );
+    final full = ids(buildReaderToolSections(returned));
+    final quick = ids(buildReaderQuickNavigationSections(returned));
+    expect(full, contains('forward-to-section'));
+    expect(quick, contains('forward-to-section'));
+    expect(quick.indexOf('forward-to-section'),
+        quick.indexOf('return-to-section') + 1);
+    expect(quick.toSet().length, quick.length);
+
+    for (final unavailable in [
+      options(),
+      options(chapterForward: true),
+      options(pdf: true, text: true, chapterForward: true),
+      options(epub: true, playable: false, toc: true,
+          chapterForward: true),
+      options(epub: true, toc: false, chapterForward: true),
+      options(epub: true, toc: true, chapterForward: false),
+    ]) {
+      expect(ids(buildReaderToolSections(unavailable)),
+          isNot(contains('forward-to-section')));
+      expect(ids(buildReaderQuickNavigationSections(unavailable)),
+          isNot(contains('forward-to-section')));
+    }
+    expect(ids(buildReaderQuickNavigationSections(options(
+      epub: true, toc: true, chapterForward: true))),
+      contains('forward-to-section'),
+      reason: 'Forward is available even when Back history is empty');
+  });
+
   test('multi-visit history is visible only for navigable EPUBs', () {
     final available = options(
       epub: true, toc: true, sectionReturn: true,
