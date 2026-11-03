@@ -2078,3 +2078,29 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - Flutter analyzer and widget/integration tests **not executed**
   in this environment. No Windows build or GitHub Actions
   started; PR #1 stays draft.
+
+### 2026-11-03 — One-shot return before EPUB chapter switch
+
+- Added a session-only **Return before chapter change** to both the
+  full reader tools and mobile Quick navigation menus. After a
+  committed EPUB chapter switch (compact/focus/advanced arrows,
+  keyboard, first/last section or directory selection), the user can
+  restore the exact preceding original-source position.
+- Reused a separate `ReaderProgressReturnPoint` instance with
+  revision-guarded consume. The visual source offset and any
+  illustrated-only OPF spine identity are captured before the
+  switch; the return point is recorded only by the winning
+  `_select(onCommitted)` after the persisted SQLite checkpoint.
+  Returning uses the existing guarded source navigation and consumes
+  the entry only after its own successful commit.
+- Chapter return, percentage Go return and EPUB footnote/link return
+  remain separate; canceled/no-op/failed or stale chapter movement
+  cannot replace a valid return entry. The chapter return clears
+  on book reload and is never persisted as a bookmark.
+- Added pure-state and menu-gating tests plus EPUB3 integration
+  scenarios: restore mid-chapter after a section switch while
+  preserving the independent percentage return, and return after
+  selecting a chapter from the TOC. See
+  [READER_EPUB_CHAPTER_RETURN.md](READER_EPUB_CHAPTER_RETURN.md).
+- Flutter analyzer/widget/integration tests **not executed**.
+  No Windows builds or GitHub Actions launched; PR #1 remains draft.
