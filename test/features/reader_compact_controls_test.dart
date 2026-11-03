@@ -17,6 +17,9 @@ Widget _host({
   VoidCallback? onOpenSections,
   VoidCallback? onPreviousSection,
   VoidCallback? onNextSection,
+  VoidCallback? onHistoryBack,
+  VoidCallback? onHistoryForward,
+  VoidCallback? onHistoryRecent,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -36,6 +39,9 @@ Widget _host({
                 onOpenSections: onOpenSections,
                 onPreviousSection: onPreviousSection,
                 onNextSection: onNextSection,
+                onHistoryBack: onHistoryBack,
+                onHistoryForward: onHistoryForward,
+                onHistoryRecent: onHistoryRecent,
                 onPrevious: onPrevious,
                 onPlayPause: onPlayPause,
                 onNext: onNext,
@@ -165,6 +171,68 @@ void main() {
     expect(tester.widget<IconButton>(previousButton).onPressed, isNull);
     expect(tester.widget<IconButton>(nextButton).onPressed, isNull);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('one compact history button calls source actions, not TTS',
+      (tester) async {
+    var back = 0;
+    var forward = 0;
+    var recent = 0;
+    var previousSegment = 0;
+    var nextSegment = 0;
+    await tester.pumpWidget(_host(
+      onPrevious: () => previousSegment++,
+      onPlayPause: () {},
+      onNext: () => nextSegment++,
+      onExpand: () {},
+      sectionLabel: 'Chapter Two', sectionIndex: 1,
+      sectionCount: 3, onOpenSections: () {},
+      onHistoryBack: () => back++,
+      onHistoryForward: () => forward++,
+      onHistoryRecent: () => recent++,
+    ));
+    final trigger = find.byKey(
+        const ValueKey('reader-chapter-history-shortcut'));
+    expect(trigger, findsOneWidget);
+    await tester.tap(trigger);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-shortcut-back')));
+    await tester.pumpAndSettle();
+    expect([back, forward, recent], [1, 0, 0]);
+    expect([previousSegment, nextSegment], [0, 0]);
+
+    await tester.tap(trigger);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-shortcut-forward')));
+    await tester.pumpAndSettle();
+    expect([back, forward, recent], [1, 1, 0]);
+    expect([previousSegment, nextSegment], [0, 0]);
+
+    await tester.tap(trigger);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-shortcut-recent')));
+    await tester.pumpAndSettle();
+    expect([back, forward, recent], [1, 1, 1]);
+    expect([previousSegment, nextSegment], [0, 0]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('no chapter history does not add any compact menu button',
+      (tester) async {
+    void noop() {}
+    await tester.pumpWidget(_host(
+      onPrevious: noop, onPlayPause: noop,
+      onNext: noop, onExpand: noop,
+      sectionLabel: 'Chapter One', sectionIndex: 0,
+      sectionCount: 2, onOpenSections: noop,
+    ));
+    expect(find.byKey(const ValueKey('reader-chapter-history-shortcut')),
+        findsNothing);
+    expect(find.byKey(const ValueKey('reader-compact-current-section')),
+        findsOneWidget);
   });
 
   testWidgets('chapter-local progress shows without changing narration',
