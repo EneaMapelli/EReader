@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../domain/reading_progress.dart';
 
-/// Minimal source-text position for immersion mode, when the normal
-/// narration panel (including its seek slider) is hidden.
+/// Source-text progress in immersive reading mode, separate from the
+/// narration clock and the active TTS segment.
 ///
-/// This reflects the reader's VISUAL source coordinate, not speech
-/// duration, cached audio bytes, or a guessed EPUB page number.
-/// Tapping delegates to the existing explicit Go-to-position dialog;
-/// the indicator itself never seeks or changes any saved anchor.
+/// The first row is always the original whole-book text position. EPUBs
+/// may expose a second compact, independently actionable section row:
+/// its title opens the existing directory, and an optional local
+/// percentage opens the existing section Go dialog. These controls
+/// never seek, play audio, or persist checkpoints themselves.
 class ReaderFocusProgressStrip extends StatelessWidget
     implements PreferredSizeWidget {
   const ReaderFocusProgressStrip({
@@ -16,14 +17,31 @@ class ReaderFocusProgressStrip extends StatelessWidget
     required this.sourceOffset,
     required this.sourceLength,
     required this.onNavigate,
+    this.sectionTitle,
+    this.sectionIndex,
+    this.sectionCount,
+    this.sectionProgressPercent,
+    this.onOpenSections,
+    this.onNavigateWithinSection,
   });
 
   final int sourceOffset;
   final int sourceLength;
   final VoidCallback onNavigate;
+  final String? sectionTitle;
+  final int? sectionIndex;
+  final int? sectionCount;
+  final int? sectionProgressPercent;
+  final VoidCallback? onOpenSections;
+  final VoidCallback? onNavigateWithinSection;
+
+  bool get _hasSection => sectionTitle != null &&
+      sectionIndex != null && sectionCount != null &&
+      sectionCount! > 0 && sectionIndex! >= 0 &&
+      sectionIndex! < sectionCount! && onOpenSections != null;
 
   @override
-  Size get preferredSize => const Size.fromHeight(44);
+  Size get preferredSize => Size.fromHeight(_hasSection ? 80 : 44);
 
   @override
   Widget build(BuildContext context) {
@@ -33,53 +51,140 @@ class ReaderFocusProgressStrip extends StatelessWidget
     );
     final percent = (progress * 100).round();
     final colorScheme = Theme.of(context).colorScheme;
-    return Semantics(
-      key: const ValueKey('reader-focus-progress-semantics'),
-      button: sourceLength > 0,
-      enabled: sourceLength > 0,
-      label: sourceLength > 0
-          ? 'Book text position: $percent percent. Open go to book position'
-          : 'Book text position unavailable',
-      // ExcludeSemantics hides the nested InkWell semantics, so expose
-      // the activation explicitly for TalkBack and screen readers.
-      onTap: sourceLength > 0 ? onNavigate : null,
-      child: ExcludeSemantics(
-        child: Material(
-          color: Theme.of(context).appBarTheme.backgroundColor ??
-              colorScheme.surface,
-          child: InkWell(
-            key: const ValueKey('reader-focus-progress'),
+    final background = Theme.of(context).appBarTheme.backgroundColor ??
+        colorScheme.surface;
+    final localPercent = sectionProgressPercent?.clamp(0, 100).toInt();
+    final canGoToSection = _hasSection && localPercent != null &&
+        onNavigateWithinSection != null;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 44,
+          child: Semantics(
+            key: const ValueKey('reader-focus-progress-semantics'),
+            button: sourceLength > 0,
+            enabled: sourceLength > 0,
+            label: sourceLength > 0
+                ? 'Book text position: $percent percent. '
+                    'Open go to book position'
+                : 'Book text position unavailable',
             onTap: sourceLength > 0 ? onNavigate : null,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 48,
-                    child: Text(
-                      '$percent%',
-                      key: const ValueKey('reader-focus-progress-label'),
-                      style: Theme.of(context).textTheme.labelMedium,
-                      textAlign: TextAlign.start,
+            child: ExcludeSemantics(
+              child: Material(
+                color: background,
+                child: InkWell(
+                  key: const ValueKey('reader-focus-progress'),
+                  onTap: sourceLength > 0 ? onNavigate : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 48,
+                          child: Text(
+                            '$percent%',
+                            key: const ValueKey('reader-focus-progress-label'),
+                            style: Theme.of(context).textTheme.labelMedium,
+                            textAlign: TextAlign.start,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Expanded(
+                          child: LinearProgressIndicator(
+                            key: const ValueKey('reader-focus-progress-track'),
+                            value: progress,
+                            minHeight: 4,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.chevron_right,
+                            color: colorScheme.onSurfaceVariant, size: 20),
+                      ],
                     ),
                   ),
-                  Expanded(
-                    child: LinearProgressIndicator(
-                      key: const ValueKey('reader-focus-progress-track'),
-                      value: progress,
-                      minHeight: 4,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(Icons.chevron_right,
-                      color: colorScheme.onSurfaceVariant, size: 20),
-                ],
+                ),
               ),
             ),
           ),
         ),
-      ),
+        if (_hasSection)
+          SizedBox(
+            height: 36,
+            child: Material(
+              color: background,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Semantics(
+                      key: const ValueKey('reader-focus-section-semantics'),
+                      button: true,
+                      label: 'Current EPUB section: $sectionTitle, '
+                          '${sectionIndex! + 1} of $sectionCount. '
+                          'Open table of contents',
+                      onTap: onOpenSections,
+                      child: ExcludeSemantics(
+                        child: InkWell(
+                          key: const ValueKey('reader-focus-section'),
+                          onTap: onOpenSections,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 16, right: 6),
+                            child: Row(
+                              children: [
+                                Icon(Icons.menu_book_outlined,
+                                    size: 18, color: colorScheme.onSurfaceVariant),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    sectionTitle!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.labelSmall,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${sectionIndex! + 1}/$sectionCount',
+                                  key: const ValueKey(
+                                      'reader-focus-section-number'),
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (canGoToSection)
+                    Semantics(
+                      key: const ValueKey(
+                          'reader-focus-section-progress-semantics'),
+                      button: true,
+                      label: 'Section text position: $localPercent percent. '
+                          'Go to a position in this section',
+                      onTap: onNavigateWithinSection,
+                      child: ExcludeSemantics(
+                        child: TextButton(
+                          key: const ValueKey('reader-focus-section-go'),
+                          onPressed: onNavigateWithinSection,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: const Size(56, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text('$localPercent%'),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
