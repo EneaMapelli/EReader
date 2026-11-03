@@ -80,8 +80,8 @@ List<OrganizedActionSection> buildReaderToolSections(
         icon: Icons.linear_scale,
         subtitle: 'Choose 0–100% within the current EPUB section',
       ),
-    if (options.isEpub && options.hasPlayableSegments &&
-        options.hasSectionReturn)
+    if (options.isEpub && options.hasContents &&
+        options.hasPlayableSegments && options.hasSectionReturn)
       const OrganizedActionItem(
         id: 'return-to-section',
         title: 'Return before chapter change',
