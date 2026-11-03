@@ -106,7 +106,8 @@ void main() {
     expect(find.byKey(const ValueKey('reader-compact-transport')), findsNothing);
     expect(find.byKey(const ValueKey('reader-focus-progress')), findsOneWidget);
     expect(find.byKey(const ValueKey('reader-focus-section')), findsOneWidget);
-    expect(find.text('Opening'), findsOneWidget);
+    expect(find.text('Opening'), findsWidgets,
+        reason: 'Publisher TOC and visible EPUB heading may share the label');
     expect(find.byKey(const ValueKey('reader-focus-section-go')), findsOneWidget);
     expect(store.manualPositionRevision(bookId), revision,
         reason: 'Entering focus is presentation-only');
