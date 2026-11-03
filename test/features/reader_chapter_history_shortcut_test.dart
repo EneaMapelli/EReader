@@ -55,6 +55,9 @@ void main() {
         findsOneWidget);
     expect(find.byKey(const ValueKey('reader-chapter-shortcut-recent')),
         findsOneWidget);
+    expect(find.text('Ctrl/Cmd + Shift + Page Up'), findsOneWidget);
+    expect(find.text('Ctrl/Cmd + Shift + Page Down'), findsOneWidget);
+    expect(find.text('Ctrl/Cmd + Shift + H'), findsOneWidget);
     expect([backs, forwards, recents], [0, 0, 0],
         reason: 'Opening the popup must never seek');
     await tester.tap(find.byKey(
