@@ -5,6 +5,63 @@ import 'package:ereader/features/reader/reader_chapter_visit_history.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('deferred failures belong only to their original active intent',
+      () async {
+    final gate = ReaderSourceSelectionGate();
+    final oldNativeFailure = Completer<void>();
+    final errors = <String>[];
+    final oldSession = Object();
+    var currentSession = oldSession;
+
+    Future<void> navigate() async {
+      final intent = gate.reserve();
+      try {
+        await oldNativeFailure.future;
+      } catch (_) {
+        if (identical(currentSession, oldSession) &&
+            gate.isCurrent(intent)) {
+          errors.add('old failure');
+        }
+      }
+    }
+
+    final obsolete = navigate();
+    gate.reserve(); // newer explicit EPUB source selection
+    oldNativeFailure.completeError(StateError('obsolete voice engine'));
+    await obsolete;
+    expect(errors, isEmpty);
+
+    final latest = gate.reserve();
+    expect(gate.isCurrent(latest), isTrue);
+    expect(gate.revision, latest);
+    gate.invalidate(); // reload replaces the current player
+    currentSession = Object();
+    expect(gate.isCurrent(latest), isFalse);
+    expect(identical(currentSession, oldSession), isFalse);
+  });
+
+  test('a current native failure stays reportable until another intent',
+      () async {
+    final gate = ReaderSourceSelectionGate();
+    final intent = gate.reserve();
+    final failure = Completer<void>();
+    var reported = false;
+
+    Future<void> execute() async {
+      try {
+        await failure.future;
+      } catch (_) {
+        reported = gate.isCurrent(intent);
+      }
+    }
+
+    final pending = execute();
+    failure.completeError(StateError('active voice failure'));
+    await pending;
+    expect(reported, isTrue,
+        reason: 'Only obsolete errors are suppressed, not active failures');
+  });
+
   test('superseded chapter Back cannot consume history after a new branch',
       () async {
     final gate = ReaderSourceSelectionGate();

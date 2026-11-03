@@ -9,6 +9,10 @@ class ReaderSourceSelectionGate {
 
   int reserve() => ++_revision;
 
+  /// Current intent snapshot for asynchronous errors that do not themselves
+  /// initiate a Seek (e.g. transport Pause or a queued TTS snackbar).
+  int get revision => _revision;
+
   bool isCurrent(int revision) => revision == _revision;
 
   /// A reload / remote selection can invalidate all pending local intent.

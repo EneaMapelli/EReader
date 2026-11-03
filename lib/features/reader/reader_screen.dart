@@ -532,6 +532,9 @@ class _ReaderScreenState extends State<ReaderScreen>
               chapter.idref == latestBook.progressAnchor?.sourceId)
           ? latestBook.progressAnchor!.sourceId : null;
       final previous = _player;
+      // Error deduplication belongs to a player session, not the screen:
+      // reopening/reloading may reuse an equal error object.
+      _lastReportedPlaybackError = null;
       if (previous != null) {
         widget.mediaHandler?.detach(previous);
         previous.removeListener(_onPlaybackChanged);
@@ -579,6 +582,9 @@ class _ReaderScreenState extends State<ReaderScreen>
             if (chapter.hasSpeech) chapter.segmentIndex,
         ],
         onRemoteNavigation: (index) {
+          // Ignore malformed remote indices before invalidating a newer
+          // local navigation or looking up a negative speech segment.
+          if (index < 0) return;
           // Media controls operate directly on ReaderPlayer, bypassing
           // _select and its visual bookmark. Synchronize the viewport
           // without issuing another native Stop or extra speech request.
@@ -1037,7 +1043,10 @@ class _ReaderScreenState extends State<ReaderScreen>
       final failure = player.lastError!;
       _lastReportedPlaybackError = failure;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+        // A queued frame can run after a reload or after recovery from
+        // this error. Never show an obsolete TTS failure for another book.
+        if (!mounted || _player != player ||
+            !identical(player.lastError, failure)) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Text-to-speech error: $failure')),
         );
@@ -1427,6 +1436,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   Future<void> _playOrPause() async {
     final player = _player;
     if (player == null) return;
+    var errorRevision = _sourceSelectionGate.revision;
     try {
       if (widget.mediaHandler != null &&
           !widget.mediaHandler!.ownsPlayer(player)) {
@@ -1447,6 +1457,7 @@ class _ReaderScreenState extends State<ReaderScreen>
         // native Stop/Pause. Never auto-play from a now-obsolete transport
         // continuation after a newer chapter/bookmark selection.
         final playRevision = _sourceSelectionGate.reserve();
+        errorRevision = playRevision;
         _cancelPendingVisualSave();
         if (readerMaySeekToViewportOnPlay(
             temporarilyDetached: _narrationFollow.suspendedByUser)) {
@@ -1472,7 +1483,8 @@ class _ReaderScreenState extends State<ReaderScreen>
         await (widget.mediaHandler?.play() ?? player.play());
       }
     } catch (error) {
-      if (mounted) {
+      if (mounted && _player == player &&
+          _sourceSelectionGate.isCurrent(errorRevision)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Speech failed: $error')),
         );
@@ -1490,6 +1502,9 @@ class _ReaderScreenState extends State<ReaderScreen>
     // must not be replayed by clamping a Next to the last *audio* index.
     if (target == player.segments.length && player.isSettledIdle &&
         player.currentIndex == target) return;
+    // Reserve before _select so a late failed seek cannot display an
+    // error after a newer chapter/segment command won.
+    final selection = _sourceSelectionGate.reserve();
     try {
       if (target == player.segments.length) {
         final eof = widget.book.format == BookFormat.epub
@@ -1497,14 +1512,16 @@ class _ReaderScreenState extends State<ReaderScreen>
                 _chapters, player.segments.length, document.text.length)
             : EpubMediaChapterTarget(sourceOffset: document.text.length);
         await _select(target, visualSourceOffset: eof.sourceOffset,
-            visualSpineIdref: eof.silentSpineIdref);
+            visualSpineIdref: eof.silentSpineIdref,
+            reservedSelection: selection);
       } else {
         // _select owns the native Stop barrier, latest-selection guard,
         // source-exact SQLite write and visual scroll checkpoint.
-        await _select(target);
+        await _select(target, reservedSelection: selection);
       }
     } catch (error) {
-      if (!mounted || _player != player) return;
+      if (!mounted || _player != player ||
+          !_sourceSelectionGate.isCurrent(selection)) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Cannot move to this passage: $error')),
       );
@@ -1623,6 +1640,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       _navigateToSourceOffset(sourceOffset, remember: true);
 
   void _returnFromEpubLink() {
+    int? issuedSelection;
+    ReaderPlayer? issuedPlayer;
     Future<void> navigateBack() async {
       final origin = _linkHistory.lastLocation;
       final player = _player;
@@ -1633,6 +1652,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       final index = speechSourceDestinationIndexForOffset(
           player.segments, origin.sourceOffset);
       final selection = _sourceSelectionGate.reserve();
+      issuedSelection = selection;
+      issuedPlayer = player;
       _saveVisualPositionTimer?.cancel();
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player ||
@@ -1649,7 +1670,9 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (_linkHistory.commitReturnIfTop(origin)) setState(() {});
     }
     unawaited(navigateBack().catchError((Object error, StackTrace stack) {
-      if (!mounted) return;
+      if (!mounted || (issuedSelection != null &&
+          (_player != issuedPlayer ||
+           !_sourceSelectionGate.isCurrent(issuedSelection!)))) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Cannot return from EPUB note: $error')),
       );
@@ -1657,10 +1680,14 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   void _selectFromVisualTap(int index) {
+    int? issuedSelection;
+    ReaderPlayer? issuedPlayer;
     Future<void> navigate() async {
       final player = _player;
       if (player == null) return;
       final selection = _sourceSelectionGate.reserve();
+      issuedSelection = selection;
+      issuedPlayer = player;
       // EPUB is an explicit reading-location selection, not permission
       // to re-synthesize a new paragraph while narration is active.
       // Also cancel any pending seek/voice auto-resume before seeking.
@@ -1674,7 +1701,9 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
     unawaited(navigate().catchError(
       (Object error, StackTrace stack) {
-        if (!mounted) return;
+        if (!mounted || (issuedSelection != null &&
+            (_player != issuedPlayer ||
+             !_sourceSelectionGate.isCurrent(issuedSelection!)))) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Cannot select passage: $error')),
         );
@@ -3008,8 +3037,10 @@ class _ReaderScreenState extends State<ReaderScreen>
           onCommitted: onCommitted);
       return;
     }
+    int? issuedSelection;
     Future<void> jump() async {
       final selection = _sourceSelectionGate.reserve();
+      issuedSelection = selection;
       if (!player.isSettledIdle) await player.pause();
       if (!mounted || _player != player || _document != document ||
           !_sourceSelectionGate.isCurrent(selection)) return;
@@ -3025,7 +3056,9 @@ class _ReaderScreenState extends State<ReaderScreen>
           onCommitted: onCommitted);
     }
     unawaited(jump().catchError((Object error, StackTrace stack) {
-      if (!mounted) return;
+      if (!mounted || _player != player ||
+          (issuedSelection != null &&
+           !_sourceSelectionGate.isCurrent(issuedSelection!))) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Cannot move to this position: $error')),
       );

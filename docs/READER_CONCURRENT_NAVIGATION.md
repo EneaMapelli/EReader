@@ -186,3 +186,30 @@ The tests complement the previously authored rapid chapter tests.
 
 No Flutter analyzer/test or native runner was executed. The two
 regressions and source error handling require final integration review.
+
+## 2026-11-03 — stale TTS and navigation error notifications
+
+A playback error is displayed in the next Flutter frame. Previously a
+queued TTS error could be shown **after the player was reloaded**; in
+addition, the reader's error deduplication object survived between player
+sessions. The deferred notification now checks that its original
+player is still installed and still owns that exact error. A newly
+adopted player clears the old error deduplication reference.
+
+The explicit Play/Pause handler and passage Next/Previous now check
+source-intent freshness in their asynchronous error paths. For a
+passage move, the intent is reserved before the Seek and handed to
+`_select`, so a superseded seek cannot display a misleading error.
+EPUB link return, tapping a text passage, and TXT/PDF percentage Go
+have equivalent originating-player/token guards on their error
+callbacks. Remote media callbacks now ignore a negative destination
+before indexing speech segments or invalidating a pending local intent.
+
+The gate exposes its current revision for transport commands that
+need to associate a later failure with the original intent. Two
+deterministic asynchronous gate tests cover an obsolete native
+failure suppressed after a subsequent selection and a still-current
+failure that remains reportable.
+
+No Flutter analyzer, widget tests, device builds or GitHub Actions
+were run; source-level exact-match checks only.
