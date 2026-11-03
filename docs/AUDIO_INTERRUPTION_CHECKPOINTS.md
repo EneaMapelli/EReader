@@ -224,3 +224,29 @@ auto-resume. The earlier obsolete remote Seek-failure regression
 was aligned with the safety invariant: a new book must not Play
 after a failed old native Stop. No Flutter tests, analyzer, builds
 or GitHub Actions were run.
+
+## 2026-11-03 — bound detached native Stop confirmation
+
+The cross-book handoff fence added in the previous step observed the
+original native `SpeechEngine.stop()` Future. While `ReaderPlayer.pause`
+already has a finite `nativeStopTimeout`, the new
+`waitForNativeStopConfirmation()` accessor could wait forever if a
+native plugin never completed its Stop Future. That inadvertently
+prevented `ReaderMediaHandler.close()` from finishing and left a
+replacement book's Play indefinitely pending instead of returning a
+clear, safe failure.
+
+The read-only confirmation accessor now uses the same finite
+`nativeStopTimeout` as Pause. An elapsed deadline returns **false**,
+not success: the media-handler barrier remains fail-closed for its
+lifetime and another book cannot obtain Android focus or start audio
+from it. The original Stop Future is still observed by the player's
+existing late-completion handler, so no platform error is unhandled.
+The change does not claim that the native engine became silent after
+timeout or reset the safety lock on a late acknowledgment.
+
+Three tests in `test/audio/native_stop_timeout_test.dart` cover
+finite confirmation snapshot time, handler close after a stuck direct
+Stop, and prompt denial of replacement Play without new speech or
+focus. All tests are authored only; Flutter/native execution,
+analyzer, builds and GitHub Actions were not run.

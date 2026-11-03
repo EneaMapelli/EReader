@@ -596,13 +596,20 @@ class ReaderPlayer extends ChangeNotifier {
   /// without passing through ReaderMediaHandler; a replacement book must
   /// still wait for that old engine to confirm silence.
   ///
-  /// The result is false after a failed or still-unconfirmed Stop, never
-  /// an unhandled Future error. An idle player with no Stop returns true.
+  /// The result is false after a failed, timed-out or still-unconfirmed
+  /// Stop, never an unhandled Future error. It uses the same finite native
+  /// Stop deadline as Pause: a plugin that never acknowledges Stop must
+  /// not hang MediaHandler.close or another book's Play indefinitely.
+  ///
+  /// A timeout does NOT imply native silence. The caller stays fail-closed
+  /// even if the original platform Future eventually confirms Stop.
   Future<bool> waitForNativeStopConfirmation() async {
     final stopping = _pendingNativeStop;
     try {
-      await stopping;
+      await stopping.timeout(nativeStopTimeout);
     } catch (_) {
+      // TimeoutException and native errors are both unsafe. _stopCurrent
+      // independently observes the ORIGINAL Future's late completion.
       return false;
     }
     return !_stopFailed && !nativeStopUnconfirmed &&

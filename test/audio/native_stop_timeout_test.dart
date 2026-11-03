@@ -228,6 +228,96 @@ void main() {
     player.dispose();
   });
 
+  test('native Stop confirmation snapshot has a finite deadline',
+      () async {
+    final engine = _HeldStopEngine();
+    final player = _player(engine);
+    final reading = player.play();
+    await _settle();
+    expect(engine.spoken, ['First']);
+    engine.stopGate = Completer<void>();
+
+    final pausing = player.pause();
+    // Snapshot is taken while the original native plugin Stop hangs.
+    final confirmation = player.waitForNativeStopConfirmation();
+    await expectLater(pausing, throwsA(isA<SpeechStopTimeout>()));
+    expect(await confirmation, isFalse,
+        reason: 'The confirmation fence must not wait indefinitely');
+    expect(player.nativeStopUnconfirmed, isTrue);
+    await expectLater(player.play(), throwsStateError);
+
+    engine.stopGate!.complete();
+    await reading;
+    player.dispose();
+  });
+
+  test('Android handler close completes after an unacknowledged native Stop',
+      () async {
+    final engine = _HeldStopEngine();
+    final player = _player(engine);
+    var released = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { released++; },
+    );
+    handler.attach(player, bookId: 'old', title: 'Old book');
+    await handler.play();
+    await _settle();
+    expect(engine.spoken, ['First']);
+    engine.stopGate = Completer<void>();
+
+    // Direct reader shutdown starts the native Stop during detach.
+    // close() must finish once the deadline says this Stop is unsafe,
+    // without assuming silence or waiting on the stuck platform Future.
+    await handler.close().timeout(const Duration(seconds: 1));
+    expect(handler.hasActiveBook, isFalse);
+    expect(player.nativeStopUnconfirmed, isTrue);
+    expect(released, 1);
+    expect(engine.nativeStops, 1);
+
+    engine.stopGate!.complete();
+    await _settle();
+    player.dispose();
+  });
+
+  test('new book Play fails closed after old unacknowledged Stop',
+      () async {
+    final oldEngine = _HeldStopEngine();
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    var focusRequests = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusRequests++;
+      return true;
+    });
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    expect(oldEngine.spoken, ['First']);
+    expect(focusRequests, 1);
+    oldEngine.stopGate = Completer<void>();
+
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    await expectLater(
+      handler.play().timeout(const Duration(seconds: 1)),
+      throwsStateError,
+    );
+    expect(handler.ownsPlayer(newPlayer), isTrue,
+        reason: 'Old Stop timeout does not remove new media metadata');
+    expect(handler.mediaItem.value?.id, 'new');
+    expect(newEngine.spoken, isEmpty,
+        reason: 'Never assume native silence after a Stop timeout');
+    expect(focusRequests, 1,
+        reason: 'Unconfirmed Stop must not claim focus for new narration');
+
+    await handler.close().timeout(const Duration(seconds: 1));
+    oldEngine.stopGate!.complete();
+    await _settle();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(
