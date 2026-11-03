@@ -75,6 +75,7 @@ import 'reader_section_range.dart';
 import 'reader_progress_return_point.dart';
 import 'reader_chapter_visit_history.dart';
 import 'reader_chapter_visit_history_sheet.dart';
+import 'reader_chapter_history_shortcut.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -2629,6 +2630,20 @@ class _ReaderScreenState extends State<ReaderScreen>
               )
             : null,
         actions: [
+          // One lightweight history shortcut in immersive mode. In normal
+          // compact reading it lives beside the TTS controls instead,
+          // keeping the AppBar uncluttered. Never treat it as audio skip.
+          if (_readerFocusMode && progressNavigationAvailable &&
+              widget.book.format == BookFormat.epub &&
+              (_chapterHistory.canReturn || _chapterHistory.canGoForward))
+            ReaderChapterHistoryShortcut(
+              onBack: _chapterHistory.canReturn
+                  ? _returnToSectionJumpOrigin : null,
+              onForward: _chapterHistory.canGoForward
+                  ? _forwardToChapterVisit : null,
+              onRecent: _chapterHistory.length > 1
+                  ? () => unawaited(_openChapterVisitHistory()) : null,
+            ),
           // Compact layouts have one dedicated navigation entry instead
           // of hiding search/contents/return deep inside all preferences.
           // It routes through the existing action handler, never a second
@@ -3043,6 +3058,16 @@ class _ReaderScreenState extends State<ReaderScreen>
                       onNextSection: sectionName != null &&
                               current + 1 < sections
                           ? () => _jumpDirectoryRelative(1) : null,
+                      onHistoryBack: widget.book.format == BookFormat.epub &&
+                              _chapterHistory.canReturn
+                          ? _returnToSectionJumpOrigin : null,
+                      onHistoryForward: widget.book.format == BookFormat.epub &&
+                              _chapterHistory.canGoForward
+                          ? _forwardToChapterVisit : null,
+                      onHistoryRecent: widget.book.format == BookFormat.epub &&
+                              _chapterHistory.length > 1
+                          ? () => unawaited(_openChapterVisitHistory())
+                          : null,
                       isPlaying: player.isPlaying,
                       sleepTimerActive: player.sleepTimerEndsAt != null,
                       onPrevious: () => unawaited(_move(-1)),
