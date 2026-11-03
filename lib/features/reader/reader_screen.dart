@@ -1154,6 +1154,33 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (target != null) _jumpDirectoryIndex(target);
   }
 
+  /// Capture the original EPUB position, not the spoken segment index.
+  /// A visual-only OPF spine ID preserves distinct illustrated sections
+  /// that happen to share a canonical UTF-16 offset.
+  ReaderChapterVisit? _captureChapterVisit(
+      ReaderPlayer player, DocumentContent document) {
+    final count = _authorToc.isNotEmpty
+        ? _authorToc.length : _chapters.length;
+    final index = _currentDirectoryIndex;
+    if (widget.book.format != BookFormat.epub ||
+        document.text.isEmpty ||
+        index < 0 || index >= count) return null;
+    final title = _authorToc.isNotEmpty
+        ? _authorToc[index].label : _chapters[index].title;
+    if (title.trim().isEmpty) return null;
+    final useVisual = readerUsesVisualCursor(
+      narrationPlaying: player.isPlaying,
+      shouldAutoFollow: _narrationFollow.shouldAutoFollow,
+    );
+    return ReaderChapterVisit(
+      sourceOffset: _visibleProgressOffset(player, document.text.length),
+      spineIdref: useVisual ? _selectedVisualSpineIdref : null,
+      sectionTitle: title,
+      sectionNumber: index + 1,
+      sectionCount: count,
+    );
+  }
+
   void _jumpDirectoryIndex(int index) {
     final player = _player;
     final document = _document;
@@ -1168,28 +1195,20 @@ class _ReaderScreenState extends State<ReaderScreen>
     // A user may be visually browsing an illustration while speech
     // continues elsewhere. Use exactly the same source-ownership policy
     // as explicit percentage Go; never infer origin from a speech chunk.
-    final originOffset = _visibleProgressOffset(player, document.text.length);
-    final originIndex = _currentDirectoryIndex;
-    final originTitle = originIndex < 0 || originIndex >= count
-        ? null : _authorToc.isNotEmpty
-            ? _authorToc[originIndex].label
-            : _chapters[originIndex].title;
-    final originSpineIdref = readerUsesVisualCursor(
-      narrationPlaying: player.isPlaying,
-      shouldAutoFollow: _narrationFollow.shouldAutoFollow,
-    ) ? _selectedVisualSpineIdref : null;
+    final origin = _captureChapterVisit(player, document);
     void recordCommittedSwitch() {
-      if (!mounted || _player != player || _document != document) return;
+      if (!mounted || _player != player || _document != document ||
+          origin == null) return;
       final destination = _visibleProgressOffset(
           player, document.text.length);
-      if (originTitle != null && _chapterHistory.recordCommittedJump(
-        fromOffset: originOffset,
+      if (_chapterHistory.recordCommittedJump(
+        fromOffset: origin.sourceOffset,
         toOffset: destination,
         sourceLength: document.text.length,
-        sectionTitle: originTitle,
-        sectionNumber: originIndex + 1,
-        sectionCount: count,
-        originSpineIdref: originSpineIdref,
+        sectionTitle: origin.sectionTitle,
+        sectionNumber: origin.sectionNumber,
+        sectionCount: origin.sectionCount,
+        originSpineIdref: origin.spineIdref,
         destinationSpineIdref: _selectedVisualSpineIdref,
       )) {
         setState(() {});
@@ -2195,12 +2214,15 @@ class _ReaderScreenState extends State<ReaderScreen>
         entry.sourceOffset < 0 || entry.sourceOffset > document.text.length ||
         _chapterHistory.revision != expectedRevision ||
         !_chapterHistory.contains(entry)) return;
+    final departed = _captureChapterVisit(player, document);
+    if (departed == null) return;
     _jumpToSourceProgress(entry.sourceOffset,
         visualSpineIdref: entry.spineIdref,
         onCommitted: () {
       if (!mounted || _player != player || _document != document) return;
       if (_chapterHistory.consumeThrough(entry,
-          expectedRevision: expectedRevision)) {
+          expectedRevision: expectedRevision,
+          departedFrom: departed)) {
         setState(() {});
       }
     });
@@ -2211,6 +2233,35 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (latest == null) return;
     _returnToChapterVisit(latest,
         expectedRevision: _chapterHistory.revision);
+  }
+
+  /// Move forward through chapter visits after a successful Back return.
+  /// A fresh explicit chapter switch invalidates this redo branch; the
+  /// forward move itself must not erase the remaining forward destinations.
+  void _forwardToChapterVisit() {
+    final entry = _chapterHistory.nextForward;
+    final player = _player;
+    final document = _document;
+    if (!mounted || _loading || _error != null ||
+        widget.book.format != BookFormat.epub ||
+        entry == null || player == null || player.segments.isEmpty ||
+        document == null || document.text.isEmpty ||
+        entry.sourceOffset < 0 || entry.sourceOffset > document.text.length) {
+      return;
+    }
+    final departed = _captureChapterVisit(player, document);
+    if (departed == null) return;
+    final revision = _chapterHistory.revision;
+    _jumpToSourceProgress(entry.sourceOffset,
+        visualSpineIdref: entry.spineIdref,
+        onCommitted: () {
+      if (!mounted || _player != player || _document != document) return;
+      if (_chapterHistory.consumeForward(entry,
+          expectedRevision: revision,
+          departedFrom: departed)) {
+        setState(() {});
+      }
+    });
   }
 
   /// The sheet is read-only. Stale selections from a reloaded book or
@@ -2273,6 +2324,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       hasProgressReturn: _progressReturn.canReturn,
       hasSectionReturn: _chapterHistory.canReturn,
       hasChapterHistory: _chapterHistory.length > 1,
+      hasChapterForward: _chapterHistory.canGoForward,
       hasSectionPosition: !_loading && _error == null &&
           _currentSectionRange() != null,
     );
@@ -2315,6 +2367,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         return;
       case 'return-to-section':
         _returnToSectionJumpOrigin();
+        return;
+      case 'forward-to-section':
+        _forwardToChapterVisit();
         return;
       case 'chapter-history':
         await _openChapterVisitHistory();
