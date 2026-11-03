@@ -2170,6 +2170,30 @@ class _ReaderScreenState extends State<ReaderScreen>
     });
   }
 
+  /// One-shot return to the exact visible point before the latest
+  /// successfully committed EPUB chapter switch. This is not the
+  /// percentage Go history or a footnote return; each is independent.
+  void _returnToSectionJumpOrigin() {
+    final origin = _sectionReturn.origin;
+    final originSpineIdref = _sectionReturn.originSpineIdref;
+    final player = _player;
+    final document = _document;
+    if (!mounted || _loading || _error != null ||
+        widget.book.format != BookFormat.epub ||
+        origin == null || player == null || player.segments.isEmpty ||
+        document == null || document.text.isEmpty) return;
+    final revision = _sectionReturn.revision;
+    _jumpToSourceProgress(origin,
+        visualSpineIdref: originSpineIdref,
+        onCommitted: () {
+      if (!mounted || _player != player || _document != document) return;
+      if (_sectionReturn.consumeIfOrigin(origin,
+          expectedRevision: revision)) {
+        setState(() {});
+      }
+    });
+  }
+
   Future<void> _openReaderTools({
     bool autofocusSearch = false,
     bool navigationOnly = false,
@@ -2201,6 +2225,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       paletteName: _epubPalette.name,
       focusMode: _readerFocusMode,
       hasProgressReturn: _progressReturn.canReturn,
+      hasSectionReturn: _sectionReturn.canReturn,
       hasSectionPosition: !_loading && _error == null &&
           _currentSectionRange() != null,
     );
@@ -2239,6 +2264,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         return;
       case 'return-to-percent':
         _returnToProgressJumpOrigin();
+        return;
+      case 'return-to-section':
+        _returnToSectionJumpOrigin();
         return;
       case 'bookmarks':
         await _openBookmarks();
