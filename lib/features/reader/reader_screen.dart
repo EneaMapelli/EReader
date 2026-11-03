@@ -2409,16 +2409,41 @@ class _ReaderScreenState extends State<ReaderScreen>
         // continues at another source offset in the background.
         bottom: _readerFocusMode && progressNavigationAvailable
             ? PreferredSize(
-                preferredSize: const Size.fromHeight(44),
+                preferredSize: Size.fromHeight(
+                    widget.book.format == BookFormat.epub &&
+                            (_authorToc.isNotEmpty || _chapters.isNotEmpty)
+                        ? 80 : 44),
                 child: ValueListenableBuilder<int>(
                   valueListenable: _visualProgressTick,
-                  builder: (context, revision, child) =>
-                      ReaderFocusProgressStrip(
-                    sourceOffset: _visibleProgressOffset(
-                        player!, _document!.text.length),
-                    sourceLength: _document!.text.length,
-                    onNavigate: () => unawaited(_openGoToProgress()),
-                  ),
+                  builder: (context, revision, child) {
+                    final offset = _visibleProgressOffset(
+                        player!, _document!.text.length);
+                    final sectionCount = widget.book.format == BookFormat.epub
+                        ? (_authorToc.isNotEmpty
+                            ? _authorToc.length : _chapters.length)
+                        : 0;
+                    final index = sectionCount > 0
+                        ? _currentDirectoryIndex : -1;
+                    final title = index < 0 || index >= sectionCount
+                        ? null : _authorToc.isNotEmpty
+                            ? _authorToc[index].label
+                            : _chapters[index].title;
+                    final range = title == null ? null : _currentSectionRange();
+                    return ReaderFocusProgressStrip(
+                      sourceOffset: offset,
+                      sourceLength: _document!.text.length,
+                      onNavigate: () => unawaited(_openGoToProgress()),
+                      sectionTitle: title,
+                      sectionIndex: index,
+                      sectionCount: sectionCount,
+                      sectionProgressPercent: range?.percentageAt(offset),
+                      onOpenSections: title == null ? null
+                          : () => unawaited(_openChapterDirectory()),
+                      onNavigateWithinSection: range == null ? null
+                          : () => unawaited(
+                              _openGoToProgress(withinSection: true)),
+                    );
+                  },
                 ),
               )
             : null,
