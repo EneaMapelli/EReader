@@ -73,6 +73,8 @@ import 'reading_progress_bar.dart';
 import 'reader_go_to_progress_dialog.dart';
 import 'reader_section_range.dart';
 import 'reader_progress_return_point.dart';
+import 'reader_chapter_visit_history.dart';
+import 'reader_chapter_visit_history_sheet.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
@@ -177,10 +179,10 @@ class _ReaderScreenState extends State<ReaderScreen>
   final ScrollController _advancedControlsScroll = ScrollController();
   final ReaderViewportSaveGate _viewportSaveGate = ReaderViewportSaveGate();
   final ReaderProgressReturnPoint _progressReturn = ReaderProgressReturnPoint();
-  // Independent from percentage Go and footnote/link return. An explicit
-  // EPUB section switch remembers the visual/source origin only after a
-  // winning, persisted jump, and can restore silent OPF spine identity.
-  final ReaderProgressReturnPoint _sectionReturn = ReaderProgressReturnPoint();
+  // Bounded, session-only EPUB chapter history. Never merges with
+  // percentage Go or footnote/link history; entries are recorded after a
+  // winning SQLite checkpoint and preserve silent OPF spine identity.
+  final ReaderChapterVisitHistory _chapterHistory = ReaderChapterVisitHistory();
   bool _skipEpubNotes = false;
   EpubSpeechNoteFilter? _epubSpeechNoteFilter;
   final ItemScrollController _itemScrollController = ItemScrollController();
@@ -280,7 +282,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     _sourceSelectionGate.invalidate();
     _cancelPendingVisualSave();
     _progressReturn.clear();
-    _sectionReturn.clear();
+    _chapterHistory.clear();
     _narrationFollow.resetForBook();
     _activeEpubTask?.cancel();
     _activeEpubTask = null;
@@ -1167,6 +1169,11 @@ class _ReaderScreenState extends State<ReaderScreen>
     // continues elsewhere. Use exactly the same source-ownership policy
     // as explicit percentage Go; never infer origin from a speech chunk.
     final originOffset = _visibleProgressOffset(player, document.text.length);
+    final originIndex = _currentDirectoryIndex;
+    final originTitle = originIndex < 0 || originIndex >= count
+        ? null : _authorToc.isNotEmpty
+            ? _authorToc[originIndex].label
+            : _chapters[originIndex].title;
     final originSpineIdref = readerUsesVisualCursor(
       narrationPlaying: player.isPlaying,
       shouldAutoFollow: _narrationFollow.shouldAutoFollow,
@@ -1175,10 +1182,13 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (!mounted || _player != player || _document != document) return;
       final destination = _visibleProgressOffset(
           player, document.text.length);
-      if (_sectionReturn.recordCommittedJump(
+      if (originTitle != null && _chapterHistory.recordCommittedJump(
         fromOffset: originOffset,
         toOffset: destination,
         sourceLength: document.text.length,
+        sectionTitle: originTitle,
+        sectionNumber: originIndex + 1,
+        sectionCount: count,
         originSpineIdref: originSpineIdref,
         destinationSpineIdref: _selectedVisualSpineIdref,
       )) {
@@ -2170,28 +2180,63 @@ class _ReaderScreenState extends State<ReaderScreen>
     });
   }
 
-  /// One-shot return to the exact visible point before the latest
-  /// successfully committed EPUB chapter switch. This is not the
-  /// percentage Go history or a footnote return; each is independent.
-  void _returnToSectionJumpOrigin() {
-    final origin = _sectionReturn.origin;
-    final originSpineIdref = _sectionReturn.originSpineIdref;
+  /// Return one or several chapter visits in one guarded source seek.
+  /// Only the winning persisted seek may consume history; selecting an
+  /// older entry discards it and newer visits, not the remaining past.
+  void _returnToChapterVisit(ReaderChapterVisit entry, {
+    required int expectedRevision,
+  }) {
     final player = _player;
     final document = _document;
     if (!mounted || _loading || _error != null ||
         widget.book.format != BookFormat.epub ||
-        origin == null || player == null || player.segments.isEmpty ||
-        document == null || document.text.isEmpty) return;
-    final revision = _sectionReturn.revision;
-    _jumpToSourceProgress(origin,
-        visualSpineIdref: originSpineIdref,
+        player == null || player.segments.isEmpty ||
+        document == null || document.text.isEmpty ||
+        entry.sourceOffset < 0 || entry.sourceOffset > document.text.length ||
+        _chapterHistory.revision != expectedRevision ||
+        !_chapterHistory.contains(entry)) return;
+    _jumpToSourceProgress(entry.sourceOffset,
+        visualSpineIdref: entry.spineIdref,
         onCommitted: () {
       if (!mounted || _player != player || _document != document) return;
-      if (_sectionReturn.consumeIfOrigin(origin,
-          expectedRevision: revision)) {
+      if (_chapterHistory.consumeThrough(entry,
+          expectedRevision: expectedRevision)) {
         setState(() {});
       }
     });
+  }
+
+  void _returnToSectionJumpOrigin() {
+    final latest = _chapterHistory.latest;
+    if (latest == null) return;
+    _returnToChapterVisit(latest,
+        expectedRevision: _chapterHistory.revision);
+  }
+
+  /// The sheet is read-only. Stale selections from a reloaded book or
+  /// from a history changed while the modal is open are ignored.
+  Future<void> _openChapterVisitHistory() async {
+    final player = _player;
+    final document = _document;
+    if (!mounted || _loading || _error != null ||
+        widget.book.format != BookFormat.epub ||
+        player == null || player.segments.isEmpty ||
+        document == null || document.text.isEmpty ||
+        !_chapterHistory.canReturn) return;
+    final bookId = widget.book.id;
+    final epoch = _loadEpoch;
+    final revision = _chapterHistory.revision;
+    final selection = await showReaderChapterVisitHistory(
+      context,
+      visits: _chapterHistory.recent,
+      sourceLength: document.text.length,
+    );
+    if (!mounted || selection == null || _loading || _error != null ||
+        widget.book.id != bookId || _loadEpoch != epoch ||
+        _player != player || _document != document ||
+        _chapterHistory.revision != revision ||
+        !_chapterHistory.contains(selection)) return;
+    _returnToChapterVisit(selection, expectedRevision: revision);
   }
 
   Future<void> _openReaderTools({
@@ -2226,7 +2271,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       paletteName: _epubPalette.name,
       focusMode: _readerFocusMode,
       hasProgressReturn: _progressReturn.canReturn,
-      hasSectionReturn: _sectionReturn.canReturn,
+      hasSectionReturn: _chapterHistory.canReturn,
+      hasChapterHistory: _chapterHistory.length > 1,
       hasSectionPosition: !_loading && _error == null &&
           _currentSectionRange() != null,
     );
@@ -2269,6 +2315,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         return;
       case 'return-to-section':
         _returnToSectionJumpOrigin();
+        return;
+      case 'chapter-history':
+        await _openChapterVisitHistory();
         return;
       case 'bookmarks':
         await _openBookmarks();
