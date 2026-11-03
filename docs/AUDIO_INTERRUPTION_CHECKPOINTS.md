@@ -341,3 +341,29 @@ speech or audio-focus acquisition, that an explicit retry can safely
 resume the new book, and that native errors cannot bypass the lock.
 Source patches verified; Dart/Flutter test suites, analyzer,
 Android/Windows builds and GitHub Actions not run.
+
+## 2026-11-03 — cancel superseded recovery probes and avoid double timeouts
+
+A recovery probe can begin while the cross-book native Stop barrier
+has not settled. Even if that Stop ultimately succeeds, another book
+may be attached or the Android media service closed during the await.
+Previously the fast success branch returned `true` before checking
+the binding/barrier revision and close state. The probe could report
+an obsolete session as recovered (the Play path still checked command
+epochs before dispatching speech). Now **both** successful and failed
+probe outcomes validate that the original barrier is unchanged and
+the service remains open.
+
+A second issue affected retries after a Stop timeout: the handler
+could re-await the already unconfirmed native Future for another full
+`nativeStopTimeout`. Recovery now immediately rejects an affected
+player whose native Stop is still marked unconfirmed. A later,
+genuinely successful callback clears that flag and an explicit Play
+may recheck the original engine; a real native exception remains
+fail-closed. No recovery path performs an unsolicited Play.
+
+Three targeted tests cover close during pending successful recovery,
+book replacement during the same await, and prompt refusal of a
+second wait after a known timeout. Source/test/docs are committed
+without running Flutter, Dart analyzer, native builds or GitHub
+Actions; Android behavior still requires device validation.

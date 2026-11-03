@@ -119,14 +119,23 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (_closed || _closeFuture != null) return false;
     final pending = _pendingTransportStops;
     final revision = _transportBarrierRevision;
-    if (await pending) return true;
+    final confirmed = await pending;
+    // Even an initially successful Stop can settle after a later
+    // detach/attach or close. An obsolete recovery query must never
+    // report ownership of a newly bound or already closed MediaSession.
     if (_closed || _closeFuture != null ||
         revision != _transportBarrierRevision ||
         !identical(pending, _pendingTransportStops)) return false;
+    if (confirmed) return true;
     final unsafePlayers = _unsafeStopPlayers.toList(growable: false);
     if (unsafePlayers.isEmpty) return false;
     for (final player in unsafePlayers) {
-      if (player.isPlaying || !await player.waitForNativeStopConfirmation()) {
+      // Once a player has already timed out, it must not spend a second
+      // nativeStopTimeout waiting for the same unacknowledged operation.
+      // Retry becomes eligible only AFTER its late positive callback
+      // has cleared nativeStopUnconfirmed.
+      if (player.isPlaying || player.nativeStopUnconfirmed ||
+          !await player.waitForNativeStopConfirmation()) {
         return false;
       }
     }

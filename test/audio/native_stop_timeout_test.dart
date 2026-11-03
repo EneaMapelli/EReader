@@ -413,6 +413,105 @@ void main() {
     newPlayer.dispose();
   });
 
+  test('close invalidates a pending successful recovery probe',
+      () async {
+    final oldEngine = _HeldStopEngine();
+    final nextEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final nextPlayer = _player(nextEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    oldEngine.stopGate = Completer<void>();
+
+    handler.attach(nextPlayer, bookId: 'next', title: 'Next');
+    // This recovery query is awaiting the *successful* old Stop.
+    final recovery = handler.tryRecoverAfterConfirmedNativeStops();
+    final closing = handler.close();
+    oldEngine.stopGate!.complete();
+
+    expect(await recovery, isFalse,
+        reason: 'A closed MediaSession cannot report recovered ownership');
+    await closing;
+    expect(handler.hasActiveBook, isFalse);
+    expect(handler.mediaItem.value, isNull);
+    expect(nextEngine.spoken, isEmpty);
+    await handler.close();
+    oldPlayer.dispose();
+    nextPlayer.dispose();
+  });
+
+  test('a newer book handoff invalidates an older recovery probe',
+      () async {
+    final oldEngine = _HeldStopEngine();
+    final middleEngine = _HeldStopEngine();
+    final currentEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final middlePlayer = _player(middleEngine);
+    final currentPlayer = _player(currentEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    oldEngine.stopGate = Completer<void>();
+
+    handler.attach(middlePlayer, bookId: 'middle', title: 'Middle');
+    final obsoleteRecovery = handler.tryRecoverAfterConfirmedNativeStops();
+    handler.attach(currentPlayer, bookId: 'current', title: 'Current');
+    oldEngine.stopGate!.complete();
+
+    expect(await obsoleteRecovery, isFalse,
+        reason: 'A successful old Stop does not validate a later binding');
+    expect(handler.ownsPlayer(currentPlayer), isTrue);
+    expect(handler.mediaItem.value?.id, 'current');
+    expect(currentEngine.spoken, isEmpty);
+    await handler.play();
+    await _settle();
+    expect(currentEngine.spoken, ['First']);
+    expect(middleEngine.spoken, isEmpty);
+    await handler.pause();
+    await handler.close();
+    oldPlayer.dispose();
+    middlePlayer.dispose();
+    currentPlayer.dispose();
+  });
+
+  test('already timed-out native Stop is rejected without a second wait',
+      () async {
+    final oldEngine = _HeldStopEngine();
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    oldEngine.stopGate = Completer<void>();
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+
+    await expectLater(handler.play(), throwsStateError);
+    expect(oldPlayer.nativeStopUnconfirmed, isTrue);
+    var completed = false;
+    final recovery = handler.tryRecoverAfterConfirmedNativeStops()
+        .then((result) {
+      completed = true;
+      return result;
+    });
+    await _settle();
+    expect(completed, isTrue,
+        reason: 'Do not wait another Stop deadline after a known timeout');
+    expect(await recovery, isFalse);
+    expect(newEngine.spoken, isEmpty);
+    expect(handler.requiresFreshAudioSession, isTrue);
+
+    oldEngine.stopGate!.complete();
+    await _settle();
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(
