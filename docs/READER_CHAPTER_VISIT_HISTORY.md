@@ -2,6 +2,19 @@
 
 Implemented on `feature/m0-flutter-foundation` · 2026-11-03 · draft PR #1.
 
+## Update · 2026-11-03: Forward traversal after Back
+
+The original visit sheet and one-tap Back action now also retain
+**Forward to next visited position**. Choosing an older Back visit
+preserves the later positions in chronological Forward order; a
+successful new chapter switch clears the Forward branch. Both
+directions remain revision-guarded and independent from TTS and
+percentage/link return. See
+[READER_CHAPTER_BACK_FORWARD.md](READER_CHAPTER_BACK_FORWARD.md).
+The older descriptions of “discarding” newer positions below refer
+to removing them from the Back stack; they are now retained in the
+separate Forward stack.
+
 ## Reading workflow
 
 After **two or more successfully committed EPUB chapter changes**, the
