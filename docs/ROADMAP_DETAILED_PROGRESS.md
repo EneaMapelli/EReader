@@ -2027,7 +2027,7 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 
 ### 2026-11-03 — EPUB chapter context in immersive reader
 
-- Enhanced the existing focus AppBar with a 36px additional row only
+- Enhanced the existing focus AppBar with a 48px additional row only
   for EPUBs with a navigable section. Shows the **visible** publisher
   TOC / OPF chapter title and ordinal, with its own directory action.
   When a section has uniquely identifiable UTF-16 boundaries, also
