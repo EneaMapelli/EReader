@@ -32,6 +32,20 @@ Selecting an action does not start speech or change narration
 preferences. Tapping the icon and dismissing the popup without an
 action performs **no seek or checkpoint write**.
 
+## Keyboard access (2026-11-03)
+
+On a loaded EPUB with committed chapter visits, hardware keyboard users
+can use **Ctrl/Cmd+Shift+Page Up** (Back), **Ctrl/Cmd+Shift+Page Down**
+(Forward) and **Ctrl/Cmd+Shift+H** (recent Back origins, when at least
+two exist). These use the existing revision-guarded reader actions;
+the keyboard widget does not commit checkpoints directly and never starts
+narration. The keys do nothing if their destination is unavailable, the
+reader is loading, a text editor/interactive control has focus, or a
+different route is active. Ctrl/Cmd+Page Up/Down still switches publisher
+sections; unmodified left/right arrows still skip spoken segments; Alt
+arrows remain untouched for OS accessibility and selection controls.
+The scrollable in-app F1 help lists the new shortcuts.
+
 ## Accessibility and small screens
 
 The history popup uses a single 48px standard Flutter popup button
@@ -56,6 +70,7 @@ illustrated OPF spine identities remain unchanged.
 
 ## Regression tests authored
 
+- `test/features/reader_keyboard_shortcuts_test.dart`: distinct history Back/Forward/Recent mappings, keyboard callback dispatch, disabled/empty-history behavior, focused controls, route and repeat suppression, no TTS skips.
 - `test/features/reader_chapter_history_shortcut_test.dart`: popup
   action visibility, independent Back/Forward/Recent callbacks,
   cancellation without navigation, tooltip, and 320px at 200%

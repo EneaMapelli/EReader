@@ -19,6 +19,9 @@ enum ReaderKeyboardAction {
   decreaseTextSize,
   previousSection,
   nextSection,
+  chapterHistoryBack,
+  chapterHistoryForward,
+  chapterHistoryRecent,
   firstSection,
   lastSection,
 }
@@ -69,6 +72,9 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
   bool textSizeAvailable = false,
   bool focusModeAvailable = false,
   bool sectionNavigationAvailable = false,
+  bool chapterHistoryBackAvailable = false,
+  bool chapterHistoryForwardAvailable = false,
+  bool chapterHistoryRecentAvailable = false,
   required bool controlPressed,
   required bool metaPressed,
   required bool altPressed,
@@ -112,6 +118,24 @@ ReaderKeyboardAction? resolveReaderKeyboardAction(
     }
   }
   if (!readerReady) return null;
+  // Only explicit committed EPUB chapter visits are navigable. Keep this
+  // separate from Ctrl/Cmd+PageUp/Down (section changes), unmodified
+  // arrow keys (speech segments) and Alt+arrows (OS accessibility keys).
+  if (command && shiftPressed && !altPressed &&
+      !interactiveControlFocused) {
+    if (key == LogicalKeyboardKey.pageUp &&
+        chapterHistoryBackAvailable) {
+      return ReaderKeyboardAction.chapterHistoryBack;
+    }
+    if (key == LogicalKeyboardKey.pageDown &&
+        chapterHistoryForwardAvailable) {
+      return ReaderKeyboardAction.chapterHistoryForward;
+    }
+    if (key == LogicalKeyboardKey.keyH &&
+        chapterHistoryRecentAvailable) {
+      return ReaderKeyboardAction.chapterHistoryRecent;
+    }
+  }
   // F11 switches reading presentation only. It must never seek, start TTS
   // or steal a text editor's / focused control's own keyboard input.
   if (!command && !altPressed && !shiftPressed &&
@@ -189,6 +213,9 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
     this.onNextSection,
     this.onFirstSection,
     this.onLastSection,
+    this.onChapterHistoryBack,
+    this.onChapterHistoryForward,
+    this.onChapterHistoryRecent,
     this.onViewportScrollKey,
     required this.child,
   });
@@ -211,6 +238,9 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
   final VoidCallback? onNextSection;
   final VoidCallback? onFirstSection;
   final VoidCallback? onLastSection;
+  final VoidCallback? onChapterHistoryBack;
+  final VoidCallback? onChapterHistoryForward;
+  final VoidCallback? onChapterHistoryRecent;
 
   /// Observe unmodified book scrolling keys without consuming their
   /// native ScrollAction. This is only a user-intent signal, not a seek.
@@ -249,6 +279,9 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
           sectionNavigationAvailable: onPreviousSection != null &&
               onNextSection != null &&
               onFirstSection != null && onLastSection != null,
+          chapterHistoryBackAvailable: onChapterHistoryBack != null,
+          chapterHistoryForwardAvailable: onChapterHistoryForward != null,
+          chapterHistoryRecentAvailable: onChapterHistoryRecent != null,
           controlPressed: keyboard.isControlPressed,
           metaPressed: keyboard.isMetaPressed,
           altPressed: keyboard.isAltPressed,
@@ -305,6 +338,12 @@ class ReaderKeyboardShortcuts extends StatelessWidget {
             onPreviousSection?.call();
           case ReaderKeyboardAction.nextSection:
             onNextSection?.call();
+          case ReaderKeyboardAction.chapterHistoryBack:
+            onChapterHistoryBack?.call();
+          case ReaderKeyboardAction.chapterHistoryForward:
+            onChapterHistoryForward?.call();
+          case ReaderKeyboardAction.chapterHistoryRecent:
+            onChapterHistoryRecent?.call();
           case ReaderKeyboardAction.firstSection:
             onFirstSection?.call();
           case ReaderKeyboardAction.lastSection:
@@ -342,6 +381,9 @@ Future<void> showReaderKeyboardHelp(BuildContext context) =>
             Text('Ctrl/Cmd + - — Decrease reading text size'),
             Text('Ctrl/Cmd + Page Up — Previous EPUB section'),
             Text('Ctrl/Cmd + Page Down — Next EPUB section'),
+            Text('Ctrl/Cmd + Shift + Page Up — Back in EPUB chapter history'),
+            Text('Ctrl/Cmd + Shift + Page Down — Forward in EPUB chapter history'),
+            Text('Ctrl/Cmd + Shift + H — Recent EPUB chapter positions'),
             Text('Ctrl/Cmd + Home — First EPUB section'),
             Text('Ctrl/Cmd + End — Last EPUB section'),
             Text('F11 — Toggle immersive reading mode'),

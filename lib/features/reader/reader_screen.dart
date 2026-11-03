@@ -2532,6 +2532,15 @@ class _ReaderScreenState extends State<ReaderScreen>
           ? () => _jumpDirectoryRelative(-1) : null,
       onNextSection: epubSectionsAvailable
           ? () => _jumpDirectoryRelative(1) : null,
+      onChapterHistoryBack: epubSectionsAvailable &&
+              _chapterHistory.canReturn
+          ? _returnToSectionJumpOrigin : null,
+      onChapterHistoryForward: epubSectionsAvailable &&
+              _chapterHistory.canGoForward
+          ? _forwardToChapterVisit : null,
+      onChapterHistoryRecent: epubSectionsAvailable &&
+              _chapterHistory.length > 1
+          ? () => unawaited(_openChapterVisitHistory()) : null,
       onFirstSection: epubSectionsAvailable
           ? () => _jumpDirectoryBoundary(last: false) : null,
       onLastSection: epubSectionsAvailable

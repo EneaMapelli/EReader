@@ -20,6 +20,9 @@ Scope: **M1/M2/M6 — desktop accessibility and reader navigation**
 | Ctrl/Cmd+- | Decrease book text size by 2, down to 14 |
 | Ctrl/Cmd+Page Up | Previous EPUB section (publisher TOC or spine) |
 | Ctrl/Cmd+Page Down | Next EPUB section (publisher TOC or spine) |
+| Ctrl/Cmd+Shift+Page Up | Back to previous committed EPUB chapter visit |
+| Ctrl/Cmd+Shift+Page Down | Forward to next committed EPUB chapter visit |
+| Ctrl/Cmd+Shift+H | Open recent committed EPUB chapter positions (2+ Back visits) |
 | Ctrl/Cmd+Home | First EPUB section |
 | Ctrl/Cmd+End | Last EPUB section |
 | F1 | Open an in-app keyboard-shortcut guide |
@@ -88,6 +91,7 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
   field, even if a short PDF menu contains fewer than eight actions. Tapping
   the ordinary toolbar menu never autofocuses or forces Android's keyboard.
 - Inactive routes and modal dialogs do not handle reader commands.
+- Ctrl/Cmd+Shift+Page Up/Down navigate existing session-only EPUB history, not the publisher's next/previous section or TTS queue. Back, Forward and Recent each appear only when an actionable saved history entry exists. The shortcuts share the exact source seek, latest-selection and persisted-checkpoint guards used by the popup history icon; neither a missing history action nor an open/canceled recent sheet changes playback or book progress. Ctrl/Cmd+Shift+H opens the same read-only newest-first sheet as the compact history menu.
 - Shift+arrow, Alt+arrow and unrelated modifier combinations remain
   available to operating system / accessibility / selection controls.
 - Left/right move between **TTS segments**, not words or visual page
@@ -130,6 +134,10 @@ with a pure `resolveReaderKeyboardAction` mapper and stable callbacks:
     reader menu options tests.
 11. Shortcut-initiated search autofocus, including compact tool menus
     (see organized_action_sheet_search_test.dart).
+
+15. New session-only chapter Back/Forward/Recent shortcuts, positive and
+    negative modifier/focus/route/repeat mappings, empty history and
+    separation from TTS transport and adjacent publisher sections.
 
 **Tests authored, not executed.** Flutter/Dart is not installed in this
 connected environment. A manual keyboard, focus, screen-reader and

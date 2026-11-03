@@ -25,6 +25,9 @@ ReaderKeyboardAction? action(
   bool textSize = false,
   bool focusMode = false,
   bool sections = false,
+  bool historyBack = false,
+  bool historyForward = false,
+  bool historyRecent = false,
   bool interactive = false,
 }) =>
     resolveReaderKeyboardAction(
@@ -40,6 +43,9 @@ ReaderKeyboardAction? action(
       textSizeAvailable: textSize,
       focusModeAvailable: focusMode,
       sectionNavigationAvailable: sections,
+      chapterHistoryBackAvailable: historyBack,
+      chapterHistoryForwardAvailable: historyForward,
+      chapterHistoryRecentAvailable: historyRecent,
       controlPressed: ctrl,
       metaPressed: meta,
       altPressed: alt,
@@ -842,8 +848,169 @@ void main() {
     expect(find.textContaining('Next EPUB section'), findsOneWidget);
     expect(find.textContaining('First EPUB section'), findsOneWidget);
     expect(find.textContaining('Last EPUB section'), findsOneWidget);
+    expect(find.textContaining('Back in EPUB chapter history'), findsOneWidget);
+    expect(find.textContaining('Forward in EPUB chapter history'), findsOneWidget);
+    expect(find.textContaining('Recent EPUB chapter positions'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(find.text('Reader keyboard shortcuts'), findsNothing);
+  });
+
+  test('EPUB history has distinct modifier-gated keyboard commands', () {
+    for (final useMeta in [false, true]) {
+      final ctrl = !useMeta;
+      final meta = useMeta;
+      expect(action(down(LogicalKeyboardKey.pageUp),
+          ctrl: ctrl, meta: meta, shift: true, historyBack: true),
+          ReaderKeyboardAction.chapterHistoryBack);
+      expect(action(down(LogicalKeyboardKey.pageDown),
+          ctrl: ctrl, meta: meta, shift: true, historyForward: true),
+          ReaderKeyboardAction.chapterHistoryForward);
+      expect(action(down(LogicalKeyboardKey.keyH),
+          ctrl: ctrl, meta: meta, shift: true, historyRecent: true),
+          ReaderKeyboardAction.chapterHistoryRecent);
+
+      // Missing Back/Forward/Recent state must not make a seek possible.
+      expect(action(down(LogicalKeyboardKey.pageUp),
+          ctrl: ctrl, meta: meta, shift: true), isNull);
+      expect(action(down(LogicalKeyboardKey.pageDown),
+          ctrl: ctrl, meta: meta, shift: true), isNull);
+      expect(action(down(LogicalKeyboardKey.keyH),
+          ctrl: ctrl, meta: meta, shift: true), isNull);
+      // Existing chapter traversal is different from history traversal.
+      expect(action(down(LogicalKeyboardKey.pageUp),
+          ctrl: ctrl, meta: meta, sections: true),
+          ReaderKeyboardAction.previousSection);
+      expect(action(down(LogicalKeyboardKey.pageDown),
+          ctrl: ctrl, meta: meta, sections: true),
+          ReaderKeyboardAction.nextSection);
+
+      for (final blocked in [
+        action(down(LogicalKeyboardKey.pageUp),
+            ctrl: ctrl, meta: meta, shift: true,
+            historyBack: true, ready: false),
+        action(down(LogicalKeyboardKey.pageUp),
+            ctrl: ctrl, meta: meta, shift: true,
+            historyBack: true, routeActive: false),
+        action(down(LogicalKeyboardKey.pageUp),
+            ctrl: ctrl, meta: meta, shift: true,
+            historyBack: true, editing: true),
+        action(down(LogicalKeyboardKey.pageUp),
+            ctrl: ctrl, meta: meta, shift: true,
+            historyBack: true, interactive: true),
+        action(down(LogicalKeyboardKey.pageUp),
+            ctrl: ctrl, meta: meta, shift: true,
+            historyBack: true, alt: true),
+        action(down(LogicalKeyboardKey.pageDown),
+            ctrl: ctrl, meta: meta, shift: true,
+            historyForward: true, interactive: true),
+        action(down(LogicalKeyboardKey.pageDown),
+            ctrl: ctrl, meta: meta, shift: true,
+            historyForward: true, editing: true),
+        action(down(LogicalKeyboardKey.keyH),
+            ctrl: ctrl, meta: meta, shift: true,
+            historyRecent: true, editing: true),
+        action(down(LogicalKeyboardKey.keyH),
+            ctrl: ctrl, meta: meta, shift: true,
+            historyRecent: true, interactive: true),
+        action(down(LogicalKeyboardKey.keyH),
+            ctrl: ctrl, meta: meta, shift: true,
+            historyRecent: true, alt: true),
+        action(down(LogicalKeyboardKey.keyH),
+            ctrl: ctrl, meta: meta, shift: false,
+            historyRecent: true),
+        action(KeyRepeatEvent(
+            logicalKey: LogicalKeyboardKey.pageUp,
+            physicalKey: PhysicalKeyboardKey.pageUp,
+            timeStamp: Duration.zero,
+          ), ctrl: ctrl, meta: meta, shift: true, historyBack: true),
+        action(KeyRepeatEvent(
+            logicalKey: LogicalKeyboardKey.pageDown,
+            physicalKey: PhysicalKeyboardKey.pageDown,
+            timeStamp: Duration.zero,
+          ), ctrl: ctrl, meta: meta, shift: true,
+            historyForward: true),
+      ]) {
+        expect(blocked, isNull);
+      }
+    }
+    // Alt+arrows remain for OS navigation/accessibility.
+    expect(action(down(LogicalKeyboardKey.arrowLeft),
+        alt: true, historyBack: true), isNull);
+    expect(action(down(LogicalKeyboardKey.arrowRight),
+        alt: true, historyForward: true), isNull);
+  });
+
+  testWidgets('EPUB history shortcuts dispatch only source navigation',
+      (tester) async {
+    var back = 0;
+    var forward = 0;
+    var recent = 0;
+    var chapterChanges = 0;
+    var spokenSkips = 0;
+    var played = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderKeyboardShortcuts(
+        enabled: true,
+        onPlayPause: () => played++,
+        onPreviousSegment: () => spokenSkips++,
+        onNextSegment: () => spokenSkips++,
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        onPreviousSection: () => chapterChanges++,
+        onNextSection: () => chapterChanges++,
+        onFirstSection: () => chapterChanges++,
+        onLastSection: () => chapterChanges++,
+        onChapterHistoryBack: () => back++,
+        onChapterHistoryForward: () => forward++,
+        onChapterHistoryRecent: () => recent++,
+        child: const Scaffold(body: Text('EPUB chapter history')),
+      ),
+    ));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyH);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    expect(back, 1);
+    expect(forward, 1);
+    expect(recent, 1);
+    expect(chapterChanges, 0);
+    expect(spokenSkips, 0);
+    expect(played, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('history keys are inert without committed history',
+      (tester) async {
+    var played = 0;
+    var spokenSkips = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderKeyboardShortcuts(
+        enabled: true,
+        onPlayPause: () => played++,
+        onPreviousSegment: () => spokenSkips++,
+        onNextSegment: () => spokenSkips++,
+        onSearch: () {},
+        onBookmarks: () {},
+        onHelp: () {},
+        child: const Scaffold(body: Text('EPUB with empty history')),
+      ),
+    ));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyH);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    expect(played, 0);
+    expect(spokenSkips, 0);
+    expect(tester.takeException(), isNull);
   });
 }
