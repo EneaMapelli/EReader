@@ -213,3 +213,43 @@ failure that remains reportable.
 
 No Flutter analyzer, widget tests, device builds or GitHub Actions
 were run; source-level exact-match checks only.
+
+## 2026-11-03 — queued viewport save invalidation before native Pause
+
+An explicit EPUB source selection may need to wait for a slow native
+Pause before calling the common `_select` source seek. Previously,
+several routes only called `_saveVisualPositionTimer?.cancel()` at
+intent time, or relied on `_select` to call
+`_cancelPendingVisualSave()` after the Pause barrier. Canceling a Timer
+alone does not invalidate an already-queued callback that captured the
+old `_visualSaveRevision`.
+
+All explicit selection routes now call `_cancelPendingVisualSave()`
+immediately when reserving their source intent, **before** awaiting
+native Pause/Seek. This covers publisher TOC/spine chapter changes,
+EPUB bookmarks, internal link/navigation, note return, tapped
+passages, TTS previous/next segment commands and extracted TXT/PDF
+percentage jumps. The method both cancels the pending viewport
+timer **and** increments the revision checked by delayed callbacks.
+The common `_select` continues to invalidate again before seeking;
+this is intentional, so an existing callback cannot persist between
+the user's command and the actual source seek.
+
+This protects two independent effects:
+
+1. A stale asynchronous source command still cannot win over a newer
+   command due to `ReaderSourceSelectionGate`.
+2. A queued/debounced visual-scroll save from *before* that command
+   cannot write an outdated source anchor during native Pause or
+   after a newer durable chapter checkpoint.
+
+Added a generated two-chapter EPUB widget regression in
+`test/features/reader_focus_epub_integration_test.dart`:
+it scrolls the reader, immediately changes EPUB section, then waits
+beyond the 450ms viewport debounce. The resulting checkpoint must
+still point into the committed chapter, with exactly one manual
+source-position write relative to the original revision.
+
+**Validation:** source edits and test authored, not executed under
+Flutter or a native TTS engine. Windows builds and GitHub Actions were
+not triggered; PR #1 remains draft.
