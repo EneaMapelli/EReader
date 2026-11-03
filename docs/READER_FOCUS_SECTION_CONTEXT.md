@@ -13,7 +13,7 @@ The immersive AppBar now has:
 
 1. The existing whole-book source progress row (**44 logical pixels**),
    with its separate **Go to book position** action.
-2. An additional compact EPUB-only row (**36 logical pixels**)
+2. An additional compact EPUB-only row (**48 logical pixels**)
    containing a one-line, ellipsized chapter title, **section number
    / section count**, and when unambiguous, its **local source progress
    percentage**.
