@@ -2412,7 +2412,7 @@ class _ReaderScreenState extends State<ReaderScreen>
                 preferredSize: Size.fromHeight(
                     widget.book.format == BookFormat.epub &&
                             (_authorToc.isNotEmpty || _chapters.isNotEmpty)
-                        ? 80 : 44),
+                        ? 92 : 44),
                 child: ValueListenableBuilder<int>(
                   valueListenable: _visualProgressTick,
                   builder: (context, revision, child) {
