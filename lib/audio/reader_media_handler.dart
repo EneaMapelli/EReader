@@ -383,7 +383,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     }
     if (_closed || !identical(_player, player) ||
         epoch != _bindingEpoch || command != _commandEpoch ||
-          player.narrationControlRevision != control) return;
+        player.narrationControlRevision != control) return;
     if (!permitted) {
       throw StateError('Cloud speech consent is not enabled for this book');
     }
@@ -392,7 +392,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     final oldStopConfirmed = await _pendingTransportStops;
     if (_closed || !identical(_player, player) ||
         epoch != _bindingEpoch || command != _commandEpoch ||
-          player.narrationControlRevision != control) return;
+        player.narrationControlRevision != control) return;
     if (!oldStopConfirmed) {
       final recovered = await tryRecoverAfterConfirmedNativeStops();
       if (_closed || !identical(_player, player) ||
@@ -417,7 +417,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     }
     if (_closed || !identical(_player, player) ||
         epoch != _bindingEpoch || command != _commandEpoch ||
-          player.narrationControlRevision != control) return;
+        player.narrationControlRevision != control) return;
     if (!focused) {
       throw StateError('Cannot obtain Android audio focus');
     }
