@@ -194,6 +194,9 @@ class _ReaderScreenState extends State<ReaderScreen>
   // change, reload or newer viewport event. Canceling the Timer normally
   // suffices, but the revision is a second guard for queued callbacks.
   int _visualSaveRevision = 0;
+  // Coalesce repeated failures from the same unsaved-scroll session into
+  // one visible warning. Reset after a successful checkpoint or book reload.
+  bool _viewportSaveFailureShown = false;
   // Only the latest in-reader source selection can persist its bookmark.
   // A superseded Seek may return successfully once native Stop settles;
   // it must not write its obsolete visual location afterward.
@@ -282,6 +285,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     final epoch = ++_loadEpoch;
     _sourceSelectionGate.invalidate();
     _cancelPendingVisualSave();
+    _viewportSaveFailureShown = false;
     _progressReturn.clear();
     _chapterHistory.clear();
     _narrationFollow.resetForBook();
@@ -1012,25 +1016,47 @@ class _ReaderScreenState extends State<ReaderScreen>
         )) return;
     final revision = _visualSaveRevision;
     final document = _document;
+    final bookId = widget.book.id;
+    // Re-evaluate the same guard both before the write and when its Future
+    // settles, so a failed OLD viewport save cannot show an error over a
+    // newer chapter/voice selection or a reloaded book.
+    bool isCurrentSave() =>
+        mounted && !_loading && _error == null &&
+        widget.book.id == bookId && _player == player &&
+        _document == document && _visualSaveRevision == revision &&
+        _viewportSaveGate.allowsViewportSave &&
+        readerMayPersistViewport(
+          settledIdle: player.isSettledIdle,
+          narrationPlaying: player.isPlaying,
+          temporarilyDetached: _narrationFollow.suspendedByUser,
+        ) &&
+        (widget.book.format != BookFormat.epub ||
+            _currentEpubVisualSourceOffset == sourceOffset) &&
+        (widget.book.format != BookFormat.pdf || _pdfTextMode);
     _saveVisualPositionTimer = Timer(const Duration(milliseconds: 450), () {
-      if (!mounted || !readerMayPersistViewport(
-            settledIdle: player.isSettledIdle,
-            narrationPlaying: player.isPlaying,
-            temporarilyDetached: _narrationFollow.suspendedByUser,
-          ) || _player != player ||
-          _visualSaveRevision != revision || _document != document ||
-          (widget.book.format == BookFormat.epub &&
-              _currentEpubVisualSourceOffset != sourceOffset) ||
-          (widget.book.format == BookFormat.pdf && !_pdfTextMode)) return;
+      if (!isCurrentSave()) return;
       final emptySpine = widget.book.format == BookFormat.epub
           ? _epubLayout.silentSpineIdrefForBlock(firstItem) : null;
-      widget.store.savePosition(
-        widget.book.id, sourceOffset,
-        anchor: emptySpine == null
-            ? document?.anchorAt(widget.book.format, sourceOffset)
-            : ReadingAnchor(kind: AnchorKind.epubSpine,
-                sourceId: emptySpine, localOffset: 0),
-      );
+      // A rejected SQLite Future in a void Timer callback must never
+      // escape as an unhandled zone error or destabilize the reader.
+      unawaited(persistReaderViewportCheckpoint(
+        isCurrent: isCurrentSave,
+        save: () => widget.store.savePosition(
+          bookId, sourceOffset,
+          anchor: emptySpine == null
+              ? document?.anchorAt(widget.book.format, sourceOffset)
+              : ReadingAnchor(kind: AnchorKind.epubSpine,
+                  sourceId: emptySpine, localOffset: 0),
+        ),
+        onSaved: () => _viewportSaveFailureShown = false,
+        onFailure: (_) {
+          if (_viewportSaveFailureShown) return;
+          _viewportSaveFailureShown = true;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Could not save reading position. Scroll again to retry.'),
+          ));
+        },
+      ));
     });
   }
 

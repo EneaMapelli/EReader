@@ -1,8 +1,74 @@
+import 'dart:async';
+
 import 'package:ereader/features/reader/reader_viewport_save_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('rejected deferred viewport write is caught and reported once',
+      () async {
+    final errors = <Object>[];
+    var saved = false;
+    await persistReaderViewportCheckpoint(
+      save: () async => throw StateError('sqlite read-only'),
+      isCurrent: () => true,
+      onFailure: errors.add,
+      onSaved: () => saved = true,
+    );
+    expect(errors, hasLength(1));
+    expect(errors.single, isA<StateError>());
+    expect(saved, isFalse);
+  });
+
+  test('superseded viewport request never starts a database write', () async {
+    var activeRevision = 3;
+    var writes = 0;
+    final captured = activeRevision;
+    activeRevision++;
+    await persistReaderViewportCheckpoint(
+      save: () async { writes++; },
+      isCurrent: () => activeRevision == captured,
+      onFailure: (_) => fail('Stale request reported an error'),
+    );
+    expect(writes, 0);
+  });
+
+  test('a late failed write is silent after another source selection',
+      () async {
+    final pending = Completer<void>();
+    var revision = 4;
+    final savedRevision = revision;
+    final errors = <Object>[];
+    final future = persistReaderViewportCheckpoint(
+      save: () => pending.future,
+      isCurrent: () => revision == savedRevision,
+      onFailure: errors.add,
+    );
+    revision++; // Explicit EPUB seek supersedes the queued viewport save.
+    pending.completeError(StateError('obsolete SQLite failure'));
+    await future;
+    expect(errors, isEmpty);
+  });
+
+  test('a current successful write clears earlier error notification',
+      () async {
+    var warned = false;
+    final error = StateError('temporary write failure');
+    await persistReaderViewportCheckpoint(
+      save: () async => throw error,
+      isCurrent: () => true,
+      onFailure: (_) => warned = true,
+    );
+    expect(warned, isTrue);
+    await persistReaderViewportCheckpoint(
+      save: () async {},
+      isCurrent: () => true,
+      onFailure: (_) => fail('Successful write failed'),
+      onSaved: () => warned = false,
+    );
+    expect(warned, isFalse);
+  });
+
   test('viewport relayout does not authorize a bookmark write', () {
     final gate = ReaderViewportSaveGate();
     expect(gate.allowsViewportSave, isTrue);

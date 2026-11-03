@@ -253,3 +253,29 @@ source-position write relative to the original revision.
 **Validation:** source edits and test authored, not executed under
 Flutter or a native TTS engine. Windows builds and GitHub Actions were
 not triggered; PR #1 remains draft.
+
+## 2026-11-03 — failed manual-scroll checkpoint handling
+
+The idle, debounced viewport save used to call
+`LibraryStore.savePosition` from a synchronous Timer callback without
+observing the returned Future. A SQLite failure therefore could surface
+as an **unhandled asynchronous error** even when the reader remained
+usable. That is distinct from an obsolete chapter selection.
+
+The reader now routes those writes through
+`persistReaderViewportCheckpoint`, which catches storage failures and
+re-evaluates the original book, player, document, scroll revision,
+settled-idle state and EPUB source coordinate before reporting the
+result. A failure of a superseded write must not display a misleading
+warning over the current chapter or during narration. A current failure
+shows one actionable snackbar; repeat failures are coalesced until a
+successful viewport checkpoint or a book reload, and the user may
+scroll again to retry. A synchronous SQLite write already committed
+before a later intent is not rolled back.
+
+Added four deterministic tests to
+`test/features/reader_viewport_save_gate_test.dart` for a rejected
+write, canceled request before the write, rejected old Future after
+a new source selection, and successful retry clearing the failure
+indicator. These are source-level tests authored but **not run**;
+Flutter/device/Windows builds and GitHub Actions were not invoked.
