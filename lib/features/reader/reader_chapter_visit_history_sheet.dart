@@ -44,7 +44,7 @@ class _ReaderChapterVisitHistorySheet extends StatelessWidget {
       top: false,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: (height * 0.78).clamp(180.0, height).toDouble(),
+          maxHeight: height * 0.78,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
