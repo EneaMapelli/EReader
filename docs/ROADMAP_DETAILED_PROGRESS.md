@@ -2154,3 +2154,23 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   See [READER_CHAPTER_BACK_FORWARD.md](READER_CHAPTER_BACK_FORWARD.md).
 - Flutter analyzer and tests remain **unexecuted**. GitHub Actions
   and Windows builds were not started; PR #1 remains draft.
+
+### 2026-11-03 — Accessible contextual EPUB chapter history shortcut
+
+- Added a **single, conditional history popup** for EPUB in the
+  compact narration transport row and immersive focus AppBar. It
+  offers only valid **Back**, **Forward** and **Recent positions**
+  actions, reusing existing guarded return methods. The button is
+  absent when no visit history is available and does not add a
+  permanent chapter-navigation bar or new TTS behavior.
+- Improved the chapter visit sheet: truncation-safe title/subtitle
+  header, explicit TalkBack return semantics for each item with full
+  title, section ordinal, original-source percentage and visit
+  order; retain accurate object-identity selection.
+- Added dedicated popup widget tests for independent actions and
+  cancellation, compact-TTS isolation, semantic labels at 320px /
+  200% text scaling and generated EPUB3 integration coverage in
+  compact and immersive layouts. See
+  [READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md](READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md).
+- Flutter analyzer/widget/integration tests **not run** here.
+  No Windows build or GitHub Actions initiated; PR #1 stays draft.
