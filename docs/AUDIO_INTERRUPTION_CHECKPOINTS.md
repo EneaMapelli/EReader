@@ -367,3 +367,29 @@ book replacement during the same await, and prompt refusal of a
 second wait after a known timeout. Source/test/docs are committed
 without running Flutter, Dart analyzer, native builds or GitHub
 Actions; Android behavior still requires device validation.
+
+## 2026-11-03 — coalesce concurrent TTS recovery and re-lock on later failure
+
+Two near-simultaneous requests for recovery after a late, successful
+native Stop previously inspected the same failed barrier independently.
+The first request could verify all old engines and replace the barrier
+with a ready Future. The second would then treat the changed Future as
+a superseding operation and return false, even though that change was
+the *successful recovery it was waiting for*. A newer Play could
+therefore fail spuriously instead of starting the new book.
+
+`ReaderMediaHandler.tryRecoverAfterConfirmedNativeStops()` now shares
+one in-flight recovery Future between callers. An old, invalidated
+book/close still makes the shared verification return false, and a
+future explicit Play can initiate another fresh verification after
+the current one completes. Recovery continues to require actual
+positive native Stop acknowledgments, and never starts TTS itself.
+
+Two regressions in `test/audio/native_stop_timeout_test.dart`
+cover simultaneous recovery calls sharing the positive result without
+automatic narration, and a *second*, genuinely failed native Stop
+after an earlier timeout had been successfully recovered. The later
+failure must re-lock controls, suppress new focus, and preserve the
+current book's metadata. The test code is authored but not executed;
+Dart analyzer, Flutter/native tests, builds and GitHub Actions
+remain deferred.

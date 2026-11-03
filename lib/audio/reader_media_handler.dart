@@ -75,6 +75,9 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // requires no retained reference to a book that has already closed.
   final Set<ReaderPlayer> _unsafeStopPlayers = {};
   int _transportBarrierRevision = 0;
+  // Concurrent explicit Play requests must join the same verification
+  // rather than having one recovery reset the barrier under the other.
+  Future<bool>? _pendingRecovery;
 
   /// A previous Stop was not confirmed by its deadline. Recovery is
   /// possible only after every affected native engine actually confirms
@@ -115,7 +118,17 @@ class ReaderMediaHandler extends BaseAudioHandler {
   /// Never interpret timeout, native exception, or missing acknowledgment
   /// as silence. Called only in response to a new explicit Play request;
   /// focus gain/interruption callbacks never initiate playback.
-  Future<bool> tryRecoverAfterConfirmedNativeStops() async {
+  Future<bool> tryRecoverAfterConfirmedNativeStops() {
+    if (_closed || _closeFuture != null) return Future<bool>.value(false);
+    return _pendingRecovery ??=
+        _recoverAfterConfirmedNativeStops().whenComplete(() {
+      // The shared verification is complete; a future user Play may
+      // inspect new information from a newly acknowledged native Stop.
+      _pendingRecovery = null;
+    });
+  }
+
+  Future<bool> _recoverAfterConfirmedNativeStops() async {
     if (_closed || _closeFuture != null) return false;
     final pending = _pendingTransportStops;
     final revision = _transportBarrierRevision;

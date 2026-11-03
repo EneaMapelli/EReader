@@ -512,6 +512,101 @@ void main() {
     newPlayer.dispose();
   });
 
+  test('simultaneous recovery checks share the winning late Stop result',
+      () async {
+    final oldEngine = _HeldStopEngine();
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    var focusRequests = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusRequests++;
+      return true;
+    });
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old book');
+    await handler.play();
+    await _settle();
+    oldEngine.stopGate = Completer<void>();
+    handler.attach(newPlayer, bookId: 'new', title: 'New book');
+
+    await expectLater(handler.play(), throwsStateError);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    oldEngine.stopGate!.complete();
+    await _settle();
+    expect(await oldPlayer.waitForNativeStopConfirmation(), isTrue);
+
+    // Without a shared recovery Future, the first verification resets
+    // _pendingTransportStops and the second incorrectly reports failure.
+    final first = handler.tryRecoverAfterConfirmedNativeStops();
+    final second = handler.tryRecoverAfterConfirmedNativeStops();
+    expect(identical(first, second), isTrue);
+    final results = await Future.wait([first, second]);
+    expect(results, [true, true]);
+    expect(handler.requiresFreshAudioSession, isFalse);
+    expect(newEngine.spoken, isEmpty,
+        reason: 'Recovering state never starts speech without user Play');
+    expect(focusRequests, 1);
+
+    await handler.play();
+    await _settle();
+    expect(newEngine.spoken, ['First']);
+    expect(focusRequests, 2);
+    await handler.pause();
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
+  test('second native Stop failure remains locked after earlier recovery',
+      () async {
+    final oldEngine = _HeldStopEngine();
+    final middleEngine = _HeldStopEngine();
+    final currentEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final middlePlayer = _player(middleEngine);
+    final currentPlayer = _player(currentEngine);
+    var focusRequests = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusRequests++;
+      return true;
+    });
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    expect(focusRequests, 1);
+
+    oldEngine.stopGate = Completer<void>();
+    handler.attach(middlePlayer, bookId: 'middle', title: 'Middle');
+    await expectLater(handler.play(), throwsStateError);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    oldEngine.stopGate!.complete();
+    await _settle();
+
+    await handler.play(); // Explicit recovery after confirmed old Stop.
+    await _settle();
+    expect(middleEngine.spoken, ['First']);
+    expect(handler.requiresFreshAudioSession, isFalse);
+    expect(focusRequests, 2);
+
+    middleEngine.throwOnStop = true;
+    handler.attach(currentPlayer, bookId: 'current', title: 'Current');
+    await expectLater(handler.play(), throwsStateError);
+    expect(await handler.tryRecoverAfterConfirmedNativeStops(), isFalse);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(handler.mediaItem.value?.id, 'current');
+    expect(handler.playbackState.value.processingState,
+        AudioProcessingState.error);
+    expect(handler.playbackState.value.controls, isEmpty);
+    expect(currentEngine.spoken, isEmpty);
+    expect(focusRequests, 2,
+        reason: 'A later failed Stop must never inherit earlier recovery');
+    middleEngine.throwOnStop = false;
+    await handler.close();
+    oldPlayer.dispose();
+    middlePlayer.dispose();
+    currentPlayer.dispose();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(
