@@ -479,6 +479,121 @@ void main() {
     player.dispose();
   });
 
+  test('old Android focus exception after book handoff is ignored',
+      () async {
+    final oldEngine = _FakeSpeechEngine();
+    final newEngine = _FakeSpeechEngine();
+    final old = _reader(oldEngine);
+    final next = _reader(newEngine);
+    final focusGate = Completer<bool>();
+    var requests = 0;
+    final handler = ReaderMediaHandler(requestFocus: () {
+      requests++;
+      return requests == 1
+          ? focusGate.future : Future<bool>.value(true);
+    });
+    handler.attach(old, bookId: 'old', title: 'Previous book');
+    final obsolete = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(requests, 1);
+
+    handler.attach(next, bookId: 'new', title: 'Current book');
+    final current = handler.play();
+    focusGate.completeError(StateError('obsolete Android focus failure'));
+    await Future.wait([obsolete, current]);
+    await _waitForSpoken(newEngine, 1);
+
+    expect(oldEngine.spoken, isEmpty);
+    expect(newEngine.spoken, ['First']);
+    expect(handler.mediaItem.value?.id, 'new');
+    expect(handler.ownsPlayer(next), isTrue);
+    expect(requests, 2);
+    await handler.pause();
+    await handler.close();
+    old.dispose();
+    next.dispose();
+  });
+
+  test('a focus exception after a newer Pause does not revive old Play',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final gate = Completer<bool>();
+    final handler = ReaderMediaHandler(requestFocus: () => gate.future);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    final stalePlay = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    final pausing = handler.pause();
+    gate.completeError(StateError('obsolete focus failure'));
+    await Future.wait([stalePlay, pausing]);
+
+    expect(engine.spoken, isEmpty);
+    expect(player.isSettledIdle, isTrue);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('current Android focus exception still reaches active Play',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async =>
+        throw StateError('current Android focus failure'));
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await expectLater(handler.play(), throwsStateError);
+    expect(engine.spoken, isEmpty);
+    expect(player.isPlaying, isFalse);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('old remote Seek failure after book replacement is not reported',
+      () async {
+    final oldEngine = _FakeSpeechEngine();
+    final newEngine = _FakeSpeechEngine();
+    final old = _reader(oldEngine);
+    final next = _reader(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(old, bookId: 'old', title: 'Previous book');
+    await handler.play();
+    await _waitForSpoken(oldEngine, 1);
+
+    oldEngine.stopGate = Completer<void>();
+    oldEngine.failStop = true;
+    final obsoleteSkip = handler.skipToNext();
+    handler.attach(next, bookId: 'new', title: 'Current book');
+    oldEngine.stopGate!.complete();
+    await obsoleteSkip;
+
+    expect(handler.mediaItem.value?.id, 'new');
+    expect(handler.ownsPlayer(next), isTrue);
+    expect(newEngine.spoken, isEmpty);
+    await handler.play();
+    await _waitForSpoken(newEngine, 1);
+    expect(newEngine.spoken, ['First']);
+    await handler.pause();
+    oldEngine.failStop = false;
+    await handler.close();
+    old.dispose();
+    next.dispose();
+  });
+
+  test('current remote Seek failure is not swallowed', () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await _waitForSpoken(engine, 1);
+    engine.failStop = true;
+    await expectLater(handler.skipToNext(), throwsStateError);
+    expect(handler.ownsPlayer(player), isTrue);
+    expect(player.nativeStopUnconfirmed, isTrue);
+    engine.failStop = false;
+    await handler.close();
+    player.dispose();
+  });
+
   test('focus reacquisition waits for an earlier native release', () async {
     final engine = _FakeSpeechEngine();
     final player = _reader(engine);

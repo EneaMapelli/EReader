@@ -246,14 +246,23 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (!permitted) {
       throw StateError('Cloud speech consent is not enabled for this book');
     }
-    if (!await _claimAudioFocus()) {
+    bool focused;
+    try {
+      focused = await _claimAudioFocus();
+    } catch (_) {
+      // A platform focus error may arrive after a newer Play, Pause or
+      // book attachment. The obsolete request no longer owns this
+      // MediaSession, and must not surface an unrelated failure.
       if (_closed || !identical(_player, player) ||
           epoch != _bindingEpoch || command != _commandEpoch) return;
-      throw StateError('Cannot obtain Android audio focus');
+      rethrow;
     }
     if (_closed || !identical(_player, player) ||
-        epoch != _bindingEpoch || command != _commandEpoch ||
-        player.nativeStopUnconfirmed) {
+        epoch != _bindingEpoch || command != _commandEpoch) return;
+    if (!focused) {
+      throw StateError('Cannot obtain Android audio focus');
+    }
+    if (player.nativeStopUnconfirmed) {
       // detach/pause/new commands own any required focus release.
       // A stale play must not release a newer successful play's focus.
       return;
@@ -328,7 +337,8 @@ class ReaderMediaHandler extends BaseAudioHandler {
   /// ReaderPlayer already enforces latest-navigation-wins; this layer must
   /// keep the *requested* cursor for successive remote commands.
   Future<void> _skipRemote(int delta) async {
-    _commandEpoch++;
+    final command = ++_commandEpoch;
+    final binding = _bindingEpoch;
     final player = _player;
     if (_closed || player == null || player.segments.isEmpty) return;
     final previousTarget = _pendingSkipTarget;
@@ -367,6 +377,14 @@ class ReaderMediaHandler extends BaseAudioHandler {
         // suppress visual synchronization for the winning chapter.
         _onRemoteNavigation?.call(target);
       }
+    } catch (_) {
+      // A native Stop/Seek may fail after another headset command,
+      // direct Pause or book handoff. Only the still-owning remote
+      // request may surface that error to the Android transport.
+      if (_closed || !identical(_player, player) ||
+          binding != _bindingEpoch || command != _commandEpoch ||
+          _pendingSkipRevision != revision) return;
+      rethrow;
     } finally {
       // Preserve accumulation only while a remote skip is still pending.
       // Otherwise a later press after natural speech advancement would

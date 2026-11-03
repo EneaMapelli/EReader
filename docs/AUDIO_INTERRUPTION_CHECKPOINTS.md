@@ -140,3 +140,28 @@ an earlier denial following a newer successful Play, a late consent
 exception after Pause, and preservation of the current consent
 exception. Tests and documentation have been authored; Flutter tests,
 native builds, and GitHub Actions have not been run.
+
+## 2026-11-03 — active ownership of Android focus and remote Seek errors
+
+Two more asynchronous errors can outlive their original media command.
+Android audio focus may reject with a platform exception **after**
+a newer Pause/Play or a different book's attachment. Previously the
+focus-acquisition Future was awaited without a stale-command catch,
+so the old error could be delivered to Android despite losing ownership.
+`ReaderMediaHandler.play` now checks the original player, binding
+epoch and command epoch before propagating a focus exception. Denials
+and thrown failures of the **current** focus request remain visible.
+
+Likewise a remote Next/Previous Seek may fail only when its delayed
+native Stop settles. `_skipRemote` now checks its original binding,
+player, remote command and pending skip revision before reporting such
+a failure. A superseded remote seek must not report an obsolete failure
+after a new book or newer media command, but the current seek still
+propagates a real Stop failure. The existing `finally` continues to
+clear only the matching skip accumulator.
+
+Five deterministic tests in `test/audio/reader_media_handler_test.dart`
+exercise stale focus exception after book handoff, stale focus exception
+after Pause, live focus exception, obsolete remote Seek failure after
+book replacement, and live remote Seek failure. No audio/test/build
+commands or GitHub Actions were executed.
