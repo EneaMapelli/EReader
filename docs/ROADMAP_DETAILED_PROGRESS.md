@@ -2051,3 +2051,30 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
 - **Not executed:** Flutter analyzer, widget/integration tests or
   Android/Windows device verification. No Windows builds or GitHub
   Actions launched; PR #1 remains draft.
+
+### 2026-11-03 — Direct chapter arrows in compact and immersive EPUB reading
+
+- Added separate **Previous EPUB section** / **Next EPUB section** arrows
+  next to the current chapter label in the compact narration panel
+  and immersive focus header. TTS previous/next segment transport
+  remains unchanged and visually separate. The chapter label still
+  opens the publisher TOC / OPF fallback directory, and the focus
+  section percentage still opens local Go.
+- Each arrow is disabled at the actual first/last directory entry.
+  Both call the existing `_jumpDirectoryRelative` and guarded
+  `_jumpDirectoryIndex` source-navigation pipeline rather than
+  introducing independent audio or checkpoint behavior. The
+  displayed active section continues to follow the visible EPUB
+  viewport through `_visualProgressTick`.
+- On narrow 320px devices with enlarged text, the immersive
+  chapter ordinal can be hidden visually while remaining accessible
+  in the title's TalkBack semantics; three independent 48px tap
+  targets are retained. No EPUB arrows are added to TXT or PDF.
+- Added widget tests for chapter-vs-TTS independence, disabled
+  boundaries and enlarged text. Added a two-chapter EPUB integration
+  regression for focus next/previous navigation and the same
+  compact next arrow, verifying source checkpoints and focus mode.
+  See [READER_DIRECT_SECTION_SWITCHING.md](READER_DIRECT_SECTION_SWITCHING.md).
+- Flutter analyzer and widget/integration tests **not executed**
+  in this environment. No Windows build or GitHub Actions
+  started; PR #1 stays draft.
