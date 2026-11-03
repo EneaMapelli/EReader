@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'reader_chapter_history_shortcut.dart';
+
 /// Always-visible narration transport for the reading surface.
 ///
 /// Advanced engine, voice and diagnostic settings live behind the explicit
@@ -22,6 +24,9 @@ class ReaderCompactControls extends StatelessWidget {
     this.onOpenSections,
     this.onPreviousSection,
     this.onNextSection,
+    this.onHistoryBack,
+    this.onHistoryForward,
+    this.onHistoryRecent,
   });
 
   final String segmentLabel;
@@ -40,6 +45,10 @@ class ReaderCompactControls extends StatelessWidget {
   /// Null disables the button at the first/last section.
   final VoidCallback? onPreviousSection;
   final VoidCallback? onNextSection;
+  /// Separate source-accurate history navigation; never TTS segment skips.
+  final VoidCallback? onHistoryBack;
+  final VoidCallback? onHistoryForward;
+  final VoidCallback? onHistoryRecent;
   final VoidCallback onPrevious;
   final VoidCallback onPlayPause;
   final VoidCallback onNext;
@@ -144,6 +153,13 @@ class ReaderCompactControls extends StatelessWidget {
                 onPressed: onNext,
                 icon: const Icon(Icons.skip_next),
               ),
+              if (onHistoryBack != null ||
+                  onHistoryForward != null || onHistoryRecent != null)
+                ReaderChapterHistoryShortcut(
+                  onBack: onHistoryBack,
+                  onForward: onHistoryForward,
+                  onRecent: onHistoryRecent,
+                ),
               IconButton(
                 key: const ValueKey('reader-expand-controls'),
                 tooltip: sleepTimerActive
