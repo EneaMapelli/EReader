@@ -16,6 +16,7 @@ ReaderToolMenuAvailability options({
   bool followSuspended = false,
   bool focus = false,
   bool progressReturn = false,
+  bool sectionReturn = false,
   bool sectionPosition = false,
   String palette = 'system',
 }) => ReaderToolMenuAvailability(
@@ -27,6 +28,7 @@ ReaderToolMenuAvailability options({
   autoFollow: autoFollow, followSuspended: followSuspended,
   focusMode: focus,
   hasProgressReturn: progressReturn,
+  hasSectionReturn: sectionReturn,
   hasSectionPosition: sectionPosition,
   paletteName: palette,
 );
@@ -36,6 +38,48 @@ List<String> ids(List<OrganizedActionSection> sections) =>
       for (final item in section.items) item.id];
 
 void main() {
+  test('chapter return is independent of percent and EPUB note navigation', () {
+    final available = options(
+      epub: true,
+      toc: true,
+      sectionReturn: true,
+      progressReturn: true,
+      returnLink: true,
+    );
+    final regular = ids(buildReaderToolSections(available));
+    final quick = ids(buildReaderQuickNavigationSections(available));
+    for (final action in [
+      'return-to-section', 'return-to-percent', 'return-link',
+    ]) {
+      expect(regular, contains(action));
+      expect(quick, contains(action));
+    }
+    expect(quick.indexOf('return-to-section'),
+        quick.indexOf('section-percent') + 1,
+        reason: 'Available chapter return follows local navigation actions');
+    expect(quick.toSet().length, quick.length);
+    expect(ids(buildReaderToolSections(options(
+        epub: true, toc: true))), isNot(contains('return-to-section')));
+  });
+
+  test('chapter return is unavailable without readable EPUB text', () {
+    for (final unavailable in [
+      options(),
+      options(sectionReturn: true),
+      options(pdf: true, text: true, sectionReturn: true),
+      options(pdf: true, text: false, sectionReturn: true),
+      options(epub: true, playable: false, sectionReturn: true),
+    ]) {
+      expect(ids(buildReaderToolSections(unavailable)),
+          isNot(contains('return-to-section')));
+      expect(ids(buildReaderQuickNavigationSections(unavailable)),
+          isNot(contains('return-to-section')));
+    }
+    expect(ids(buildReaderQuickNavigationSections(options(
+        epub: true, toc: true, sectionReturn: true))),
+        contains('return-to-section'));
+  });
+
   test('local EPUB percent appears only for unique source section ranges', () {
     final epub = options(
         epub: true, toc: true, sectionPosition: true);
