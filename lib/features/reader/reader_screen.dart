@@ -543,7 +543,11 @@ class _ReaderScreenState extends State<ReaderScreen>
         widget.mediaHandler?.detach(previous);
         previous.removeListener(_onPlaybackChanged);
         _recoveryBinding?.dispose();
-        previous.dispose();
+        if (widget.mediaHandler case final handler?) {
+          handler.retireDetachedPlayer(previous);
+        } else {
+          previous.dispose();
+        }
       }
       final restoredBlock = savedSilentSpine == null
           ? visualLayout.blockForSourceOffset(saved)
@@ -1941,7 +1945,11 @@ class _ReaderScreenState extends State<ReaderScreen>
       widget.mediaHandler?.detach(player);
       player.removeListener(_onPlaybackChanged);
       _recoveryBinding?.dispose();
-      player.dispose();
+      if (widget.mediaHandler case final handler?) {
+        handler.retireDetachedPlayer(player);
+      } else {
+        player.dispose();
+      }
     }
     super.dispose();
   }

@@ -54,6 +54,8 @@ class _DisposalProbeEngine extends _HeldStopEngine {
   int disposalCalls = 0;
   bool disposedBeforeStopSettled = false;
   bool stopPending = false;
+  Completer<void>? disposalGate;
+  bool throwOnDispose = false;
 
   @override
   Future<void> stop() async {
@@ -69,6 +71,8 @@ class _DisposalProbeEngine extends _HeldStopEngine {
   Future<void> dispose() async {
     disposalCalls++;
     disposedBeforeStopSettled |= stopPending;
+    if (disposalGate != null) await disposalGate!.future;
+    if (throwOnDispose) throw StateError('native disposal failed');
     await super.dispose();
   }
 }
@@ -828,6 +832,102 @@ void main() {
     expect(engine.disposalCalls, 1);
     expect(engine.nativeStops, 0,
         reason: 'No Stop is needed for a never-started player');
+  });
+
+  test('old native engine disposal fences replacement Android speech',
+      () async {
+    final oldEngine = _DisposalProbeEngine();
+    final nextEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final nextPlayer = _player(nextEngine);
+    var focusRequests = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusRequests++;
+      return true;
+    });
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    expect(oldEngine.spoken, ['First']);
+    expect(focusRequests, 1);
+
+    oldEngine.disposalGate = Completer<void>();
+    handler.detach(oldPlayer);
+    handler.retireDetachedPlayer(oldPlayer);
+    handler.attach(nextPlayer, bookId: 'next', title: 'Next');
+    final requestedPlay = handler.play();
+    await _settle();
+    expect(oldEngine.disposalCalls, 1);
+    expect(oldPlayer.nativeEngineRetirementConfirmed, isFalse);
+    expect(nextEngine.spoken, isEmpty);
+    expect(focusRequests, 1,
+        reason: 'New focus cannot start while old dispose might call Stop');
+
+    oldEngine.disposalGate!.complete();
+    await requestedPlay;
+    await _settle();
+    expect(oldPlayer.nativeEngineRetirementConfirmed, isTrue);
+    expect(nextEngine.spoken, ['First']);
+    expect(focusRequests, 2);
+    await handler.pause();
+    await handler.close();
+    nextPlayer.dispose();
+  });
+
+  test('timed-out disposal requires late retirement confirmation to recover',
+      () async {
+    final oldEngine = _DisposalProbeEngine();
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+
+    oldEngine.disposalGate = Completer<void>();
+    handler.detach(oldPlayer);
+    handler.retireDetachedPlayer(oldPlayer);
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    await expectLater(handler.play(), throwsStateError);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(oldPlayer.nativeEngineRetirementConfirmed, isFalse);
+    expect(await handler.tryRecoverAfterConfirmedNativeStops(), isFalse);
+    expect(newEngine.spoken, isEmpty);
+
+    oldEngine.disposalGate!.complete();
+    await _settle();
+    expect(oldPlayer.nativeEngineRetirementConfirmed, isTrue);
+    await handler.play(); // New explicit request after confirmed disposal.
+    await _settle();
+    expect(handler.requiresFreshAudioSession, isFalse);
+    expect(newEngine.spoken, ['First']);
+    await handler.pause();
+    await handler.close();
+    newPlayer.dispose();
+  });
+
+  test('failed native disposal cannot rearm old engine on retry',
+      () async {
+    final oldEngine = _DisposalProbeEngine()..throwOnDispose = true;
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+
+    handler.detach(oldPlayer);
+    handler.retireDetachedPlayer(oldPlayer);
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    await expectLater(handler.play(), throwsStateError);
+    expect(oldPlayer.nativeEngineRetirementConfirmed, isFalse);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    await expectLater(handler.play(), throwsStateError);
+    expect(newEngine.spoken, isEmpty);
+    await handler.close();
+    newPlayer.dispose();
   });
 
   test('positive timeout is required', () {

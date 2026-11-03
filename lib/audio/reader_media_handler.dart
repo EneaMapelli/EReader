@@ -162,6 +162,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
       // Retry becomes eligible only AFTER its late positive callback
       // has cleared nativeStopUnconfirmed.
       if (player.isPlaying || player.nativeStopUnconfirmed ||
+          !player.nativeEngineRetirementConfirmed ||
           !await player.waitForNativeStopConfirmation()) {
         return false;
       }
@@ -228,6 +229,17 @@ class ReaderMediaHandler extends BaseAudioHandler {
     mediaItem.add(bookItem);
     queue.add([bookItem]);
     _publish();
+  }
+
+  /// ReaderScreen invokes this immediately after detaching and removing
+  /// its listeners. Disposal may issue another platform Stop, so retain
+  /// a bounded cross-book fence for the entire engine retirement.
+  /// This also covers an obsolete ReaderScreen whose player is no longer
+  /// the current media binding.
+  void retireDetachedPlayer(ReaderPlayer player) {
+    player.dispose();
+    _trackNativeConfirmation(
+        player.waitForEngineRetirementConfirmation(), player);
   }
 
   void detach([ReaderPlayer? expected]) {

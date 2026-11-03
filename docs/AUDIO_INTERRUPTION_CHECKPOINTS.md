@@ -485,3 +485,41 @@ idle disposal. Test code and source patches are committed but were
 not executed; Dart analyzer, Flutter tests, device builds and GitHub
 Actions remain deferred. Cross-engine native plugin ordering on
 Android still requires device validation before merging.
+
+## 2026-11-03 — fence outgoing native engine retirement before a new Android Play
+
+The earlier disposal fix serialized `ReaderPlayer.dispose()` **after**
+its own native Stop/voice-change operations, but the Android
+`ReaderMediaHandler` cross-book barrier only awaited `stop()`.
+On Android, `SystemSpeechEngine.dispose()` itself calls
+`FlutterTts.stop()`. If the new book claimed focus and synthesized
+as soon as the old Stop completed, the old engine's delayed Dispose
+could interrupt the new book's already-started native speech.
+
+A disposed `ReaderPlayer` now exposes a bounded, failure-consuming
+`waitForEngineRetirementConfirmation()` and a read-only confirmed
+retirement flag. Real completion of `SpeechEngine.dispose()` sets
+the flag; timeout or disposal failure does **not** claim native
+silence. `ReaderMediaHandler.retireDetachedPlayer(player)` starts
+ordinary synchronous player disposal and tracks its entire native
+retirement behind the existing cross-book transport barrier.
+`ReaderScreen` uses this path after unbinding/removing the old
+reader, both on reload and on page teardown. No UI await or
+automatic audio restart is introduced.
+
+The replacement book may start only after the retired engine
+finishes. If native Dispose hangs, Play fails closed after the
+bounded deadline; a later genuinely successful disposal allows
+a fresh explicit Play to verify and recover the handler. Recovery
+also checks the disposed old player's retirement confirmation in
+addition to its native Stop confirmation. A rejected engine
+dispose can never rearm the same audio handler.
+
+Three new deterministic regressions in
+`test/audio/native_stop_timeout_test.dart` cover successful
+outgoing engine retirement delaying a new book, timeout followed
+by late disposal confirmation and explicit recovery, and
+permanently failed Dispose. The tests and source changes have
+been committed but not executed; Flutter tests, Dart analyzer,
+Android builds and GitHub Actions remain deferred. Native
+cross-instance TTS behavior still requires device validation.
