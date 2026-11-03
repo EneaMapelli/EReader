@@ -41,7 +41,7 @@ class ReaderFocusProgressStrip extends StatelessWidget
       sectionIndex! < sectionCount! && onOpenSections != null;
 
   @override
-  Size get preferredSize => Size.fromHeight(_hasSection ? 80 : 44);
+  Size get preferredSize => Size.fromHeight(_hasSection ? 92 : 44);
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +113,7 @@ class ReaderFocusProgressStrip extends StatelessWidget
         ),
         if (_hasSection)
           SizedBox(
-            height: 36,
+            height: 48,
             child: Material(
               color: background,
               child: Row(
@@ -173,7 +173,7 @@ class ReaderFocusProgressStrip extends StatelessWidget
                           onPressed: onNavigateWithinSection,
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
-                            minimumSize: const Size(56, 36),
+                            minimumSize: const Size(56, 48),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                           child: Text('$localPercent%'),
