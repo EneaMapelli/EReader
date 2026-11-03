@@ -432,16 +432,22 @@ class ReaderMediaHandler extends BaseAudioHandler {
     }));
   }
 
-  /// Swiping away the Android task is a deliberate end of the active
-  /// reading session. Never synthesize an orphaned book after task removal.
+  /// Swiping away the Android task ends the binding that received the
+  /// removal. A newer book may attach while native Stop is still pending;
+  /// never detach its MediaSession when the old Stop eventually settles.
   @override
   Future<void> onTaskRemoved() async {
+    final removedBinding = _bindingEpoch;
     try {
       await pause();
     } finally {
-      // Do not leave a service-controlled book behind if native stop throws.
-      detach();
-      await _focusOperation;
+      // attach/detach increments the epoch, including when a player is
+      // rebound with a different book. Clean up only the original binding.
+      // A failed Stop still detaches that session and releases its focus.
+      if (removedBinding == _bindingEpoch) {
+        detach();
+        await _focusOperation;
+      }
     }
   }
 

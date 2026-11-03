@@ -93,3 +93,26 @@ synchronous up to its SQLite transaction and does not transmit book content.
 Flutter test run, no native Windows/Android builds and no measured audio
 performance in this environment. M2 estimated 70% and overall ~55%
 until native release gates are verified.
+
+## 2026-11-03 — task-removal cleanup is scoped to its media binding
+
+A pending Android task-removal event can await a slow native Stop. In
+that interval a later reader may attach a different book to the same
+`ReaderMediaHandler`. Previously the old `onTaskRemoved` continuation
+unconditionally called `detach()`, removing the **new** MediaSession,
+notification metadata and remote controls after the new book had opened.
+
+`onTaskRemoved` now captures the handler's monotonic binding epoch
+before pausing. Its `finally` block detaches and awaits the associated
+focus cleanup only if that epoch is still active. This also handles
+failure of the old native Stop and reattaching the same player under a
+new binding. A task removal that still owns its original session
+continues to stop, detach, and release focus exactly as before.
+
+Three self-contained regressions in
+`test/audio/reader_media_handler_test.dart` simulate delayed native
+Stop success, delayed Stop failure, and same-player rebinding while
+the old task-removal Future is outstanding. The new book must keep its
+media metadata and transport capability; no playback starts without
+an explicit subsequent Play. These tests have been authored but not
+run, consistent with the postponed Flutter/device test phase.

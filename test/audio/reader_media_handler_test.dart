@@ -545,6 +545,92 @@ void main() {
     player.dispose();
   });
 
+  test('late successful task removal does not detach a newly opened book',
+      () async {
+    final oldEngine = _FakeSpeechEngine();
+    final newEngine = _FakeSpeechEngine();
+    final oldPlayer = _reader(oldEngine);
+    final newPlayer = _reader(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old-book', title: 'Previous book');
+    await handler.play();
+    await _waitForSpoken(oldEngine, 1);
+
+    // Android task cleanup begins stopping the old book, but the native
+    // Stop does not acknowledge completion before another book opens.
+    oldEngine.stopGate = Completer<void>();
+    final cleanup = handler.onTaskRemoved();
+    expect(oldPlayer.isPlaying, isFalse);
+    handler.attach(newPlayer, bookId: 'new-book', title: 'Current book');
+    oldEngine.stopGate!.complete();
+    await cleanup;
+
+    expect(handler.ownsPlayer(oldPlayer), isFalse);
+    expect(handler.ownsPlayer(newPlayer), isTrue,
+        reason: 'Obsolete cleanup must not detach the new MediaSession');
+    expect(handler.mediaItem.value?.id, 'new-book');
+    expect(handler.queue.value.single.id, 'new-book');
+    expect(newEngine.spoken, isEmpty);
+    // The new reader must retain working lock-screen playback controls.
+    await handler.play();
+    await _waitForSpoken(newEngine, 1);
+    expect(newEngine.spoken, ['First']);
+    await handler.pause();
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
+  test('failed old native Stop cannot erase a replacement media session',
+      () async {
+    final oldEngine = _FakeSpeechEngine();
+    final oldPlayer = _reader(oldEngine);
+    final newPlayer = _reader(_FakeSpeechEngine());
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _waitForSpoken(oldEngine, 1);
+    oldEngine.stopGate = Completer<void>();
+    oldEngine.failStop = true;
+
+    final cleanup = handler.onTaskRemoved();
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    oldEngine.stopGate!.complete();
+    await expectLater(cleanup, throwsStateError);
+
+    expect(handler.ownsPlayer(newPlayer), isTrue);
+    expect(handler.mediaItem.value?.id, 'new');
+    expect(handler.playbackState.value.processingState,
+        AudioProcessingState.ready,
+        reason: 'Old speech failure must not poison a new player');
+    oldEngine.failStop = false;
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
+  test('old task removal does not detach a player rebound during Stop',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'before', title: 'Previous binding');
+    await handler.play();
+    await _waitForSpoken(engine, 1);
+    engine.stopGate = Completer<void>();
+    final cleanup = handler.onTaskRemoved();
+
+    // Binding epoch, not only player identity, distinguishes a new
+    // attachment of the same player from the old media session.
+    handler.attach(player, bookId: 'after', title: 'Reattached binding');
+    engine.stopGate!.complete();
+    await cleanup;
+    expect(handler.ownsPlayer(player), isTrue);
+    expect(handler.mediaItem.value?.id, 'after');
+    await handler.close();
+    player.dispose();
+  });
+
   test('task removal stops and clears the media session', () async {
     final engine = _FakeSpeechEngine();
     final player = _reader(engine);
