@@ -2131,3 +2131,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   See [READER_CHAPTER_VISIT_HISTORY.md](READER_CHAPTER_VISIT_HISTORY.md).
 - Flutter analyzer/widget/integration tests **not executed**. No
   Windows build or GitHub Actions triggered. PR #1 remains draft.
+
+### 2026-11-03 — Bidirectional EPUB chapter visit navigation
+
+- Extended the 20-entry session-only chapter history with an equally
+  bounded **Forward** stack. Back to an older chapter origin transfers
+  later visits to Forward in travel order; one-tap Forward restores
+  them sequentially while rebuilding Back history.
+- Added a capability-gated **Forward to next visited position** action
+  under full Reader tools and compact Quick navigation. It is separate
+  from next EPUB section arrows and from TTS segment transport. The
+  action disappears when redo is exhausted. A fresh *committed* EPUB
+  section switch clears redo; a canceled/invalid/no-op seek does not.
+- Reused exact original-source offsets, optional illustrated OPF
+  spine identity, `_jumpToSourceProgress`, latest-wins source
+  selection and post-SQLite-commit revision-guarded history mutation.
+  No persisted history table, new TTS seek or Windows build.
+- Added regression tests for chronological Back → Forward traversal,
+  branch invalidation, stale/forged forward targets, equal-offset
+  illustrated OPF sections, bounded capacity, menu gating, and an
+  EPUB3 integration scenario advancing through three restored visits.
+  See [READER_CHAPTER_BACK_FORWARD.md](READER_CHAPTER_BACK_FORWARD.md).
+- Flutter analyzer and tests remain **unexecuted**. GitHub Actions
+  and Windows builds were not started; PR #1 remains draft.
