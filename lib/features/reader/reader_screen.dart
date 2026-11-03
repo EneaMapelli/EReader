@@ -2442,6 +2442,11 @@ class _ReaderScreenState extends State<ReaderScreen>
                       onNavigateWithinSection: range == null ? null
                           : () => unawaited(
                               _openGoToProgress(withinSection: true)),
+                      onPreviousSection: title != null && index > 0
+                          ? () => _jumpDirectoryRelative(-1) : null,
+                      onNextSection: title != null &&
+                              index + 1 < sectionCount
+                          ? () => _jumpDirectoryRelative(1) : null,
                     );
                   },
                 ),
@@ -2857,6 +2862,11 @@ class _ReaderScreenState extends State<ReaderScreen>
                       sectionProgressPercent: sectionPercent,
                       onOpenSections: sectionName == null
                           ? null : () => unawaited(_openChapterDirectory()),
+                      onPreviousSection: sectionName != null && current > 0
+                          ? () => _jumpDirectoryRelative(-1) : null,
+                      onNextSection: sectionName != null &&
+                              current + 1 < sections
+                          ? () => _jumpDirectoryRelative(1) : null,
                       isPlaying: player.isPlaying,
                       sleepTimerActive: player.sleepTimerEndsAt != null,
                       onPrevious: () => unawaited(_move(-1)),
