@@ -39,3 +39,13 @@ Future<void> persistReaderViewportCheckpoint({
   }
   if (isCurrent()) onSaved?.call();
 }
+
+/// A background reader or a page obscured by another route must never
+/// record a viewport-origin checkpoint, even when the player is idle.
+/// Explicit source selections and background-audio checkpoints are handled
+/// by their own paths, not this visual-scroll eligibility guard.
+bool readerMaySaveVisibleViewport({
+  required bool readerForeground,
+  required bool readerRouteCurrent,
+  required bool userScrollAllowed,
+}) => readerForeground && readerRouteCurrent && userScrollAllowed;

@@ -5,6 +5,56 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('viewport checkpoint requires foreground and current reader route',
+      () {
+    for (final view in [
+      (foreground: false, currentRoute: true, userScroll: true),
+      (foreground: true, currentRoute: false, userScroll: true),
+      (foreground: true, currentRoute: true, userScroll: false),
+      (foreground: false, currentRoute: false, userScroll: false),
+    ]) {
+      expect(readerMaySaveVisibleViewport(
+        readerForeground: view.foreground,
+        readerRouteCurrent: view.currentRoute,
+        userScrollAllowed: view.userScroll,
+      ), isFalse);
+    }
+    expect(readerMaySaveVisibleViewport(
+      readerForeground: true,
+      readerRouteCurrent: true,
+      userScrollAllowed: true,
+    ), isTrue);
+  });
+
+  test('lifecycle suspension persists until a fresh deliberate scroll', () {
+    final gate = ReaderViewportSaveGate();
+    gate.resumeFromUserScroll();
+    expect(readerMaySaveVisibleViewport(
+      readerForeground: true,
+      readerRouteCurrent: true,
+      userScrollAllowed: gate.allowsViewportSave,
+    ), isTrue);
+
+    // An inactive transition invalidates user-scroll authorization.
+    gate.suspendForLayoutChange();
+    expect(readerMaySaveVisibleViewport(
+      readerForeground: false,
+      readerRouteCurrent: true,
+      userScrollAllowed: gate.allowsViewportSave,
+    ), isFalse);
+    expect(readerMaySaveVisibleViewport(
+      readerForeground: true, // resumed, but no new gesture
+      readerRouteCurrent: true,
+      userScrollAllowed: gate.allowsViewportSave,
+    ), isFalse);
+    gate.resumeFromUserScroll();
+    expect(readerMaySaveVisibleViewport(
+      readerForeground: true,
+      readerRouteCurrent: true,
+      userScrollAllowed: gate.allowsViewportSave,
+    ), isTrue);
+  });
+
   test('rejected deferred viewport write is caught and reported once',
       () async {
     final errors = <Object>[];

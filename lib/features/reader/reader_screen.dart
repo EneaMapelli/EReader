@@ -961,7 +961,11 @@ class _ReaderScreenState extends State<ReaderScreen>
           narrationPlaying: player.isPlaying,
           shouldAutoFollow: _narrationFollow.shouldAutoFollow,
         ) || player.segments.isEmpty ||
-        !_viewportSaveGate.allowsViewportSave) return;
+        !readerMaySaveVisibleViewport(
+          readerForeground: _readerForeground,
+          readerRouteCurrent: ModalRoute.of(context)?.isCurrent ?? false,
+          userScrollAllowed: _viewportSaveGate.allowsViewportSave,
+        )) return;
     final visible = _itemPositionsListener.itemPositions.value
         .where((item) =>
             item.itemTrailingEdge > 0 && item.itemLeadingEdge < 1)
@@ -1024,7 +1028,11 @@ class _ReaderScreenState extends State<ReaderScreen>
         mounted && !_loading && _error == null &&
         widget.book.id == bookId && _player == player &&
         _document == document && _visualSaveRevision == revision &&
-        _viewportSaveGate.allowsViewportSave &&
+        readerMaySaveVisibleViewport(
+          readerForeground: _readerForeground,
+          readerRouteCurrent: ModalRoute.of(context)?.isCurrent ?? false,
+          userScrollAllowed: _viewportSaveGate.allowsViewportSave,
+        ) &&
         readerMayPersistViewport(
           settledIdle: player.isSettledIdle,
           narrationPlaying: player.isPlaying,
@@ -1880,15 +1888,21 @@ class _ReaderScreenState extends State<ReaderScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _readingActivityTracker?.refresh();
     _readerForeground = state == AppLifecycleState.resumed;
-    if (!_readerForeground) _lastReadingInteraction = null;
+    if (!_readerForeground) {
+      _lastReadingInteraction = null;
+      // Even an "inactive" transition (notification shade / app switch)
+      // must invalidate the already queued manual-scroll save. On resume,
+      // only a fresh verified user gesture may re-enable viewport writes.
+      _cancelPendingVisualSave();
+      _viewportSaveGate.suspendForLayoutChange();
+    }
     _readingActivityTracker?.refresh();
     if (!ReaderLifecyclePolicy.backgroundTransition(state)) return;
     // Do not attribute background, other-app or resume frames to this book.
     _stopFrameCapture(discard: true);
-    // A deferred viewport write must never replace the segment anchor
-    // recorded by background audio. Leave Android narration running only
-    // when a live media handler owns that player.
-    _saveVisualPositionTimer?.cancel();
+    // Audio recovery and media navigation own their own checkpoints;
+    // the visual-scroll timer was invalidated on non-resumed transitions
+    // above, including the earlier inactive lifecycle notification.
     _flushPdfPagePosition();
     if (_player != null &&
         ReaderLifecyclePolicy.mustPauseOnBackground(

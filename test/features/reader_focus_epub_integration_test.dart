@@ -85,6 +85,51 @@ void main() {
   });
 
 
+  testWidgets('inactive and resumed reader cannot flush a queued '
+      'visual scroll over the last durable checkpoint', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    addTearDown(() =>
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+
+    final originalOffset = store.getBook(bookId)!.progressOffset;
+    final originalRevision = store.manualPositionRevision(bookId);
+    final scrollable = find.byType(Scrollable).first;
+    // Queue a genuine 450ms viewport save, then switch away before it
+    // fires. Background audio/recovery may have its own save path; the
+    // visual scroll must not overwrite the exact checkpoint.
+    await tester.drag(scrollable, const Offset(0, -170));
+    await tester.pump(const Duration(milliseconds: 30));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump(const Duration(milliseconds: 650));
+    expect(store.manualPositionRevision(bookId), originalRevision);
+    expect(store.getBook(bookId)!.progressOffset, originalOffset);
+
+    // Resuming must not retroactively convert an old scroll into a new
+    // bookmark, even if the EPUB viewport relays layout notifications.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+    expect(store.manualPositionRevision(bookId), originalRevision);
+    expect(store.getBook(bookId)!.progressOffset, originalOffset);
+
+    // Explicit publisher navigation stays operational after resume:
+    // it owns a separate source-exact SQLite checkpoint, unaffected by
+    // the guarded manual-viewport persistence path.
+    await tester.tap(find.byKey(
+        const ValueKey('reader-compact-next-section')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+    expect(store.manualPositionRevision(bookId), originalRevision + 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('chapter seek invalidates a pending visual viewport save',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 760));

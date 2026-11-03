@@ -279,3 +279,33 @@ write, canceled request before the write, rejected old Future after
 a new source selection, and successful retry clearing the failure
 indicator. These are source-level tests authored but **not run**;
 Flutter/device/Windows builds and GitHub Actions were not invoked.
+
+## 2026-11-03 — foreground/route boundaries for deferred viewport saves
+
+An idle manual-scroll checkpoint was previously allowed after a timer
+whenever narration was settled and no newer source selection had
+invalidated its revision. An app can become `inactive` (for example
+during a notification shade transition) without reaching the
+`hidden`/`paused` lifecycle states that canceled that timer. Also,
+a reader route can be covered by another page while it remains mounted.
+Neither is evidence of a new user reading location.
+
+`readerMaySaveVisibleViewport` now requires three independent
+conditions: the reader is in the foreground, its route is the
+current navigator route, and the viewport gate is authorized after a
+real user scroll. This check is enforced both when receiving visible
+item positions and immediately before/completing a delayed SQLite
+save. Any non-resumed lifecycle state invalidates the pending
+scroll-save revision and suspends viewport saves until a new verified
+scroll gesture; merely resuming does not reauthorize old layout events.
+
+The separate explicit chapter selection, source bookmark and Android
+background speech/recovery checkpoint pipelines remain unchanged.
+Two pure unit tests cover foreground/route/gesture eligibility and
+resume-after-suspension behavior. A two-chapter EPUB widget regression
+queues a user scroll, deactivates/resumes the app, waits beyond the
+450ms debounce, and checks that the old SQLite checkpoint remains
+unchanged; an explicit chapter jump must still commit afterwards.
+
+Validation: patches and regression sources authored; Flutter analyzer,
+widget tests, Windows/Android builds and GitHub Actions **not run**.
