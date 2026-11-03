@@ -665,12 +665,12 @@ class ReaderMediaHandler extends BaseAudioHandler {
   Future<void> _closeOnce() async {
     detach();
     _closed = true;
-    await _interruption?.cancel();
-    await _noisy?.cancel();
-    await _focusOperation;
-    // A close initiated during narration must not report completion
-    // while the detached book's native Stop is still outstanding.
     try {
+      await _interruption?.cancel();
+      await _noisy?.cancel();
+      await _focusOperation;
+      // A close initiated during narration must not report completion
+      // while the detached book's native Stop is still outstanding.
       await _pendingTransportStops;
     } finally {
       // No re-arm is possible after _closed. Drop references to old
