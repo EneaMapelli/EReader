@@ -83,6 +83,79 @@ void main() {
     if (await home.exists()) await home.delete(recursive: true);
   });
 
+  testWidgets('recent chapter history sheet returns to an older saved visit',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+    final initialOffset = store.getBook(bookId)!.progressOffset;
+
+    final forward = find.byKey(
+        const ValueKey('reader-compact-next-section'));
+    final back = find.byKey(
+        const ValueKey('reader-compact-previous-section'));
+
+    // Three successful, persisted EPUB switches produce three return
+    // origins, even if two visits have the same UTF-16 coordinate.
+    await tester.tap(forward);
+    await tester.pumpAndSettle();
+    await tester.tap(back);
+    await tester.pumpAndSettle();
+    await tester.tap(forward);
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+
+    Future<void> openQuick() async {
+      await tester.tap(find.byKey(
+          const ValueKey('reader-quick-navigation')));
+      await tester.pumpAndSettle();
+    }
+
+    await openQuick();
+    final history = find.byKey(
+        const ValueKey('organized-action-chapter-history'));
+    await tester.scrollUntilVisible(
+        history, 160, scrollable: find.byType(Scrollable).last);
+    await tester.tap(history);
+    await tester.pumpAndSettle();
+    expect(find.text('Recent chapter positions'), findsOneWidget);
+    expect(find.text('3 saved visits in this reading session'),
+        findsOneWidget);
+    final revisionBeforeCancel = store.manualPositionRevision(bookId);
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-history-close')));
+    await tester.pumpAndSettle();
+    expect(store.manualPositionRevision(bookId), revisionBeforeCancel,
+        reason: 'Closing a history sheet does not seek or save');
+
+    await openQuick();
+    final openHistory = find.byKey(
+        const ValueKey('organized-action-chapter-history'));
+    await tester.scrollUntilVisible(
+        openHistory, 160, scrollable: find.byType(Scrollable).last);
+    await tester.tap(openHistory);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-history-entry-2')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset, initialOffset,
+        reason: 'Older history entries retain the original exact source');
+    await openQuick();
+    expect(find.byKey(const ValueKey('organized-action-chapter-history')),
+        findsNothing,
+        reason: 'Returning to the oldest entry consumes it and newer visits');
+    expect(find.byKey(const ValueKey('organized-action-return-to-section')),
+        findsNothing);
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('chapter return restores exact pre-switch point without '
       'consuming percentage history', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 760));
