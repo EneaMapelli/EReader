@@ -165,3 +165,24 @@ Flutter tests/analyzer, device builds and GitHub Actions NOT executed.
 The exact one-write expectation deliberately makes duplicate commits
 a regression failure; it has not yet been validated against a native
 player or a Flutter test runtime.
+
+## 2026-11-03 — superseded failure reporting and redo branching
+
+The chapter jump error handler now captures its local selection token
+*before* waiting for native Pause. If a newer selection or reload
+invalidates it, an old asynchronous failure is discarded rather than
+displayed over the new chapter. The EPUB source-offset navigation
+handler also remembers the initiating player/token for this purpose.
+Actual current navigation failures still display their error.
+
+An additional delayed-Pause gate/history regression explicitly models
+an old **Back** request losing to a newly selected chapter: it asserts
+that the final durable checkpoint and visual source point remain at
+the new destination, all committed Back entries remain intact, and
+Forward is not fabricated. A new full widget/SQLite EPUB test checks
+that an actual **Ctrl+Shift+Page Down** issued after a new publisher
+chapter branch produces no additional durable write or stale redo.
+The tests complement the previously authored rapid chapter tests.
+
+No Flutter analyzer/test or native runner was executed. The two
+regressions and source error handling require final integration review.

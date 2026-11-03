@@ -209,6 +209,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('keyboard chapter branch invalidates redo without a '
+      'phantom SQLite checkpoint', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+    final beginning = store.getBook(bookId)!.progressOffset;
+
+    // A normal publisher chapter jump, followed by an actual history Back.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset, beginning);
+
+    // A new publisher chapter choice discards Forward, unlike a
+    // historical Forward command. The old chord must perform no seek.
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pumpAndSettle();
+    final newBranch = store.getBook(bookId)!.progressOffset;
+    expect(newBranch, greaterThanOrEqualTo(nextChapterStart));
+    final savedRevision = store.manualPositionRevision(bookId);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset, newBranch);
+    expect(store.manualPositionRevision(bookId), savedRevision,
+        reason: 'Unavailable history Forward must not write a checkpoint');
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('recent chapter history sheet returns to an older saved visit',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 760));

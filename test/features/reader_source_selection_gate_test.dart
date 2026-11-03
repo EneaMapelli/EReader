@@ -5,6 +5,57 @@ import 'package:ereader/features/reader/reader_chapter_visit_history.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('superseded chapter Back cannot consume history after a new branch',
+      () async {
+    final gate = ReaderSourceSelectionGate();
+    final history = ReaderChapterVisitHistory();
+    for (final pair in [(100, 250), (250, 400)]) {
+      expect(history.recordCommittedJump(
+        fromOffset: pair.$1, toOffset: pair.$2, sourceLength: 1000,
+        sectionTitle: 'Chapter', sectionNumber: 1, sectionCount: 5,
+      ), isTrue);
+    }
+    var savedOffset = 400;
+    var visualOffset = 400;
+    final backTarget = history.latest!;
+    final historyRevision = history.revision;
+    final latePause = Completer<void>();
+
+    Future<void> oldBack() async {
+      final request = gate.reserve(); // before a potentially slow Pause
+      await latePause.future;
+      if (!gate.isCurrent(request)) return;
+      savedOffset = backTarget.sourceOffset; // not reached for stale Back
+      await Future<void>.value();
+      if (!gate.isCurrent(request)) return;
+      visualOffset = backTarget.sourceOffset;
+      history.consumeThrough(backTarget,
+          expectedRevision: historyRevision,
+          departedFrom: const ReaderChapterVisit(
+            sourceOffset: 400, sectionTitle: 'Current',
+            sectionNumber: 3, sectionCount: 5,
+          ));
+    }
+
+    final obsoleteBack = oldBack();
+    final newRequest = gate.reserve(); // user chooses a new chapter
+    savedOffset = 750; // synchronous durable update
+    await Future<void>.value();
+    expect(gate.isCurrent(newRequest), isTrue);
+    visualOffset = 750;
+    expect(history.recordCommittedJump(
+      fromOffset: 400, toOffset: 750, sourceLength: 1000,
+      sectionTitle: 'Current', sectionNumber: 3, sectionCount: 5,
+    ), isTrue);
+    latePause.complete();
+    await obsoleteBack;
+
+    expect(savedOffset, 750);
+    expect(visualOffset, 750);
+    expect(history.recent.map((v) => v.sourceOffset), [400, 250, 100]);
+    expect(history.canGoForward, isFalse);
+  });
+
 
   test('older Pause completing after latest commit cannot write or '
       'append a chapter visit', () async {
