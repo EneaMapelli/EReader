@@ -165,3 +165,33 @@ exercise stale focus exception after book handoff, stale focus exception
 after Pause, live focus exception, obsolete remote Seek failure after
 book replacement, and live remote Seek failure. No audio/test/build
 commands or GitHub Actions were executed.
+
+## 2026-11-03 — handler-owned native Stop barrier across media bindings
+
+Android focus release/acquisition is serialized, but that is distinct
+from the native TTS engine's own Stop acknowledgement. A removed book's
+`onTaskRemoved` Pause or a lock-screen Next/Previous Seek can remain
+unsettled after another book has attached. Previously the new
+`ReaderMediaHandler.play` could claim focus and synthesize a new book
+while the previous native Stop was still pending.
+
+The handler now observes each **handler-originated Pause and remote
+Seek** as it is issued and accumulates a cross-binding Stop barrier.
+A new Play awaits this barrier **before requesting Android audio
+focus or dispatching speech**. Old requests are still invalidated by
+binding/command epochs while waiting. If any tracked native
+Stop/Seek fails, the barrier stays failed and the handler refuses
+another Play; it does not infer that a timed-out/failed native engine
+has stopped. This conservative policy requires recreation of the
+media session after a stop failure. Existing explicit Play, voice
+consent and pause semantics remain unchanged.
+
+Three test cases in `test/audio/reader_media_handler_test.dart`
+cover delayed successful task-removal Stop, failed old Stop,
+and a pending remote Seek across book replacement. They verify
+that new audio/focus cannot start before confirmed settlement and
+that a failed old Stop cannot erase new media metadata. This gate
+covers operations issued through `ReaderMediaHandler`; direct
+`ReaderPlayer` shutdown outside the handler retains its own
+native Stop lifecycle. Flutter/device tests and GitHub Actions
+were not run.

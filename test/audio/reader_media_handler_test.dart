@@ -660,6 +660,109 @@ void main() {
     player.dispose();
   });
 
+  test('new book waits for previous native Stop before requesting focus',
+      () async {
+    final oldEngine = _FakeSpeechEngine();
+    final newEngine = _FakeSpeechEngine();
+    final oldPlayer = _reader(oldEngine);
+    final newPlayer = _reader(newEngine);
+    var focusRequests = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusRequests++;
+      return true;
+    });
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old book');
+    await handler.play();
+    await _waitForSpoken(oldEngine, 1);
+    expect(focusRequests, 1);
+
+    oldEngine.stopGate = Completer<void>();
+    final removing = handler.onTaskRemoved();
+    handler.attach(newPlayer, bookId: 'new', title: 'New book');
+    final newPlay = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(newEngine.spoken, isEmpty,
+        reason: 'Never overlap native TTS across book handoff');
+    expect(focusRequests, 1,
+        reason: 'Even focus acquisition waits until old Stop is confirmed');
+
+    oldEngine.stopGate!.complete();
+    await Future.wait([removing, newPlay]);
+    await _waitForSpoken(newEngine, 1);
+    expect(newEngine.spoken, ['First']);
+    expect(focusRequests, 2);
+    expect(handler.mediaItem.value?.id, 'new');
+    await handler.pause();
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
+  test('failed old native Stop blocks playback in replacement book',
+      () async {
+    final oldEngine = _FakeSpeechEngine();
+    final newEngine = _FakeSpeechEngine();
+    final oldPlayer = _reader(oldEngine);
+    final newPlayer = _reader(newEngine);
+    var focusRequests = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusRequests++;
+      return true;
+    });
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _waitForSpoken(oldEngine, 1);
+    oldEngine.stopGate = Completer<void>();
+    oldEngine.failStop = true;
+
+    final removing = handler.onTaskRemoved();
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    final newPlay = handler.play();
+    oldEngine.stopGate!.complete();
+
+    await expectLater(removing, throwsStateError);
+    await expectLater(newPlay, throwsStateError);
+    expect(handler.ownsPlayer(newPlayer), isTrue,
+        reason: 'Stop failure must not detach the replacement book');
+    expect(handler.mediaItem.value?.id, 'new');
+    expect(newEngine.spoken, isEmpty);
+    expect(focusRequests, 1,
+        reason: 'New session cannot acquire focus after unconfirmed Stop');
+    oldEngine.failStop = false;
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
+  test('new Play waits for old remote skip Stop during book handoff',
+      () async {
+    final oldEngine = _FakeSpeechEngine();
+    final newEngine = _FakeSpeechEngine();
+    final oldPlayer = _reader(oldEngine);
+    final newPlayer = _reader(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _waitForSpoken(oldEngine, 1);
+
+    oldEngine.stopGate = Completer<void>();
+    final obsoleteSkip = handler.skipToNext();
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    final newPlay = handler.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(newEngine.spoken, isEmpty);
+
+    oldEngine.stopGate!.complete();
+    await Future.wait([obsoleteSkip, newPlay]);
+    await _waitForSpoken(newEngine, 1);
+    expect(newEngine.spoken, ['First']);
+    expect(handler.mediaItem.value?.id, 'new');
+    await handler.pause();
+    await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
   test('late successful task removal does not detach a newly opened book',
       () async {
     final oldEngine = _FakeSpeechEngine();

@@ -61,6 +61,23 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // A delayed gain must never override a newer Pause/release.
   Future<void> _focusOperation = Future<void>.value();
   bool _focusActive = false;
+  // A new book must not start audible speech until an old handler-owned
+  // Pause or remote Seek has confirmed its native Stop. Persist this
+  // barrier across detach/attach; resetting it at book handoff could
+  // allow two different speech engines to speak simultaneously.
+  Future<bool> _pendingTransportStops = Future<bool>.value(true);
+
+  void _trackTransportStop(Future<void> stopping) {
+    final earlier = _pendingTransportStops;
+    // Observe every Stop/Seek Future as soon as it is issued. Convert
+    // failures to a durable false result so no unhandled Future leaks
+    // from an obsolete media session. Unsafe failure stays fail-closed.
+    final current = stopping.then<bool>(
+      (_) => true, onError: (Object _, StackTrace __) => false,
+    );
+    _pendingTransportStops = Future.wait<bool>([earlier, current])
+        .then((results) => results.every((confirmed) => confirmed));
+  }
   // AudioSession may deliver several interruption/noisy callbacks for one
   // incident. Coalesce their Stop into one native operation per attached
   // player; a later book attachment starts with a fresh interruption scope.
@@ -246,6 +263,15 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (!permitted) {
       throw StateError('Cloud speech consent is not enabled for this book');
     }
+    // Audio focus serialization alone is insufficient: native speech Stop
+    // may still be outstanding from an earlier attached book.
+    final oldStopConfirmed = await _pendingTransportStops;
+    if (_closed || !identical(_player, player) ||
+        epoch != _bindingEpoch || command != _commandEpoch) return;
+    if (!oldStopConfirmed) {
+      throw StateError('Previous native speech Stop was not confirmed; '
+          'reopen the audio session before playing another book');
+    }
     bool focused;
     try {
       focused = await _claimAudioFocus();
@@ -291,8 +317,10 @@ class ReaderMediaHandler extends BaseAudioHandler {
       await _releaseAudioFocus();
       return;
     }
+    final stopping = player.pause();
+    _trackTransportStop(stopping);
     try {
-      await player.pause();
+      await stopping;
     } finally {
       // The listener releases focus when native Stop actually settles.
       // Await that queued release before resolving the transport command.
@@ -359,6 +387,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     final moving = target == length
         ? player.seekToSourceEnd()
         : player.seekTo(target);
+    _trackTransportStop(moving);
     // Seek increments its revision synchronously before the first await.
     // Capture that revision NOW so another press arriving during native
     // Stop adds a step rather than calculating from the stale cursor.
