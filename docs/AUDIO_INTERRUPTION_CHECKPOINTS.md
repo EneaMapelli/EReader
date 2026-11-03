@@ -250,3 +250,30 @@ finite confirmation snapshot time, handler close after a stuck direct
 Stop, and prompt denial of replacement Play without new speech or
 focus. All tests are authored only; Flutter/native execution,
 analyzer, builds and GitHub Actions were not run.
+
+## 2026-11-03 — concurrent close joins native Stop and focus release
+
+A first `ReaderMediaHandler.close()` call previously detached the
+current book, marked `_closed = true`, and then awaited stream
+cancellation, Android focus release and the native Stop handoff
+barrier. A second caller arriving during those awaits returned
+immediately because `_closed` was already true. Its completed Future
+could falsely indicate safe shutdown while a native engine remained
+active or a focus release was still pending.
+
+`close()` now returns a single cached shutdown Future. Only
+`_closeOnce()` performs detachment and native cleanup, while every
+concurrent or later caller waits for the **same** completion (or
+failure). Pending cloud consent is still invalidated by the binding
+epoch at detach; it cannot dispatch speech after close. No duplicate
+native Stops or duplicate focus releases are issued merely because
+two callers close the handler.
+
+Three deterministic regressions in
+`test/audio/reader_media_handler_test.dart` cover concurrent close
+while Stop and focus release are separately held, close during an
+in-flight consent check, and an Android focus-release exception.
+The pre-existing stuck native Stop test in
+`test/audio/native_stop_timeout_test.dart` now asserts both callers
+join the bounded shutdown. Code/tests/docs authored only: no Dart
+analyzer, Flutter/native tests, builds or GitHub Actions executed.

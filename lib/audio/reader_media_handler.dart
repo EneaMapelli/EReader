@@ -57,6 +57,10 @@ class ReaderMediaHandler extends BaseAudioHandler {
     _pendingSkipRevision = null;
   }
   bool _closed = false;
+  // Share the entire asynchronous shutdown, not only the initial detach.
+  // Concurrent Android lifecycle/dispose callers must await the same native
+  // Stop and focus-release fences, including after _closed becomes true.
+  Future<void>? _closeFuture;
   // All focus gains and releases are queued on one native operation chain.
   // A delayed gain must never override a newer Pause/release.
   Future<void> _focusOperation = Future<void>.value();
@@ -532,8 +536,11 @@ class ReaderMediaHandler extends BaseAudioHandler {
   Future<void> onNotificationDeleted() => pause();
 
   /// Release native stream listeners only during application shutdown.
-  Future<void> close() async {
-    if (_closed) return;
+  /// Multiple callers share completion of the same shutdown, rather than
+  /// treating _closed as proof that native cleanup has already finished.
+  Future<void> close() => _closeFuture ??= _closeOnce();
+
+  Future<void> _closeOnce() async {
     detach();
     _closed = true;
     await _interruption?.cancel();

@@ -1487,6 +1487,109 @@ void main() {
     player.dispose();
   });
 
+  test('concurrent close callers share native Stop and focus release',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final nativeStop = Completer<void>();
+    final focusRelease = Completer<void>();
+    var focusClaims = 0;
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async { focusClaims++; return true; },
+      releaseFocus: () {
+        releases++;
+        return focusRelease.future;
+      },
+    );
+    handler.attach(player, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _waitForSpoken(engine, 1);
+    engine.stopGate = nativeStop;
+
+    final firstClose = handler.close();
+    final secondClose = handler.close();
+    expect(identical(firstClose, secondClose), isTrue,
+        reason: 'The second caller must await full shutdown');
+    var finished = false;
+    firstClose.then((_) => finished = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(finished, isFalse);
+    expect(handler.hasActiveBook, isFalse);
+    expect(handler.mediaItem.value, isNull);
+    expect(engine.stopCalls, 1,
+        reason: 'Concurrent close must not issue duplicate native Stops');
+    expect(focusClaims, 1);
+    expect(releases, 1);
+
+    nativeStop.complete();
+    await Future<void>.delayed(Duration.zero);
+    expect(finished, isFalse,
+        reason: 'Native Stop alone cannot complete close before focus release');
+    focusRelease.complete();
+    await Future.wait([firstClose, secondClose]);
+    expect(finished, isTrue);
+    expect(releases, 1);
+    await handler.close(); // idempotent after completed shutdown
+    expect(engine.stopCalls, 1);
+    player.dispose();
+  });
+
+  test('close during pending Play permission cannot launch late audio',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final permission = Completer<bool>();
+    var focusClaims = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusClaims++;
+      return true;
+    });
+    handler.attach(player, bookId: 'private', title: 'Private',
+        canStart: () => permission.future);
+    final pendingPlay = handler.play();
+    final closing = handler.close();
+    expect(identical(handler.close(), closing), isTrue);
+    await closing;
+    permission.complete(true);
+    await pendingPlay;
+
+    expect(engine.spoken, isEmpty);
+    expect(focusClaims, 0);
+    expect(handler.mediaItem.value, isNull);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('concurrent close tolerates a failing focus release', () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final releaseGate = Completer<void>();
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () {
+        releases++;
+        return releaseGate.future;
+      },
+    );
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await _waitForSpoken(engine, 1);
+    await handler.pause();
+    // Idle player still has a pending native focus release.
+    final firstClose = handler.close();
+    final secondClose = handler.close();
+    expect(identical(firstClose, secondClose), isTrue);
+    await Future<void>.delayed(Duration.zero);
+    expect(releases, 1);
+    releaseGate.completeError(StateError('Android session disposed'));
+    await Future.wait([firstClose, secondClose]);
+    expect(handler.hasActiveBook, isFalse);
+    expect(releases, 1);
+    player.dispose();
+  });
+
   test('detached reader cannot hijack a newly attached book', () async {
     final older = _reader(_FakeSpeechEngine());
     final newer = _reader(_FakeSpeechEngine());

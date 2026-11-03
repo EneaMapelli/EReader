@@ -269,7 +269,12 @@ void main() {
     // Direct reader shutdown starts the native Stop during detach.
     // close() must finish once the deadline says this Stop is unsafe,
     // without assuming silence or waiting on the stuck platform Future.
-    await handler.close().timeout(const Duration(seconds: 1));
+    final closing = handler.close();
+    final concurrentClose = handler.close();
+    expect(identical(closing, concurrentClose), isTrue,
+        reason: 'Concurrent close also waits for bounded Stop confirmation');
+    await Future.wait([closing, concurrentClose])
+        .timeout(const Duration(seconds: 1));
     expect(handler.hasActiveBook, isFalse);
     expect(player.nativeStopUnconfirmed, isTrue);
     expect(released, 1);
