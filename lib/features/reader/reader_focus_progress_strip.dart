@@ -23,6 +23,8 @@ class ReaderFocusProgressStrip extends StatelessWidget
     this.sectionProgressPercent,
     this.onOpenSections,
     this.onNavigateWithinSection,
+    this.onPreviousSection,
+    this.onNextSection,
   });
 
   final int sourceOffset;
@@ -34,6 +36,10 @@ class ReaderFocusProgressStrip extends StatelessWidget
   final int? sectionProgressPercent;
   final VoidCallback? onOpenSections;
   final VoidCallback? onNavigateWithinSection;
+  /// Navigation across EPUB sections; null means at a boundary.
+  /// Distinct from TTS previous/next segment transport.
+  final VoidCallback? onPreviousSection;
+  final VoidCallback? onNextSection;
 
   bool get _hasSection => sectionTitle != null &&
       sectionIndex != null && sectionCount != null &&
@@ -56,6 +62,10 @@ class ReaderFocusProgressStrip extends StatelessWidget
     final localPercent = sectionProgressPercent?.clamp(0, 100).toInt();
     final canGoToSection = _hasSection && localPercent != null &&
         onNavigateWithinSection != null;
+    // On narrow devices with large accessibility text the title remains
+    // visible, while the ordinal is provided in the semantic label.
+    final showVisualOrdinal = MediaQuery.sizeOf(context).width >= 320 &&
+        MediaQuery.textScalerOf(context).scale(12) <= 18;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -118,6 +128,12 @@ class ReaderFocusProgressStrip extends StatelessWidget
               color: background,
               child: Row(
                 children: [
+                  IconButton(
+                    key: const ValueKey('reader-focus-previous-section'),
+                    tooltip: 'Previous EPUB section',
+                    onPressed: onPreviousSection,
+                    icon: const Icon(Icons.chevron_left),
+                  ),
                   Expanded(
                     child: Semantics(
                       key: const ValueKey('reader-focus-section-semantics'),
@@ -131,7 +147,7 @@ class ReaderFocusProgressStrip extends StatelessWidget
                           key: const ValueKey('reader-focus-section'),
                           onTap: onOpenSections,
                           child: Padding(
-                            padding: const EdgeInsets.only(left: 16, right: 6),
+                            padding: const EdgeInsets.only(left: 4, right: 4),
                             child: Row(
                               children: [
                                 Icon(Icons.menu_book_outlined,
@@ -145,13 +161,17 @@ class ReaderFocusProgressStrip extends StatelessWidget
                                     style: Theme.of(context).textTheme.labelSmall,
                                   ),
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${sectionIndex! + 1}/$sectionCount',
-                                  key: const ValueKey(
-                                      'reader-focus-section-number'),
-                                  style: Theme.of(context).textTheme.labelSmall,
-                                ),
+                                if (showVisualOrdinal) ...[
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${sectionIndex! + 1}/$sectionCount',
+                                    key: const ValueKey(
+                                        'reader-focus-section-number'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.labelSmall,
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -180,6 +200,12 @@ class ReaderFocusProgressStrip extends StatelessWidget
                         ),
                       ),
                     ),
+                  IconButton(
+                    key: const ValueKey('reader-focus-next-section'),
+                    tooltip: 'Next EPUB section',
+                    onPressed: onNextSection,
+                    icon: const Icon(Icons.chevron_right),
+                  ),
                 ],
               ),
             ),
