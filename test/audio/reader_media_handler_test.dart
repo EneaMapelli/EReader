@@ -1576,15 +1576,16 @@ void main() {
     handler.attach(player, bookId: 'book', title: 'Book');
     await handler.play();
     await _waitForSpoken(engine, 1);
-    await handler.pause();
-    // Idle player still has a pending native focus release.
+    // The Pause itself awaits the queued Android focus release. Do not
+    // await it before releasing this injected gate or the test deadlocks.
+    final pausing = handler.pause();
+    await Future<void>.delayed(Duration.zero);
+    expect(releases, 1);
     final firstClose = handler.close();
     final secondClose = handler.close();
     expect(identical(firstClose, secondClose), isTrue);
-    await Future<void>.delayed(Duration.zero);
-    expect(releases, 1);
     releaseGate.completeError(StateError('Android session disposed'));
-    await Future.wait([firstClose, secondClose]);
+    await Future.wait([pausing, firstClose, secondClose]);
     expect(handler.hasActiveBook, isFalse);
     expect(releases, 1);
     player.dispose();
