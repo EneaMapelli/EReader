@@ -15,6 +15,18 @@ Widget host({
 );
 
 void main() {
+  testWidgets('empty history renders no inactive shortcut',
+      (tester) async {
+    await tester.pumpWidget(host());
+    expect(find.byKey(
+        const ValueKey('reader-chapter-history-shortcut')),
+        findsNothing);
+    expect(find.byTooltip(
+        'Chapter visit history: back, forward and recent positions'),
+        findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('one icon opens three separately named history actions',
       (tester) async {
     var backs = 0;
