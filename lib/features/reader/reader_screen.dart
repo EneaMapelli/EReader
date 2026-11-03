@@ -177,6 +177,10 @@ class _ReaderScreenState extends State<ReaderScreen>
   final ScrollController _advancedControlsScroll = ScrollController();
   final ReaderViewportSaveGate _viewportSaveGate = ReaderViewportSaveGate();
   final ReaderProgressReturnPoint _progressReturn = ReaderProgressReturnPoint();
+  // Independent from percentage Go and footnote/link return. An explicit
+  // EPUB section switch remembers the visual/source origin only after a
+  // winning, persisted jump, and can restore silent OPF spine identity.
+  final ReaderProgressReturnPoint _sectionReturn = ReaderProgressReturnPoint();
   bool _skipEpubNotes = false;
   EpubSpeechNoteFilter? _epubSpeechNoteFilter;
   final ItemScrollController _itemScrollController = ItemScrollController();
@@ -276,6 +280,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     _sourceSelectionGate.invalidate();
     _cancelPendingVisualSave();
     _progressReturn.clear();
+    _sectionReturn.clear();
     _narrationFollow.resetForBook();
     _activeEpubTask?.cancel();
     _activeEpubTask = null;
@@ -1148,18 +1153,53 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   void _jumpDirectoryIndex(int index) {
-    if (_authorToc.isNotEmpty) {
-      if (index >= 0 && index < _authorToc.length) {
-        _navigateToSourceOffset(_authorToc[index].offset, remember: false);
+    final player = _player;
+    final document = _document;
+    final count = _authorToc.isNotEmpty
+        ? _authorToc.length : _chapters.length;
+    if (!mounted || _loading || _error != null ||
+        widget.book.format != BookFormat.epub ||
+        player == null || player.segments.isEmpty ||
+        document == null || document.text.isEmpty ||
+        index < 0 || index >= count) return;
+
+    // A user may be visually browsing an illustration while speech
+    // continues elsewhere. Use exactly the same source-ownership policy
+    // as explicit percentage Go; never infer origin from a speech chunk.
+    final originOffset = _visibleProgressOffset(player, document.text.length);
+    final originSpineIdref = readerUsesVisualCursor(
+      narrationPlaying: player.isPlaying,
+      shouldAutoFollow: _narrationFollow.shouldAutoFollow,
+    ) ? _selectedVisualSpineIdref : null;
+    void recordCommittedSwitch() {
+      if (!mounted || _player != player || _document != document) return;
+      final destination = _visibleProgressOffset(
+          player, document.text.length);
+      if (_sectionReturn.recordCommittedJump(
+        fromOffset: originOffset,
+        toOffset: destination,
+        sourceLength: document.text.length,
+        originSpineIdref: originSpineIdref,
+        destinationSpineIdref: _selectedVisualSpineIdref,
+      )) {
+        setState(() {});
       }
+    }
+
+    if (_authorToc.isNotEmpty) {
+      _navigateToSourceOffset(_authorToc[index].offset, remember: false,
+          onCommitted: recordCommittedSwitch);
     } else {
-      unawaited(_jumpToChapterIndex(index));
+      unawaited(_jumpToChapterIndex(index,
+          onCommitted: recordCommittedSwitch));
     }
   }
 
   /// Chapter navigation never starts cloud TTS or auto-resumes interrupted
   /// playback. Persist a stable spine anchor through the existing _select.
-  Future<void> _jumpToChapterIndex(int chapterIndex) async {
+  Future<void> _jumpToChapterIndex(int chapterIndex, {
+    VoidCallback? onCommitted,
+  }) async {
     final player = _player;
     if (player == null || chapterIndex < 0 ||
         chapterIndex >= _chapters.length) return;
@@ -1173,7 +1213,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       await _select(chapter.segmentIndex,
           visualSourceOffset: chapter.start,
           visualSpineIdref: chapter.hasSpeech ? null : chapter.idref,
-          reservedSelection: selection);
+          reservedSelection: selection,
+          onCommitted: onCommitted);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1203,12 +1244,13 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (!mounted || chosen == null || _loading ||
         widget.book.id != bookId || _loadEpoch != loadEpoch ||
         _player != player || _document != document) return;
+    // Route TOC selection through the very same chapter switching
+    // destination as compact/focus arrows, advanced controls and keyboard.
+    // A dismissed sheet has no selected index and records nothing.
     if (authorial) {
-      if (chosen >= 0 && chosen < entries.length) {
-        _navigateToSourceOffset(entries[chosen].offset, remember: false);
-      }
-    } else {
-      await _jumpToChapterIndex(chosen);
+      if (chosen >= 0 && chosen < entries.length) _jumpDirectoryIndex(chosen);
+    } else if (chosen >= 0 && chosen < _chapters.length) {
+      _jumpDirectoryIndex(chosen);
     }
   }
 
