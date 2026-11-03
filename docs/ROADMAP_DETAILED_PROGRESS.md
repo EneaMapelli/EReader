@@ -2197,3 +2197,25 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   [READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md](READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md).
 - Flutter analyzer and tests **not executed** here. No Windows builds
   or GitHub Actions launched; PR #1 remains draft.
+
+### 2026-11-03 — cancel stale visual viewport checkpoints before native Pause
+
+- Standardized early `_cancelPendingVisualSave()` after reserving an
+  explicit source-selection token, before awaiting native Pause.
+  Previously, several EPUB chapter/note/bookmark and tapped-passage
+  routes canceled the debounce Timer without incrementing its
+  revision; the common `_select` revision increment occurred only
+  after the potentially slow native Pause window.
+- Applied the same early invalidation to TTS segment stepping and
+  TXT/PDF text-mode percentage navigation. A queued viewport
+  callback must not overwrite a newly requested or committed
+  original-source checkpoint even if its timer has already fired.
+  Existing latest-wins `ReaderSourceSelectionGate`, visual-source
+  ownership and Back/Forward history semantics remain unchanged.
+- Added a generated two-chapter EPUB3 integration regression that
+  starts a visual scroll, immediately seeks to another section and
+  verifies a durable destination and exactly one manual checkpoint
+  after the old 450ms timer window. See
+  [READER_CONCURRENT_NAVIGATION.md](READER_CONCURRENT_NAVIGATION.md).
+- Flutter tests/analyzer and native devices **not executed** here.
+  No Windows build or manual GitHub Actions started; PR #1 draft.
