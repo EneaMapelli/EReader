@@ -43,6 +43,7 @@ void main() {
       epub: true,
       toc: true,
       sectionReturn: true,
+      sectionPosition: true,
       progressReturn: true,
       returnLink: true,
     );
