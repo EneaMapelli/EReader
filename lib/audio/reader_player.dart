@@ -1112,6 +1112,36 @@ class ReaderPlayer extends ChangeNotifier {
 
   void _notify() { if (!_disposed) notifyListeners(); }
 
+  /// Retire the native engine only after its already-started Stop and voice
+  /// selection have settled. ReaderScreen detaches the MediaSession and then
+  /// disposes this notifier synchronously; engine.dispose() may itself call
+  /// a platform Stop, so invoking it during an earlier in-flight Stop can
+  /// race native text-to-speech methods or interrupt a replacement book.
+  ///
+  /// Do not infer silence from a Stop timeout. If the plugin never
+  /// acknowledges Stop, the old engine remains quarantined rather than
+  /// dispatching a competing native dispose operation. The UI's dispose()
+  /// still returns immediately; a late acknowledgement triggers cleanup.
+  Future<void> _retireEngineAfterNativeOperations(
+      Future<void> nativeStop, Future<void> voiceChange) async {
+    try {
+      await nativeStop;
+    } catch (_) {
+      // A completed, rejected Stop still ends this native operation.
+      // Final engine disposal is a best-effort cleanup, not recovery.
+    }
+    try {
+      await voiceChange;
+    } catch (_) {
+      // A failed voice selection must not strand a retired engine.
+    }
+    try {
+      await _engine.dispose();
+    } catch (_) {
+      // Widget teardown cannot surface asynchronous plugin errors.
+    }
+  }
+
   @override
   void dispose() {
     if (_disposed) return;
@@ -1123,7 +1153,12 @@ class ReaderPlayer extends ChangeNotifier {
     _sleepTimer = null;
     sleepTimerEndsAt = null;
     _disposed = true;
-    unawaited(_engine.dispose().catchError((Object _) {}));
+    // Capture BOTH native operation chains before scheduling teardown.
+    // Pending player continuations observe _disposed and cannot enqueue
+    // fresh speech or voice changes after this point.
+    final nativeStop = _pendingNativeStop;
+    final voiceChange = _pendingVoiceChange;
+    unawaited(_retireEngineAfterNativeOperations(nativeStop, voiceChange));
     super.dispose();
   }
 }

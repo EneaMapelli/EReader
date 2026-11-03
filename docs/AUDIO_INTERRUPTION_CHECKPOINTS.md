@@ -454,3 +454,34 @@ without exposing any IDs, text or speech data.
 
 Test code was authored and source patches checked, but Dart/Flutter
 test execution, analyzer, native builds and GitHub Actions were not run.
+
+## 2026-11-03 — serialize speech engine disposal after native Stop
+
+`ReaderScreen.dispose()` calls `ReaderMediaHandler.detach(player)`
+and then `ReaderPlayer.dispose()` synchronously. The handler's detach
+may already have started `ReaderPlayer.pause()` with a pending native
+`SpeechEngine.stop()`. Previously `ReaderPlayer.dispose()` immediately
+dispatched `SpeechEngine.dispose()`, often another platform Stop,
+while that older native call was in flight. Those independent native
+operations could race (and a delayed disposal Stop could interfere
+with a new book).
+
+`ReaderPlayer.dispose()` still cancels the player session, timers,
+and notifier immediately, so widget teardown remains synchronous.
+It now captures the pending native Stop and voice-change chains and
+schedules best-effort engine disposal **only after those operations
+settle**. A completed native Stop exception does not prevent terminal
+cleanup. A native Stop timeout is explicitly **not** treated as an
+acknowledgment: if the old platform Future hangs forever, its engine
+remains quarantined instead of racing a second native dispose. If
+the late callback finally settles, engine disposal proceeds exactly
+once. This is a deliberate safety tradeoff; a permanently hung native
+plugin still requires platform/process-level recovery.
+
+Four regressions in `test/audio/native_stop_timeout_test.dart`
+check disposal order with an in-flight native Stop, late success
+following a Stop timeout, a completed native Stop error, and repeated
+idle disposal. Test code and source patches are committed but were
+not executed; Dart analyzer, Flutter tests, device builds and GitHub
+Actions remain deferred. Cross-engine native plugin ordering on
+Android still requires device validation before merging.

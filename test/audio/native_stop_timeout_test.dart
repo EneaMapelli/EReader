@@ -50,6 +50,29 @@ class _HeldStopEngine implements SpeechEngine {
   }
 }
 
+class _DisposalProbeEngine extends _HeldStopEngine {
+  int disposalCalls = 0;
+  bool disposedBeforeStopSettled = false;
+  bool stopPending = false;
+
+  @override
+  Future<void> stop() async {
+    stopPending = true;
+    try {
+      await super.stop();
+    } finally {
+      stopPending = false;
+    }
+  }
+
+  @override
+  Future<void> dispose() async {
+    disposalCalls++;
+    disposedBeforeStopSettled |= stopPending;
+    await super.dispose();
+  }
+}
+
 ReaderPlayer _player(_HeldStopEngine engine) => ReaderPlayer(
   engine: engine,
   segments: const [
@@ -732,6 +755,79 @@ void main() {
     expect(newEngine.spoken, isEmpty);
     oldPlayer.dispose();
     newPlayer.dispose();
+  });
+
+  test('player disposal waits for the in-flight native Stop', () async {
+    final engine = _DisposalProbeEngine();
+    final player = _player(engine);
+    final reading = player.play();
+    await _settle();
+    expect(engine.spoken, ['First']);
+
+    engine.stopGate = Completer<void>();
+    final pause = player.pause();
+    expect(engine.stopPending, isTrue);
+    player.dispose();
+    player.dispose();
+    await _settle();
+    expect(engine.disposalCalls, 0,
+        reason: 'Dispose must not race an in-flight native Stop');
+
+    engine.stopGate!.complete();
+    await pause;
+    await reading;
+    await _settle();
+    expect(engine.disposalCalls, 1);
+    expect(engine.disposedBeforeStopSettled, isFalse);
+  });
+
+  test('late Stop acknowledgement retires the disposed engine once',
+      () async {
+    final engine = _DisposalProbeEngine();
+    final player = _player(engine);
+    final reading = player.play();
+    await _settle();
+
+    engine.stopGate = Completer<void>();
+    await expectLater(player.pause(), throwsA(isA<SpeechStopTimeout>()));
+    player.dispose();
+    await _settle();
+    expect(engine.disposalCalls, 0,
+        reason: 'Timeout is not evidence that the native Stop settled');
+
+    engine.stopGate!.complete();
+    await reading;
+    await _settle();
+    expect(engine.disposalCalls, 1);
+    expect(engine.disposedBeforeStopSettled, isFalse);
+  });
+
+  test('rejected native Stop still allows terminal engine disposal',
+      () async {
+    final engine = _DisposalProbeEngine()..throwOnStop = true;
+    final player = _player(engine);
+    final reading = player.play();
+    await _settle();
+
+    await expectLater(player.pause(), throwsStateError);
+    player.dispose();
+    await _settle();
+    expect(engine.disposalCalls, 1,
+        reason: 'An already settled exception must not leak the old engine');
+    expect(engine.disposedBeforeStopSettled, isFalse);
+    engine.completeSpeech();
+    await reading;
+  });
+
+  test('idle player disposal retires its engine exactly once', () async {
+    final engine = _DisposalProbeEngine();
+    final player = _player(engine);
+    player.dispose();
+    player.dispose();
+    await _settle();
+    expect(engine.disposalCalls, 1);
+    expect(engine.nativeStops, 0,
+        reason: 'No Stop is needed for a never-started player');
   });
 
   test('positive timeout is required', () {
