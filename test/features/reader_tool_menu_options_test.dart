@@ -17,6 +17,7 @@ ReaderToolMenuAvailability options({
   bool focus = false,
   bool progressReturn = false,
   bool sectionReturn = false,
+  bool chapterHistory = false,
   bool sectionPosition = false,
   String palette = 'system',
 }) => ReaderToolMenuAvailability(
@@ -29,6 +30,7 @@ ReaderToolMenuAvailability options({
   focusMode: focus,
   hasProgressReturn: progressReturn,
   hasSectionReturn: sectionReturn,
+  hasChapterHistory: chapterHistory,
   hasSectionPosition: sectionPosition,
   paletteName: palette,
 );
@@ -38,6 +40,34 @@ List<String> ids(List<OrganizedActionSection> sections) =>
       for (final item in section.items) item.id];
 
 void main() {
+  test('multi-visit history is visible only for navigable EPUBs', () {
+    final available = options(
+      epub: true, toc: true, sectionReturn: true,
+      chapterHistory: true, progressReturn: true,
+    );
+    final tools = ids(buildReaderToolSections(available));
+    final quick = ids(buildReaderQuickNavigationSections(available));
+    expect(tools, contains('chapter-history'));
+    expect(quick, contains('chapter-history'));
+    expect(quick.indexOf('chapter-history'),
+        quick.indexOf('return-to-section') + 1);
+    expect(quick.toSet().length, quick.length);
+    for (final unavailable in [
+      options(epub: true, toc: true),
+      options(epub: true, toc: true, sectionReturn: true),
+      options(epub: true, chapterHistory: true),
+      options(epub: true, toc: true, playable: false,
+          chapterHistory: true),
+      options(pdf: true, text: true, chapterHistory: true),
+      options(chapterHistory: true),
+    ]) {
+      expect(ids(buildReaderToolSections(unavailable)),
+          isNot(contains('chapter-history')));
+      expect(ids(buildReaderQuickNavigationSections(unavailable)),
+          isNot(contains('chapter-history')));
+    }
+  });
+
   test('chapter return is independent of percent and EPUB note navigation', () {
     final available = options(
       epub: true,
