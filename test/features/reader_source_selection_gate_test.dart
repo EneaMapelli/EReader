@@ -1,9 +1,89 @@
 import 'dart:async';
 
 import 'package:ereader/features/reader/reader_source_selection_gate.dart';
+import 'package:ereader/features/reader/reader_chapter_visit_history.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+
+  test('older Pause completing after latest commit cannot write or '
+      'append a chapter visit', () async {
+    final gate = ReaderSourceSelectionGate();
+    final history = ReaderChapterVisitHistory();
+    final oldPause = Completer<void>();
+    final newPause = Completer<void>();
+    var checkpoint = 100;
+    var visual = 100;
+    var saves = 0;
+
+    Future<void> choose(int destination, Completer<void> pause) async {
+      final token = gate.reserve();
+      await pause.future;
+      if (!gate.isCurrent(token)) return;
+      final origin = checkpoint;
+      checkpoint = destination; // Synchronous SQLite write contract.
+      saves++;
+      if (!gate.isCurrent(token)) return;
+      visual = destination;
+      history.recordCommittedJump(
+        fromOffset: origin, toOffset: destination,
+        sourceLength: 1000, sectionTitle: 'Chapter',
+        sectionNumber: 1, sectionCount: 3,
+      );
+    }
+
+    final obsolete = choose(250, oldPause);
+    final lastIntent = choose(750, newPause);
+    newPause.complete();
+    await lastIntent;
+    oldPause.complete();
+    await obsolete;
+
+    expect(checkpoint, 750);
+    expect(visual, checkpoint);
+    expect(saves, 1);
+    expect(history.length, 1);
+    expect(history.latest!.sourceOffset, 100);
+    expect(history.recent.map((e) => e.sourceOffset), [100]);
+  });
+
+  test('late SQLite Future of obsolete request cannot repaint or '
+      'mutate chapter history', () async {
+    final gate = ReaderSourceSelectionGate();
+    final history = ReaderChapterVisitHistory();
+    final oldSaveContinuation = Completer<void>();
+    var durable = 100;
+    var visual = 100;
+
+    Future<void> choose(int destination, Future<void> saveYield) async {
+      final token = gate.reserve();
+      if (!gate.isCurrent(token)) return;
+      final origin = durable;
+      durable = destination;
+      // The real store updates SQLite before returning its Future;
+      // a superseding intent may arrive before this continuation resumes.
+      await saveYield;
+      if (!gate.isCurrent(token)) return;
+      visual = destination;
+      history.recordCommittedJump(
+        fromOffset: origin, toOffset: destination,
+        sourceLength: 1000, sectionTitle: 'Chapter',
+        sectionNumber: 1, sectionCount: 3,
+      );
+    }
+
+    final old = choose(300, oldSaveContinuation.future);
+    await choose(800, Future<void>.value());
+    oldSaveContinuation.complete();
+    await old;
+
+    expect(durable, 800);
+    expect(visual, 800);
+    expect(history.length, 1);
+    expect(history.latest!.sourceOffset, 300,
+        reason: 'The latest committed intent owns its actual departure');
+  });
+
   test('latest intent wins even when an older Pause finishes last', () async {
     final gate = ReaderSourceSelectionGate();
     final slowStop = Completer<void>();

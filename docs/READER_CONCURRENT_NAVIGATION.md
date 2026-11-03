@@ -133,3 +133,35 @@ Added pure regression scenarios in
 Forward, recent history, percentage and link returns, identity-unequal
 link origins and cross-channel independence. Dart/Flutter tests are
 authored but **not run**; no build, Action or native acceptance performed.
+
+## 2026-11-03 — rapid EPUB navigation regression coverage
+
+Added two real `ReaderScreen` widget integration scenarios using the
+existing self-contained two-chapter EPUB fixture and temporary SQLite store:
+
+- Rapid double-tap of **Next EPUB section** without an intervening
+  settle must persist exactly one winning destination, create only one
+  Back origin, and allow a subsequent Back → Forward traversal to
+  restore both durable source offsets.
+- Ctrl+End → Ctrl+Home → Ctrl+End in immersive reading mode (without
+  intermediate settle) must leave both the SQLite source position and
+  displayed publisher-section number at the latest intended chapter.
+  Ctrl+Shift+Page Up / Page Down then navigate the committed history
+  without revealing hidden narration controls.
+
+Added two deterministic, pure gate/history model tests with delayed
+native-Pause and delayed SQLite-Future continuations. They assert that
+obsolete operations cannot append a chapter visit or repaint the
+viewport, and that the final persisted offset belongs to the latest
+successful intent. These are **contract simulations** of the production
+gate and history, not substitutes for the widget/native tests.
+
+Files:
+`test/features/reader_focus_epub_integration_test.dart` and
+`test/features/reader_source_selection_gate_test.dart`.
+
+**Verification:** tests authored and source structure checked only;
+Flutter tests/analyzer, device builds and GitHub Actions NOT executed.
+The exact one-write expectation deliberately makes duplicate commits
+a regression failure; it has not yet been validated against a native
+player or a Flutter test runtime.

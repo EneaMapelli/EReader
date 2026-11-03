@@ -7,6 +7,7 @@ import 'package:ereader/data/epub_text_extractor.dart';
 import 'package:ereader/data/library_store.dart';
 import 'package:ereader/features/reader/reader_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -81,6 +82,131 @@ void main() {
   tearDown(() async {
     store.dispose();
     if (await home.exists()) await home.delete(recursive: true);
+  });
+
+
+  testWidgets('rapid same-destination chapter taps keep one durable origin',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+
+    final startingOffset = store.getBook(bookId)!.progressOffset;
+    final beforeRevision = store.manualPositionRevision(bookId);
+    final next = find.byKey(
+        const ValueKey('reader-compact-next-section'));
+
+    // Queue the same visual source intent twice without settling either
+    // native/SQLite continuation between taps. Only the winning selection
+    // may write a checkpoint and add a chapter return origin.
+    await tester.tap(next);
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+    expect(store.manualPositionRevision(bookId), beforeRevision + 1,
+        reason: 'Superseded duplicate chapter seeks must not double-save');
+
+    final shortcut = find.byKey(
+        const ValueKey('reader-chapter-history-shortcut'));
+    expect(shortcut, findsOneWidget);
+    await tester.tap(shortcut);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-chapter-shortcut-back')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('reader-chapter-shortcut-recent')),
+        findsNothing,
+        reason: 'A duplicate command must not fabricate two Back visits');
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-shortcut-back')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset, startingOffset);
+
+    await tester.tap(shortcut);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-chapter-shortcut-forward')),
+        findsOneWidget);
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-shortcut-forward')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rapid chapter keyboard choices preserve final SQLite and '
+      'visual position and Back/Forward', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+
+    final start = store.getBook(bookId)!.progressOffset;
+    final originalRevision = store.manualPositionRevision(bookId);
+    await tester.tap(find.byKey(const ValueKey('reader-tools-menu')));
+    await tester.pumpAndSettle();
+    final focus = find.byKey(const ValueKey('organized-action-reading-focus'));
+    await tester.scrollUntilVisible(
+        focus, 160, scrollable: find.byType(Scrollable).last);
+    await tester.tap(focus);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-compact-transport')),
+        findsNothing);
+
+    // Ctrl+End, Ctrl+Home, Ctrl+End exercise the same publisher-TOC
+    // selection route while prior async source seeks may still be pending.
+    // The *last* intent must win regardless of the completion order.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.end);
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await tester.sendKeyEvent(LogicalKeyboardKey.end);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart),
+        reason: 'Final requested destination must own the checkpoint');
+    expect(store.manualPositionRevision(bookId),
+        greaterThan(originalRevision));
+    expect(tester.widget<Text>(find.byKey(
+        const ValueKey('reader-focus-section-number'))).data, '2/2',
+        reason: 'Visual EPUB section must match the persisted destination');
+
+    // History navigation is independent of publisher-TOC traversal
+    // and never invokes speech playback. It must restore both exact
+    // durable positions and the focus header after rapid requests.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset, start);
+    expect(tester.widget<Text>(find.byKey(
+        const ValueKey('reader-focus-section-number'))).data, '1/2');
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+    expect(tester.widget<Text>(find.byKey(
+        const ValueKey('reader-focus-section-number'))).data, '2/2');
+    expect(find.byKey(const ValueKey('reader-compact-transport')),
+        findsNothing,
+        reason: 'Navigation must not expose TTS controls in focus mode');
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('recent chapter history sheet returns to an older saved visit',
