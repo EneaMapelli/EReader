@@ -2204,6 +2204,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (!mounted ||
         (navigationOnly && (_loading || _error != null))) return;
     final openedBookId = widget.book.id;
+    final openedLoadEpoch = _loadEpoch;
     final openedPlayer = _player;
     final openedDocument = _document;
     final epub = widget.book.format == BookFormat.epub;
@@ -2242,6 +2243,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // Closing a sheet after replacing/reloading a book must never
     // dispatch an old action into a different document/player session.
     if (!mounted || action == null || widget.book.id != openedBookId ||
+        _loadEpoch != openedLoadEpoch ||
         _player != openedPlayer || _document != openedDocument) return;
     switch (action) {
       case 'contents':
