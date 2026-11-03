@@ -20,6 +20,8 @@ class ReaderCompactControls extends StatelessWidget {
     this.sectionCount,
     this.sectionProgressPercent,
     this.onOpenSections,
+    this.onPreviousSection,
+    this.onNextSection,
   });
 
   final String segmentLabel;
@@ -34,6 +36,10 @@ class ReaderCompactControls extends StatelessWidget {
   /// Null when NAV/OPF source boundaries are ambiguous or empty.
   final int? sectionProgressPercent;
   final VoidCallback? onOpenSections;
+  /// These move between EPUB source sections, never audio utterances.
+  /// Null disables the button at the first/last section.
+  final VoidCallback? onPreviousSection;
+  final VoidCallback? onNextSection;
   final VoidCallback onPrevious;
   final VoidCallback onPlayPause;
   final VoidCallback onNext;
@@ -47,40 +53,58 @@ class ReaderCompactControls extends StatelessWidget {
               sectionIndex != null && sectionCount != null &&
               sectionIndex! >= 0 && sectionIndex! < sectionCount! &&
               onOpenSections != null)
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                key: const ValueKey('reader-compact-current-section'),
-                onPressed: onOpenSections,
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  alignment: Alignment.centerLeft,
+            Row(
+              key: const ValueKey('reader-compact-section-navigation'),
+              children: [
+                IconButton(
+                  key: const ValueKey('reader-compact-previous-section'),
+                  tooltip: 'Previous EPUB section',
+                  onPressed: onPreviousSection,
+                  icon: const Icon(Icons.chevron_left),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.menu_book_outlined, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${sectionLabel!} (${sectionIndex! + 1}/$sectionCount)',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelMedium,
-                      ),
+                Expanded(
+                  child: TextButton(
+                    key: const ValueKey('reader-compact-current-section'),
+                    onPressed: onOpenSections,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      minimumSize: const Size(0, 48),
+                      alignment: Alignment.centerLeft,
                     ),
-                    if (sectionProgressPercent != null) ...[
-                      const SizedBox(width: 6),
-                      Text(
-                        '${sectionProgressPercent!.clamp(0, 100)}%',
-                        key: const ValueKey('reader-compact-section-progress'),
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    ],
-                    const SizedBox(width: 4),
-                    const Icon(Icons.chevron_right, size: 18),
-                  ],
+                    child: Row(
+                      children: [
+                        const Icon(Icons.menu_book_outlined, size: 18),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '${sectionLabel!} (${sectionIndex! + 1}/$sectionCount)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
+                        ),
+                        if (sectionProgressPercent != null) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '${sectionProgressPercent!.clamp(0, 100)}%',
+                            key: const ValueKey(
+                                'reader-compact-section-progress'),
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
+                        const SizedBox(width: 4),
+                        const Icon(Icons.list, size: 18),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                IconButton(
+                  key: const ValueKey('reader-compact-next-section'),
+                  tooltip: 'Next EPUB section',
+                  onPressed: onNextSection,
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
             ),
           Semantics(
             liveRegion: true,
