@@ -1,5 +1,6 @@
 /// Session-only return point for an explicit, successfully committed
-/// "Go to book position" jump. Never write this navigation aid to SQLite.
+/// source jump (book percentage or EPUB chapter). Each navigation kind owns
+/// its own instance; the aid itself is never written to SQLite.
 ///
 /// Recording a new jump replaces the previous one. A return consumes the
 /// saved origin only after the reader confirms its source seek succeeded.
