@@ -427,3 +427,30 @@ navigation during older recovery, and a direct native Stop while
 recovery is eligible. The code and tests are committed but have not
 been executed; Flutter/analyzer, device builds and GitHub Actions
 remain deferred until stabilization.
+
+## 2026-11-03 — release unsafe native Stop recovery sources on shutdown
+
+The Android media handler intentionally keeps references to older
+`ReaderPlayer` instances after an unconfirmed Stop. This is needed
+to inspect the **actual native engine acknowledgment** on a later,
+explicit Play. Once `ReaderMediaHandler.close()` completes, however,
+that handler is permanently closed and no recovery can happen.
+Previously its `_unsafeStopPlayers` set could continue retaining
+players, associated speech engines and their book/session resources.
+
+Native Stop confirmation callbacks now refrain from adding players
+to the unsafe recovery set once the handler is closed. The terminal
+close path drains its tracked Stop barrier, then clears all retained
+recovery sources and its completed/pending recovery reference.
+The closed handler **does not reset** the unsafe Stop latch or
+authorize any playback, and `close()` remains shared across callers.
+
+Two deterministic tests exercise a genuine Stop failure followed by
+close, and a timeout followed by a native confirmation that arrives
+after close. A pre-existing positive recovery test also asserts that
+the recovery set is emptied after successful re-arming. A read-only,
+`@visibleForTesting` count measures retained recovery sources
+without exposing any IDs, text or speech data.
+
+Test code was authored and source patches checked, but Dart/Flutter
+test execution, analyzer, native builds and GitHub Actions were not run.

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:flutter/foundation.dart';
 
 import 'reader_player.dart';
 
@@ -84,6 +85,11 @@ class ReaderMediaHandler extends BaseAudioHandler {
   /// silence; a genuine native Stop failure stays locked.
   bool get requiresFreshAudioSession => _transportStopUnsafe;
 
+  // Diagnostics only; never expose book IDs or speech content. A closed
+  // handler must not retain failed players solely for impossible retries.
+  @visibleForTesting
+  int get debugRetainedStopPlayers => _unsafeStopPlayers.length;
+
   void _trackNativeConfirmation(
     Future<bool> confirmation, ReaderPlayer player,
   ) {
@@ -94,7 +100,9 @@ class ReaderMediaHandler extends BaseAudioHandler {
     // recovery verifies every unresolved source player.
     _pendingTransportStops = Future.wait<bool>([earlier, confirmation])
         .then((results) {
-      if (!results[1]) _unsafeStopPlayers.add(player);
+      // Shutdown is terminal: even a late native Stop failure must not
+      // retain the disposed book/player after close() has started.
+      if (!results[1] && !_closed) _unsafeStopPlayers.add(player);
       final confirmed = results.every((value) => value);
       if (!confirmed && !_transportStopUnsafe) {
         _transportStopUnsafe = true;
@@ -662,6 +670,14 @@ class ReaderMediaHandler extends BaseAudioHandler {
     await _focusOperation;
     // A close initiated during narration must not report completion
     // while the detached book's native Stop is still outstanding.
-    await _pendingTransportStops;
+    try {
+      await _pendingTransportStops;
+    } finally {
+      // No re-arm is possible after _closed. Drop references to old
+      // ReaderPlayer instances, including an engine whose native Stop
+      // timed out. Preserve the unsafe latch; close is irreversible.
+      _unsafeStopPlayers.clear();
+      _pendingRecovery = null;
+    }
   }
 }

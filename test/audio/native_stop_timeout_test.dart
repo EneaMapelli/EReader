@@ -370,6 +370,8 @@ void main() {
     await handler.play();
     await _settle();
     expect(handler.requiresFreshAudioSession, isFalse);
+    expect(handler.debugRetainedStopPlayers, 0,
+        reason: 'Successful verified recovery drops all old players');
     expect(handler.mediaItem.value?.id, 'new');
     expect(newEngine.spoken, ['First']);
     expect(focusRequests, 2);
@@ -673,6 +675,61 @@ void main() {
     expect(handler.requiresFreshAudioSession, isFalse);
     await handler.pause();
     await handler.close();
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
+  test('terminal close releases failed Stop recovery sources',
+      () async {
+    final oldEngine = _HeldStopEngine()..throwOnStop = true;
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    await expectLater(handler.play(), throwsStateError);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(handler.debugRetainedStopPlayers, 1,
+        reason: 'Keep the failed old player only while recovery is possible');
+
+    await handler.close();
+    expect(handler.debugRetainedStopPlayers, 0,
+        reason: 'A closed handler cannot recover and must release old players');
+    expect(handler.requiresFreshAudioSession, isTrue,
+        reason: 'Discarding references must not turn a failed Stop into success');
+    expect(handler.hasActiveBook, isFalse);
+    await handler.close(); // repeated close is terminal and idempotent
+    expect(handler.debugRetainedStopPlayers, 0);
+    oldPlayer.dispose();
+    newPlayer.dispose();
+  });
+
+  test('late Stop completion after close cannot re-retain an old player',
+      () async {
+    final oldEngine = _HeldStopEngine();
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    oldEngine.stopGate = Completer<void>();
+
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    await handler.close().timeout(const Duration(seconds: 1));
+    expect(handler.debugRetainedStopPlayers, 0);
+    expect(oldPlayer.nativeStopUnconfirmed, isTrue);
+
+    oldEngine.stopGate!.complete();
+    await _settle();
+    expect(handler.debugRetainedStopPlayers, 0);
+    expect(handler.hasActiveBook, isFalse);
+    expect(newEngine.spoken, isEmpty);
     oldPlayer.dispose();
     newPlayer.dispose();
   });
