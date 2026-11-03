@@ -75,6 +75,71 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('focus arrows navigate chapters without global or local Go',
+      (tester) async {
+    var previous = 0;
+    var next = 0;
+    var bookGo = 0;
+    var localGo = 0;
+    var contents = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(
+      appBar: AppBar(bottom: ReaderFocusProgressStrip(
+        sourceOffset: 320, sourceLength: 1000,
+        onNavigate: () => bookGo++,
+        sectionTitle: 'Chapter 2', sectionIndex: 1, sectionCount: 3,
+        sectionProgressPercent: 35,
+        onOpenSections: () => contents++,
+        onNavigateWithinSection: () => localGo++,
+        onPreviousSection: () => previous++,
+        onNextSection: () => next++,
+      )),
+    )));
+    final prev = find.byKey(
+        const ValueKey('reader-focus-previous-section'));
+    final forward = find.byKey(
+        const ValueKey('reader-focus-next-section'));
+    expect(prev, findsOneWidget);
+    expect(forward, findsOneWidget);
+    await tester.tap(prev);
+    await tester.tap(forward);
+    expect([previous, next, bookGo, localGo, contents], [1, 1, 0, 0, 0]);
+    expect(find.text('2/3'), findsOneWidget);
+    await tester.tap(find.byKey(
+        const ValueKey('reader-focus-section-go')));
+    await tester.tap(find.byKey(
+        const ValueKey('reader-focus-section')));
+    expect([previous, next, bookGo, localGo, contents], [1, 1, 0, 1, 1]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('first and final focus sections disable unavailable direction',
+      (tester) async {
+    void noop() {}
+    Future<void> show(int index, {VoidCallback? previous,
+        VoidCallback? next}) => tester.pumpWidget(MaterialApp(
+      home: Scaffold(appBar: AppBar(bottom: ReaderFocusProgressStrip(
+        sourceOffset: index * 120, sourceLength: 500, onNavigate: noop,
+        sectionTitle: 'Current section',
+        sectionIndex: index, sectionCount: 2,
+        onOpenSections: noop, onPreviousSection: previous,
+        onNextSection: next,
+      ))),
+    ));
+    final prev = find.byKey(
+        const ValueKey('reader-focus-previous-section'));
+    final next = find.byKey(
+        const ValueKey('reader-focus-next-section'));
+    await show(0, next: noop);
+    expect(tester.widget<IconButton>(prev).onPressed, isNull);
+    expect(tester.widget<IconButton>(next).onPressed, isNotNull);
+    await show(1, previous: noop);
+    expect(tester.widget<IconButton>(prev).onPressed, isNotNull);
+    expect(tester.widget<IconButton>(next).onPressed, isNull);
+    await show(0);
+    expect(tester.widget<IconButton>(prev).onPressed, isNull);
+    expect(tester.widget<IconButton>(next).onPressed, isNull);
+  });
+
   testWidgets('silent or ambiguous EPUB section still opens TOC, not local Go',
       (tester) async {
     var openedToc = 0;
@@ -145,11 +210,20 @@ void main() {
         sectionProgressPercent: 99,
         onOpenSections: () {},
         onNavigateWithinSection: () {},
+        onPreviousSection: () {},
+        onNextSection: () {},
       ))),
     ));
     expect(find.byKey(const ValueKey('reader-focus-progress')), findsOneWidget);
     expect(find.byKey(const ValueKey('reader-focus-section')), findsOneWidget);
     expect(find.byKey(const ValueKey('reader-focus-section-go')), findsOneWidget);
+    expect(find.byKey(const ValueKey('reader-focus-previous-section')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('reader-focus-next-section')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('reader-focus-section-number')),
+        findsNothing,
+        reason: 'Full chapter ordinal remains accessible via TalkBack');
     expect(tester.takeException(), isNull);
   });
 
