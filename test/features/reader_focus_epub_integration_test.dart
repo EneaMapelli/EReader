@@ -83,6 +83,124 @@ void main() {
     if (await home.exists()) await home.delete(recursive: true);
   });
 
+  testWidgets('chapter return restores exact pre-switch point without '
+      'consuming percentage history', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+    final start = store.getBook(bookId)!.progressOffset;
+
+    // Enter focus mode; all chapter and percentage actions remain
+    // available without exposing TTS transport controls.
+    await tester.tap(find.byKey(const ValueKey('reader-tools-menu')));
+    await tester.pumpAndSettle();
+    final focus = find.byKey(const ValueKey('organized-action-reading-focus'));
+    await tester.scrollUntilVisible(
+        focus, 160, scrollable: find.byType(Scrollable).last);
+    await tester.tap(focus);
+    await tester.pumpAndSettle();
+
+    // First, record a percentage-return point inside chapter one.
+    await tester.tap(find.byKey(const ValueKey('reader-focus-section-go')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('reader-progress-preset-50')));
+    await tester.tap(find.byKey(const ValueKey('reader-progress-confirm')));
+    await tester.pumpAndSettle();
+    final midChapter = store.getBook(bookId)!.progressOffset;
+    expect(midChapter, greaterThan(start));
+    expect(midChapter, lessThan(nextChapterStart));
+
+    await tester.tap(find.byKey(const ValueKey('reader-focus-next-section')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+
+    Future<void> openQuickNavigation() async {
+      await tester.tap(find.byKey(
+          const ValueKey('reader-quick-navigation')));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> chooseQuick(String action) async {
+      await openQuickNavigation();
+      final item = find.byKey(ValueKey('organized-action-$action'));
+      await tester.scrollUntilVisible(
+          item, 160, scrollable: find.byType(Scrollable).last);
+      await tester.tap(item);
+      await tester.pumpAndSettle();
+    }
+
+    await openQuickNavigation();
+    expect(find.byKey(const ValueKey('organized-action-return-to-section')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('organized-action-return-to-percent')),
+        findsOneWidget);
+    await tester.tap(find.byKey(
+        const ValueKey('organized-action-return-to-section')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset, midChapter,
+        reason: 'Chapter return restores exact visual origin, not chapter start');
+
+    await openQuickNavigation();
+    expect(find.byKey(const ValueKey('organized-action-return-to-section')),
+        findsNothing,
+        reason: 'A consumed chapter return is one-shot');
+    expect(find.byKey(const ValueKey('organized-action-return-to-percent')),
+        findsOneWidget,
+        reason: 'Chapter return does not erase percentage return');
+    await tester.tap(find.byKey(
+        const ValueKey('organized-action-return-to-percent')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset, start);
+    expect(find.byKey(const ValueKey('reader-compact-transport')), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    // Test helper also checks the menu route remains usable as a
+    // separate action without requiring narration to resume.
+    await chooseQuick('contents');
+    expect(find.byKey(const ValueKey('reader-directory-filter')),
+        findsOneWidget);
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('directory selection also creates a one-shot chapter return',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+    final before = store.getBook(bookId)!.progressOffset;
+
+    await tester.tap(find.byKey(const ValueKey('reader-compact-current-section')));
+    await tester.pumpAndSettle();
+    // Looking at contents does not invent a return point.
+    expect(find.byKey(const ValueKey('reader-directory-entry-1')),
+        findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('reader-directory-entry-1')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+
+    await tester.tap(find.byKey(const ValueKey('reader-quick-navigation')));
+    await tester.pumpAndSettle();
+    final action = find.byKey(
+        const ValueKey('organized-action-return-to-section'));
+    await tester.scrollUntilVisible(
+        action, 160, scrollable: find.byType(Scrollable).last);
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset, before);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('chapter arrows use guarded EPUB positions in focus and compact modes',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 760));
