@@ -125,8 +125,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    Future<void> chooseQuick(String action) async {
-      await openQuickNavigation();
+    Future<void> tapQuickItem(String action) async {
       final item = find.byKey(ValueKey('organized-action-$action'));
       await tester.scrollUntilVisible(
           item, 160, scrollable: find.byType(Scrollable).last);
@@ -139,9 +138,7 @@ void main() {
         findsOneWidget);
     expect(find.byKey(const ValueKey('organized-action-return-to-percent')),
         findsOneWidget);
-    await tester.tap(find.byKey(
-        const ValueKey('organized-action-return-to-section')));
-    await tester.pumpAndSettle();
+    await tapQuickItem('return-to-section');
     expect(store.getBook(bookId)!.progressOffset, midChapter,
         reason: 'Chapter return restores exact visual origin, not chapter start');
 
@@ -152,18 +149,17 @@ void main() {
     expect(find.byKey(const ValueKey('organized-action-return-to-percent')),
         findsOneWidget,
         reason: 'Chapter return does not erase percentage return');
-    await tester.tap(find.byKey(
-        const ValueKey('organized-action-return-to-percent')));
-    await tester.pumpAndSettle();
+    await tapQuickItem('return-to-percent');
     expect(store.getBook(bookId)!.progressOffset, start);
     expect(find.byKey(const ValueKey('reader-compact-transport')), findsNothing);
     expect(tester.takeException(), isNull);
 
-    // Test helper also checks the menu route remains usable as a
-    // separate action without requiring narration to resume.
-    await chooseQuick('contents');
-    expect(find.byKey(const ValueKey('reader-directory-filter')),
-        findsOneWidget);
+    await openQuickNavigation();
+    expect(find.byKey(const ValueKey('organized-action-return-to-section')),
+        findsNothing);
+    expect(find.byKey(const ValueKey('organized-action-return-to-percent')),
+        findsNothing,
+        reason: 'Each one-shot return is consumed only after its own commit');
     await tester.tapAt(const Offset(4, 4));
     await tester.pumpAndSettle();
   });
