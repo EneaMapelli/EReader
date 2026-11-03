@@ -46,6 +46,29 @@ sections; unmodified left/right arrows still skip spoken segments; Alt
 arrows remain untouched for OS accessibility and selection controls.
 The scrollable in-app F1 help lists the new shortcuts.
 
+## Stale popup protection and shortcut discoverability (2026-11-03)
+
+The compact/focus history menu now captures the displayed
+`ReaderChapterVisitHistory.revision` **when the popup opens**. Each
+selection rechecks that revision against the reader's live history.
+If an independent keyboard, media or other source navigation commits
+while the popup remains open, its old Back/Forward/Recent choices
+silently become inapplicable rather than retargeting a newer visit.
+
+The popup receives both the displayed history revision and a live
+getter from the owning reader; this is independent of the existing
+revision checks in the full Reader tools sheet and the actual
+`_select` source seek. The guard also works if Flutter rebuilds
+the reader underneath an open popup. A newly opened menu immediately
+uses the updated revision again.
+
+Each popup row now displays its supported hardware shortcut:
+**Ctrl/Cmd+Shift+Page Up** (Back),
+**Ctrl/Cmd+Shift+Page Down** (Forward) and
+**Ctrl/Cmd+Shift+H** (Recent chapter positions).
+Opening the menu, dismissing it and inspecting these hints do not
+seek, save a checkpoint or start narration.
+
 ## Accessibility and small screens
 
 The history popup uses a single 48px standard Flutter popup button
