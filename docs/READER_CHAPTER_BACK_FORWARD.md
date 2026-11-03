@@ -2,6 +2,16 @@
 
 Implemented 2026-11-03 · branch `feature/m0-flutter-foundation` · draft PR #1.
 
+## Update · 2026-11-03: accessible direct history shortcut
+
+A **single contextual history icon** now exposes Back, Forward and
+Recent chapter positions directly from the compact transport row or
+from the immersive AppBar, without adding a new bar or showing TTS
+controls. The recent-positions sheet has explicit TalkBack action
+labels for every saved visit. The existing navigation/back-stack
+semantics below remain unchanged. See
+[READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md](READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md).
+
 ## Reading experience
 
 The reader now supports **both directions** through committed EPUB chapter
