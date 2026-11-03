@@ -85,6 +85,40 @@ void main() {
   });
 
 
+  testWidgets('chapter seek invalidates a pending visual viewport save',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+
+    final startingRevision = store.manualPositionRevision(bookId);
+    // A short user scroll may queue a 450ms original-source checkpoint.
+    // Do not settle that timer: the chapter choice is a newer explicit
+    // source intent and must invalidate even a queued callback.
+    final scrollables = find.byType(Scrollable);
+    expect(scrollables, findsWidgets);
+    await tester.drag(scrollables.first, const Offset(0, -160));
+    await tester.pump(const Duration(milliseconds: 30));
+
+    await tester.tap(find.byKey(
+        const ValueKey('reader-compact-next-section')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+    // Drain the former delayed-save window. It must not coarsen the
+    // explicit publisher chapter anchor or write an extra checkpoint.
+    await tester.pump(const Duration(milliseconds: 650));
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+    expect(store.manualPositionRevision(bookId), startingRevision + 1,
+        reason: 'Queued viewport saves must be canceled before native Pause');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('rapid same-destination chapter taps keep one durable origin',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 760));
