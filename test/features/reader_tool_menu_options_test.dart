@@ -70,6 +70,7 @@ void main() {
       options(pdf: true, text: true, sectionReturn: true),
       options(pdf: true, text: false, sectionReturn: true),
       options(epub: true, playable: false, sectionReturn: true),
+      options(epub: true, toc: false, sectionReturn: true),
     ]) {
       expect(ids(buildReaderToolSections(unavailable)),
           isNot(contains('return-to-section')));
