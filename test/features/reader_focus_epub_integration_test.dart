@@ -180,6 +180,71 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('chapter shortcut opens instant Back and Forward in both layouts',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 760));
+    addTearDown(() async => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      home: ReaderScreen(book: store.getBook(bookId)!, store: store),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 650));
+    final shortcut = find.byKey(
+        const ValueKey('reader-chapter-history-shortcut'));
+    expect(shortcut, findsNothing,
+        reason: 'No history control appears before a committed switch');
+
+    await tester.tap(find.byKey(
+        const ValueKey('reader-compact-next-section')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+    expect(shortcut, findsOneWidget);
+    await tester.tap(shortcut);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-chapter-shortcut-back')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('reader-chapter-shortcut-forward')),
+        findsNothing);
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-shortcut-back')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        lessThan(nextChapterStart));
+
+    await tester.tap(shortcut);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-chapter-shortcut-forward')),
+        findsOneWidget);
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-shortcut-forward')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        greaterThanOrEqualTo(nextChapterStart));
+
+    await tester.tap(find.byKey(const ValueKey('reader-tools-menu')));
+    await tester.pumpAndSettle();
+    final focus = find.byKey(const ValueKey('organized-action-reading-focus'));
+    await tester.scrollUntilVisible(
+        focus, 160, scrollable: find.byType(Scrollable).last);
+    await tester.tap(focus);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reader-compact-transport')),
+        findsNothing);
+    expect(shortcut, findsOneWidget,
+        reason: 'Focus AppBar exposes history without narration transport');
+    await tester.tap(shortcut);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(
+        const ValueKey('reader-chapter-shortcut-back')));
+    await tester.pumpAndSettle();
+    expect(store.getBook(bookId)!.progressOffset,
+        lessThan(nextChapterStart));
+    expect(find.byKey(const ValueKey('reader-compact-transport')),
+        findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('new chapter branch invalidates forward after Back',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 760));
