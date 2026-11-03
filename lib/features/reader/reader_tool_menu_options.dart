@@ -20,6 +20,7 @@ class ReaderToolMenuAvailability {
     required this.paletteName,
     this.focusMode = false,
     this.hasProgressReturn = false,
+    this.hasSectionReturn = false,
     this.hasSectionPosition = false,
   });
 
@@ -38,6 +39,8 @@ class ReaderToolMenuAvailability {
   final String paletteName;
   final bool focusMode;
   final bool hasProgressReturn;
+  /// Separate one-shot return after a committed EPUB chapter switch.
+  final bool hasSectionReturn;
   /// A unique, nonempty original-source interval in the current EPUB section.
   final bool hasSectionPosition;
 }
@@ -76,6 +79,14 @@ List<OrganizedActionSection> buildReaderToolSections(
         id: 'section-percent', title: 'Go to position in this section',
         icon: Icons.linear_scale,
         subtitle: 'Choose 0–100% within the current EPUB section',
+      ),
+    if (options.isEpub && options.hasPlayableSegments &&
+        options.hasSectionReturn)
+      const OrganizedActionItem(
+        id: 'return-to-section',
+        title: 'Return before chapter change',
+        icon: Icons.undo,
+        subtitle: 'Restore the exact location before the last EPUB section switch',
       ),
     if (options.textMode && options.hasPlayableSegments &&
         options.hasProgressReturn)
@@ -229,6 +240,7 @@ List<OrganizedActionSection> buildReaderQuickNavigationSections(
     'bookmarks',
     'go-to-percent',
     'section-percent',
+    'return-to-section',
     'pdf-bookmarks',
     'return-link',
     'return-to-percent',
