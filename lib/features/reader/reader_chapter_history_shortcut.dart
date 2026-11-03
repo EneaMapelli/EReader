@@ -75,6 +75,7 @@ class _ReaderChapterHistoryShortcutState
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.arrow_back),
                 title: Text('Back to previous visited position'),
+                subtitle: Text('Ctrl/Cmd + Shift + Page Up'),
               ),
             ),
           if (widget.onForward != null)
@@ -85,6 +86,7 @@ class _ReaderChapterHistoryShortcutState
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.arrow_forward),
                 title: Text('Forward to next visited position'),
+                subtitle: Text('Ctrl/Cmd + Shift + Page Down'),
               ),
             ),
           if (widget.onRecent != null)
@@ -95,6 +97,7 @@ class _ReaderChapterHistoryShortcutState
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.history_toggle_off),
                 title: Text('Recent chapter positions'),
+                subtitle: Text('Ctrl/Cmd + Shift + H'),
               ),
             ),
         ],
