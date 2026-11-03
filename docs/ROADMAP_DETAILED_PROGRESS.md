@@ -2174,3 +2174,26 @@ o Release generata, workflow manuali. [Specifica](LIBRARY_DESKTOP_DRAG_DROP.md).
   [READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md](READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md).
 - Flutter analyzer/widget/integration tests **not run** here.
   No Windows build or GitHub Actions initiated; PR #1 stays draft.
+
+### 2026-11-03 — Stale-safe chapter popup and keyboard hint discovery
+
+- Verified that Ctrl/Cmd+Shift+Page Up/Down and Ctrl/Cmd+Shift+H
+  for EPUB Back/Forward/Recent navigation were already implemented
+  on this branch, with existing keyboard-focused route/editor guards.
+- Hardened the **compact and immersive history popup** so opening
+  captures the displayed chapter-history revision and selecting
+  rechecks the reader's live revision. A committed concurrent
+  keyboard/media seek or an underlying widget rebuild cannot turn
+  an older menu action into an unintended new Back/Forward/Recent
+  navigation. The full Reader tools sheet continues using its
+  own separate stale action guards.
+- Exposed each keyboard shortcut alongside its popup action title,
+  making the hardware shortcuts discoverable without opening F1 help.
+  The popup still never performs TTS transport or direct checkpoint
+  persistence.
+- Added popup widget regressions for all three invalidated actions,
+  for an invalidated menu across a Flutter rebuild, and for
+  keyboard hint visibility. See
+  [READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md](READER_CHAPTER_HISTORY_SHORTCUT_A11Y.md).
+- Flutter analyzer and tests **not executed** here. No Windows builds
+  or GitHub Actions launched; PR #1 remains draft.
