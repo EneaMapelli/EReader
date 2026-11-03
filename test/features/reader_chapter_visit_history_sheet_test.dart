@@ -45,6 +45,15 @@ void main() {
     expect(find.text('Chapter 3'), findsOneWidget);
     expect(find.text('Section 3 of 3 · 4% of book'), findsOneWidget);
     expect(find.text('Chapter 1'), findsOneWidget);
+    final semantics = tester.widget<Semantics>(find.byKey(
+        const ValueKey('reader-chapter-history-semantics-1')));
+    expect(semantics.properties.button, isTrue);
+    expect(semantics.properties.onTap, isNotNull,
+        reason: 'TalkBack needs a full return action on each saved visit');
+    expect(semantics.properties.label,
+        contains('Return to Chapter 2. Section 2 of 3.'));
+    expect(semantics.properties.label,
+        contains('Visit 2 of 3, newest first'));
     expect(selected, isNull, reason: 'Opening history never performs a seek');
     await tester.tap(find.byKey(const ValueKey('reader-chapter-history-entry-1')));
     await tester.pumpAndSettle();
@@ -101,6 +110,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('reader-chapter-history-entry-0')),
         findsOneWidget);
+    expect(find.byKey(const ValueKey('reader-chapter-history-semantics-0')),
+        findsOneWidget);
+    expect(find.text('Recent chapter positions'), findsOneWidget,
+        reason: 'The header must remain discoverable at large text scale');
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('reader-chapter-history-entry-19')),
       250, scrollable: find.byKey(const ValueKey('reader-chapter-history-list')),
