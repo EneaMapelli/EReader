@@ -1576,9 +1576,11 @@ void main() {
     expect(staleEngine.disposalCalls, 0,
         reason: 'Dispose must await the currently speaking book');
     await handler.pause();
-    for (var i = 0; i < 20 && staleEngine.disposalCalls == 0; i++) {
-      await _settle();
-    }
+    expect(
+      await stale.engineRetirementCompletion.timeout(const Duration(seconds: 1)),
+      isTrue,
+      reason: 'Only confirmed silence may release a later native Dispose',
+    );
     expect(staleEngine.disposalCalls, 1,
         reason: 'An earlier recovered timeout must not poison future Dispose');
     expect(stale.nativeEngineRetirementConfirmed, isTrue);
