@@ -701,3 +701,37 @@ utterance, and a fresh direct Play between two Pauses while native Stop
 is delayed. **Tests are authored, not executed**: Flutter/Dart SDK and
 Android device verification are not available here. Actions were not
 triggered. The PR remains draft pending actual build/audio validation.
+
+## 2026-11-04 — revalidate post-focus retirement fence before Play
+
+Remote Android Play already waits for the stop/retirement barrier before
+obtaining audio focus, then checks it again after focus has been granted.
+There was still a smaller asynchronous gap: Play could snapshot the
+*current* post-focus barrier, suspend while awaiting it, and receive a
+positive result after an obsolete ReaderScreen appended a **new** native
+Dispose to `_pendingTransportStops`. The older positive result did not
+establish that the new disposal had finished, so speech could start
+while another Android TTS engine was shutting down.
+
+The final post-focus Play gate now loops on a captured barrier Future
+and checks identity against the **latest** `_pendingTransportStops`
+after each awaited result. If a new Stop/retirement was registered, it
+rechecks the newer barrier before dispatching `ReaderPlayer.play()`.
+The identity check and dispatch have no intervening `await`; existing
+command-epoch, binding and direct-control revision guards continue to
+invalidate superseded Play requests. If the latest fence fails, Play
+returns an error and relinquishes audio focus rather than attempting
+speech.
+
+Two synthetic regressions exercise:
+- positive first retirement followed by a second delayed retirement
+  registered while Play already awaits the first post-focus barrier;
+  no speech is allowed until both disposals actually finish;
+- a late second retirement that throws: Play remains blocked, reports
+  the unsafe handoff and releases focus.
+
+Test support allows a per-player larger `nativeStopTimeout` for these
+deliberately held native gates, without changing the short timeout used
+by the original timeout regressions. This is **source-level only**:
+Flutter/Dart SDK, analyzer, test runner, native Android audio and
+GitHub Actions have not been run. PR #1 remains draft.
