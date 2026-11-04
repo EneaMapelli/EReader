@@ -627,3 +627,26 @@ A regression covers duplicate teardown during ongoing speech, silence
 and native disposal, a subsequent explicit Play, and a third duplicate
 after retirement. Flutter/Dart tests and Android native/device validation
 remain **not run**; the PR stays draft.
+
+## 2026-11-04 — guard late retirement after media detach
+
+A delayed obsolete screen can request native TTS engine retirement after
+the **last active book has already been detached**, but while that outgoing
+book's native Stop is still pending. Merely checking `_player == null` as
+proof of silence allowed an older engine's `dispose()` (which may issue a
+global TTS Stop) to overlap the outgoing native operation.
+
+`ReaderMediaHandler` now records a separate, bounded cumulative native-Stop
+confirmation chain across detach events. An obsolete engine retirement waits
+for this chain before checking the currently bound book. A false confirmation
+quarantines disposal instead of interpreting a timeout as silence. When a
+quiet-book waiter awakens, it rechecks the latest detached Stop chain and
+current binding to avoid an obsolete quiet snapshot. The chain deliberately
+does not include engine-retirement futures, avoiding self-deadlock.
+
+Two synthetic regression tests cover detaching an actively narrating book
+before late retirement arrives, including a Stop that times out and must
+fail closed. An unsafe retired engine may remain quarantined until the
+handler/session is replaced; never retry its native disposal based solely
+on a timeout. This is source-level hardening only. Flutter tests, analyzer,
+GitHub Actions and Android audio-device checks have **not been run**.
