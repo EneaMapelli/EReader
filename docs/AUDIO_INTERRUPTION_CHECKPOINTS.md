@@ -573,3 +573,39 @@ delayed focus acquisition suppresses new speech, surfaces the safety
 error, and releases focus exactly once. As with all stabilization
 changes, this test was authored but not run; Flutter/analyzer,
 Android device builds and GitHub Actions remain deferred.
+
+## 2026-11-04 — serialize multiple obsolete native engine disposals
+
+The quiet-retirement mechanism protected the currently speaking book
+but completed all waiting old-reader gates together. If two obsolete
+screens were disposed while a new book was speaking, both older
+`SpeechEngine.dispose()` calls could start simultaneously on the
+shared Android TTS subsystem as soon as the new book paused. Some
+adapters implement dispose by invoking a global native Stop, so
+concurrent old-engine cleanup is not a safe substitute for confirmed
+serial retirement.
+
+`ReaderMediaHandler.retireDetachedPlayer()` now snapshots the
+previous **actual** native retirement outcome before scheduling the
+next old-engine disposal. The old `ReaderPlayer` UI/notifier is
+invalidated immediately, but each physical engine retirement starts
+only after its predecessor reports successful native completion and
+the current reader is settled silent. A preceding native disposal
+exception fails the later gate closed, without issuing another
+potentially global Stop.
+
+The handler keeps finite deadlines independent from this physical
+queue. It times out a pending predecessor before reporting safe
+handoff, without assuming the native call finished; if the
+predecessor later **really** acknowledges disposal, the next engine
+may retire in order, and a new user Play can explicitly revalidate
+the failed transport fence. The quiet wait itself has no arbitrary
+deadline because a live book may legitimately narrate for hours.
+
+Four regression tests verify serialized two-engine retirement,
+bounded refusal with a stuck predecessor followed by late
+acknowledgment, permanent quarantine after disposal failure, and
+a bounded terminal close when the active book's native Stop hangs
+with two older engines queued. Code and tests authored only:
+Dart analyzer, Flutter/native tests, Android builds and GitHub
+Actions were not executed.

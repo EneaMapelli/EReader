@@ -1107,6 +1107,167 @@ void main() {
     newPlayer.dispose();
   });
 
+  test('multiple obsolete engines dispose one at a time before new Play',
+      () async {
+    final firstEngine = _DisposalProbeEngine()
+      ..disposalGate = Completer<void>();
+    final secondEngine = _DisposalProbeEngine()
+      ..disposalGate = Completer<void>();
+    final currentEngine = _HeldStopEngine();
+    final firstPlayer = _player(firstEngine);
+    final secondPlayer = _player(secondEngine);
+    final currentPlayer = _player(currentEngine);
+    var focusClaims = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusClaims++;
+      return true;
+    });
+    handler.attach(firstPlayer, bookId: 'first', title: 'First');
+    handler.attach(secondPlayer, bookId: 'second', title: 'Second');
+    handler.attach(currentPlayer, bookId: 'current', title: 'Current');
+
+    handler.retireDetachedPlayer(firstPlayer);
+    handler.retireDetachedPlayer(secondPlayer);
+    final pendingPlay = handler.play();
+    await _settle();
+    expect(firstEngine.disposalCalls, 1);
+    expect(secondEngine.disposalCalls, 0,
+        reason: 'The second native disposal must not overlap the first');
+    expect(currentEngine.spoken, isEmpty);
+    expect(focusClaims, 0);
+
+    firstEngine.disposalGate!.complete();
+    await _settle();
+    expect(firstPlayer.nativeEngineRetirementConfirmed, isTrue);
+    expect(secondEngine.disposalCalls, 1);
+    expect(currentEngine.spoken, isEmpty);
+    expect(focusClaims, 0);
+
+    secondEngine.disposalGate!.complete();
+    await pendingPlay;
+    await _settle();
+    expect(secondPlayer.nativeEngineRetirementConfirmed, isTrue);
+    expect(currentEngine.spoken, ['First']);
+    expect(focusClaims, 1);
+    await handler.pause();
+    await handler.close();
+    currentPlayer.dispose();
+  });
+
+  test('stuck first disposal keeps subsequent disposal quarantined',
+      () async {
+    final firstEngine = _DisposalProbeEngine()
+      ..disposalGate = Completer<void>();
+    final secondEngine = _DisposalProbeEngine()
+      ..disposalGate = Completer<void>();
+    final currentEngine = _HeldStopEngine();
+    final firstPlayer = _player(firstEngine);
+    final secondPlayer = _player(secondEngine);
+    final currentPlayer = _player(currentEngine);
+    var focusClaims = 0;
+    final handler = ReaderMediaHandler(requestFocus: () async {
+      focusClaims++;
+      return true;
+    });
+    handler.attach(firstPlayer, bookId: 'first', title: 'First');
+    handler.attach(secondPlayer, bookId: 'second', title: 'Second');
+    handler.attach(currentPlayer, bookId: 'current', title: 'Current');
+    handler.retireDetachedPlayer(firstPlayer);
+    handler.retireDetachedPlayer(secondPlayer);
+
+    await expectLater(handler.play().timeout(const Duration(seconds: 1)),
+        throwsStateError);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(firstEngine.disposalCalls, 1);
+    expect(secondEngine.disposalCalls, 0);
+    expect(currentEngine.spoken, isEmpty);
+    expect(focusClaims, 0);
+
+    // A very late native acknowledgment may permit the second Dispose,
+    // but neither late callback starts speech automatically.
+    firstEngine.disposalGate!.complete();
+    await _settle();
+    expect(secondEngine.disposalCalls, 1);
+    expect(currentEngine.spoken, isEmpty);
+    secondEngine.disposalGate!.complete();
+    await _settle();
+    expect(firstPlayer.nativeEngineRetirementConfirmed, isTrue);
+    expect(secondPlayer.nativeEngineRetirementConfirmed, isTrue);
+
+    await handler.play(); // A NEW explicit request verifies both engines.
+    await _settle();
+    expect(handler.requiresFreshAudioSession, isFalse);
+    expect(currentEngine.spoken, ['First']);
+    expect(focusClaims, 1);
+    await handler.pause();
+    await handler.close();
+    currentPlayer.dispose();
+  });
+
+  test('failed prior Dispose prevents a later native Dispose from starting',
+      () async {
+    final firstEngine = _DisposalProbeEngine()..throwOnDispose = true;
+    final secondEngine = _DisposalProbeEngine();
+    final currentEngine = _HeldStopEngine();
+    final firstPlayer = _player(firstEngine);
+    final secondPlayer = _player(secondEngine);
+    final currentPlayer = _player(currentEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(firstPlayer, bookId: 'first', title: 'First');
+    handler.attach(secondPlayer, bookId: 'second', title: 'Second');
+    handler.attach(currentPlayer, bookId: 'current', title: 'Current');
+
+    handler.retireDetachedPlayer(firstPlayer);
+    handler.retireDetachedPlayer(secondPlayer);
+    await expectLater(handler.play(), throwsStateError);
+    expect(firstEngine.disposalCalls, 1);
+    expect(secondEngine.disposalCalls, 0,
+        reason: 'Failed global cleanup cannot authorize another native Stop');
+    expect(secondPlayer.nativeEngineRetirementConfirmed, isFalse);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(currentEngine.spoken, isEmpty);
+    await handler.close();
+    currentPlayer.dispose();
+  });
+
+  test('close bounds multiple deferred disposals after outgoing Stop hangs',
+      () async {
+    final firstEngine = _DisposalProbeEngine();
+    final secondEngine = _DisposalProbeEngine();
+    final currentEngine = _HeldStopEngine();
+    final firstPlayer = _player(firstEngine);
+    final secondPlayer = _player(secondEngine);
+    final currentPlayer = _player(currentEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(firstPlayer, bookId: 'first', title: 'First');
+    handler.attach(secondPlayer, bookId: 'second', title: 'Second');
+    handler.attach(currentPlayer, bookId: 'current', title: 'Current');
+    await handler.play();
+    await _settle();
+    expect(currentEngine.spoken, ['First']);
+
+    handler.retireDetachedPlayer(firstPlayer);
+    handler.retireDetachedPlayer(secondPlayer);
+    expect(firstEngine.disposalCalls, 0);
+    expect(secondEngine.disposalCalls, 0);
+    currentEngine.stopGate = Completer<void>();
+
+    await handler.close().timeout(const Duration(seconds: 1));
+    expect(handler.hasActiveBook, isFalse);
+    expect(firstEngine.disposalCalls, 0);
+    expect(secondEngine.disposalCalls, 0);
+    expect(currentPlayer.nativeStopUnconfirmed, isTrue);
+    expect(handler.debugRetainedStopPlayers, 0,
+        reason: 'Terminal close clears failed player references');
+    currentEngine.stopGate!.complete();
+    await _settle();
+    expect(firstEngine.disposalCalls, 0);
+    expect(secondEngine.disposalCalls, 0);
+    firstPlayer.dispose();
+    secondPlayer.dispose();
+    currentPlayer.dispose();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(

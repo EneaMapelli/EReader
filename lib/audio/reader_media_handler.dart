@@ -83,6 +83,11 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // speaking. Keep UI teardown immediate, but defer the old engine's
   // potentially global native Stop until the active narration is quiet.
   final List<Completer<bool>> _quietRetirementWaiters = [];
+  // Physical disposal may call the global Android TTS Stop. Each old
+  // engine must FINISH disposal before another old engine may dispose.
+  // Unlike _pendingTransportStops this is the unbounded *native* result:
+  // the latter provides finite Play/close deadlines and fail-closed state.
+  Future<bool> _retirementSequence = Future<bool>.value(true);
 
   void _settleQuietRetirements({bool nativeStopConfirmed = true}) {
     if (nativeStopConfirmed &&
@@ -261,14 +266,32 @@ class ReaderMediaHandler extends BaseAudioHandler {
   /// the current media binding.
   void retireDetachedPlayer(ReaderPlayer player) {
     // A stale ReaderScreen may dispose long AFTER the new book has begun
-    // speaking. Cancel the old player synchronously but defer its native
-    // engine.dispose()/Stop until the newer player is genuinely quiet.
-    final quiet = _mediaQuietBeforeRetirement(player);
-    player.retireWhenMediaQuiet(quiet);
+    // speaking. Cancel its session synchronously. Actual native disposal
+    // waits for BOTH the preceding old engine and current-book silence:
+    // releasing several quiet waiters together must never dispatch
+    // simultaneous, potentially global FlutterTts.stop() calls.
+    final previous = _retirementSequence;
+    final mayDispose = () async {
+      if (!await previous) return false;
+      return _mediaQuietBeforeRetirement(player);
+    }();
+    player.retireWhenMediaQuiet(mayDispose);
+    _retirementSequence = player.engineRetirementCompletion;
+
     final retirement = () async {
-      if (!await quiet) return false;
-      // The disposal deadline starts only once a native retirement can
-      // safely begin; ordinary narration may legitimately last hours.
+      // A hung earlier engine must not strand MediaHandler.close() or
+      // a fresh Play. Bound ONLY the previous-engine wait; a currently
+      // speaking book may legitimately take hours to become quiet.
+      bool priorConfirmed;
+      try {
+        priorConfirmed = await previous.timeout(player.nativeStopTimeout);
+      } catch (_) {
+        return false;
+      }
+      if (!priorConfirmed || !await mayDispose) return false;
+      // Start the final bounded deadline only once the native dispose
+      // was permitted. A late positive callback may still allow
+      // explicit recovery; neither timeout nor failure implies silence.
       return player.waitForEngineRetirementConfirmation();
     }();
     _trackNativeConfirmation(retirement, player);

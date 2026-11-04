@@ -575,6 +575,10 @@ class ReaderPlayer extends ChangeNotifier {
   // Engine.dispose() can itself invoke a native Stop. Its confirmed
   // completion must be fenced before another Android TTS session speaks.
   Future<bool> _engineRetirement = Future<bool>.value(false);
+  /// The actual terminal native dispose result, WITHOUT a timeout.
+  /// Used only to serialize old Android engines; never await this from
+  /// a Play/close command, which must keep a finite safety deadline.
+  Future<bool> get engineRetirementCompletion => _engineRetirement;
   Future<bool>? _waitForMediaQuietBeforeRetirement;
   bool _engineRetirementConfirmed = false;
 
