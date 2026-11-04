@@ -283,6 +283,11 @@ class ReaderMediaHandler extends BaseAudioHandler {
     // A player may retire only once, regardless of duplicate lifecycle calls.
     if (_registeredRetirements[player] == true) return;
     _registeredRetirements[player] = true;
+    // Defensive contract: a lifecycle callback can retire a player before
+    // its screen detached the MediaSession. Stop/fence the still-bound
+    // player and release focus BEFORE disposing its native TTS engine.
+    // A stale player must never detach a newer book.
+    if (identical(_player, player)) detach(player);
     // A stale ReaderScreen may dispose long AFTER the new book has begun
     // speaking. Cancel its session synchronously. Actual native disposal
     // waits for BOTH the preceding old engine and current-book silence:
