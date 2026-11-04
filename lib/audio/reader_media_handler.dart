@@ -79,6 +79,12 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // Concurrent explicit Play requests must join the same verification
   // rather than having one recovery reset the barrier under the other.
   Future<bool>? _pendingRecovery;
+  // Coalesce duplicate Android Pause/Stop while one request owns the same
+  // player and navigation revision. A fresh direct Play or Seek must still
+  // be paused separately even if the previous native Stop is outstanding.
+  Future<void>? _pendingMediaPause;
+  ReaderPlayer? _pendingMediaPausePlayer;
+  int? _pendingMediaPauseRevision;
   // Obsolete screen disposals may arrive while a newer book is already
   // speaking. Keep UI teardown immediate, but defer the old engine's
   // potentially global native Stop until the active narration is quiet.
@@ -573,31 +579,60 @@ class ReaderMediaHandler extends BaseAudioHandler {
   }
 
   @override
-  Future<void> pause() async {
+  Future<void> pause() {
     // Invalidate pending remote Play even when focus acquisition is still
     // awaiting Android and ReaderPlayer itself never started speaking.
     _commandEpoch++;
     _clearRemoteSkipIntent();
     final player = _player;
-    if (player == null) return;
+    if (player == null) return Future<void>.value();
+
+    final existing = _pendingMediaPause;
+    if (existing != null &&
+        identical(_pendingMediaPausePlayer, player) &&
+        _pendingMediaPauseRevision == player.narrationControlRevision) {
+      // A duplicate headset Pause or Stop must not queue another native
+      // engine.stop() after the first one eventually acknowledges.
+      return existing;
+    }
     if (player.isSettledIdle) {
       // No native utterance and no seek/voice auto-resume exist. Calling
       // SpeechEngine.stop here would create a needless native round trip
       // and can interrupt a newly attached book's media pipeline.
-      await _releaseAudioFocus();
-      return;
+      return _releaseAudioFocus();
     }
+
     final stopping = player.pause();
     _trackTransportStop(stopping, player);
-    try {
-      await stopping;
-    } finally {
-      // The listener releases focus when native Stop actually settles.
-      // Await that queued release before resolving the transport command.
-      if (identical(player, _player) && player.isSettledIdle) {
-        await _focusOperation;
+    final controlRevision = player.narrationControlRevision;
+    final completion = () async {
+      try {
+        await stopping;
+      } finally {
+        // The listener releases focus when native Stop actually settles.
+        // Await that queued release before resolving the transport command.
+        if (identical(player, _player) && player.isSettledIdle) {
+          await _focusOperation;
+        }
       }
+    }();
+    _pendingMediaPause = completion;
+    _pendingMediaPausePlayer = player;
+    _pendingMediaPauseRevision = controlRevision;
+    // Consume both success and error without creating an unobserved
+    // rejection from whenComplete(). The caller still receives the original
+    // completion (and any native Stop failure).
+    void clearLatest() {
+      if (!identical(_pendingMediaPause, completion)) return;
+      _pendingMediaPause = null;
+      _pendingMediaPausePlayer = null;
+      _pendingMediaPauseRevision = null;
     }
+    unawaited(completion.then<void>(
+      (_) => clearLatest(),
+      onError: (Object _, StackTrace __) => clearLatest(),
+    ));
+    return completion;
   }
 
   /// Stop means stop the current utterance, not delete its book position.
