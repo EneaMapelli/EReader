@@ -351,6 +351,11 @@ class ReaderMediaHandler extends BaseAudioHandler {
     _bindingEpoch++;
     _commandEpoch++;
     _clearRemoteSkipIntent();
+    // A detached screen must not stay referenced by a timed-out or stalled
+    // transport Future; the original caller still owns its completion.
+    _pendingMediaPause = null;
+    _pendingMediaPausePlayer = null;
+    _pendingMediaPauseRevision = null;
     _interruptionPause = null;
     _interruptionControlRevision = null;
     _chapterSegmentStarts = const [];
