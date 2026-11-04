@@ -650,3 +650,27 @@ fail closed. An unsafe retired engine may remain quarantined until the
 handler/session is replaced; never retry its native disposal based solely
 on a timeout. This is source-level hardening only. Flutter tests, analyzer,
 GitHub Actions and Android audio-device checks have **not been run**.
+
+## 2026-11-04 — active-reader retirement is detached first
+
+A lifecycle callback may call `retireDetachedPlayer(player)` before
+`ReaderScreen.detach` has detached that very same player. Previously,
+retirement would synchronously dispose its notifier while it remained
+the active MediaSession owner. A later engine Dispose could issue a
+native global Stop without first serializing the active speech Stop,
+while the handler still advertised an active book.
+
+Retirement now checks identity against the **currently bound** player.
+Only for that exact player it calls `detach(player)` first. That path
+invalidates remote transport requests, issues the bounded native Stop,
+tracks its acknowledgment, removes the media notification and requests
+audio-focus release. Engine retirement then waits behind the existing
+detached Stop/quiet retirement barriers. A stale reader that is not
+currently bound cannot detach its replacement.
+
+Two additional synthetic regressions cover (1) active retirement with
+a delayed Stop and immediate replacement-book Play, ensuring replacement
+audio waits for Stop plus Dispose, and (2) a rejected active Stop,
+ensuring engine disposal remains quarantined. No Flutter/Dart test,
+analyzer, GitHub Actions or native Android test ran in this session.
+The PR remains draft and its device-level safety is not proven.
