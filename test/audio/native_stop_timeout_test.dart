@@ -1308,6 +1308,65 @@ void main() {
     currentPlayer.dispose();
   });
 
+  test('late obsolete retirement waits for the last detached native Stop',
+      () async {
+    final oldEngine = _DisposalProbeEngine();
+    final outgoingEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final outgoingPlayer = _player(outgoingEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    handler.attach(outgoingPlayer, bookId: 'outgoing', title: 'Outgoing');
+    await handler.play();
+    await _settle();
+    expect(outgoingEngine.spoken, ['First']);
+
+    outgoingEngine.stopGate = Completer<void>();
+    handler.detach(outgoingPlayer);
+    // There is no currently attached book now. Previously this allowed
+    // a late obsolete engine Dispose to bypass the outstanding Stop.
+    handler.retireDetachedPlayer(oldPlayer);
+    await _settle();
+    expect(oldEngine.disposalCalls, 0);
+    expect(outgoingEngine.nativeStops, 1);
+
+    outgoingEngine.stopGate!.complete();
+    for (var i = 0; i < 10 && oldEngine.disposalCalls == 0; i++) {
+      await _settle();
+    }
+    expect(oldEngine.disposalCalls, 1);
+    expect(oldPlayer.nativeEngineRetirementConfirmed, isTrue);
+    await handler.close();
+    outgoingPlayer.dispose();
+  });
+
+  test('failed detached Stop quarantines a late obsolete retirement',
+      () async {
+    final oldEngine = _DisposalProbeEngine();
+    final outgoingEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final outgoingPlayer = _player(outgoingEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    handler.attach(outgoingPlayer, bookId: 'outgoing', title: 'Outgoing');
+    await handler.play();
+    await _settle();
+
+    outgoingEngine.stopGate = Completer<void>();
+    handler.detach(outgoingPlayer);
+    handler.retireDetachedPlayer(oldPlayer);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(oldEngine.disposalCalls, 0,
+        reason: 'A timed-out Stop cannot authorize a native Dispose');
+    await handler.close();
+    outgoingEngine.stopGate!.complete();
+    await _settle();
+    expect(oldEngine.disposalCalls, 0,
+        reason: 'A failed disposal gate must not silently re-arm');
+    outgoingPlayer.dispose();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(
