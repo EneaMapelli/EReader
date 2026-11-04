@@ -77,13 +77,16 @@ class _DisposalProbeEngine extends _HeldStopEngine {
   }
 }
 
-ReaderPlayer _player(_HeldStopEngine engine) => ReaderPlayer(
+ReaderPlayer _player(
+  _HeldStopEngine engine, {
+  Duration nativeStopTimeout = const Duration(milliseconds: 15),
+}) => ReaderPlayer(
   engine: engine,
   segments: const [
     SpeechSegment(0, 5, 'First'),
     SpeechSegment(6, 12, 'Second'),
   ],
-  nativeStopTimeout: const Duration(milliseconds: 15),
+  nativeStopTimeout: nativeStopTimeout,
   onSegmentStarted: (_) async {},
 );
 
@@ -1000,6 +1003,102 @@ void main() {
     await handler.pause();
     await handler.close();
     newPlayer.dispose();
+  });
+
+  test('Play rechecks a retirement added during the final Stop fence',
+      () async {
+    const timeout = Duration(seconds: 1);
+    final firstEngine = _DisposalProbeEngine()
+      ..disposalGate = Completer<void>();
+    final lateEngine = _DisposalProbeEngine()
+      ..disposalGate = Completer<void>();
+    final currentEngine = _HeldStopEngine();
+    final firstPlayer = _player(firstEngine, nativeStopTimeout: timeout);
+    final latePlayer = _player(lateEngine, nativeStopTimeout: timeout);
+    final currentPlayer = _player(currentEngine, nativeStopTimeout: timeout);
+    final focusGate = Completer<bool>();
+    final focusEntered = Completer<void>();
+    final handler = ReaderMediaHandler(requestFocus: () {
+      focusEntered.complete();
+      return focusGate.future;
+    });
+    handler.attach(currentPlayer, bookId: 'current', title: 'Current');
+
+    // Play has already seen the initial, successful transport barrier
+    // and is paused waiting for Android focus.
+    final requested = handler.play();
+    await focusEntered.future;
+    handler.retireDetachedPlayer(firstPlayer);
+    await _settle();
+    expect(firstEngine.disposalCalls, 1);
+
+    // After focus settles, Play snapshots the first retirement barrier.
+    // Register ANOTHER retirement while that snapshot is unresolved.
+    focusGate.complete(true);
+    await _settle();
+    handler.retireDetachedPlayer(latePlayer);
+    await _settle();
+    expect(lateEngine.disposalCalls, 0);
+    expect(currentEngine.spoken, isEmpty);
+
+    firstEngine.disposalGate!.complete();
+    for (var i = 0; i < 15 && lateEngine.disposalCalls == 0; i++) {
+      await _settle();
+    }
+    expect(lateEngine.disposalCalls, 1);
+    expect(currentEngine.spoken, isEmpty,
+        reason: 'An older confirmed fence cannot authorize speech while '
+            'another native Dispose is pending');
+    lateEngine.disposalGate!.complete();
+    await requested;
+    await _settle();
+    expect(currentEngine.spoken, ['First']);
+    expect(firstPlayer.nativeEngineRetirementConfirmed, isTrue);
+    expect(latePlayer.nativeEngineRetirementConfirmed, isTrue);
+    await handler.pause();
+    await handler.close();
+    currentPlayer.dispose();
+  });
+
+  test('late failed retirement blocks Play and releases acquired focus',
+      () async {
+    const timeout = Duration(seconds: 1);
+    final firstEngine = _DisposalProbeEngine()
+      ..disposalGate = Completer<void>();
+    final failedEngine = _DisposalProbeEngine()..throwOnDispose = true;
+    final currentEngine = _HeldStopEngine();
+    final firstPlayer = _player(firstEngine, nativeStopTimeout: timeout);
+    final failedPlayer = _player(failedEngine, nativeStopTimeout: timeout);
+    final currentPlayer = _player(currentEngine, nativeStopTimeout: timeout);
+    final focusGate = Completer<bool>();
+    final focusEntered = Completer<void>();
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () {
+        focusEntered.complete();
+        return focusGate.future;
+      },
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(currentPlayer, bookId: 'current', title: 'Current');
+    final requested = handler.play();
+    await focusEntered.future;
+    handler.retireDetachedPlayer(firstPlayer);
+    await _settle();
+    focusGate.complete(true);
+    await _settle();
+
+    // The failed disposal is not in Play's first post-focus snapshot.
+    handler.retireDetachedPlayer(failedPlayer);
+    firstEngine.disposalGate!.complete();
+    await expectLater(requested, throwsStateError);
+    expect(failedEngine.disposalCalls, 1);
+    expect(currentEngine.spoken, isEmpty,
+        reason: 'A failed late native Dispose cannot be skipped');
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(releases, 1);
+    await handler.close();
+    currentPlayer.dispose();
   });
 
   test('late retirement waits for replacement book Stop during next handoff',
