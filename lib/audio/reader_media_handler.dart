@@ -550,24 +550,32 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (!focused) {
       throw StateError('Cannot obtain Android audio focus');
     }
-    // A stale screen may schedule its native dispose while a new Play is
-    // waiting for Android focus. Recheck the MOST RECENT retirement fence
-    // before dispatching any TTS: the barrier observed before focus could
-    // have been superseded during that await.
-    final afterFocusStopsConfirmed = await _pendingTransportStops;
-    if (_closed || !identical(_player, player) ||
-        epoch != _bindingEpoch || command != _commandEpoch ||
-        player.narrationControlRevision != control) return;
-    if (!afterFocusStopsConfirmed) {
-      // Focus may have been granted just before a stale screen registered
-      // its unsafe engine disposal. No new speech was dispatched: release
-      // that focus lease instead of holding it for a playback that is
-      // permanently blocked by the native retirement barrier.
-      await _releaseAudioFocus();
+    // An obsolete screen may register another native engine Dispose AFTER
+    // focus is granted, including while Play awaits an earlier retirement.
+    // The first snapshot is therefore not enough: keep checking until the
+    // exact latest barrier is positively acknowledged. No await separates
+    // the final identity check from dispatching player.play().
+    while (true) {
+      final retirementFence = _pendingTransportStops;
+      final confirmed = await retirementFence;
       if (_closed || !identical(_player, player) ||
           epoch != _bindingEpoch || command != _commandEpoch ||
           player.narrationControlRevision != control) return;
-      throw StateError('Previous native engine retirement is unconfirmed');
+      if (!identical(retirementFence, _pendingTransportStops)) {
+        // An older fence may succeed while a newly queued Dispose is still
+        // unsafe; never synthesize using that stale confirmation.
+        continue;
+      }
+      if (!confirmed) {
+        // Focus may have been granted before an unsafe engine retirement
+        // registered. No new speech was dispatched: relinquish the lease.
+        await _releaseAudioFocus();
+        if (_closed || !identical(_player, player) ||
+            epoch != _bindingEpoch || command != _commandEpoch ||
+            player.narrationControlRevision != control) return;
+        throw StateError('Previous native engine retirement is unconfirmed');
+      }
+      break;
     }
     if (player.nativeStopUnconfirmed) {
       // detach/pause/new commands own any required focus release.
