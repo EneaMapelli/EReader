@@ -88,6 +88,10 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // Unlike _pendingTransportStops this is the unbounded *native* result:
   // the latter provides finite Play/close deadlines and fail-closed state.
   Future<bool> _retirementSequence = Future<bool>.value(true);
+  // Each detached reader may still be completing a native Stop even after
+  // the media binding has been cleared. A later obsolete engine disposal
+  // must not race that global Android TTS operation.
+  Future<bool> _detachedNativeStops = Future<bool>.value(true);
   // Ignore duplicate teardown notifications without retaining old players.
   final Expando<bool> _registeredRetirements =
       Expando<bool>('EReader native player retirement');
@@ -102,13 +106,21 @@ class ReaderMediaHandler extends BaseAudioHandler {
     }
   }
 
-  Future<bool> _mediaQuietBeforeRetirement(ReaderPlayer retired) {
-    final current = _player;
-    if (current == null || identical(current, retired) ||
-        current.isSettledIdle) return Future<bool>.value(true);
-    final waiter = Completer<bool>();
-    _quietRetirementWaiters.add(waiter);
-    return waiter.future;
+  Future<bool> _mediaQuietBeforeRetirement(ReaderPlayer retired) async {
+    while (true) {
+      // A detached Stop remains relevant even with no current book. Its
+      // bounded false result deliberately quarantines late native Dispose.
+      final detached = _detachedNativeStops;
+      if (!await detached) return false;
+      if (!identical(detached, _detachedNativeStops)) continue;
+      final current = _player;
+      if (current == null || identical(current, retired) ||
+          current.isSettledIdle) return true;
+      final waiter = Completer<bool>();
+      _quietRetirementWaiters.add(waiter);
+      if (!await waiter.future) return false;
+      // Recheck both the active book and any new detach after waking.
+    }
   }
 
   /// A previous Stop was not confirmed by its deadline. Recovery is
@@ -316,6 +328,13 @@ class ReaderMediaHandler extends BaseAudioHandler {
         _trackTransportStop(outgoing.pause(), outgoing);
       }
       outgoingNativeStop = outgoing.waitForNativeStopConfirmation();
+      // Keep this independent from _pendingTransportStops: that chain also
+      // includes retirements, so waiting on it here would deadlock a
+      // retirement against its own confirmation.
+      final earlierDetached = _detachedNativeStops;
+      _detachedNativeStops = Future.wait<bool>(
+        [earlierDetached, outgoingNativeStop],
+      ).then((results) => results.every((confirmed) => confirmed));
       _trackNativeConfirmation(outgoingNativeStop, outgoing);
     }
     _bindingEpoch++;
