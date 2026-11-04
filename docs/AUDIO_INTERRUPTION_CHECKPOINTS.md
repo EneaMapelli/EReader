@@ -674,3 +674,30 @@ audio waits for Stop plus Dispose, and (2) a rejected active Stop,
 ensuring engine disposal remains quarantined. No Flutter/Dart test,
 analyzer, GitHub Actions or native Android test ran in this session.
 The PR remains draft and its device-level safety is not proven.
+
+## 2026-11-04 — coalesce duplicate Android media Pause/Stop
+
+Two closely spaced Android media Pause/Stop calls previously invoked
+`ReaderPlayer.pause()` twice while its serialized native Stop was still
+outstanding. This queued an additional underlying `SpeechEngine.stop()`
+instead of merely waiting for the original result. On shared native
+speech backends a delayed redundant Stop can disrupt subsequent playback.
+
+`ReaderMediaHandler.pause()` now shares the original transport Future for
+the exact same player and narration-control revision. Every incoming media
+Pause still increments the handler command epoch and invalidates pending
+remote Play or skip intent, even when its Stop is coalesced. A new direct
+Play, Seek or voice operation changes the player's control revision, so a
+subsequent Pause starts a fresh cancellation/Stop instead of treating it
+as an obsolete duplicate. The original Stop failure and focus-release
+completion propagate to all sharing callers.
+
+Detaching a player clears the retained coalescing references. This avoids
+holding an obsolete book through a stalled asynchronous transport Future,
+while leaving existing native Stop and engine-retirement fences intact.
+
+Two synthetic regressions cover duplicate Pause + Stop on the same active
+utterance, and a fresh direct Play between two Pauses while native Stop
+is delayed. **Tests are authored, not executed**: Flutter/Dart SDK and
+Android device verification are not available here. Actions were not
+triggered. The PR remains draft pending actual build/audio validation.
