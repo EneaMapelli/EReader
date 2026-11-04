@@ -930,6 +930,144 @@ void main() {
     newPlayer.dispose();
   });
 
+  test('obsolete screen defers its native Dispose until new narration pauses',
+      () async {
+    final oldEngine = _DisposalProbeEngine();
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    await handler.play();
+    await _settle();
+    expect(newEngine.spoken, ['First']);
+
+    // The obsolete screen unmounts *after* the new one started speaking.
+    handler.detach(oldPlayer); // Stale page must not clear new metadata.
+    handler.retireDetachedPlayer(oldPlayer);
+    await _settle();
+    expect(oldEngine.disposalCalls, 0,
+        reason: 'Old engine Dispose can stop global Android TTS');
+    expect(handler.ownsPlayer(newPlayer), isTrue);
+    expect(newPlayer.isPlaying, isTrue);
+
+    await handler.pause(); // Confirm native silence on the current book.
+    await _settle();
+    expect(oldEngine.disposalCalls, 1);
+    expect(oldPlayer.nativeEngineRetirementConfirmed, isTrue);
+
+    await handler.play();
+    await _settle();
+    expect(newEngine.spoken, ['First', 'First']);
+    await handler.pause();
+    await handler.close();
+    newPlayer.dispose();
+  });
+
+  test('late disposal cannot bypass Play waiting for Android focus',
+      () async {
+    final oldEngine = _DisposalProbeEngine();
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    final focusGate = Completer<bool>();
+    var focusCalls = 0;
+    final handler = ReaderMediaHandler(requestFocus: () {
+      focusCalls++;
+      return focusGate.future;
+    });
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    final requestedPlay = handler.play();
+    await _settle();
+    expect(focusCalls, 1);
+    oldEngine.disposalGate = Completer<void>();
+
+    // Play has already checked the old stop barrier, but still awaits
+    // Android focus. Retirement must be checked AGAIN after focus.
+    handler.retireDetachedPlayer(oldPlayer);
+    await _settle();
+    expect(oldEngine.disposalCalls, 1);
+    focusGate.complete(true);
+    await _settle();
+    expect(newEngine.spoken, isEmpty);
+
+    oldEngine.disposalGate!.complete();
+    await requestedPlay;
+    await _settle();
+    expect(newEngine.spoken, ['First']);
+    await handler.pause();
+    await handler.close();
+    newPlayer.dispose();
+  });
+
+  test('late retirement waits for replacement book Stop during next handoff',
+      () async {
+    final oldEngine = _DisposalProbeEngine();
+    final middleEngine = _HeldStopEngine();
+    final currentEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final middlePlayer = _player(middleEngine);
+    final currentPlayer = _player(currentEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    handler.attach(middlePlayer, bookId: 'middle', title: 'Middle');
+    await handler.play();
+    await _settle();
+    expect(middleEngine.spoken, ['First']);
+
+    handler.retireDetachedPlayer(oldPlayer);
+    expect(oldEngine.disposalCalls, 0);
+    middleEngine.stopGate = Completer<void>();
+    handler.attach(currentPlayer, bookId: 'current', title: 'Current');
+    final nextPlay = handler.play();
+    await _settle();
+    expect(oldEngine.disposalCalls, 0);
+    expect(currentEngine.spoken, isEmpty);
+
+    middleEngine.stopGate!.complete();
+    await nextPlay;
+    await _settle();
+    expect(oldEngine.disposalCalls, 1);
+    expect(currentEngine.spoken, ['First']);
+    expect(handler.mediaItem.value?.id, 'current');
+    await handler.pause();
+    await handler.close();
+    middlePlayer.dispose();
+    currentPlayer.dispose();
+  });
+
+  test('unsafe outgoing Stop quarantines an older deferred Dispose',
+      () async {
+    final oldEngine = _DisposalProbeEngine();
+    final middleEngine = _HeldStopEngine()..throwOnStop = true;
+    final currentEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final middlePlayer = _player(middleEngine);
+    final currentPlayer = _player(currentEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    handler.attach(middlePlayer, bookId: 'middle', title: 'Middle');
+    await handler.play();
+    await _settle();
+
+    handler.retireDetachedPlayer(oldPlayer);
+    expect(oldEngine.disposalCalls, 0);
+    handler.attach(currentPlayer, bookId: 'current', title: 'Current');
+    await expectLater(handler.play(), throwsStateError);
+    await _settle();
+    expect(oldEngine.disposalCalls, 0,
+        reason: 'Failed current Stop cannot authorize old native disposal');
+    expect(oldPlayer.nativeEngineRetirementConfirmed, isFalse);
+    expect(currentEngine.spoken, isEmpty);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    await handler.close();
+    middleEngine.throwOnStop = false;
+    middlePlayer.dispose();
+    currentPlayer.dispose();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(

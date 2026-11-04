@@ -523,3 +523,35 @@ permanently failed Dispose. The tests and source changes have
 been committed but not executed; Flutter tests, Dart analyzer,
 Android builds and GitHub Actions remain deferred. Native
 cross-instance TTS behavior still requires device validation.
+
+## 2026-11-04 — guard native disposal from an obsolete reader screen
+
+An Android `ReaderScreen` may remain mounted even after a different
+book has attached to the shared `ReaderMediaHandler`. If that
+obsolete screen finally disposes **after** the new book starts
+speaking, its old `SystemSpeechEngine.dispose()` may call a
+platform-wide `FlutterTts.stop()` and interrupt the active book.
+The earlier retirement barrier only tracked this Stop **after
+scheduling it**, which is too late to protect already-audible speech.
+
+The handler now tracks deferred native retirements before allowing
+future Play commands. `ReaderPlayer.retireWhenMediaQuiet()` cancels
+the obsolete player's session and notifier immediately but holds its
+final native `dispose()` until the bound current reader is truly
+settled idle. The handler wakes these waiters on confirmed native
+silence, including a book detach with a pending native Stop; a
+failed or timed-out Stop resolves the waiters **unsafe**, never
+dispatching the stale engine's global Stop. A long ongoing book does
+not acquire an arbitrary retirement deadline: the native engine
+retirement timeout starts only **after** the quiet gate opens.
+Android Play also rechecks the latest Stop/retirement barrier
+*after* focus acquisition so a late retirement registered during
+focus cannot be bypassed.
+
+Four deterministic regressions exercise an obsolete screen disposing
+while the new book is speaking, disposal appearing while Play waits
+for Android focus, another book replacement with a delayed Stop,
+and a failed outgoing Stop that must quarantine stale disposal.
+The code and tests are authored but have **not** been executed
+with Flutter/Dart/Android or GitHub Actions. Native cross-engine
+safety still needs physical Android device validation.

@@ -79,6 +79,29 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // Concurrent explicit Play requests must join the same verification
   // rather than having one recovery reset the barrier under the other.
   Future<bool>? _pendingRecovery;
+  // Obsolete screen disposals may arrive while a newer book is already
+  // speaking. Keep UI teardown immediate, but defer the old engine's
+  // potentially global native Stop until the active narration is quiet.
+  final List<Completer<bool>> _quietRetirementWaiters = [];
+
+  void _settleQuietRetirements({bool nativeStopConfirmed = true}) {
+    if (nativeStopConfirmed &&
+        _player != null && !_player!.isSettledIdle) return;
+    final pending = List<Completer<bool>>.of(_quietRetirementWaiters);
+    _quietRetirementWaiters.clear();
+    for (final waiter in pending) {
+      if (!waiter.isCompleted) waiter.complete(nativeStopConfirmed);
+    }
+  }
+
+  Future<bool> _mediaQuietBeforeRetirement(ReaderPlayer retired) {
+    final current = _player;
+    if (current == null || identical(current, retired) ||
+        current.isSettledIdle) return Future<bool>.value(true);
+    final waiter = Completer<bool>();
+    _quietRetirementWaiters.add(waiter);
+    return waiter.future;
+  }
 
   /// A previous Stop was not confirmed by its deadline. Recovery is
   /// possible only after every affected native engine actually confirms
@@ -237,14 +260,24 @@ class ReaderMediaHandler extends BaseAudioHandler {
   /// This also covers an obsolete ReaderScreen whose player is no longer
   /// the current media binding.
   void retireDetachedPlayer(ReaderPlayer player) {
-    player.dispose();
-    _trackNativeConfirmation(
-        player.waitForEngineRetirementConfirmation(), player);
+    // A stale ReaderScreen may dispose long AFTER the new book has begun
+    // speaking. Cancel the old player synchronously but defer its native
+    // engine.dispose()/Stop until the newer player is genuinely quiet.
+    final quiet = _mediaQuietBeforeRetirement(player);
+    player.retireWhenMediaQuiet(quiet);
+    final retirement = () async {
+      if (!await quiet) return false;
+      // The disposal deadline starts only once a native retirement can
+      // safely begin; ordinary narration may legitimately last hours.
+      return player.waitForEngineRetirementConfirmation();
+    }();
+    _trackNativeConfirmation(retirement, player);
   }
 
   void detach([ReaderPlayer? expected]) {
     if (expected != null && !identical(expected, _player)) return;
     final outgoing = _player;
+    Future<bool>? outgoingNativeStop;
     if (outgoing != null) {
       // The UI can call ReaderPlayer.pause/seekTo without going through
       // this handler. Capture that in-flight native Stop before handing
@@ -253,8 +286,8 @@ class ReaderMediaHandler extends BaseAudioHandler {
       if (!outgoing.isSettledIdle) {
         _trackTransportStop(outgoing.pause(), outgoing);
       }
-      _trackNativeConfirmation(
-          outgoing.waitForNativeStopConfirmation(), outgoing);
+      outgoingNativeStop = outgoing.waitForNativeStopConfirmation();
+      _trackNativeConfirmation(outgoingNativeStop, outgoing);
     }
     _bindingEpoch++;
     _commandEpoch++;
@@ -269,6 +302,17 @@ class ReaderMediaHandler extends BaseAudioHandler {
     queue.add(const []);
     mediaItem.add(null);
     _publish();
+    // Detachment is not necessarily silent yet: the outgoing native Stop
+    // can still be speaking. Wake queued stale disposals only once its
+    // original native acknowledgement succeeds; an unconfirmed Stop
+    // fails them closed without dispatching another platform Stop.
+    if (outgoingNativeStop == null) {
+      _settleQuietRetirements();
+    } else {
+      unawaited(outgoingNativeStop.then<void>((confirmed) {
+        _settleQuietRetirements(nativeStopConfirmed: confirmed);
+      }));
+    }
     unawaited(_releaseAudioFocus());
   }
 
@@ -277,6 +321,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
     _publish();
     final player = _player;
     if (player != null && player.isSettledIdle) {
+      _settleQuietRetirements();
       // Also covers sleep-timer expiry and direct UI pause. A temporary
       // isPlaying=false during a seek is NOT a settled idle state.
       unawaited(_releaseAudioFocus());
@@ -440,6 +485,17 @@ class ReaderMediaHandler extends BaseAudioHandler {
         player.narrationControlRevision != control) return;
     if (!focused) {
       throw StateError('Cannot obtain Android audio focus');
+    }
+    // A stale screen may schedule its native dispose while a new Play is
+    // waiting for Android focus. Recheck the MOST RECENT retirement fence
+    // before dispatching any TTS: the barrier observed before focus could
+    // have been superseded during that await.
+    final afterFocusStopsConfirmed = await _pendingTransportStops;
+    if (_closed || !identical(_player, player) ||
+        epoch != _bindingEpoch || command != _commandEpoch ||
+        player.narrationControlRevision != control) return;
+    if (!afterFocusStopsConfirmed) {
+      throw StateError('Previous native engine retirement is unconfirmed');
     }
     if (player.nativeStopUnconfirmed) {
       // detach/pause/new commands own any required focus release.

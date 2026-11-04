@@ -575,7 +575,18 @@ class ReaderPlayer extends ChangeNotifier {
   // Engine.dispose() can itself invoke a native Stop. Its confirmed
   // completion must be fenced before another Android TTS session speaks.
   Future<bool> _engineRetirement = Future<bool>.value(false);
+  Future<bool>? _waitForMediaQuietBeforeRetirement;
   bool _engineRetirementConfirmed = false;
+
+  /// Synchronously invalidates this player, but postpones its platform
+  /// disposal until the Android handler confirms the current book is
+  /// silent. This prevents an obsolete screen's delayed TTS Stop from
+  /// interrupting a newer book already being narrated.
+  void retireWhenMediaQuiet(Future<bool> mediaQuiet) {
+    if (_disposed) return;
+    _waitForMediaQuietBeforeRetirement = mediaQuiet;
+    dispose();
+  }
   bool get nativeEngineRetirementConfirmed =>
       !_disposed || _engineRetirementConfirmed;
 
@@ -1140,7 +1151,8 @@ class ReaderPlayer extends ChangeNotifier {
   /// dispatching a competing native dispose operation. The UI's dispose()
   /// still returns immediately; a late acknowledgement triggers cleanup.
   Future<bool> _retireEngineAfterNativeOperations(
-      Future<void> nativeStop, Future<void> voiceChange) async {
+      Future<void> nativeStop, Future<void> voiceChange,
+      Future<bool>? mediaQuiet) async {
     try {
       await nativeStop;
     } catch (_) {
@@ -1152,6 +1164,10 @@ class ReaderPlayer extends ChangeNotifier {
     } catch (_) {
       // A failed voice selection must not strand a retired engine.
     }
+    // Never dispatch a potentially global Android TTS Stop while another
+    // book is speaking. If its Stop failed, leave this engine quarantined
+    // instead of letting dispose() interrupt or race the current stream.
+    if (mediaQuiet != null && !await mediaQuiet) return false;
     try {
       await _engine.dispose();
       _engineRetirementConfirmed = true;
@@ -1179,8 +1195,8 @@ class ReaderPlayer extends ChangeNotifier {
     // fresh speech or voice changes after this point.
     final nativeStop = _pendingNativeStop;
     final voiceChange = _pendingVoiceChange;
-    _engineRetirement =
-        _retireEngineAfterNativeOperations(nativeStop, voiceChange);
+    _engineRetirement = _retireEngineAfterNativeOperations(
+        nativeStop, voiceChange, _waitForMediaQuietBeforeRetirement);
     super.dispose();
   }
 }
