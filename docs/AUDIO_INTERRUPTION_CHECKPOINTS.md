@@ -609,3 +609,21 @@ a bounded terminal close when the active book's native Stop hangs
 with two older engines queued. Code and tests authored only:
 Dart analyzer, Flutter/native tests, Android builds and GitHub
 Actions were not executed.
+
+## 2026-11-04 — idempotent obsolete-player retirement
+
+A reader's screen teardown and lifecycle callbacks can both request the
+same obsolete player's retirement. Previously, a repeated request could
+enqueue another *bounded* native-retirement fence even though the first
+request was correctly waiting for the new reader to become silent. The
+second fence could expire while the new book was legitimately speaking,
+then falsely quarantine the MediaSession when the first cleanup completed.
+
+`ReaderMediaHandler.retireDetachedPlayer()` now registers each player only
+once using an `Expando` weak-key marker. Duplicate requests do not
+create another quiet waiter, native dispose, or transport deadline; unique
+old engines remain serially retired under the existing fail-closed policy.
+A regression covers duplicate teardown during ongoing speech, silence
+and native disposal, a subsequent explicit Play, and a third duplicate
+after retirement. Flutter/Dart tests and Android native/device validation
+remain **not run**; the PR stays draft.
