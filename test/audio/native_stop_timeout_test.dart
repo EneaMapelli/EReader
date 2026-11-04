@@ -1367,6 +1367,78 @@ void main() {
     outgoingPlayer.dispose();
   });
 
+  test('retirement of the still-bound reader detaches before native Dispose',
+      () async {
+    final activeEngine = _DisposalProbeEngine();
+    final replacementEngine = _HeldStopEngine();
+    final activePlayer = _player(activeEngine);
+    final replacementPlayer = _player(replacementEngine);
+    var focusReleases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { focusReleases++; },
+    );
+    handler.attach(activePlayer, bookId: 'active', title: 'Active');
+    await handler.play();
+    await _settle();
+    expect(activeEngine.spoken, ['First']);
+
+    activeEngine.stopGate = Completer<void>();
+    // Deliberately skip ReaderScreen.detach: a duplicate or out-of-order
+    // lifecycle notification must not dispose a still-speaking engine.
+    handler.retireDetachedPlayer(activePlayer);
+    expect(handler.hasActiveBook, isFalse);
+    expect(handler.mediaItem.value, isNull);
+    expect(activePlayer.isPlaying, isFalse);
+    await _settle();
+    expect(activeEngine.nativeStops, 1);
+    expect(activeEngine.disposalCalls, 0,
+        reason: 'Dispose cannot overlap a live native Stop');
+
+    handler.attach(replacementPlayer,
+        bookId: 'replacement', title: 'Replacement');
+    final newPlay = handler.play();
+    await _settle();
+    expect(replacementEngine.spoken, isEmpty);
+    expect(activeEngine.disposalCalls, 0);
+
+    activeEngine.stopGate!.complete();
+    await newPlay;
+    await _settle();
+    expect(activeEngine.disposalCalls, 1);
+    expect(activeEngine.disposedBeforeStopSettled, isFalse);
+    expect(activePlayer.nativeEngineRetirementConfirmed, isTrue);
+    expect(replacementEngine.spoken, ['First']);
+    expect(handler.ownsPlayer(replacementPlayer), isTrue);
+    await handler.pause();
+    await handler.close();
+    expect(focusReleases, greaterThanOrEqualTo(1));
+    replacementPlayer.dispose();
+  });
+
+  test('active retirement with failed Stop quarantines its engine',
+      () async {
+    final engine = _DisposalProbeEngine()..throwOnStop = true;
+    final player = _player(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'active', title: 'Active');
+    await handler.play();
+    await _settle();
+    expect(engine.spoken, ['First']);
+
+    handler.retireDetachedPlayer(player);
+    await _settle();
+    expect(handler.hasActiveBook, isFalse);
+    expect(engine.nativeStops, 1);
+    expect(engine.disposalCalls, 0,
+        reason: 'Failed native Stop must not trigger a global Dispose');
+    expect(player.nativeEngineRetirementConfirmed, isFalse);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    await handler.close();
+    expect(engine.disposalCalls, 0);
+    engine.completeSpeech();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(
