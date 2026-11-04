@@ -233,6 +233,13 @@ class ReaderMediaHandler extends BaseAudioHandler {
     }
     _unsafeStopPlayers.clear();
     _pendingTransportStops = Future<bool>.value(true);
+    // Every previously failed native Stop was positively rechecked above.
+    // The detached-only fence holds historical timeout results; keeping
+    // those false forever would quarantine *future* obsolete engines even
+    // after an explicit, verified transport recovery. Already rejected
+    // retirements are not retried, and the revision/identity guards above
+    // ensure a newer detach cannot be accidentally cleared.
+    _detachedNativeStops = Future<bool>.value(true);
     _transportStopUnsafe = false;
     _publish();
     return true;
