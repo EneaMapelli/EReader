@@ -1091,6 +1091,69 @@ void main() {
     player.dispose();
   });
 
+  test('duplicate media Pause shares one pending native Stop', () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await _waitForSpoken(engine, 1);
+    engine.stopGate = Completer<void>();
+
+    final first = handler.pause();
+    final duplicate = handler.pause();
+    final stopAlias = handler.stop();
+    expect(identical(first, duplicate), isTrue);
+    expect(identical(first, stopAlias), isTrue);
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.stopCalls, 1);
+    expect(player.isSettledIdle, isFalse);
+
+    engine.stopGate!.complete();
+    await Future.wait([first, duplicate, stopAlias]);
+    expect(engine.stopCalls, 1,
+        reason: 'Duplicate media commands must not queue a later Stop');
+    expect(releases, 1);
+    expect(engine.spoken, ['First']);
+    expect(player.isSettledIdle, isTrue);
+    await handler.close();
+    player.dispose();
+  });
+
+  test('a new direct Play during media Pause requires a fresh Stop',
+      () async {
+    final engine = _FakeSpeechEngine();
+    final player = _reader(engine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await _waitForSpoken(engine, 1);
+    engine.stopGate = Completer<void>();
+
+    final first = handler.pause();
+    // The direct reader command changes the navigation revision and queues
+    // Play behind the old Stop; a new Pause must cancel that fresh intent.
+    final directPlay = player.play();
+    expect(player.isPlaying, isTrue);
+    final second = handler.pause();
+    final duplicate = handler.pause();
+    expect(identical(first, second), isFalse);
+    expect(identical(second, duplicate), isTrue);
+    engine.stopGate!.complete();
+    await Future.wait([first, second, duplicate, directPlay]);
+    expect(engine.stopCalls, 2,
+        reason: 'A genuinely newer Play must be stopped once more');
+    expect(engine.spoken, ['First'],
+        reason: 'The interrupted Play must never issue a late utterance');
+    expect(player.isSettledIdle, isTrue);
+    await handler.close();
+    player.dispose();
+  });
+
   test('repeated system interruptions share one Stop and preserve cursor',
       () async {
     final engine = _FakeSpeechEngine();
