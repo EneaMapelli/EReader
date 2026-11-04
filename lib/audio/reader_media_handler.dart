@@ -495,6 +495,14 @@ class ReaderMediaHandler extends BaseAudioHandler {
         epoch != _bindingEpoch || command != _commandEpoch ||
         player.narrationControlRevision != control) return;
     if (!afterFocusStopsConfirmed) {
+      // Focus may have been granted just before a stale screen registered
+      // its unsafe engine disposal. No new speech was dispatched: release
+      // that focus lease instead of holding it for a playback that is
+      // permanently blocked by the native retirement barrier.
+      await _releaseAudioFocus();
+      if (_closed || !identical(_player, player) ||
+          epoch != _bindingEpoch || command != _commandEpoch ||
+          player.narrationControlRevision != control) return;
       throw StateError('Previous native engine retirement is unconfirmed');
     }
     if (player.nativeStopUnconfirmed) {

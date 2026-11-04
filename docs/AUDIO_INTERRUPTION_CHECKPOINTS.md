@@ -555,3 +555,21 @@ and a failed outgoing Stop that must quarantine stale disposal.
 The code and tests are authored but have **not** been executed
 with Flutter/Dart/Android or GitHub Actions. Native cross-engine
 safety still needs physical Android device validation.
+
+## 2026-11-04 — release late Android focus when retirement is unsafe
+
+The fresh post-focus native-retirement check introduced for an
+obsolete screen may discover a failed `SpeechEngine.dispose()`
+*after* Android has already granted the new Play's focus lease.
+Rejecting playback without giving back that lease would hold focus
+despite there being no permitted speech. The handler now queues a
+serialized focus release when this final Stop/retirement gate fails.
+It rechecks the player/binding/command revision afterwards, so an
+obsolete failure cannot be surfaced as an error for a newer Play.
+No cloud synthesis or playback is started on failure.
+
+One additional regression verifies failed old-engine disposal during
+delayed focus acquisition suppresses new speech, surfaces the safety
+error, and releases focus exactly once. As with all stabilization
+changes, this test was authored but not run; Flutter/analyzer,
+Android device builds and GitHub Actions remain deferred.

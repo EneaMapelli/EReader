@@ -1068,6 +1068,45 @@ void main() {
     currentPlayer.dispose();
   });
 
+  test('failed obsolete disposal releases late Android focus grant',
+      () async {
+    final oldEngine = _DisposalProbeEngine()..throwOnDispose = true;
+    final newEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final newPlayer = _player(newEngine);
+    final focusGate = Completer<bool>();
+    var claims = 0;
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () {
+        claims++;
+        return focusGate.future;
+      },
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    handler.attach(newPlayer, bookId: 'new', title: 'New');
+    final requesting = handler.play();
+    await _settle();
+    expect(claims, 1);
+
+    // This old-screen cleanup fails while the new book waits for focus.
+    // It must not start new speech or strand a focus lease on failure.
+    handler.retireDetachedPlayer(oldPlayer);
+    await _settle();
+    expect(oldEngine.disposalCalls, 1);
+    expect(oldPlayer.nativeEngineRetirementConfirmed, isFalse);
+    focusGate.complete(true);
+    await expectLater(requesting, throwsStateError);
+    expect(newEngine.spoken, isEmpty);
+    expect(releases, 1,
+        reason: 'Unsafe retirement must relinquish newly acquired focus');
+    expect(handler.requiresFreshAudioSession, isTrue);
+    await handler.close();
+    expect(releases, 1);
+    newPlayer.dispose();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(
