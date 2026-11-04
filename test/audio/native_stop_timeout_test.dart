@@ -1268,6 +1268,46 @@ void main() {
     currentPlayer.dispose();
   });
 
+  test('duplicate retirement cannot poison a live reader during pause',
+      () async {
+    final oldEngine = _DisposalProbeEngine();
+    final currentEngine = _HeldStopEngine();
+    final oldPlayer = _player(oldEngine);
+    final currentPlayer = _player(currentEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(oldPlayer, bookId: 'old', title: 'Old');
+    handler.attach(currentPlayer, bookId: 'current', title: 'Current');
+    await handler.play();
+    await _settle();
+    expect(currentEngine.spoken, ['First']);
+
+    // An obsolete page can receive two teardown/lifecycle notifications
+    // while the current page is still narrating. Retirement is allowed to
+    // wait indefinitely for quiet, not to create a duplicate 15ms deadline.
+    handler.retireDetachedPlayer(oldPlayer);
+    handler.retireDetachedPlayer(oldPlayer);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    expect(oldEngine.disposalCalls, 0);
+    expect(currentEngine.spoken, ['First']);
+
+    await handler.pause();
+    await _settle();
+    expect(oldEngine.disposalCalls, 1);
+    expect(oldPlayer.nativeEngineRetirementConfirmed, isTrue);
+    expect(handler.requiresFreshAudioSession, isFalse,
+        reason: 'Duplicate teardown must not create a false unsafe fence');
+
+    await handler.play();
+    await _settle();
+    expect(currentEngine.spoken, ['First', 'First']);
+    handler.retireDetachedPlayer(oldPlayer); // Even after native completion.
+    await _settle();
+    expect(oldEngine.disposalCalls, 1);
+    await handler.pause();
+    await handler.close();
+    currentPlayer.dispose();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(
