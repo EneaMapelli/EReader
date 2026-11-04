@@ -88,6 +88,9 @@ class ReaderMediaHandler extends BaseAudioHandler {
   // Unlike _pendingTransportStops this is the unbounded *native* result:
   // the latter provides finite Play/close deadlines and fail-closed state.
   Future<bool> _retirementSequence = Future<bool>.value(true);
+  // Ignore duplicate teardown notifications without retaining old players.
+  final Expando<bool> _registeredRetirements =
+      Expando<bool>('EReader native player retirement');
 
   void _settleQuietRetirements({bool nativeStopConfirmed = true}) {
     if (nativeStopConfirmed &&
@@ -265,6 +268,9 @@ class ReaderMediaHandler extends BaseAudioHandler {
   /// This also covers an obsolete ReaderScreen whose player is no longer
   /// the current media binding.
   void retireDetachedPlayer(ReaderPlayer player) {
+    // A player may retire only once, regardless of duplicate lifecycle calls.
+    if (_registeredRetirements[player] == true) return;
+    _registeredRetirements[player] = true;
     // A stale ReaderScreen may dispose long AFTER the new book has begun
     // speaking. Cancel its session synchronously. Actual native disposal
     // waits for BOTH the preceding old engine and current-book silence:
