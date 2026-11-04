@@ -735,3 +735,32 @@ deliberately held native gates, without changing the short timeout used
 by the original timeout regressions. This is **source-level only**:
 Flutter/Dart SDK, analyzer, test runner, native Android audio and
 GitHub Actions have not been run. PR #1 remains draft.
+
+## 2026-11-04 — explicit recovery also re-arms future detached disposals
+
+After a detached book's native Stop timed out, the handler correctly
+retained an unsafe native-Stop latch until a late **positive** platform
+acknowledgment was verified by a fresh, explicit user Play. However,
+the separate cumulative `_detachedNativeStops` fence still held its
+historical `false` result after that successful recovery. As a result,
+a completely unrelated older screen retiring later could remain
+unnecessarily quarantined, despite the session having positively
+verified every failed source.
+
+The successful recovery branch now resets `_detachedNativeStops`
+alongside `_pendingTransportStops`, but **only after** every tracked
+unsafe source player is confirmed silent, no native disposal is unsafe,
+and binding/revision/current-control guards still match. This does not
+re-attempt any retirement already denied by its original false gate.
+It also does not automatically retry Play, obtain Android focus or
+trust the expiry of a timeout as a silence confirmation.
+
+Two source-level regressions cover an original Stop that times out,
+later confirms, and is explicitly recovered before a *subsequent*
+obsolete engine is retired; and a real native Stop exception that
+must keep later engine disposal quarantined. The success test awaits
+the actual confirmed retirement Future, not merely the start of
+`dispose()`.
+
+No Flutter/Dart analyzer/tests, Android native audio/device test or
+GitHub Actions were executed. PR #1 remains a draft pending validation.
