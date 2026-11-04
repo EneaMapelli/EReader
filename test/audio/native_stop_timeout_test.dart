@@ -1538,6 +1538,84 @@ void main() {
     engine.completeSpeech();
   });
 
+
+  test('confirmed recovery resets detached Stop fence for later disposal',
+      () async {
+    final staleEngine = _DisposalProbeEngine();
+    final blockedEngine = _HeldStopEngine();
+    final newEngine = _HeldStopEngine();
+    final stale = _player(staleEngine);
+    final blocked = _player(blockedEngine);
+    final current = _player(newEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+
+    handler.attach(stale, bookId: 'stale', title: 'Stale');
+    handler.attach(blocked, bookId: 'blocked', title: 'Blocked');
+    await handler.play();
+    await _settle();
+    blockedEngine.stopGate = Completer<void>();
+    handler.attach(current, bookId: 'current', title: 'Current');
+    await expectLater(handler.play().timeout(const Duration(seconds: 1)),
+        throwsStateError);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(newEngine.spoken, isEmpty);
+
+    blockedEngine.stopGate!.complete();
+    await _settle();
+    expect(await blocked.waitForNativeStopConfirmation(), isTrue);
+    expect(newEngine.spoken, isEmpty,
+        reason: 'A late native callback cannot automatically resume');
+    await handler.play(); // Explicit recovery after a positive native Stop.
+    await _settle();
+    expect(handler.requiresFreshAudioSession, isFalse);
+    expect(handler.debugRetainedStopPlayers, 0);
+    expect(newEngine.spoken, ['First']);
+
+    handler.retireDetachedPlayer(stale);
+    await _settle();
+    expect(staleEngine.disposalCalls, 0,
+        reason: 'Dispose must await the currently speaking book');
+    await handler.pause();
+    for (var i = 0; i < 20 && staleEngine.disposalCalls == 0; i++) {
+      await _settle();
+    }
+    expect(staleEngine.disposalCalls, 1,
+        reason: 'An earlier recovered timeout must not poison future Dispose');
+    expect(stale.nativeEngineRetirementConfirmed, isTrue);
+    expect(handler.requiresFreshAudioSession, isFalse);
+    await handler.close();
+    blocked.dispose();
+    current.dispose();
+  });
+
+  test('failed native Stop keeps later obsolete disposal quarantined',
+      () async {
+    final staleEngine = _DisposalProbeEngine();
+    final failedEngine = _HeldStopEngine()..throwOnStop = true;
+    final currentEngine = _HeldStopEngine();
+    final stale = _player(staleEngine);
+    final failed = _player(failedEngine);
+    final current = _player(currentEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+
+    handler.attach(stale, bookId: 'stale', title: 'Stale');
+    handler.attach(failed, bookId: 'failed', title: 'Failed');
+    await handler.play();
+    await _settle();
+    handler.attach(current, bookId: 'new', title: 'New');
+    await expectLater(handler.play(), throwsStateError);
+    expect(await handler.tryRecoverAfterConfirmedNativeStops(), isFalse);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    handler.retireDetachedPlayer(stale);
+    await _settle();
+    expect(staleEngine.disposalCalls, 0);
+    expect(currentEngine.spoken, isEmpty);
+    await handler.close();
+    expect(staleEngine.disposalCalls, 0);
+    failed.dispose();
+    current.dispose();
+  });
+
   test('positive timeout is required', () {
     final engine = _HeldStopEngine();
     expect(
