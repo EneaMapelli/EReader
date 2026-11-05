@@ -104,7 +104,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
 
   void _settleQuietRetirements({bool nativeStopConfirmed = true}) {
     if (nativeStopConfirmed &&
-        _player != null && !_player!.isSettledIdle) return;
+        _player != null && !_player!.isNativeAudioQuiet) return;
     final pending = List<Completer<bool>>.of(_quietRetirementWaiters);
     _quietRetirementWaiters.clear();
     for (final waiter in pending) {
@@ -121,7 +121,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
       if (!identical(detached, _detachedNativeStops)) continue;
       final current = _player;
       if (current == null || identical(current, retired) ||
-          current.isSettledIdle) return true;
+          current.isNativeAudioQuiet) return true;
       final waiter = Completer<bool>();
       _quietRetirementWaiters.add(waiter);
       if (!await waiter.future) return false;
@@ -409,10 +409,12 @@ class ReaderMediaHandler extends BaseAudioHandler {
     if (_closed) return;
     _publish();
     final player = _player;
-    if (player != null && player.isSettledIdle) {
+    if (player != null && player.isNativeAudioQuiet) {
       _settleQuietRetirements();
-      // Also covers sleep-timer expiry and direct UI pause. A temporary
-      // isPlaying=false during a seek is NOT a settled idle state.
+      // Also covers sleep-timer expiry and direct UI pause. Stop/focus
+      // release needs confirmed native silence, NOT a delayed SQLite
+      // checkpoint. A transient isPlaying=false during a resuming Seek
+      // is still unsafe because _resumeAfterNavigation remains true.
       unawaited(_releaseAudioFocus());
     }
   }
@@ -649,7 +651,7 @@ class ReaderMediaHandler extends BaseAudioHandler {
       } finally {
         // The listener releases focus when native Stop actually settles.
         // Await that queued release before resolving the transport command.
-        if (identical(player, _player) && player.isSettledIdle) {
+        if (identical(player, _player) && player.isNativeAudioQuiet) {
           await _focusOperation;
         }
       }
