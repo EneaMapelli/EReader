@@ -835,3 +835,38 @@ tests retain checks for book reattachment and Stop errors.
 These are **source-level changes only**. Neither Flutter/Dart tests,
 GitHub Actions, nor Android on-device background/audio lifecycle tests
 were executed for this change. PR #1 remains draft.
+
+## 2026-11-05 — release native audio focus independently of delayed source checkpoints
+
+The earlier change separated physical Stop **confirmation** from a
+delayed `onSegmentCompleted` SQLite checkpoint in transport barriers.
+Two other uses of `ReaderPlayer.isSettledIdle` still inadvertently
+treated an unfinished durable checkpoint as audible native speech:
+
+1. The media player's change listener did not release Android audio
+   focus after a confirmed Stop until the SQLite checkpoint completed.
+2. A retired old Android TTS engine remained queued behind the *current*
+   book's checkpoint, even after the current engine had confirmed native
+   silence. This could strand deferred engine disposal (and related
+   lifecycle verification) on a slow database callback.
+
+`ReaderPlayer.isNativeAudioQuiet` now expresses exactly the audio-only
+quiescence condition: no live Play, no queued native Stop, no unconfirmed
+or failed Stop, and **no pending navigation intended to auto-resume**.
+It deliberately does not wait for the completed-segment checkpoint.
+The existing stronger `isSettledIdle` still includes that checkpoint
+and remains the guard for seek/pause/navigation decisions, preventing a
+pending source cursor change from being mistaken for settled navigation.
+
+`ReaderMediaHandler` uses the new audio-only condition for Android
+focus release and the waiters controlling late obsolete engine Dispose.
+A direct Play or an auto-resuming Seek continues to block disposal and
+retains focus until native speech is genuinely quiet. Native Stop errors
+remain fail-closed.
+
+Three source-level regressions check: focus releases while a completed
+segment checkpoint stays held; a retired engine can finish disposal
+after confirmed native silence despite that checkpoint; and a queued
+auto-resuming Seek still blocks focus release and obsolete-engine disposal
+until its restarted audio has been stopped. None of these tests or Android
+device lifecycle scenarios has been executed in this environment.
