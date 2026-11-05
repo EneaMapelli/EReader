@@ -311,6 +311,97 @@ void main() {
     next.dispose();
   });
 
+  test('confirmed native Stop releases focus before checkpoint settles',
+      () async {
+    final checkpoint = Completer<void>();
+    final engine = _HeldStopEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [SpeechSegment(0, 5, 'First')],
+      nativeStopTimeout: const Duration(milliseconds: 80),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => checkpoint.future,
+    );
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await _settle();
+    engine.completeSpeech();
+    for (var i = 0; i < 50 && !player.isCommittingSpeechSegment; i++) {
+      await _settle();
+    }
+    expect(player.isCommittingSpeechSegment, isTrue);
+    expect(player.isNativeAudioQuiet, isFalse,
+        reason: 'The narrator has not been paused yet');
+
+    final pausing = handler.pause();
+    expect(await player.waitForNativeStopConfirmation(), isTrue);
+    for (var i = 0; i < 50 && releases == 0; i++) {
+      await _settle();
+    }
+    expect(player.isNativeAudioQuiet, isTrue);
+    expect(player.isSettledIdle, isFalse,
+        reason: 'Source checkpoint is still uncommitted');
+    expect(releases, 1,
+        reason: 'Android focus must not be held by SQLite latency');
+    expect(checkpoint.isCompleted, isFalse);
+
+    checkpoint.complete();
+    await pausing;
+    await handler.close();
+    player.dispose();
+  });
+
+  test('retired engine disposes after native silence before checkpoint ack',
+      () async {
+    final staleEngine = _DisposalProbeEngine();
+    final currentEngine = _HeldStopEngine();
+    final stale = _player(staleEngine);
+    final checkpoint = Completer<void>();
+    final current = ReaderPlayer(
+      engine: currentEngine,
+      segments: const [SpeechSegment(0, 5, 'First')],
+      nativeStopTimeout: const Duration(milliseconds: 80),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => checkpoint.future,
+    );
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(stale, bookId: 'stale', title: 'Stale');
+    handler.attach(current, bookId: 'current', title: 'Current');
+    await handler.play();
+    await _settle();
+    currentEngine.completeSpeech();
+    for (var i = 0; i < 50 && !current.isCommittingSpeechSegment; i++) {
+      await _settle();
+    }
+    expect(current.isCommittingSpeechSegment, isTrue);
+
+    handler.retireDetachedPlayer(stale);
+    await _settle();
+    expect(staleEngine.disposalCalls, 0);
+    final pausing = handler.pause();
+    expect(await current.waitForNativeStopConfirmation(), isTrue);
+    expect(
+      await stale.engineRetirementCompletion.timeout(
+        const Duration(seconds: 1)),
+      isTrue,
+      reason: 'Old engine disposal may run once the new TTS is silent',
+    );
+    expect(staleEngine.disposalCalls, 1);
+    expect(current.isNativeAudioQuiet, isTrue);
+    expect(current.isSettledIdle, isFalse);
+    expect(checkpoint.isCompleted, isFalse,
+        reason: 'Retirement cannot depend on durable checkpoint latency');
+    checkpoint.complete();
+    await pausing;
+    await handler.close();
+    current.dispose();
+  });
+
   test('task removal waits for native silence, not held source checkpoint',
       () async {
     final checkpoint = Completer<void>();
