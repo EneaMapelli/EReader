@@ -52,6 +52,11 @@ systems, not on an Android phone:
 4. `test/audio/rapid_playback_navigation_test.dart`
 5. `test/audio/segment_completion_barrier_test.dart`
 
+For reproducibility, the focused suites run with `--concurrency=1`
+(one test file at a time) and a two-minute per-test inactivity timeout;
+this is a safeguard against indefinite waits, not evidence of native audio
+correctness. The `full` scope retains the existing suite settings.
+
 Each runner also performs `flutter pub get`, an **advisory,
 non-mutating** `dart format --output=none --set-exit-if-changed lib test`
 check, and `flutter analyze`. The analyzer executes even if tests fail,
