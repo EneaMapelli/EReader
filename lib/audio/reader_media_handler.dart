@@ -162,12 +162,19 @@ class ReaderMediaHandler extends BaseAudioHandler {
   }
 
   void _trackTransportStop(Future<void> stopping, ReaderPlayer player) {
-    // Consume the old operation's Future immediately, including storage
-    // or navigation failures. A failed operation can be rearmed only
-    // after the player's actual native Stop is separately confirmed.
-    _trackNativeConfirmation(stopping.then<bool>(
-      (_) => true, onError: (Object _, StackTrace __) => false,
-    ), player);
+    // Consume command errors even when the caller has detached and does not
+    // await its Pause/Seek Future. A failed checkpoint is still surfaced to
+    // the owning command, but does NOT imply a failed native speech Stop.
+    unawaited(stopping.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    ));
+    // ReaderPlayer synchronously queues its native Stop before returning
+    // Pause/Seek. Observe that bounded *physical* confirmation, rather than
+    // the full command, which may wait indefinitely on a completed clip's
+    // SQLite checkpoint. Cross-book Play/close must not be held hostage by
+    // storage; unsafe or timed-out native Stops still fail closed.
+    _trackNativeConfirmation(player.waitForNativeStopConfirmation(), player);
   }
 
   /// Re-arm the same MediaSession only after a *late positive* Stop
