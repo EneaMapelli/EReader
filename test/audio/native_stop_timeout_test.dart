@@ -402,6 +402,62 @@ void main() {
     current.dispose();
   });
 
+  test('pending auto-resuming Seek never exposes native audio as quiet',
+      () async {
+    final staleEngine = _DisposalProbeEngine();
+    final engine = _HeldStopEngine();
+    final stale = _player(staleEngine);
+    final checkpoint = Completer<void>();
+    final current = ReaderPlayer(
+      engine: engine,
+      segments: const [
+        SpeechSegment(0, 5, 'First'),
+        SpeechSegment(6, 12, 'Second'),
+      ],
+      nativeStopTimeout: const Duration(milliseconds: 80),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => checkpoint.future,
+    );
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(stale, bookId: 'stale', title: 'Stale');
+    handler.attach(current, bookId: 'current', title: 'Current');
+    await handler.play();
+    await _settle();
+    engine.completeSpeech();
+    for (var i = 0; i < 50 && !current.isCommittingSpeechSegment; i++) {
+      await _settle();
+    }
+    expect(current.isCommittingSpeechSegment, isTrue);
+
+    handler.retireDetachedPlayer(stale);
+    final seeking = current.seekTo(1);
+    expect(await current.waitForNativeStopConfirmation(), isTrue);
+    await _settle();
+    expect(current.isNativeAudioQuiet, isFalse,
+        reason: 'Seek still intends to auto-resume after checkpoint');
+    expect(releases, 0,
+        reason: 'Navigation must hold focus until resuming or stopping');
+    expect(staleEngine.disposalCalls, 0,
+        reason: 'An obsolete global Stop cannot interrupt a queued resume');
+
+    checkpoint.complete();
+    await seeking;
+    for (var i = 0; i < 50 && engine.spoken.length < 2; i++) {
+      await _settle();
+    }
+    expect(engine.spoken, ['First', 'Second']);
+    expect(staleEngine.disposalCalls, 0);
+    await handler.pause();
+    expect(await stale.engineRetirementCompletion.timeout(
+        const Duration(seconds: 1)), isTrue);
+    await handler.close();
+    current.dispose();
+  });
+
   test('task removal waits for native silence, not held source checkpoint',
       () async {
     final checkpoint = Completer<void>();
