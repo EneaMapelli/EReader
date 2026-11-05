@@ -349,6 +349,81 @@ void main() {
     player.dispose();
   });
 
+  test('task removal re-stops new direct Play during pending Pause',
+      () async {
+    final checkpoint = Completer<void>();
+    final engine = _HeldStopEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [SpeechSegment(0, 5, 'First')],
+      nativeStopTimeout: const Duration(milliseconds: 80),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => checkpoint.future,
+    );
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await _settle();
+    engine.completeSpeech();
+    for (var i = 0; i < 50 && !player.isCommittingSpeechSegment; i++) {
+      await _settle();
+    }
+    expect(player.isCommittingSpeechSegment, isTrue);
+    engine.stopGate = Completer<void>();
+
+    final removing = handler.onTaskRemoved();
+    // The direct player command supersedes media Pause while native Stop
+    // is pending; detach must cancel it with a fresh native Stop.
+    final directPlay = player.play();
+    expect(player.isPlaying, isTrue);
+    engine.stopGate!.complete();
+    await removing.timeout(const Duration(seconds: 1));
+    expect(engine.nativeStops, 2);
+    expect(engine.spoken, ['First']);
+    expect(handler.hasActiveBook, isFalse);
+    expect(checkpoint.isCompleted, isFalse);
+    checkpoint.complete();
+    await directPlay;
+    await _settle();
+    player.dispose();
+    await handler.close();
+  });
+
+  test('failed task-removal Stop detaches with a held checkpoint',
+      () async {
+    final checkpoint = Completer<void>();
+    final engine = _HeldStopEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [SpeechSegment(0, 5, 'First')],
+      nativeStopTimeout: const Duration(milliseconds: 80),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => checkpoint.future,
+    );
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await _settle();
+    engine.completeSpeech();
+    for (var i = 0; i < 50 && !player.isCommittingSpeechSegment; i++) {
+      await _settle();
+    }
+    expect(player.isCommittingSpeechSegment, isTrue);
+    engine.throwOnStop = true;
+    await expectLater(
+      handler.onTaskRemoved().timeout(const Duration(seconds: 1)),
+      throwsStateError,
+    );
+    expect(engine.nativeStops, 1);
+    expect(handler.hasActiveBook, isFalse);
+    expect(player.nativeStopUnconfirmed, isTrue);
+    expect(checkpoint.isCompleted, isFalse);
+    checkpoint.complete();
+    await _settle();
+    await handler.close();
+    player.dispose();
+  });
+
   test('close does not await old checkpoint after native Stop confirms',
       () async {
     final checkpoint = Completer<void>();
