@@ -1,5 +1,8 @@
 name: EReader manual cross-platform verification
 
+# Manual only: no push, pull_request, schedule, or other implicit triggers.
+# Audio scope runs focused Flutter host tests on Windows and Ubuntu without
+# a native build. Full scope retains both platform builds.
 on:
   workflow_dispatch:
     inputs:
@@ -8,6 +11,14 @@ on:
         required: true
         default: feature/m0-flutter-foundation
         type: string
+      scope:
+        description: 'Audio regression tests only, or complete test/build verification'
+        required: true
+        default: audio
+        type: choice
+        options:
+          - audio
+          - full
 
 permissions:
   contents: read
@@ -47,13 +58,20 @@ jobs:
           grep -q 'com.ryanheise.audioservice.MediaButtonReceiver' android/app/src/main/AndroidManifest.xml
       - name: Resolve dependencies
         run: flutter pub get
-      - name: Format for analysis (non-mutating to repository)
-        run: dart format lib test
-      - name: Static analysis
-        run: flutter analyze
-      - name: Unit tests
+      - name: Non-mutating format report (known style backlog is advisory)
+        continue-on-error: true
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Focused Android-host audio regression tests
+        if: ${{ inputs.scope != 'full' }}
+        run: flutter test --reporter expanded test/audio/native_stop_timeout_test.dart test/audio/reader_media_handler_test.dart test/audio/narration_recovery_binding_test.dart test/audio/rapid_playback_navigation_test.dart test/audio/segment_completion_barrier_test.dart
+      - name: Full Flutter unit suite
+        if: ${{ inputs.scope == 'full' }}
         run: flutter test --reporter expanded
+      - name: Static analysis (also after a test failure)
+        if: ${{ !cancelled() }}
+        run: flutter analyze
       - name: Build Android APK
+        if: ${{ inputs.scope == 'full' }}
         run: flutter build apk --debug
       - name: Collect Android APK
         if: success()
@@ -82,13 +100,20 @@ jobs:
         run: flutter create --project-name ereader --org com.example.ereader --platforms=windows .
       - name: Resolve dependencies
         run: flutter pub get
-      - name: Format for analysis (non-mutating to repository)
-        run: dart format lib test
-      - name: Static analysis
-        run: flutter analyze
-      - name: Unit tests
+      - name: Non-mutating format report (known style backlog is advisory)
+        continue-on-error: true
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Focused Windows-host audio regression tests
+        if: ${{ inputs.scope != 'full' }}
+        run: flutter test --reporter expanded test/audio/native_stop_timeout_test.dart test/audio/reader_media_handler_test.dart test/audio/narration_recovery_binding_test.dart test/audio/rapid_playback_navigation_test.dart test/audio/segment_completion_barrier_test.dart
+      - name: Full Flutter unit suite
+        if: ${{ inputs.scope == 'full' }}
         run: flutter test --reporter expanded
+      - name: Static analysis (also after a test failure)
+        if: ${{ !cancelled() }}
+        run: flutter analyze
       - name: Build Windows desktop
+        if: ${{ inputs.scope == 'full' }}
         run: flutter build windows --debug
       - name: Collect Windows build
         if: success()
