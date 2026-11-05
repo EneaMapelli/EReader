@@ -43,14 +43,18 @@ record the exact checked-out SHA from the run.
 
 ## What the audio scope actually covers
 
-The same five Flutter test files run under **both** host operating
+The same nine Flutter test files run under **both** host operating
 systems, not on an Android phone:
 
 1. `test/audio/native_stop_timeout_test.dart`
 2. `test/audio/reader_media_handler_test.dart`
-3. `test/audio/narration_recovery_binding_test.dart`
-4. `test/audio/rapid_playback_navigation_test.dart`
-5. `test/audio/segment_completion_barrier_test.dart`
+3. `test/audio/reader_player_test.dart`
+4. `test/audio/narration_recovery_binding_test.dart`
+5. `test/audio/rapid_playback_navigation_test.dart`
+6. `test/audio/segment_completion_barrier_test.dart`
+7. `test/audio/reader_lifecycle_policy_test.dart`
+8. `test/audio/sleep_timer_test.dart`
+9. `test/audio/wav_decoder_race_test.dart`
 
 For reproducibility, the focused suites run with `--concurrency=1`
 (one test file at a time) and a two-minute per-test inactivity timeout;
