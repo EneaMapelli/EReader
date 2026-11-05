@@ -1648,3 +1648,20 @@ Android Activity recreation remains a manual device gate.
   environment. No Windows builds or GitHub Actions were started; source
   inspection alone does not confirm native accessibility, visual fidelity
   or playback behavior. Readiness percentages are unchanged.
+
+### Verification-path update — 2026-11-05 (manual audio scope)
+
+- The existing `.github/workflows/manual-verify.yml` now supports
+  `scope=audio` (focused audio transport, Stop timeout, narration recovery,
+  race and segment-completion Flutter tests on both host runner OSes) and
+  `scope=full` (the existing full test and native-build path).
+  The workflow remains **manual-only**; no push/PR/scheduled triggers were
+  added, and audio scope does not publish APK/Windows build artifacts.
+- Test runners now log the exact checked-out SHA and assert tracked
+  `lib/` and `test/` source has not been changed by setup; formatting is
+  non-mutating and advisory. Analysis runs even if a test fails.
+- Run instructions, evidence requirements and on-device acceptance gates:
+  [MANUAL_AUDIO_REGRESSION.md](MANUAL_AUDIO_REGRESSION.md).
+- **Evidence state is unchanged:** no new Actions run, Flutter/Dart test
+  result, Android device trial, or Windows native audio trial was produced.
+  No milestone coverage/release-readiness percentage has been increased.
