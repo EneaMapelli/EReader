@@ -764,3 +764,37 @@ the actual confirmed retirement Future, not merely the start of
 
 No Flutter/Dart analyzer/tests, Android native audio/device test or
 GitHub Actions were executed. PR #1 remains a draft pending validation.
+
+## 2026-11-05 — separate native Stop confirmation from checkpoint latency
+
+`ReaderMediaHandler._trackTransportStop` previously treated the full
+`ReaderPlayer.pause()/seekTo()` command Future as proof of native Stop
+completion. Yet `ReaderPlayer._stopCurrent` can confirm `SpeechEngine.stop()`
+while its command Future continues waiting for the preceding
+`onSegmentCompleted` durable SQLite checkpoint. If that checkpoint
+stalled, a book replacement's Play or even `MediaHandler.close()` could
+wait indefinitely despite an already silent physical TTS engine.
+
+The handler now consumes the full original Pause/Seek Future (including
+exceptions) while registering a separate **bounded**
+`player.waitForNativeStopConfirmation()` as its cross-book audio fence.
+`ReaderPlayer.pause()/seekTo()` remain responsible for their own
+checkpoint sequencing and source cursor correctness. Remote command
+callers still await and surface their own operation failures, including
+database errors. A failed, timed-out or never-confirmed native Stop
+still poisons the transport and requires explicit verified recovery;
+checkpoint slowness by itself no longer masquerades as an unsafe TTS
+engine.
+
+Three deterministic source-level regression tests cover:
+
+- New-book speech after the old engine confirms native Stop, while
+  the old completed-segment database acknowledgment is still held.
+- MediaSession close bounded by confirmed native Stop rather than the
+  delayed database acknowledgment.
+- Failed native Stop still blocking replacement speech even if the
+  old completed-segment checkpoint has not yet finished.
+
+These tests have been **written, not executed**. No Flutter/Dart SDK,
+runner, native Android audio or GitHub Actions were run in this
+environment. PR #1 must remain draft pending host and device validation.
