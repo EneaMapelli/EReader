@@ -56,8 +56,12 @@ jobs:
           grep -q 'class MainActivity : AudioServiceActivity()' android/app/src/main/kotlin/com/example/ereader/ereader/MainActivity.kt
           grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' android/app/src/main/AndroidManifest.xml
           grep -q 'com.ryanheise.audioservice.MediaButtonReceiver' android/app/src/main/AndroidManifest.xml
+      - name: Report exact checked-out SHA
+        run: git rev-parse HEAD
       - name: Resolve dependencies
         run: flutter pub get
+      - name: Assert application/test sources still match the selected commit
+        run: git diff --exit-code -- lib test
       - name: Non-mutating format report (known style backlog is advisory)
         continue-on-error: true
         run: dart format --output=none --set-exit-if-changed lib test
@@ -98,8 +102,12 @@ jobs:
           cache: true
       - name: Generate Windows project
         run: flutter create --project-name ereader --org com.example.ereader --platforms=windows .
+      - name: Report exact checked-out SHA
+        run: git rev-parse HEAD
       - name: Resolve dependencies
         run: flutter pub get
+      - name: Assert application/test sources still match the selected commit
+        run: git diff --exit-code -- lib test
       - name: Non-mutating format report (known style backlog is advisory)
         continue-on-error: true
         run: dart format --output=none --set-exit-if-changed lib test
