@@ -67,7 +67,7 @@ jobs:
         run: dart format --output=none --set-exit-if-changed lib test
       - name: Focused Android-host audio regression tests
         if: ${{ inputs.scope != 'full' }}
-        run: flutter test --reporter expanded test/audio/native_stop_timeout_test.dart test/audio/reader_media_handler_test.dart test/audio/narration_recovery_binding_test.dart test/audio/rapid_playback_navigation_test.dart test/audio/segment_completion_barrier_test.dart
+        run: flutter test --reporter expanded --concurrency=1 --timeout=2m test/audio/native_stop_timeout_test.dart test/audio/reader_media_handler_test.dart test/audio/narration_recovery_binding_test.dart test/audio/rapid_playback_navigation_test.dart test/audio/segment_completion_barrier_test.dart
       - name: Full Flutter unit suite
         if: ${{ inputs.scope == 'full' }}
         run: flutter test --reporter expanded
@@ -113,7 +113,7 @@ jobs:
         run: dart format --output=none --set-exit-if-changed lib test
       - name: Focused Windows-host audio regression tests
         if: ${{ inputs.scope != 'full' }}
-        run: flutter test --reporter expanded test/audio/native_stop_timeout_test.dart test/audio/reader_media_handler_test.dart test/audio/narration_recovery_binding_test.dart test/audio/rapid_playback_navigation_test.dart test/audio/segment_completion_barrier_test.dart
+        run: flutter test --reporter expanded --concurrency=1 --timeout=2m test/audio/native_stop_timeout_test.dart test/audio/reader_media_handler_test.dart test/audio/narration_recovery_binding_test.dart test/audio/rapid_playback_navigation_test.dart test/audio/segment_completion_barrier_test.dart
       - name: Full Flutter unit suite
         if: ${{ inputs.scope == 'full' }}
         run: flutter test --reporter expanded
