@@ -611,14 +611,24 @@ class ReaderPlayer extends ChangeNotifier {
   bool get nativeStopUnconfirmed =>
       _stopUnconfirmed || _stopFailed;
 
-  /// Unlike !isPlaying, this is true only once native stop has settled
-  /// and no seek/voice switch intends to resume the current book. Audio
-  /// focus and crash checkpoints must use this rather than a transient
-  /// state notification emitted during a serialized seek.
-  bool get isSettledIdle =>
+  /// Native output has confirmed silence with no pending auto-resume.
+  /// Unlike a settled *source* cursor, this does not wait for a completed
+  /// segment's durable SQLite checkpoint: that callback can remain pending
+  /// long after SpeechEngine.stop() has acknowledged physical silence.
+  ///
+  /// This is ONLY for audio focus release and safe retired-engine disposal,
+  /// not for deciding whether a pending Seek may be skipped. Navigation
+  /// still needs isSettledIdle, which includes the checkpoint barrier.
+  bool get isNativeAudioQuiet =>
       !_disposed && !isPlaying &&
       !_resumeAfterNavigation && _pendingNativeStops == 0 &&
-      _pendingSegmentCompletions == 0 && !nativeStopUnconfirmed;
+      !nativeStopUnconfirmed;
+
+  /// True after audio AND all completed-segment source checkpoints settle.
+  /// Seek/Stop decisions must use this stronger condition, since an
+  /// unfinished source commit can still change the reading cursor.
+  bool get isSettledIdle =>
+      isNativeAudioQuiet && _pendingSegmentCompletions == 0;
   // Keep the physical native Stop queue independent from checkpoint/durable
   // position writes: those may take longer without proving audio is unsafe.
   Future<void> _pendingNativeStop = Future<void>.value();
