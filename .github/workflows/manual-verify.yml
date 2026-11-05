@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   android:
-    name: Android build + Dart tests
+    name: Linux/Android-host Flutter checks and optional APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -74,7 +74,7 @@ jobs:
         if: ${{ inputs.scope == 'full' }}
         run: flutter build apk --debug
       - name: Collect Android APK
-        if: success()
+        if: ${{ inputs.scope == 'full' && success() }}
         uses: actions/upload-artifact@v4
         with:
           name: ereader-android-debug
@@ -82,7 +82,7 @@ jobs:
           retention-days: 7
 
   windows:
-    name: Windows build + Dart tests
+    name: Windows Flutter checks and optional desktop build
     # Match the user-release compiler; MSVC 14.51 on windows-latest
     # currently rejects just_audio_windows' experimental coroutine header.
     runs-on: windows-2022
@@ -116,7 +116,7 @@ jobs:
         if: ${{ inputs.scope == 'full' }}
         run: flutter build windows --debug
       - name: Collect Windows build
-        if: success()
+        if: ${{ inputs.scope == 'full' && success() }}
         uses: actions/upload-artifact@v4
         with:
           name: ereader-windows-debug
