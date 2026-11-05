@@ -350,7 +350,18 @@ class ReaderMediaHandler extends BaseAudioHandler {
       // audio focus to a new book. Also cancel a pending Seek's *latent*
       // auto-resume (isPlaying may already be false during native Stop).
       if (!outgoing.isSettledIdle) {
-        _trackTransportStop(outgoing.pause(), outgoing);
+        final pendingPause = _pendingMediaPause;
+        final samePausedControl = pendingPause != null &&
+            identical(_pendingMediaPausePlayer, outgoing) &&
+            _pendingMediaPauseRevision == outgoing.narrationControlRevision;
+        if (!samePausedControl) {
+          // A direct Play/Seek after Pause changes control revision and
+          // requires a new Stop before detaching the book.
+          _trackTransportStop(outgoing.pause(), outgoing);
+        }
+        // Otherwise that exact media Pause already invalidated playback
+        // and queued native Stop. Do not issue a second global TTS Stop
+        // merely because its source checkpoint remains unfinished.
       }
       outgoingNativeStop = outgoing.waitForNativeStopConfirmation();
       // Keep this independent from _pendingTransportStops: that chain also
@@ -830,8 +841,22 @@ class ReaderMediaHandler extends BaseAudioHandler {
   @override
   Future<void> onTaskRemoved() async {
     final removedBinding = _bindingEpoch;
+    final removedPlayer = _player;
+    final pausing = pause();
+    // The complete Pause Future may still be waiting on a SQLite segment
+    // checkpoint after native TTS has confirmed silence. Keep observing
+    // that command (including any late exception), but do not block
+    // Android task teardown on an unrelated durable storage callback.
+    unawaited(pausing.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    ));
     try {
-      await pause();
+      if (removedPlayer == null) {
+        await pausing;
+      } else if (!await removedPlayer.waitForNativeStopConfirmation()) {
+        throw StateError('Native speech Stop not confirmed on task removal');
+      }
     } finally {
       // attach/detach increments the epoch, including when a player is
       // rebound with a different book. Clean up only the original binding.
@@ -839,6 +864,10 @@ class ReaderMediaHandler extends BaseAudioHandler {
       if (removedBinding == _bindingEpoch) {
         detach();
         await _focusOperation;
+        // A direct Play/Seek arriving during the first Stop can require
+        // a fresh Stop at detach. That native fence, too, must settle
+        // before Android considers task removal complete.
+        await _pendingTransportStops;
       }
     }
   }
