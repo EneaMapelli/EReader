@@ -798,3 +798,39 @@ Three deterministic source-level regression tests cover:
 These tests have been **written, not executed**. No Flutter/Dart SDK,
 runner, native Android audio or GitHub Actions were run in this
 environment. PR #1 must remain draft pending host and device validation.
+
+## 2026-11-05 — bound Android task removal by native silence
+
+Android `onTaskRemoved()` previously awaited the *full*
+`ReaderMediaHandler.pause()` Future before detaching its media session.
+Even after the native TTS engine acknowledged Stop, the command Future
+could remain pending on a completed-segment SQLite checkpoint. Therefore
+swiping away an Android task could indefinitely retain media metadata and
+focus if the checkpoint never returned, despite already silent audio.
+
+Task removal now starts the same Pause, separately **observes its complete
+Future including late failures**, and waits for the player's bounded
+`waitForNativeStopConfirmation()` before detaching. An unconfirmed or
+failed physical Stop still produces a `StateError` and detaches the
+same binding; the original checkpoint continues independently, retaining
+its source-accuracy guarantees. After detaching, the handler awaits
+the latest transport fence so a direct Play/Seek that raced the first
+Pause cannot leave native audio in flight.
+
+In `detach()`, if the same MediaSession Pause has already invalidated
+the same player's latest control revision, it is reused: no duplicate
+global native `SpeechEngine.stop()` is sent solely because storage
+has not acknowledged the completed source segment. A new direct
+ReaderPlayer Play/Seek increments its control revision; this
+explicitly requires a fresh Stop during detach to avoid unwanted speech.
+
+Three deterministic tests now cover task removal with a held durable
+checkpoint (one native Stop and a completed teardown), a new direct
+Play that supersedes the pending Pause (a fresh Stop required), and a
+failed native Stop (task detaches, remains unsafe, does not wait for
+the SQLite callback). Existing task-removal tests retain checks for
+book reattachment and Stop errors.
+
+These are **source-level changes only**. Neither Flutter/Dart tests,
+GitHub Actions, nor Android on-device background/audio lifecycle tests
+were executed for this change. PR #1 remains draft.
