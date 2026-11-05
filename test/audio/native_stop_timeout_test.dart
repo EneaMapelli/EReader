@@ -417,6 +417,9 @@ void main() {
 
     final removing = handler.onTaskRemoved();
     final directPlay = player.play();
+    // Attach the expected rejection immediately: a failed queued native
+    // Stop can reject direct Play before the checkpoint is released.
+    final rejectedPlay = expectLater(directPlay, throwsStateError);
     expect(player.isPlaying, isTrue);
     engine.stopGate!.complete();
     await expectLater(removing.timeout(const Duration(seconds: 1)),
@@ -427,7 +430,7 @@ void main() {
     expect(engine.spoken, ['First'],
         reason: 'The newer Play must not speak after task removal');
     checkpoint.complete();
-    await directPlay;
+    await rejectedPlay;
     await _settle();
     await handler.close();
     player.dispose();
