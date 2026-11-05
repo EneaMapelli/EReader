@@ -867,7 +867,13 @@ class ReaderMediaHandler extends BaseAudioHandler {
         // A direct Play/Seek arriving during the first Stop can require
         // a fresh Stop at detach. That native fence, too, must settle
         // before Android considers task removal complete.
-        await _pendingTransportStops;
+        final allNativeStopsConfirmed = await _pendingTransportStops;
+        if (!allNativeStopsConfirmed) {
+          // A direct Play or Seek may have superseded the original Pause,
+          // forcing detach to queue another Stop. The *second* Stop must
+          // also be positively confirmed before task removal succeeds.
+          throw StateError('Native speech Stop not confirmed on task removal');
+        }
       }
     }
   }
