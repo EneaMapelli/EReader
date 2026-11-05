@@ -258,6 +258,126 @@ void main() {
     player.dispose();
   });
 
+  test('new book can speak after confirmed Stop while old checkpoint waits',
+      () async {
+    final checkpoint = Completer<void>();
+    final oldEngine = _HeldStopEngine();
+    final nextEngine = _HeldStopEngine();
+    final old = ReaderPlayer(
+      engine: oldEngine,
+      segments: const [
+        SpeechSegment(0, 5, 'First'),
+        SpeechSegment(6, 12, 'Second'),
+      ],
+      nativeStopTimeout: const Duration(milliseconds: 80),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => checkpoint.future,
+    );
+    final next = _player(nextEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(old, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    expect(oldEngine.spoken, ['First']);
+
+    // Native speech finished, but its durable reading anchor still awaits
+    // a database acknowledgment. That storage latency is not live audio.
+    oldEngine.completeSpeech();
+    for (var i = 0; i < 50 && !old.isCommittingSpeechSegment; i++) {
+      await _settle();
+    }
+    expect(old.isCommittingSpeechSegment, isTrue);
+    expect(checkpoint.isCompleted, isFalse);
+
+    handler.attach(next, bookId: 'next', title: 'Next');
+    await handler.play().timeout(const Duration(seconds: 1));
+    await _settle();
+    expect(oldEngine.nativeStops, 1);
+    expect(nextEngine.spoken, ['First'],
+        reason: 'Confirmed native silence permits new book audio even '
+            'when old source checkpoint is still being written');
+    expect(checkpoint.isCompleted, isFalse);
+    expect(handler.requiresFreshAudioSession, isFalse);
+
+    checkpoint.complete();
+    await _settle();
+    await handler.pause();
+    await handler.close();
+    old.dispose();
+    next.dispose();
+  });
+
+  test('close does not await old checkpoint after native Stop confirms',
+      () async {
+    final checkpoint = Completer<void>();
+    final engine = _HeldStopEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [SpeechSegment(0, 5, 'First')],
+      nativeStopTimeout: const Duration(milliseconds: 80),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => checkpoint.future,
+    );
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    engine.completeSpeech();
+    for (var i = 0; i < 50 && !player.isCommittingSpeechSegment; i++) {
+      await _settle();
+    }
+    expect(player.isCommittingSpeechSegment, isTrue);
+
+    await handler.close().timeout(const Duration(seconds: 1));
+    expect(handler.hasActiveBook, isFalse);
+    expect(engine.nativeStops, 1);
+    expect(player.nativeStopUnconfirmed, isFalse);
+    expect(checkpoint.isCompleted, isFalse,
+        reason: 'Closing the MediaSession cannot require a database callback');
+
+    checkpoint.complete();
+    await _settle();
+    player.dispose();
+  });
+
+  test('failed native Stop still prevents replacement during old checkpoint',
+      () async {
+    final checkpoint = Completer<void>();
+    final oldEngine = _HeldStopEngine();
+    final nextEngine = _HeldStopEngine();
+    final old = ReaderPlayer(
+      engine: oldEngine,
+      segments: const [SpeechSegment(0, 5, 'First')],
+      nativeStopTimeout: const Duration(milliseconds: 80),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => checkpoint.future,
+    );
+    final next = _player(nextEngine);
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(old, bookId: 'old', title: 'Old');
+    await handler.play();
+    await _settle();
+    oldEngine.completeSpeech();
+    for (var i = 0; i < 50 && !old.isCommittingSpeechSegment; i++) {
+      await _settle();
+    }
+    expect(old.isCommittingSpeechSegment, isTrue);
+
+    oldEngine.throwOnStop = true;
+    handler.attach(next, bookId: 'next', title: 'Next');
+    await expectLater(handler.play().timeout(const Duration(seconds: 1)),
+        throwsStateError);
+    expect(handler.requiresFreshAudioSession, isTrue);
+    expect(nextEngine.spoken, isEmpty,
+        reason: 'Checkpoint independence never bypasses a failed Stop');
+
+    checkpoint.complete();
+    await _settle();
+    await handler.close();
+    old.dispose();
+    next.dispose();
+  });
+
   test('native Stop confirmation snapshot has a finite deadline',
       () async {
     final engine = _HeldStopEngine();
