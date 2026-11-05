@@ -824,12 +824,13 @@ has not acknowledged the completed source segment. A new direct
 ReaderPlayer Play/Seek increments its control revision; this
 explicitly requires a fresh Stop during detach to avoid unwanted speech.
 
-Three deterministic tests now cover task removal with a held durable
+Four deterministic tests now cover task removal with a held durable
 checkpoint (one native Stop and a completed teardown), a new direct
-Play that supersedes the pending Pause (a fresh Stop required), and a
-failed native Stop (task detaches, remains unsafe, does not wait for
-the SQLite callback). Existing task-removal tests retain checks for
-book reattachment and Stop errors.
+Play that supersedes the pending Pause (a fresh Stop required), a
+failure in that *second* superseding Stop (reported rather than silently
+accepted), and a failed original native Stop (task detaches, remains
+unsafe, does not wait for the SQLite callback). Existing task-removal
+tests retain checks for book reattachment and Stop errors.
 
 These are **source-level changes only**. Neither Flutter/Dart tests,
 GitHub Actions, nor Android on-device background/audio lifecycle tests
