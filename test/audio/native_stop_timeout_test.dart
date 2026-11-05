@@ -307,6 +307,48 @@ void main() {
     next.dispose();
   });
 
+  test('task removal waits for native silence, not held source checkpoint',
+      () async {
+    final checkpoint = Completer<void>();
+    final engine = _HeldStopEngine();
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [SpeechSegment(0, 5, 'First')],
+      nativeStopTimeout: const Duration(milliseconds: 80),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => checkpoint.future,
+    );
+    var releases = 0;
+    final handler = ReaderMediaHandler(
+      requestFocus: () async => true,
+      releaseFocus: () async { releases++; },
+    );
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await _settle();
+    engine.completeSpeech();
+    for (var i = 0; i < 50 && !player.isCommittingSpeechSegment; i++) {
+      await _settle();
+    }
+    expect(player.isCommittingSpeechSegment, isTrue);
+
+    // A native Stop is required to invalidate the session, but the
+    // durable SQLite callback can outlive Android task removal.
+    await handler.onTaskRemoved().timeout(const Duration(seconds: 1));
+    expect(engine.nativeStops, 1,
+        reason: 'Detach must reuse the same pending media Pause');
+    expect(handler.hasActiveBook, isFalse);
+    expect(handler.mediaItem.value, isNull);
+    expect(releases, 1);
+    expect(checkpoint.isCompleted, isFalse);
+    expect(player.nativeStopUnconfirmed, isFalse);
+
+    checkpoint.complete();
+    await _settle();
+    await handler.close();
+    player.dispose();
+  });
+
   test('close does not await old checkpoint after native Stop confirms',
       () async {
     final checkpoint = Completer<void>();
