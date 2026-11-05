@@ -13,6 +13,8 @@ class _HeldStopEngine implements SpeechEngine {
   Completer<void>? utterance;
   int nativeStops = 0;
   bool throwOnStop = false;
+  // Optional one-shot failure for superseded Stop regression tests.
+  int? failOnStopNumber;
 
   @override
   Future<List<SpeechVoice>> listVoices() async => const [];
@@ -35,7 +37,9 @@ class _HeldStopEngine implements SpeechEngine {
   Future<void> stop() async {
     nativeStops++;
     if (stopGate != null) await stopGate!.future;
-    if (throwOnStop) throw StateError('native Stop refused');
+    if (throwOnStop || nativeStops == failOnStopNumber) {
+      throw StateError('native Stop refused');
+    }
     completeSpeech();
   }
 
@@ -387,6 +391,46 @@ void main() {
     await _settle();
     player.dispose();
     await handler.close();
+  });
+
+  test('task removal reports failure of superseding second native Stop',
+      () async {
+    final checkpoint = Completer<void>();
+    final engine = _HeldStopEngine()..failOnStopNumber = 2;
+    final player = ReaderPlayer(
+      engine: engine,
+      segments: const [SpeechSegment(0, 5, 'First')],
+      nativeStopTimeout: const Duration(milliseconds: 80),
+      onSegmentStarted: (_) async {},
+      onSegmentCompleted: (_, __) => checkpoint.future,
+    );
+    final handler = ReaderMediaHandler(requestFocus: () async => true);
+    handler.attach(player, bookId: 'book', title: 'Book');
+    await handler.play();
+    await _settle();
+    engine.completeSpeech();
+    for (var i = 0; i < 50 && !player.isCommittingSpeechSegment; i++) {
+      await _settle();
+    }
+    expect(player.isCommittingSpeechSegment, isTrue);
+    engine.stopGate = Completer<void>();
+
+    final removing = handler.onTaskRemoved();
+    final directPlay = player.play();
+    expect(player.isPlaying, isTrue);
+    engine.stopGate!.complete();
+    await expectLater(removing.timeout(const Duration(seconds: 1)),
+        throwsStateError);
+    expect(engine.nativeStops, 2);
+    expect(handler.hasActiveBook, isFalse);
+    expect(player.nativeStopUnconfirmed, isTrue);
+    expect(engine.spoken, ['First'],
+        reason: 'The newer Play must not speak after task removal');
+    checkpoint.complete();
+    await directPlay;
+    await _settle();
+    await handler.close();
+    player.dispose();
   });
 
   test('failed task-removal Stop detaches with a held checkpoint',
